@@ -7,8 +7,10 @@ services:
     repo: bericaandrei1-arch/Elix-Star-Live-Good-MVP-Updated
     branch: main
   dockerfile_path: Dockerfile
-  http_port: 3000
+  http_port: 8080
   envs:
+  - key: PORT
+    value: "8080"
   - key: VITE_SUPABASE_URL
     value: ${VITE_SUPABASE_URL}
   - key: VITE_SUPABASE_ANON_KEY
@@ -23,4 +25,3 @@ services:
     value: ${STRIPE_WEBHOOK_SECRET}
   - key: SUPABASE_SERVICE_ROLE_KEY
     value: ${SUPABASE_SERVICE_ROLE_KEY}
-

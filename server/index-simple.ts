@@ -111,7 +111,7 @@ app.get('/', (req, res) => {
 });
 
 // Fallback for SPA - all non-API routes serve index.html
-app.get('*', (req, res) => {
+app.get(/.*/, (req, res) => {
   console.log(`🔄 Serving fallback for ${req.url}`);
   try {
     if (fs.existsSync(indexPath)) {

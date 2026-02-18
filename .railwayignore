@@ -1,0 +1,10 @@
+node_modules/
+build/
+.env
+.git/
+.vercel/
+android/
+ios/
+coverage/
+.trae/
+public/gifts/

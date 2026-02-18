@@ -3,6 +3,7 @@ import { Send, ArrowLeft } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../store/useAuthStore';
+import { LevelBadge } from '../components/LevelBadge';
 
 interface Message {
   id: string;
@@ -16,6 +17,7 @@ interface Participant {
   user_id: string;
   username: string;
   avatar_url: string | null;
+  level?: number;
 }
 
 export default function ChatThread() {
@@ -52,7 +54,7 @@ export default function ChatThread() {
         // 2. Get other user profile
         const { data: profile } = await supabase
           .from('profiles')
-          .select('user_id, username, avatar_url, display_name')
+          .select('user_id, username, avatar_url, display_name, level')
           .eq('user_id', otherId)
           .single();
           
@@ -60,7 +62,8 @@ export default function ChatThread() {
             setOtherUser({
                 user_id: profile.user_id,
                 username: profile.display_name || profile.username || 'User',
-                avatar_url: profile.avatar_url
+                avatar_url: profile.avatar_url,
+                level: profile.level || 1
             });
         }
       } catch (err) {
@@ -182,11 +185,14 @@ export default function ChatThread() {
           
           {otherUser ? (
               <div className="flex items-center gap-3">
-                  <img 
-                    src={otherUser.avatar_url || ''} 
-                    alt="Avatar" 
-                    className="w-8 h-8 rounded-full object-cover bg-gray-700" 
-                  />
+                  <div className="flex-shrink-0">
+                      <LevelBadge 
+                        level={otherUser.level || 1} 
+                        avatar={otherUser.avatar_url || ''} 
+                        size={36} 
+                        layout="fixed" 
+                      />
+                  </div>
                   <span className="font-bold text-sm">{otherUser.username}</span>
               </div>
           ) : (

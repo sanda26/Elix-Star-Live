@@ -162,9 +162,9 @@ const giftUrl = (path: string) => {
     coins: 5000, 
     giftType: 'big', 
     isActive: true, 
-    icon: giftUrl('/gifts/horse.png'), 
-    video: giftUrl('/gifts/horse.mp4'), 
-    preview: giftUrl('/gifts/horse.png'), 
+    icon: giftUrl('/gifts/Horse.png'), 
+    video: giftUrl('/gifts/Horse.mp4'), 
+    preview: giftUrl('/gifts/Horse.png'), 
   }, 
   { 
     id: 'rex_dino', 

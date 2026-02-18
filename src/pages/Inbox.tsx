@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { Heart, MessageCircle, UserPlus, Gift, Bell, Mail } from 'lucide-react';
+import { Heart, UserPlus, Bell, Search, MoreHorizontal, ChevronDown, Camera, ShoppingBag, Archive, MicOff } from 'lucide-react';
 
 interface Notification {
   id: string;
-  type: 'like' | 'comment' | 'follow' | 'gift' | 'battle_invite' | 'system';
+  type: 'like' | 'comment' | 'follow' | 'gift' | 'battle_invite' | 'system' | 'shop';
   actor_id: string;
   actor?: { username: string; avatar_url: string | null };
   title: string;
@@ -27,41 +27,29 @@ interface Conversation {
 
 const DEMO_NOTIFICATIONS: Notification[] = [
   {
-    id: 'demo-notif-1',
-    type: 'follow',
-    actor_id: 'demo-actor-1',
-    actor: { username: 'kashmir', avatar_url: 'https://ui-avatars.com/api/?name=Kashmir&background=121212&color=E6B36A' },
-    title: 'started following you.',
-    body: null,
-    image_url: null,
-    action_url: null,
-    is_read: false,
-    created_at: new Date(Date.now() - 1000 * 60 * 10).toISOString(),
-  },
-  {
-    id: 'demo-notif-2',
-    type: 'like',
-    actor_id: 'demo-actor-2',
-    actor: { username: 'stefanuca', avatar_url: 'https://ui-avatars.com/api/?name=Stefanuca&background=121212&color=E6B36A' },
-    title: 'liked your video.',
-    body: null,
-    image_url: null,
-    action_url: null,
-    is_read: true,
-    created_at: new Date(Date.now() - 1000 * 60 * 60 * 3).toISOString(),
-  },
-  {
     id: 'demo-notif-3',
     type: 'system',
     actor_id: 'demo-system',
     actor: undefined,
     title: 'System notifications',
-    body: 'LIVE: Your viewers want to see more…',
+    body: 'LIVE: Your viewers want to see more...',
+    image_url: null,
+    action_url: null,
+    is_read: true,
+    created_at: new Date(Date.now() - 1000 * 60 * 60 * 21).toISOString(),
+  },
+  {
+    id: 'demo-notif-4',
+    type: 'shop',
+    actor_id: 'demo-shop',
+    actor: undefined,
+    title: 'TikTok Shop',
+    body: "Shop updates: Andrei Ionut B..., you've...",
     image_url: null,
     action_url: null,
     is_read: true,
     created_at: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
-  },
+  }
 ];
 
 const DEMO_CONVERSATIONS: Conversation[] = [
@@ -70,22 +58,36 @@ const DEMO_CONVERSATIONS: Conversation[] = [
     participant_1: 'demo',
     participant_2: 'demo',
     last_message_at: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
-    otherUser: { username: 'sandraa', avatar_url: 'https://ui-avatars.com/api/?name=Sandra&background=121212&color=E6B36A' },
-    lastMessage: '[28 messages] shared a LIVE',
+    otherUser: { username: 'ðŸ’—ðŸŒ¸sandraa.monicaaðŸŒ¸ðŸ’—', avatar_url: 'https://ui-avatars.com/api/?name=Sandra&background=121212&color=E6B36A' },
+    lastMessage: 'Posted a video',
   },
   {
     id: 'demo-conv-2',
     participant_1: 'demo',
     participant_2: 'demo',
-    last_message_at: new Date(Date.now() - 1000 * 60 * 60 * 18).toISOString(),
-    otherUser: { username: 'vadva', avatar_url: 'https://ui-avatars.com/api/?name=Vaduva&background=121212&color=E6B36A' },
-    lastMessage: '[24 messages] shared a LIVE',
+    last_message_at: new Date(Date.now() - 1000 * 60 * 60 * 17).toISOString(),
+    otherUser: { username: 'albertgashi.81', avatar_url: 'https://ui-avatars.com/api/?name=Albert&background=121212&color=E6B36A' },
+    lastMessage: '[28 messages] shared a LIVE Â· 17h',
   },
+  {
+    id: 'demo-conv-3',
+    participant_1: 'demo',
+    participant_2: 'demo',
+    last_message_at: new Date(Date.now() - 1000 * 60 * 60 * 18).toISOString(),
+    otherUser: { username: 'ðŸ†VÄƒduva. neagrÄƒ.30ðŸ† 4foryouâœ…', avatar_url: 'https://ui-avatars.com/api/?name=Vaduva&background=121212&color=E6B36A' },
+    lastMessage: '[24 messages] shared a LIVE Â· 18h',
+  },
+];
+
+const STORY_USERS = [
+  { id: 'u1', username: 'narcisa', avatar_url: 'https://ui-avatars.com/api/?name=Narcisa&background=121212&color=E6B36A', hasStory: false },
+  { id: 'u2', username: 'ðŸ’ŽHaicu...', avatar_url: 'https://ui-avatars.com/api/?name=Haiducu&background=121212&color=E6B36A', hasStory: true },
+  { id: 'u3', username: 'Raluca Be...', avatar_url: 'https://ui-avatars.com/api/?name=Raluca&background=121212&color=E6B36A', hasStory: true },
+  { id: 'u4', username: 'Eu Si Atat', avatar_url: 'https://ui-avatars.com/api/?name=Eu&background=121212&color=E6B36A', hasStory: true },
 ];
 
 export default function Inbox() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'notifications' | 'messages'>('notifications');
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -95,278 +97,167 @@ export default function Inbox() {
     setCurrentUserId(data.user?.id || null);
   };
 
-  const loadNotifications = useCallback(async () => {
-    if (!currentUserId) return;
-
-    try {
-      const { data, error } = await supabase
-        .from('notifications')
-        .select('*, actor:profiles!actor_id(username, avatar_url)')
-        .eq('user_id', currentUserId)
-        .order('created_at', { ascending: false })
-        .limit(50);
-
-      if (error) throw error;
-      setNotifications(data || []);
-    } catch (error) {
-      console.error('Failed to load notifications:', error);
-    }
-  }, [currentUserId]);
-
-  const loadConversations = useCallback(async () => {
-    if (!currentUserId) return;
-
-    try {
-      const { data, error } = await supabase
-        .from('conversations')
-        .select('*')
-        .or(`participant_1.eq.${currentUserId},participant_2.eq.${currentUserId}`)
-        .order('last_message_at', { ascending: false })
-        .limit(50);
-
-      if (error) throw error;
-      setConversations(data || []);
-    } catch (error) {
-      console.error('Failed to load conversations:', error);
-    }
-  }, [currentUserId]);
-
   useEffect(() => {
     loadCurrentUser();
+    setNotifications(DEMO_NOTIFICATIONS);
+    setConversations(DEMO_CONVERSATIONS);
   }, []);
-
-  useEffect(() => {
-    if (currentUserId) {
-      if (activeTab === 'notifications') {
-        loadNotifications();
-      } else {
-        loadConversations();
-      }
-    }
-  }, [activeTab, currentUserId, loadNotifications, loadConversations]);
-
-  const markAsRead = async (notificationId: string) => {
-    await supabase
-      .from('notifications')
-      .update({ is_read: true })
-      .eq('id', notificationId);
-
-    setNotifications(prev =>
-      prev.map(n => (n.id === notificationId ? { ...n, is_read: true } : n))
-    );
-  };
-
-  const getNotificationIcon = (type: string) => {
-    switch (type) {
-      case 'like':
-        return <Heart className="w-5 h-5 text-red-500" />;
-      case 'comment':
-        return <MessageCircle className="w-5 h-5 text-blue-500" />;
-      case 'follow':
-        return <UserPlus className="w-5 h-5 text-green-500" />;
-      case 'gift':
-        return <Gift className="w-5 h-5 text-purple-500" />;
-      default:
-        return <Bell className="w-5 h-5 text-gray-400" />;
-    }
-  };
-
-  const displayedNotifications =
-    notifications.length > 0 ? notifications : import.meta.env.DEV ? DEMO_NOTIFICATIONS : [];
-  const displayedConversations =
-    conversations.length > 0 ? conversations : import.meta.env.DEV ? DEMO_CONVERSATIONS : [];
-
-  const storyUsers = (() => {
-    const items: Array<{ key: string; username: string; avatarUrl: string }> = [];
-    const push = (username: string, avatarUrl?: string | null) => {
-      const key = username.toLowerCase();
-      if (items.some((i) => i.key === key)) return;
-      const resolved =
-        avatarUrl ||
-        `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=121212&color=E6B36A`;
-      items.push({ key, username, avatarUrl: resolved });
-    };
-    displayedConversations.forEach((c) => {
-      if (c.otherUser?.username) push(c.otherUser.username, c.otherUser.avatar_url);
-    });
-    displayedNotifications.forEach((n) => {
-      if (n.actor?.username) push(n.actor.username, n.actor.avatar_url);
-    });
-    return items.slice(0, 10);
-  })();
 
   return (
     <div className="min-h-[100dvh] bg-black text-white flex justify-center px-2">
-      <div className="w-full max-w-[480px] h-[100dvh] rounded-3xl overflow-hidden bg-[#121212] pt-[var(--safe-top)] pb-[calc(var(--safe-bottom)+12mm)] overflow-y-auto">
+      <div className="w-full max-w-[480px] h-[100dvh] rounded-3xl overflow-hidden bg-[#121212] flex flex-col pt-[var(--safe-top)] pb-[calc(var(--safe-bottom)+12mm)]">
+        
         {/* Header */}
-        <div className="sticky top-0 bg-[#121212] z-10 px-4 py-4 border-b border-transparent">
-          <div className="flex items-center gap-3 mb-1">
-            <button onClick={() => navigate('/feed')} className="p-1 hover:brightness-125 transition" title="Back to For You">
-              <img src="/Icons/power-button.png" alt="Back" className="w-5 h-5" />
+        <div className="px-4 py-3 flex items-center justify-between sticky top-0 z-10 bg-[#121212]">
+            <button className="w-8 h-8 rounded-full flex items-center justify-center">
+                 <div className="w-6 h-6 rounded-full border-2 border-white flex items-center justify-center">
+                    <span className="text-white text-sm font-bold leading-none pb-0.5">+</span>
+                 </div>
             </button>
-            <h1 className="text-2xl font-bold">Inbox</h1>
-          </div>
+            
+            <button className="flex items-center gap-1 font-bold text-lg">
+                Inbox
+                <div className="bg-[#FE2C55] rounded px-1 py-0.5 ml-1">
+                    <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
+                </div>
+            </button>
 
-          {/* Tabs */}
-          <div className="flex gap-4 mt-4">
-            <button
-              onClick={() => setActiveTab('notifications')}
-              className={`flex-1 py-1.5 rounded-lg font-semibold text-sm transition ${
-                activeTab === 'notifications'
-                  ? 'bg-[#E6B36A] text-black'
-                  : 'text-white'
-              }`}
-            >
-              <Bell className="w-4 h-4 inline mr-1.5" />
-              Notifications
-            </button>
-            <button
-              onClick={() => setActiveTab('messages')}
-              className={`flex-1 py-1.5 rounded-lg font-semibold text-sm transition ${
-                activeTab === 'messages'
-                  ? 'bg-[#E6B36A] text-black'
-                  : 'text-white'
-              }`}
-            >
-              <Mail className="w-4 h-4 inline mr-1.5" />
-              Messages
-            </button>
-          </div>
-
-          {(import.meta.env.DEV || storyUsers.length > 0) && (
-            <div className="mt-4">
-              <div className="flex gap-4 overflow-x-auto pb-1">
-                <button
-                  type="button"
-                  onClick={() => navigate('/create')}
-                  className="flex-shrink-0 w-[72px] flex flex-col items-center gap-2"
-                >
-                  <div className="relative w-16 h-16 rounded-full bg-black">
-                    <div className="absolute inset-0 rounded-full ring-2 ring-[#00f5ff]" />
-                    <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-[#00f5ff] flex items-center justify-center text-black font-bold leading-none">
-                      +
-                    </div>
-                    <img
-                      src="https://ui-avatars.com/api/?name=Create&background=121212&color=E6B36A"
-                      alt="Create"
-                      className="w-full h-full rounded-full object-cover"
-                      draggable={false}
-                    />
-                  </div>
-                  <div className="text-xs text-white/80 truncate w-full text-center">Create</div>
-                </button>
-                {storyUsers.map((u) => (
-                  <button
-                    key={u.key}
-                    type="button"
-                    className="flex-shrink-0 w-[72px] flex flex-col items-center gap-2"
-                  >
-                    <div className="w-16 h-16 rounded-full p-[2px] bg-gradient-to-tr from-[#00f5ff] via-[#00f5ff] to-[#E6B36A]">
-                      <div className="w-full h-full rounded-full bg-[#121212] p-[2px]">
-                        <img
-                          src={u.avatarUrl}
-                          alt={u.username}
-                          className="w-full h-full rounded-full object-cover"
-                          draggable={false}
-                        />
-                      </div>
-                    </div>
-                    <div className="text-xs text-white/80 truncate w-full text-center">{u.username}</div>
-                  </button>
-                ))}
-              </div>
+            <div className="flex items-center gap-4">
+                <Search size={24} />
+                <MoreHorizontal size={24} />
             </div>
-          )}
         </div>
 
-        {/* Content */}
-        <div className="px-4 pt-[8mm] pb-4">
-          {activeTab === 'notifications' ? (
-            <div className="space-y-3">
-              {displayedNotifications.map(notif => (
-                <div
-                  key={notif.id}
-                  onClick={() => {
-                    if (notif.id.startsWith('demo-')) return;
-                    markAsRead(notif.id);
-                    if (notif.action_url) {
-                      navigate(notif.action_url);
-                    }
-                  }}
-                  className={`flex items-start gap-3 p-4 rounded-lg cursor-pointer transition ${
-                    notif.is_read ? 'bg-transparent' : 'bg-[#E6B36A]/10'
-                  }`}
-                >
-                  <div className="mt-1">{getNotificationIcon(notif.type)}</div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      {notif.actor && (
-                        <img
-                          src={notif.actor.avatar_url || `https://ui-avatars.com/api/?name=${notif.actor.username}`}
-                          alt={notif.actor.username}
-                          className="w-8 h-8 object-cover"
-                        />
-                      )}
-                      <span className="font-semibold">{notif.actor?.username || 'System'}</span>
-                      <span className="text-white/60">{notif.title}</span>
+        {/* Stories/Circles */}
+        <div className="px-4 py-2">
+            <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2">
+                {/* Create - Blue Circle */}
+                <div className="flex flex-col items-center gap-1 min-w-[64px]">
+                    <div className="relative w-16 h-16">
+                        <div className="w-full h-full rounded-full p-[2px] bg-gradient-to-tr from-[#00f2ea] to-[#00f2ea]">
+                            <div className="w-full h-full rounded-full border-2 border-[#121212] overflow-hidden">
+                                 <img src="https://ui-avatars.com/api/?name=Me&background=333&color=fff" className="w-full h-full object-cover opacity-80" />
+                            </div>
+                        </div>
+                        <div className="absolute bottom-0 right-0 bg-[#00f2ea] rounded-full p-0.5 border-2 border-[#121212] w-5 h-5 flex items-center justify-center">
+                            <span className="text-white font-bold text-xs leading-none">+</span>
+                        </div>
                     </div>
-                    {notif.body && <p className="text-sm text-white/70">{notif.body}</p>}
-                    <p className="text-xs text-white/40 mt-1">{formatTime(notif.created_at)}</p>
-                  </div>
-                  {!notif.is_read && <div className="w-2 h-2 bg-[#E6B36A] rounded-full mt-2"></div>}
+                    <span className="text-xs text-white font-semibold mt-1">Create</span>
                 </div>
-              ))}
 
-              {displayedNotifications.length === 0 && (
-                <div className="text-center py-12 text-white/40">No notifications yet</div>
-              )}
+                {STORY_USERS.map(u => (
+                    <div key={u.id} className="flex flex-col items-center gap-1 min-w-[64px]">
+                        <div className={`w-16 h-16 rounded-full p-[2px] ${u.hasStory || u.username === 'Eu Si Atat' || u.username === 'narcisa' ? 'bg-gradient-to-tr from-[#00f2ea] to-[#00f2ea]' : 'bg-transparent'}`}>
+                            <div className="w-full h-full rounded-full border-2 border-[#121212] overflow-hidden bg-gray-800">
+                                <img src={u.avatar_url} className="w-full h-full object-cover" />
+                            </div>
+                        </div>
+                        <span className="text-xs text-white font-semibold mt-1 truncate w-16 text-center">{u.username}</span>
+                    </div>
+                ))}
             </div>
-          ) : (
-            <div className="space-y-3">
-              {displayedConversations.map(conv => (
-                <div
-                  key={conv.id}
-                  onClick={() => {
-                    if (conv.id.startsWith('demo-')) return;
-                    navigate(`/inbox/${conv.id}`);
-                  }}
-                  className="flex items-center gap-3 p-4 rounded-lg cursor-pointer hover:brightness-125 transition"
-                >
-                  <img
-                    src={conv.otherUser?.avatar_url || `https://ui-avatars.com/api/?name=User`}
-                    alt="User"
-                    className="w-12 h-12 object-cover"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold">{conv.otherUser?.username || 'User'}</p>
-                    <p className="text-sm text-white/60 truncate">{conv.lastMessage || 'No messages yet'}</p>
-                  </div>
-                  <span className="text-xs text-white/40">{formatTime(conv.last_message_at)}</span>
+        </div>
+
+        {/* Filters */}
+        <div className="pl-[calc(1rem+6mm)] pr-4 py-2 flex items-center gap-2 overflow-x-auto no-scrollbar mb-2">
+            <button className="px-4 py-1.5 rounded bg-[#00f2ea]/20 text-[#00f2ea] text-xs font-bold whitespace-nowrap">Main 11</button>
+            <button className="px-4 py-1.5 rounded bg-[#2F2F2F] hover:bg-[#3F3F3F] text-white text-xs font-bold whitespace-nowrap">Requests</button>
+            <button className="px-4 py-1.5 rounded bg-[#2F2F2F] hover:bg-[#3F3F3F] text-white text-xs font-bold whitespace-nowrap">Unread 2</button>
+            <button className="px-4 py-1.5 rounded bg-[#2F2F2F] hover:bg-[#3F3F3F] text-white text-xs font-bold whitespace-nowrap">Starred</button>
+            <div className="ml-auto text-white">
+                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line><line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line><line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line><line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line><line x1="17" y1="16" x2="23" y2="16"></line></svg>
+            </div>
+        </div>
+
+        {/* List Content */}
+        <div className="flex-1 overflow-y-auto px-4 py-1 space-y-4">
+            
+            {/* New Followers */}
+            <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-[#00f2ea] flex items-center justify-center">
+                    <UserPlus className="w-6 h-6 text-white" fill="white" />
                 </div>
-              ))}
-
-              {displayedConversations.length === 0 && (
-                <div className="text-center py-12 text-white/40">No messages yet</div>
-              )}
+                <div className="flex-1 min-w-0">
+                    <h3 className="font-bold text-sm">New followers</h3>
+                    <p className="text-white/60 text-xs truncate">Kashmir started following you.</p>
+                </div>
+                <div className="w-5 h-5 rounded-full bg-[#FE2C55] flex items-center justify-center text-white text-[10px] font-bold">1</div>
             </div>
-          )}
+
+            {/* Activity */}
+            <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-[#FE2C55] flex items-center justify-center">
+                    <Heart className="w-6 h-6 text-white" fill="white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                    <h3 className="font-bold text-sm">Activity</h3>
+                    <p className="text-white/60 text-xs truncate">Stefanuca Radu liked your video.</p>
+                </div>
+                <div className="w-5 h-5 rounded-full bg-[#FE2C55] flex items-center justify-center text-white text-[10px] font-bold">8</div>
+            </div>
+
+            {/* Message Items (Mixed) */}
+            {conversations.map((conv, i) => (
+                <div key={conv.id} className="flex items-center gap-3">
+                    <div className={`w-12 h-12 rounded-full p-[2px] ${i === 0 ? 'bg-gradient-to-tr from-[#00f2ea] to-[#00f2ea]' : 'bg-transparent'}`}>
+                        <div className="w-full h-full rounded-full border-2 border-[#121212] overflow-hidden">
+                             <img src={conv.otherUser?.avatar_url || ''} className="w-full h-full object-cover" />
+                        </div>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <h3 className="font-bold text-sm truncate">{conv.otherUser?.username}</h3>
+                        <p className={`text-xs truncate ${i === 0 ? 'text-white' : 'text-white/60'}`}>{conv.lastMessage}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                         {i > 0 && <MicOff size={14} className="text-white/40" />}
+                        <Camera size={20} className="text-white/60" />
+                    </div>
+                </div>
+            ))}
+
+            {/* System Notification */}
+            {notifications.filter(n => n.type === 'system').map(notif => (
+                <div key={notif.id} className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-full bg-[#1a1a1a] border border-white/10 flex items-center justify-center">
+                        <Archive className="w-6 h-6 text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <h3 className="font-bold text-sm">{notif.title}</h3>
+                        <p className="text-white/60 text-xs truncate">{notif.body}</p>
+                    </div>
+                    <span className="text-[10px] text-white/40">21h</span>
+                </div>
+            ))}
+
+             {/* Shop Notification */}
+             {notifications.filter(n => n.type === 'shop').map(notif => (
+                <div key={notif.id} className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-full bg-orange-500 flex items-center justify-center">
+                        <ShoppingBag className="w-6 h-6 text-white" fill="white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <h3 className="font-bold text-sm">{notif.title}</h3>
+                        <p className="text-white/60 text-xs truncate">{notif.body}</p>
+                    </div>
+                    <span className="text-[10px] text-white/40">1d</span>
+                </div>
+            ))}
+             
+             {/* Extra User */}
+             <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-gray-700 overflow-hidden">
+                     <img src="https://ui-avatars.com/api/?name=Eu&background=333" className="w-full h-full object-cover" />
+                </div>
+                <div className="flex-1 min-w-0">
+                    <h3 className="font-bold text-sm">Eu Si Atat</h3>
+                    <p className="text-white/60 text-xs truncate">Sent a video</p>
+                </div>
+                <Camera size={20} className="text-white/60" />
+            </div>
+
         </div>
       </div>
     </div>
   );
-}
-
-function formatTime(timestamp: string): string {
-  const date = new Date(timestamp);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMs / 3600000);
-  const diffDays = Math.floor(diffMs / 86400000);
-
-  if (diffMins < 1) return 'Just now';
-  if (diffMins < 60) return `${diffMins}m`;
-  if (diffHours < 24) return `${diffHours}h`;
-  if (diffDays < 7) return `${diffDays}d`;
-  return date.toLocaleDateString();
 }

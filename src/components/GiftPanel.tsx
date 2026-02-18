@@ -182,16 +182,16 @@ export function GiftPanel({ onSelectGift, userCoins, onRechargeSuccess }: GiftPa
                       poppedGiftId === gift.id ? "elix-gift-pop" : "",
                     ].join(" ")}
                   >
-                    {idx < 5 ? (
+                    {false ? (
                       <div className="absolute inset-0">
                         <img
                           src={posterByGiftId.get(gift.id) || ""}
                           alt=""
-                          className="absolute inset-0 w-full h-full object-contain p-1 pointer-events-none"
+                          className="absolute inset-0 w-full h-full object-contain p-1 pointer-events-none z-10"
                         />
                         {inView && (
                           <video
-                            className="absolute inset-0 w-full h-full object-contain p-1 pointer-events-none"
+                            className="absolute inset-0 w-full h-full object-contain p-1 pointer-events-none z-0 opacity-80"
                             src={gift.video}
                             muted
                             playsInline

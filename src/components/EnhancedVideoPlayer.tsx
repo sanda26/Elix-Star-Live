@@ -1,7 +1,13 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { 
-  Heart, 
+import {
+  Heart,
   Music,
+  Settings2,
+  Share2,
+  Bookmark,
+  Flag,
+  UserPlus,
+  UserMinus,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useVideoStore } from '../store/useVideoStore';
@@ -117,6 +123,7 @@ export default function EnhancedVideoPlayer({
   const [showLikes, setShowLikes] = useState(false);
   const [showUserProfile, setShowUserProfile] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
+  const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const [isDoubleClick, setIsDoubleClick] = useState(false);
   const [showHeartAnimation, setShowHeartAnimation] = useState(false);
   
@@ -350,10 +357,8 @@ export default function EnhancedVideoPlayer({
     navigate(`/music/${encodeURIComponent(video.music.id)}`);
     trackEvent('video_music_open', { videoId, musicId: video.music.id });
   };
-
   const handleReport = () => {
-    setShowReportModal(true);
-    trackEvent('video_report_open', { videoId });
+    setIsMoreMenuOpen(true);
   };
 
   // Format functions
@@ -371,7 +376,7 @@ export default function EnhancedVideoPlayer({
       className="relative w-full h-full overflow-hidden flex justify-center"
       style={{ margin: 0, padding: 0, gap: 0 }}
     >
-      {/* Video Element - iPhone 14 Pro Max: 6.7" Super Retina XDR, 2796×1290px, 19.5:9, ~460ppi */}
+      {/* Video Element - iPhone 14 Pro Max: 6.7" Super Retina XDR, 2796Ãƒâ€”1290px, 19.5:9, ~460ppi */}
       <div
         className="absolute inset-0 flex items-center justify-center bg-black"
         style={{ margin: 0, padding: 0, gap: 0 }}
@@ -536,7 +541,7 @@ export default function EnhancedVideoPlayer({
               <div className="w-2 h-2 bg-white rounded-full" />
             </div>
           )}
-          <span className="text-[#E6B36A]/60 text-sm">•</span>
+          <span className="text-[#E6B36A]/60 text-sm">Ã¢â‚¬Â¢</span>
           <span className="text-[#E6B36A]/60 text-sm">{formatNumber(video.user.followers)} followers</span>
         </div>
         
@@ -572,7 +577,7 @@ export default function EnhancedVideoPlayer({
 
         <div className="flex items-center gap-4 mt-2 text-white/60 text-xs">
           <span>{formatNumber(video.stats.views)} views</span>
-          <span>•</span>
+          <span>Ã¢â‚¬Â¢</span>
           <span>{new Date(video.createdAt).toLocaleDateString()}</span>
         </div>
       </div>
@@ -603,6 +608,71 @@ export default function EnhancedVideoPlayer({
         user={video.user}
         onFollow={handleFollow}
       />
+      
+            {isMoreMenuOpen && (
+        <div className="fixed inset-0 z-modals flex flex-col justify-end">
+          <div className="absolute inset-0 pointer-events-auto" onClick={() => setIsMoreMenuOpen(false)} />
+          <div
+            className="bg-[#1a1a1a]/95 rounded-t-2xl max-h-[40dvh] flex flex-col shadow-2xl border-t border-white/10 pointer-events-auto w-full relative z-10"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
+              <div className="flex items-center gap-2">
+                <Settings2 className="w-4 h-4 text-white" />
+                <span className="text-white font-bold text-sm">More Options</span>
+              </div>
+            </div>
+            <div className="p-2 overflow-y-auto">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsMoreMenuOpen(false);
+                  handleShare();
+                }}
+                className="w-full px-4 py-3 flex items-center gap-3 text-white hover:bg-white/5 rounded-xl"
+              >
+                <Share2 className="w-5 h-5" strokeWidth={2} />
+                <span className="text-sm font-bold">Share</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  handleSave();
+                  setIsMoreMenuOpen(false);
+                }}
+                className="w-full px-4 py-3 flex items-center gap-3 text-white hover:bg-white/5 rounded-xl"
+              >
+                <Bookmark className="w-5 h-5" strokeWidth={2} />
+                <span className="text-sm font-bold">{video.isSaved ? 'Unsave' : 'Save'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  handleFollow();
+                  setIsMoreMenuOpen(false);
+                }}
+                className="w-full px-4 py-3 flex items-center gap-3 text-white hover:bg-white/5 rounded-xl"
+              >
+                {video.isFollowing ? <UserMinus className="w-5 h-5" strokeWidth={2} /> : <UserPlus className="w-5 h-5" strokeWidth={2} />}
+                <span className="text-sm font-bold">{video.isFollowing ? 'Unfollow' : 'Follow'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsMoreMenuOpen(false);
+                  setShowReportModal(true);
+                  trackEvent('video_report_open', { videoId });
+                }}
+                className="w-full px-4 py-3 flex items-center gap-3 text-red-400 hover:bg-white/5 rounded-xl"
+              >
+                <Flag className="w-5 h-5" strokeWidth={2} />
+                <span className="text-sm font-bold">Report</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       
       <ReportModal
         isOpen={showReportModal}

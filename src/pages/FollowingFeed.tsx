@@ -20,6 +20,17 @@ export default function FollowingFeed() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeVideoIndex] = useState(0);
+  const followingUsers = (() => {
+    const map = new Map<string, { id: string; username: string; avatar_url: string | null }>();
+    for (const v of videos) {
+      if (!v.creator?.username) continue;
+      if (map.has(v.user_id)) continue;
+      map.set(v.user_id, { id: v.user_id, username: v.creator.username, avatar_url: v.creator.avatar_url ?? null });
+    }
+    return Array.from(map.values()).slice(0, 10);
+  })();
+
+  const headerHeight = !loading && followingUsers.length > 0 ? 160 : 72;
 
   useEffect(() => {
     loadCurrentUser();
@@ -76,7 +87,7 @@ export default function FollowingFeed() {
 
   return (
     <div className="h-screen bg-black text-white overflow-y-scroll snap-y snap-mandatory">
-      {/* Header */}
+            {/* Header */}
       <div className="fixed top-0 left-0 right-0 z-20 bg-black">
         <div className="flex items-center justify-between px-4 py-4">
           <button onClick={() => navigate(-1)} className="p-2 hover:brightness-125 rounded-full transition">
@@ -85,16 +96,39 @@ export default function FollowingFeed() {
           <h1 className="text-lg font-bold">Following</h1>
           <div className="w-10"></div>
         </div>
+
+        {!loading && followingUsers.length > 0 && (
+          <div className="px-4 pb-3">
+            <div className="flex gap-4 overflow-x-auto no-scrollbar">
+              {followingUsers.map((u) => (
+                <button
+                  key={u.id}
+                  type="button"
+                  onClick={() => navigate(`/profile/${u.id}`)}
+                  className="flex-shrink-0 w-[72px] flex flex-col items-center gap-2"
+                >
+                  <div className="w-16 h-16 rounded-full p-[2px] bg-gradient-to-tr from-[#00f5ff] via-[#00f5ff] to-[#E6B36A]">
+                    <div className="w-full h-full rounded-full bg-[#121212] p-[2px]">
+                      <img src={u.avatar_url || ''} alt={u.username} className="w-full h-full rounded-full object-cover" draggable={false} />
+                    </div>
+                  </div>
+                  <div className="text-xs text-white/80 truncate w-full text-center">{u.username}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Content */}
+      <div style={{ paddingTop: headerHeight }}>
       {loading ? (
-        <div className="h-screen flex items-center justify-center">
+        <div className="flex items-center justify-center" style={{ height: `calc(100dvh - ${headerHeight}px)` }}>
           <div className="text-white/40">Loading...</div>
         </div>
       ) : videos.length > 0 ? (
         videos.map((video, index) => (
-          <div key={video.id} className="h-screen snap-start relative">
+          <div key={video.id} className="snap-start relative" style={{ height: `calc(100dvh - ${headerHeight}px)` }}>
             <EnhancedVideoPlayer
               videoId={video.id}
               isActive={index === activeVideoIndex}
@@ -114,7 +148,7 @@ export default function FollowingFeed() {
           </div>
         ))
       ) : (
-        <div className="h-screen flex flex-col items-center justify-center text-center px-8">
+        <div className="flex flex-col items-center justify-center text-center px-8" style={{ height: `calc(100dvh - ${headerHeight}px)` }}>
           <UserPlus size={48} className="mb-4 text-white/40" />
           <h2 className="text-xl font-bold mb-2">Follow creators</h2>
           <p className="text-white/60 mb-6">Videos from people you follow will appear here</p>
@@ -126,6 +160,7 @@ export default function FollowingFeed() {
           </button>
         </div>
       )}
+      </div>
     </div>
   );
 }

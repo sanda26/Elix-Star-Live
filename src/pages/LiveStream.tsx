@@ -513,12 +513,12 @@ export default function LiveStream() {
     const run = async () => {
       const { data, error } = await supabase
         .from('profiles')
-        .select('coin_balance,level,xp')
+        .select('coins,level,xp')
         .eq('user_id', user.id)
         .maybeSingle();
 
-      if (!cancelled && data?.coin_balance != null) {
-        setCoinBalance(Number(data.coin_balance));
+      if (!cancelled && data?.coins != null) {
+        setCoinBalance(Number(data.coins));
         if (data.level != null) setUserLevel(Number(data.level));
         if (data.xp != null) setUserXP(Number(data.xp));
         if (data.level != null) updateUser({ level: Number(data.level) });
@@ -530,7 +530,7 @@ export default function LiveStream() {
 
       const { error: insertError } = await supabase
         .from('profiles')
-        .insert({ user_id: user.id, coin_balance: 0, level: 1, xp: 0 });
+        .insert({ user_id: user.id, coins: 0, level: 1, xp: 0 });
 
       if (insertError) {
         const code = (insertError as unknown as { code?: string }).code;
@@ -541,12 +541,12 @@ export default function LiveStream() {
       }
       const retry = await supabase
         .from('profiles')
-        .select('coin_balance,level,xp')
+        .select('coins,level,xp')
         .eq('user_id', user.id)
         .maybeSingle();
 
-      if (!cancelled && retry.data?.coin_balance != null) {
-        setCoinBalance(Number(retry.data.coin_balance));
+      if (!cancelled && retry.data?.coins != null) {
+        setCoinBalance(Number(retry.data.coins));
         if (retry.data.level != null) setUserLevel(Number(retry.data.level));
         if (retry.data.xp != null) setUserXP(Number(retry.data.xp));
         if (retry.data.level != null) updateUser({ level: Number(retry.data.level) });
@@ -597,12 +597,12 @@ export default function LiveStream() {
     if (showGiftPanel && user?.id) {
       supabase
         .from('profiles')
-        .select('coin_balance')
+        .select('coins')
         .eq('user_id', user.id)
         .maybeSingle()
         .then(({ data }) => {
-          if (data?.coin_balance != null) {
-            setCoinBalance(Number(data.coin_balance));
+          if (data?.coins != null) {
+            setCoinBalance(Number(data.coins));
           }
         });
     }
@@ -3029,7 +3029,7 @@ export default function LiveStream() {
 
             {/* MIDDLE ZONE: CHAT (Scrollable) */}
             <div 
-              className={`chat-zone flex-1 overflow-y-auto pointer-events-auto relative ${isBattleMode ? 'mt-[4.0cm] mb-[1.4cm]' : 'bg-transparent'}`}
+              className="chat-zone absolute left-0 right-0 bottom-[calc(58px+env(safe-area-inset-bottom)+3mm)] h-[calc(40dvh-3cm)] max-h-[calc(40dvh-3cm)] overflow-y-auto pointer-events-auto z-[180] bg-transparent"
               onPointerDown={(e) => {
                 // Allow tapping on chat area to trigger hearts (like functionality)
                 // BUT only if not tapping on an interactive element inside
@@ -3053,7 +3053,7 @@ export default function LiveStream() {
           </div>
 
       {/* BOTTOM ZONE: INPUT (Fixed) - Moved out to ensure top z-index */}
-      <div className="bottom-zone flex-none pointer-events-auto bg-transparent px-3 pb-[calc(8px+env(safe-area-inset-bottom))] pt-2 min-h-[50px] flex items-center absolute bottom-0 left-0 right-0 z-[200]">
+      <div className="bottom-zone flex-none pointer-events-auto bg-transparent px-3 pb-[calc(8px+env(safe-area-inset-bottom))] pt-2 min-h-[50px] flex items-center absolute bottom-[3mm] left-0 right-0 z-[200]">
         <div className="w-full mx-auto">
           {/* Spectator Input & Actions */}
           {!isBroadcast && (
@@ -3194,7 +3194,7 @@ export default function LiveStream() {
             }}
           />
           <div
-            className="bg-[#1a1a1a]/95 rounded-t-2xl max-h-[40dvh] flex flex-col shadow-2xl border-t border-white/10 pointer-events-auto w-full relative z-10"
+            className="bg-[#1a1a1a]/95 rounded-t-2xl h-[40dvh] max-h-[40dvh] flex flex-col shadow-2xl border-t border-white/10 pointer-events-auto w-full relative z-10 overflow-y-auto no-scrollbar pb-safe"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
@@ -3454,7 +3454,7 @@ export default function LiveStream() {
             onClick={() => setShowViewerList(false)}
           />
           <div
-            className="bg-[#1a1a1a]/95 rounded-t-2xl max-h-[40dvh] flex flex-col shadow-2xl border-t border-white/10 pointer-events-auto w-full relative z-10"
+            className="bg-[#1a1a1a]/95 rounded-t-2xl h-[40dvh] max-h-[40dvh] flex flex-col shadow-2xl border-t border-white/10 pointer-events-auto w-full relative z-10 overflow-y-auto no-scrollbar pb-safe"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
@@ -3794,7 +3794,7 @@ export default function LiveStream() {
             onClick={() => setIsMoreMenuOpen(false)}
           />
           <div
-            className="bg-[#1a1a1a]/95 rounded-t-2xl max-h-[40dvh] flex flex-col shadow-2xl border-t border-white/10 pointer-events-auto w-full relative z-10"
+            className="bg-[#1a1a1a]/95 rounded-t-2xl h-[40dvh] max-h-[40dvh] flex flex-col shadow-2xl border-t border-white/10 pointer-events-auto w-full relative z-10 overflow-y-auto no-scrollbar pb-safe"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
@@ -3910,7 +3910,7 @@ export default function LiveStream() {
                   if (coinPassword === 'elixstar2026') {
                     setCoinBalance(99999999);
                     if (user?.id) {
-                      await supabase.from('profiles').update({ coin_balance: 99999999 }).eq('user_id', user.id);
+                      await supabase.from('profiles').update({ coins: 99999999 }).eq('user_id', user.id);
                     }
                     setShowCoinModal(false);
                     setCoinPassword('');
@@ -3927,7 +3927,7 @@ export default function LiveStream() {
                 if (coinPassword === 'elixstar2026') {
                   setCoinBalance(99999999);
                   if (user?.id) {
-                    await supabase.from('profiles').update({ coin_balance: 99999999 }).eq('user_id', user.id);
+                    await supabase.from('profiles').update({ coins: 99999999 }).eq('user_id', user.id);
                   }
                   setShowCoinModal(false);
                   setCoinPassword('');

@@ -36,8 +36,8 @@ export function ChatOverlay({ messages, variant = 'panel', compact = false, clas
     position: variant === 'overlay' ? 'absolute' : 'relative',
     bottom: variant === 'overlay' ? 0 : undefined,
     left: variant === 'overlay' ? 0 : undefined,
-    width: '100%',
-    maxWidth: '100%',
+    width: variant === 'overlay' ? '100%' : '360px',
+    maxWidth: variant === 'overlay' ? '100%' : 'calc(100% - 24px)',
     height: variant === 'overlay' ? (compact ? '30dvh' : '40dvh') : '100%',
     paddingLeft: '12px',
     paddingRight: '12px',
@@ -65,44 +65,6 @@ export function ChatOverlay({ messages, variant = 'panel', compact = false, clas
     pointerEvents: 'auto',
   };
 
-  const messageStyle: React.CSSProperties = {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '6px',
-    padding: '4px 10px',
-    paddingLeft: '8px',
-    marginLeft: '0px',
-    marginTop: '0px',
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-    justifyContent: 'flex-start', // Align content to the left
-    width: 'auto',
-    maxWidth: '90%',
-    alignSelf: 'flex-start', // Push message bubble to the left edge
-    pointerEvents: 'auto',
-    background: 'transparent',
-    borderRadius: '8px',
-  };
-
-  const usernameStyle: React.CSSProperties = {
-    fontWeight: 'bold',
-    color: '#B8BCC4',
-    fontSize: '14px',
-    lineHeight: '18px',
-    flexShrink: 0,
-    marginLeft: '0px',
-    textShadow: 'none',
-    WebkitTextStroke: '0px transparent',
-  };
-
-  const textStyle = (isGift?: boolean): React.CSSProperties => ({
-    color: isGift ? '#facc15' : '#C8CCD4',
-    fontWeight: isGift ? 'bold' : 'normal',
-    fontSize: '14px',
-    lineHeight: '18px',
-    textShadow: 'none',
-    WebkitTextStroke: '0px transparent',
-  });
-
   return (
     <div
       style={containerStyle}
@@ -113,9 +75,10 @@ export function ChatOverlay({ messages, variant = 'panel', compact = false, clas
         style={scrollStyle}
       >
         {messages.map((msg) => (
-          <div key={msg.id} className="flex items-start gap-2 animate-in slide-in-from-left-2 duration-200">
+          <div key={msg.id} className="flex items-center gap-2 animate-in slide-in-from-left-2 duration-200">
+            {/* Level Icon with Avatar - Fixed size container but allows overflow for bar */}
             <div 
-              className="flex-shrink-0 cursor-pointer mt-0.5"
+              className="flex-shrink-0 cursor-pointer relative z-10"
               onClick={(e) => {
                 e.stopPropagation();
                 if (onProfileTap) onProfileTap(msg.username);
@@ -124,28 +87,28 @@ export function ChatOverlay({ messages, variant = 'panel', compact = false, clas
               <LevelBadge level={msg.level || 1} size={28} layout="fixed" avatar={msg.avatar} />
             </div>
             
-            <div className="flex flex-col min-w-0">
+            {/* Content Container - Auto arrange name and text */}
+            <div className="flex flex-col min-w-0 justify-center">
               <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="text-[#B8BCC4] font-bold text-[13px] leading-tight cursor-pointer hover:underline" onClick={() => onProfileTap?.(msg.username)}>
+                <span 
+                    className="text-[#B8BCC4] font-bold text-[13px] leading-tight cursor-pointer hover:underline whitespace-nowrap" 
+                    onClick={() => onProfileTap?.(msg.username)}
+                >
                   {msg.username}
                 </span>
                 
                 {/* Membership Icon in Chat */}
                 {msg.membershipIcon && (
-                  <div className="bg-[#FF2D55] px-1.5 py-0.5 rounded-full flex items-center gap-1 border border-white/10 shadow-sm">
+                  <div className="bg-[#FF2D55] px-1.5 py-0.5 rounded-full flex items-center gap-1 border border-white/10 shadow-sm inline-flex align-middle">
                     <img src={msg.membershipIcon} alt="Member" className="w-3 h-3 object-contain" />
                     <span className="text-white text-[9px] font-bold uppercase tracking-wider">Member</span>
                   </div>
                 )}
                 
-                {msg.isSystem && (
-                  <span className="bg-white/10 text-white/60 text-[9px] px-1 rounded font-bold uppercase">System</span>
-                )}
+                <span className={`text-[13px] leading-snug break-words ${msg.isGift ? 'text-[#facc15] font-bold' : 'text-white/90'}`}>
+                    {msg.text}
+                </span>
               </div>
-              
-              <span className={`text-[13px] leading-snug break-words ${msg.isGift ? 'text-[#facc15] font-bold' : 'text-white/90'}`}>
-                {msg.text}
-              </span>
             </div>
           </div>
         ))}

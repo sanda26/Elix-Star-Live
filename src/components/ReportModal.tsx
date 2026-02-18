@@ -212,131 +212,126 @@ export default function ReportModal({ isOpen, onClose, videoId, contentType, con
 
   return (
     <div className="fixed inset-0 z-modals flex flex-col justify-end">
-      <div className="absolute inset-0 bg-black/80 pointer-events-auto" onClick={onClose} />
-      <div
-        className="relative w-full z-10 bg-[#121212] rounded-t-2xl max-h-[40dvh] overflow-hidden flex flex-col border-t border-white/10 shadow-2xl pb-safe pointer-events-auto"
-      >
-        <div className="flex justify-center pt-3 pb-2">
+      <div className="absolute inset-0 bg-black pointer-events-auto" onClick={onClose} />
+
+      <div className="relative w-full z-10 bg-[#1a1a1a] rounded-t-2xl p-4 pb-safe flex flex-col gap-1 shadow-2xl border-t border-white/10 pointer-events-auto h-[40dvh] max-h-[40dvh] overflow-y-auto no-scrollbar">
+        <div className="flex justify-center mb-2">
           <div className="w-10 h-1 bg-white/20 rounded-full" />
         </div>
-        {/* Header */}
-        <div className="flex items-center justify-between p-3 border-b border-white/10">
-          <div className="flex items-center gap-2">
-            <Flag className="w-4 h-4 text-red-400" />
-            <h3 className="text-white text-xs font-semibold">Report {getContentTypeLabel()}</h3>
+
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <Flag className="w-4 h-4 text-[#E6B36A]" />
+            <h3 className="text-white font-bold whitespace-nowrap">Report {getContentTypeLabel()}</h3>
           </div>
-          {contentType === 'video' && (
-            <button
-              type="button"
-              onClick={handleDelete}
-              disabled={isDeletingVideo || !canDelete}
-              className="px-2 py-1 rounded-md bg-red-500/10 text-red-400 text-[10px] font-semibold hover:bg-red-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {isDeletingVideo
-                ? 'Deleting...'
-                : !authUserId
-                  ? 'Delete (sign in)'
-                  : canDelete
-                    ? 'Delete'
-                    : 'Delete (owner)'}
-            </button>
-          )}
+          <button type="button" onClick={onClose} className="text-white/70 hover:text-white text-sm font-semibold">
+            Close
+          </button>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-3 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
-          <div className="mb-3 bg-transparent5 rounded-md p-2 border border-white/5">
-            <p className="text-white/50 text-[10px] leading-tight">
-              <span className="text-white font-medium block mb-0.5">Why are you reporting this {getContentTypeLabel()}?</span>
-              Your report helps us understand what violates our community guidelines.
-            </p>
-          </div>
+        {contentType === 'video' && (
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={isDeletingVideo || !canDelete}
+            className="w-full px-4 py-3 flex items-center justify-between text-[#EF4444] hover:brightness-125 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <div className="flex items-center gap-3">
+              <AlertTriangle className="w-5 h-5" strokeWidth={2} />
+              <span className="font-semibold">
+                {isDeletingVideo
+                  ? 'Delete (deleting...)'
+                  : !authUserId
+                    ? 'Delete (sign in)'
+                    : canDelete
+                      ? 'Delete'
+                      : 'Delete (owner)'}
+              </span>
+            </div>
+          </button>
+        )}
 
-          {/* Report Reasons */}
-          <div className="space-y-1.5 mb-6">
-            {reportReasons.map((reason) => {
-              const IconComponent = reason.icon;
-              return (
-                <button
-                  key={reason.id}
-                  onClick={() => setSelectedReason(reason.id)}
-                  className={`w-full text-left p-1.5 rounded-md border transition-all ${
-                    selectedReason === reason.id
-                      ? 'border-[#FE2C55] bg-[#FE2C55]/10'
-                      : 'border-white/10 hover:border-white/20 hover:bg-transparent5'
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <div className={`p-1 rounded bg-transparent10 ${reason.color}`}>
-                      <IconComponent className="w-3 h-3" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h5 className="text-white text-xs font-medium mb-0 truncate">{reason.title}</h5>
-                      <p className="text-white/50 text-[10px] truncate">{reason.description}</p>
-                    </div>
-                    <div className={`w-3 h-3 rounded-full border flex items-center justify-center flex-shrink-0 ${
-                      selectedReason === reason.id
-                        ? 'border-[#FE2C55] bg-[#FE2C55]'
-                        : 'border-white/30'
-                    }`}>
-                      {selectedReason === reason.id && (
-                        <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
-                      )}
-                    </div>
+        <div className="mt-1 px-1">
+          <div className="text-white text-sm font-semibold mb-1">Why are you reporting this {getContentTypeLabel()}?</div>
+          <div className="text-white/40 text-xs leading-snug">
+            Your report helps us understand what violates our community guidelines.
+          </div>
+        </div>
+
+        <div className="mt-3 flex flex-col gap-1">
+          {reportReasons.map((reason) => {
+            const IconComponent = reason.icon;
+            const selected = selectedReason === reason.id;
+            return (
+              <button
+                key={reason.id}
+                type="button"
+                onClick={() => setSelectedReason(reason.id)}
+                className={`w-full px-4 py-3 flex items-center justify-between border rounded-xl transition-colors ${selected ? 'border-[#E6B36A]/60 bg-white/5' : 'border-white/10 hover:bg-white/5'}`}
+              >
+                <div className="flex items-start gap-3 min-w-0">
+                  <div className={`w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center flex-shrink-0 ${reason.color}`}>
+                    <IconComponent className="w-4 h-4" />
                   </div>
-                </button>
-              );
-            })}
-          </div>
+                  <div className="min-w-0 text-left">
+                    <div className="text-white/90 text-sm font-semibold truncate">{reason.title}</div>
+                    <div className="text-white/40 text-xs leading-snug">{reason.description}</div>
+                  </div>
+                </div>
+                <div className={`w-5 h-5 rounded-full border flex items-center justify-center flex-shrink-0 ${selected ? 'border-[#E6B36A] bg-[#E6B36A]' : 'border-white/30'}`}>
+                  {selected && (
+                    <svg className="w-3 h-3 text-black" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  )}
+                </div>
+              </button>
+            );
+          })}
+        </div>
 
-          {/* Additional Details */}
-          <div className="mb-3">
-            <label className="text-white text-[10px] font-medium mb-0.5 block">Additional details (optional)</label>
-            <textarea
-              value={additionalDetails}
-              onChange={(e) => setAdditionalDetails(e.target.value)}
-              placeholder="Provide more context..."
-              className="w-full bg-[#121212] border border-white/10 text-white rounded-md p-1.5 text-[9px] focus:outline-none focus:border-white/20 resize-none leading-tight"
-              rows={2}
-              maxLength={500}
-            />
-            <div className="text-right text-white/40 text-[9px] mt-0.5">
-              {additionalDetails.length}/500
+        <div className="mt-3">
+          <label className="text-white text-xs font-semibold mb-1 block">Additional details (optional)</label>
+          <textarea
+            value={additionalDetails}
+            onChange={(e) => setAdditionalDetails(e.target.value)}
+            placeholder="Provide more context..."
+            className="w-full bg-black/40 border border-white/10 text-white rounded-xl p-3 text-sm focus:outline-none focus:border-white/20 resize-none leading-snug"
+            rows={3}
+            maxLength={500}
+          />
+          <div className="text-right text-white/40 text-xs mt-1">
+            {additionalDetails.length}/500
+          </div>
+        </div>
+
+        <div className="mt-2 bg-white/5 rounded-xl p-3 border border-white/10">
+          <div className="flex items-start gap-2">
+            <div className="w-4 h-4 bg-blue-500/20 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+              <div className="w-2 h-2 bg-blue-500 rounded-full" />
             </div>
-          </div>
-
-          {/* Privacy Notice */}
-          <div className="bg-transparent5 rounded-md p-2 mb-3">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-blue-500/20 rounded-full flex items-center justify-center flex-shrink-0">
-                <div className="w-1.5 h-1.5 bg-blue-500 rounded-full" />
-              </div>
-              <p className="text-white/50 text-[9px] leading-tight">
-                <span className="text-white font-medium">Your privacy matters.</span> The person you're reporting won't know who reported them.
-              </p>
+            <div className="text-white/60 text-xs leading-snug">
+              <span className="text-white font-semibold">Your privacy matters.</span> The person you're reporting won't know who reported them.
             </div>
           </div>
         </div>
 
-          {/* Footer */}
-        <div className="p-3 border-t border-white/10">
-          <div className="flex gap-2">
-            <button
-              onClick={onClose}
-              className="flex-1 px-3 py-1.5 bg-transparent10 text-white text-xs font-medium rounded-md hover:bg-transparent20 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSubmit}
-              disabled={isSubmitting || !selectedReason}
-              className="flex-1 px-3 py-1.5 bg-red-500 text-white text-xs font-medium rounded-md hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {isSubmitting ? 'Submitting...' : 'Submit Report'}
-            </button>
-          </div>
+        <div className="mt-3 flex gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 py-3 bg-white/10 text-white font-semibold rounded-xl hover:bg-white/15 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={isSubmitting || !selectedReason}
+            className="flex-1 py-3 bg-[#E6B36A] text-black font-extrabold rounded-xl hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed transition"
+          >
+            {isSubmitting ? 'Submitting...' : 'Submit Report'}
+          </button>
         </div>
       </div>
     </div>

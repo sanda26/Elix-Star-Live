@@ -11,8 +11,19 @@ export const BottomNav = () => {
     location.pathname.startsWith('/create/') ||
     location.pathname === '/live' ||
     location.pathname.startsWith('/live/') ||
+    location.pathname === '/discover' ||
+    location.pathname === '/following' ||
+    location.pathname === '/search' ||
+    location.pathname === '/purchase-coins' ||
+    location.pathname === '/music' ||
+    location.pathname.startsWith('/music/') ||
     location.pathname === '/login' ||
-    location.pathname === '/register'
+    location.pathname === '/register' ||
+    location.pathname === '/friends' ||
+    location.pathname === '/inbox' ||
+    location.pathname.startsWith('/inbox/') ||
+    location.pathname === '/profile' ||
+    location.pathname.startsWith('/profile/')
   ) {
     return null;
   }

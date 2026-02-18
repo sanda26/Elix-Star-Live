@@ -3,12 +3,14 @@ import { Send, Heart, Trash2, Edit3, MessageSquare, Reply, MoreVertical } from '
 import { useVideoStore } from '../store/useVideoStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { supabase } from '../lib/supabase';
+import { LevelBadge } from './LevelBadge';
 
 interface Comment {
   id: string;
   user_id: string;
   username: string;
   avatar_url: string;
+  level?: number;
   text: string;
   likes: number;
   created_at: string;
@@ -53,7 +55,8 @@ export default function CommentsModal({ isOpen, onClose, videoId }: CommentsModa
           *,
           profiles!comments_user_id_fkey (
             username,
-            avatar_url
+            avatar_url,
+            level
           )
         `)
         .eq('video_id', videoId)
@@ -70,6 +73,7 @@ export default function CommentsModal({ isOpen, onClose, videoId }: CommentsModa
             ...comment,
             username: comment.profiles?.username || 'Unknown',
             avatar_url: comment.profiles?.avatar_url || '',
+            level: comment.profiles?.level || 1,
             replies,
             reply_count: replies.length
           };
@@ -92,7 +96,8 @@ export default function CommentsModal({ isOpen, onClose, videoId }: CommentsModa
           *,
           profiles!comments_user_id_fkey (
             username,
-            avatar_url
+            avatar_url,
+            level
           )
         `)
         .eq('parent_id', parentId)
@@ -103,7 +108,8 @@ export default function CommentsModal({ isOpen, onClose, videoId }: CommentsModa
       return (data || []).map((reply: any) => ({
         ...reply,
         username: reply.profiles?.username || 'Unknown',
-        avatar_url: reply.profiles?.avatar_url || ''
+        avatar_url: reply.profiles?.avatar_url || '',
+        level: reply.profiles?.level || 1
       }));
     } catch (error) {
       console.error('Failed to fetch replies:', error);
@@ -130,7 +136,8 @@ export default function CommentsModal({ isOpen, onClose, videoId }: CommentsModa
           *,
           profiles!comments_user_id_fkey (
             username,
-            avatar_url
+            avatar_url,
+            level
           )
         `)
         .single();
@@ -141,6 +148,7 @@ export default function CommentsModal({ isOpen, onClose, videoId }: CommentsModa
         ...data,
         username: data.profiles?.username || user.username,
         avatar_url: data.profiles?.avatar_url || '',
+        level: data.profiles?.level || user.level || 1,
         replies: [],
         reply_count: 0
       };
@@ -320,15 +328,19 @@ export default function CommentsModal({ isOpen, onClose, videoId }: CommentsModa
   const renderComment = (comment: Comment, isReply: boolean = false) => (
     <div key={comment.id} className={`${isReply ? 'ml-12' : ''} mb-4`}>
       <div className="flex gap-3">
-        <img
-          src={comment.avatar_url || `https://i.pravatar.cc/150?u=${comment.user_id}`}
-          alt={comment.username}
-          className="w-10 h-10 rounded-full object-cover flex-shrink-0"
-        />
+        {/* REPLACED IMG WITH LEVEL BADGE */}
+        <div className="flex-shrink-0 mt-1">
+          <LevelBadge 
+            level={comment.level || 1} 
+            avatar={comment.avatar_url || `https://i.pravatar.cc/150?u=${comment.user_id}`} 
+            size={40} 
+            layout="fixed"
+          />
+        </div>
         
-        <div className="flex-1">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="font-semibold text-white">{comment.username}</span>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
+            <span className="font-semibold text-white truncate max-w-[150px]">{comment.username}</span>
             <span className="text-white/60 text-sm">{formatTime(comment.created_at)}</span>
           </div>
           
@@ -358,7 +370,7 @@ export default function CommentsModal({ isOpen, onClose, videoId }: CommentsModa
               </button>
             </div>
           ) : (
-            <p className="text-white/90 mb-2">{comment.text}</p>
+            <p className="text-white/90 mb-2 break-words">{comment.text}</p>
           )}
           
           <div className="flex items-center gap-4">
@@ -461,7 +473,7 @@ export default function CommentsModal({ isOpen, onClose, videoId }: CommentsModa
       onClick={onClose}
     >
       <div
-        className="bg-[#1a1a1a]/95 rounded-t-2xl p-3 pb-safe max-h-[40dvh] w-full shadow-2xl flex flex-col"
+        className="bg-[#1a1a1a]/95 rounded-t-2xl p-3 pb-safe max-h-[70dvh] w-full shadow-2xl flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-2">
@@ -499,12 +511,15 @@ export default function CommentsModal({ isOpen, onClose, videoId }: CommentsModa
 
         <div className="pt-3 mt-2 border-t border-white/10">
           <div className="flex gap-2 items-center">
-            <img
-              src={user?.avatar || `https://i.pravatar.cc/150?u=${user?.id}`}
-              alt={user?.username}
-              className="w-9 h-9 rounded-full object-cover flex-shrink-0"
-              draggable={false}
-            />
+            {/* Input area avatar updated to LevelBadge */}
+            <div className="flex-shrink-0">
+                <LevelBadge 
+                    level={user?.level || 1} 
+                    avatar={user?.avatar || `https://i.pravatar.cc/150?u=${user?.id}`} 
+                    size={36} 
+                    layout="fixed"
+                />
+            </div>
             <div className="flex-1 flex gap-2">
               <input
                 type="text"

@@ -187,96 +187,15 @@ const VIEWER_POOL: Omit<SimulatedViewer, 'joinedAt' | 'isActive'>[] = import.met
 
 // Realistic chat messages - hyper diverse, natural language with typos, slang, abbreviations
 const CHAT_MESSAGES = {
-  greeting: [
-    'Hey! Just joined 👋', 'Hello everyone!', 'Hi from {country}!', 'Finally caught you live! 🙌',
-    'Heyyy what did I miss?', 'Omg hiii 💕', 'Lets goo 🔥', 'Yooo whats up!',
-    'Just got here!', 'Hellooo 🎉', 'Whos here?? 👀', 'Hi hi hi!',
-    'Ayy im here now 🙋', 'Waddup everyone', 'hii just found this stream',
-    'ayoo 🔥', 'helloo from {country} 🥰', 'finally youre live omgg',
-    'Joined!! Whats happening?', 'heyy been waiting for this',
-    'sup everyone 😎', 'hiiii late but im here!', 'wassup fam',
-    'yooo lets get it', 'hello hello 🙋‍♀️', 'ayyy we back!',
-    'hiii from {country} anyone else here?', 'just clicked on this, glad i did',
-    'whats good everyone!', 'hola hola! 👋', 'heyyy first time here',
-    'omg finally live again!!', 'hiiii missed u ❤️', 'yoo we in here 🔥',
-  ],
-  reaction: [
-    'This is fire 🔥🔥🔥', 'Amazingg!! ✨', 'Love this!', 'So cool 😎',
-    'Youre the best! 💯', 'No way!! 😱', 'Hahaha 😂😂', 'Wowww',
-    'Im obsessed', 'This is everything 💖', 'Cant stop watching', 'Goosebumps rn',
-    'SLAYYY 💅', 'Iconic 👑', 'Talent!! 🌟', 'Pure vibes ✨',
-    'YESSS 🙌🙌', 'im deaddd 💀💀', 'bro whattt', 'lmaoooo',
-    'this is crazyy', 'wowwww ok 🔥', 'ngl this is good', 'W stream 🏆',
-    'bruhh 😂', 'sheeeesh', 'wait thats actually sick', 'yooo thats wild',
-    'ok that was cool ngl', 'im screamingg', 'LETSGOO', 'absolute fire 🔥',
-    'banger content fr fr', 'this is it chief 🫡', 'W W W', 'massive vibes',
-    'goated 🐐', 'thats tuff 🔥', 'holyyy', 'insanee',
-    'BRO 😭😭', 'no bc why is this so good', 'ayo??', 'ur crazy talented',
-    'ok i see you 👀', 'wait actually??? 😱', 'this hits different fr',
-    'living for this rn 💕', 'STOPPP 😍', 'chef kiss 🤌',
-  ],
-  question: [
-    'Where are you from?', 'How long have you been streaming?', 'Whats the song name?',
-    'Can you say hi to me? 🥺', 'Do you stream every day?', 'What time do you go live?',
-    'How old are you?', 'Are you single? 👀', 'Whats your favorite food?',
-    'Can you dance? 💃', 'Do a challenge!', 'Play some music 🎵',
-    'whats ur ig?', 'do u have tiktok?', 'how many followers u got?',
-    'wait how do u do that??', 'what country u in rn?', 'do u do this full time?',
-    'can u shoutout my friend pls 🙏', 'when is next stream?',
-    'whos ur fav streamer?', 'what phone do u use?', 'how long u been on the app?',
-    'r u gonna battle anyone?', 'can u play that song again?', 'what language is that?',
-    'do u speak other languages?', 'wait whats happening lol', 'can u see my msgs?',
-    'how old is the app?', 'anyone wanna battle? 👊', 'why is quality so good wtf',
-  ],
-  compliment: [
-    'You look amazing today! 😍', 'Your smile is beautiful ❤️', 'Love your energy!',
-    'Best streamer on the app! 🏆', 'You always make my day 🌞', 'So talented! 🎯',
-    'Your vibe is unmatched 💫', 'Keep shining! ✨', 'Goals tbh 💪',
-    'Love the outfit! 👗', 'You have the best laugh 😊', 'Never change! 💕',
-    'ur literally so pretty 🥺', 'i wish i had ur confidence', 'king/queen behavior 👑',
-    'fav creator on here fr', 'youre so underrated honestly', 'main character energy 💫',
-    'ok model alert 📸', 'legit the best vibes on the app', 'ur personality is 10/10',
-    'how r u so funny omgg 😂', 'i tell everyone about ur streams', 'u deserve a million followers',
-    'this is why ur my fav ❤️', 'actual talent right here', 'ngl u should be famous',
-    'ur so genuine i love it', 'the energy today is chefs kiss 🤌', 'protect this person at all costs',
-    'literally goals 😍', 'how are u even real', 'the BEST content creator period',
-  ],
-  general: [
-    'Who else is watching at 2am 😅', 'Send gifts! 🎁', 'Like if youre here! ❤️',
-    'First time here, this is great!', 'My wifi is struggling but worth it 😤',
-    'Share the stream everyone! 📲', 'Bring a friend!', 'Top fan right here 🙋',
-    'I need more of this content', 'Vibes are immaculate today ✨',
-    'Can we get 1000 likes? 🤞', 'Drop a ❤️ if youre enjoying this!',
-    'This live made my night 🌙', 'Whos watching from bed? 🛏️',
-    'Sending love from here 💗', 'Lets get this trending! 📈',
-    'brb getting snacks 🍿', 'my phone is dying but i cant leave 😩', 'lol wait what just happened',
-    'ok im addicted to this app', 'told my friends to come watch', 'anyone else lagging or just me?',
-    'ugh i have work tomorrow but cant stop 😂', 'alright im staying for 5 more mins... said that 30 min ago',
-    'this chat is moving fast lol', 'wait who sent that gift 😱', 'lmao the chat is wild rn',
-    'ok i followed 👆', 'shared to my story 📱', 'screenshot for the memories 📸',
-    'my mom just asked what im watching lol', 'watching from school rn shh 🤫',
-    'bro im in class rn but this is more important 😅', 'procrastinating with this live stream 😂',
-    'any night owls here? 🦉', 'its 3am here and i regret nothing', 'lunch break gang 🍕',
-    'waiting room vibes', 'dont leave us hanging!!', 'we need more streams like this fr',
-    'ok everyone drop a follow rn 👆', 'this app > everything else', 'lowkey the best community',
-  ],
-  emoji: [
-    '❤️❤️❤️', '🔥🔥🔥', '😍😍😍', '👏👏👏', '💯💯💯', '🎉🎉🎉', '💕💕💕', '🙌🙌🙌',
-    '😂😂', '💎💎💎', '🫶🫶🫶', '😭😭', '🥰🥰', '👑👑', '⭐⭐⭐', '🤩🤩🤩',
-    '💖💖💖', '😘😘', '🌟🌟🌟', '🫡', '💪💪', '🤌🤌', '🥳🥳🥳', '✨✨✨',
-  ],
-  gift_reaction: [
-    'omg that gift!! 🎁', 'who sent that 😍', 'big spender alert 💰', 'woww thanks for gifting!',
-    'thats so generous 🥺', 'gifts flying in 🔥', 'the gifts are crazyyy', 'someone dropped a big one 💎',
-    'wait that gift animation tho 😱', 'riichh 💸', 'goals honestly', 'i need to start gifting too 😅',
-    'yooo that gift was insane 🔥', 'respect to the gifters 🫡', 'ballerr 💰💰', 'sheesh big gift energy',
-    'the animation is so cool!! 😍', 'thats what i call support 💪', 'someone is feeling generous tonight',
-    'we love a supporter 👏', 'gift goals right there', 'ok im broke but that was amazing 😂',
-  ],
-  gift_encourage: [
-    'send gifts to show love 🎁❤️', 'lets support the creator! 💕', 'who else is gifting tonight? 🎁',
-    'come on everyone gift! 🔥', 'even small gifts matter ❤️', 'rose gang where u at 🌹',
-    'drop a gift if u love this 💎', 'the gifters carry this live ngl', 'gift battle who wins?? 🏆',
+  greeting: [],
+  reaction: [],
+  question: [],
+  compliment: [],
+  general: [],
+  emoji: [],
+  gift_reaction: [],
+  gift_encourage: [],
+
     'show some love people!! 💗', 'a rose costs nothing send one 🌹', 'who wants top gifter spot? 👑',
     'im saving up for a big gift 😤', 'the gift leaderboard is heating up 🔥', 'send hearts everyone ❤️',
   ],
@@ -337,11 +256,12 @@ const getRandomChatMessage = (
   } else if (context === 'streamer') {
     weights = [0, 5, 10, 15, 5, 0, 0, 0, 5, 55, 5];
   } else {
-    // Normal chat - natural mix with viewer interactions
-    weights = [2, 18, 8, 10, 18, 6, 4, 5, 10, 10, 9];
+    // Normal chat - all zeros because no mock messages exist
+    weights = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
   }
   
   const totalWeight = weights.reduce((a, b) => a + b, 0);
+  if (totalWeight === 0) return ''; // No messages to send
   let r = Math.random() * totalWeight;
   let categoryIndex = 0;
   for (let i = 0; i < weights.length; i++) {
@@ -349,8 +269,10 @@ const getRandomChatMessage = (
     if (r <= 0) { categoryIndex = i; break; }
   }
   const category = categories[categoryIndex];
-  const msgs = CHAT_MESSAGES[category];
+  const msgs = CHAT_MESSAGES[category] || []; // Fallback to empty array if undefined
   
+  if (!msgs || msgs.length === 0) return ''; // Return empty string if no messages available
+
   // Try to pick a message that hasn't been used recently
   let msg = '';
   let attempts = 0;
@@ -359,6 +281,8 @@ const getRandomChatMessage = (
     attempts++;
   } while (recentMessagesRef.includes(msg) && attempts < 6);
   
+  if (!msg) return '';
+
   // Track recent messages
   recentMessagesRef.push(msg);
   if (recentMessagesRef.length > MAX_RECENT) recentMessagesRef.shift();
@@ -374,8 +298,12 @@ const getRandomChatMessage = (
       msg = msg.replace(/\{viewer\}/g, target);
     } else {
       // No recent chatters, fall back to a generic reaction
-      const fallbacks = CHAT_MESSAGES.reaction;
-      msg = fallbacks[Math.floor(Math.random() * fallbacks.length)];
+      const fallbacks = CHAT_MESSAGES.reaction || [];
+      if (fallbacks.length > 0) {
+          msg = fallbacks[Math.floor(Math.random() * fallbacks.length)];
+      } else {
+          msg = "Wow!";
+      }
     }
   }
   

@@ -293,7 +293,7 @@ export default function UserProfileModal({ isOpen, onClose, user, onFollow }: Us
                     />
                     <div className="absolute bottom-1 left-1 text-xs font-bold text-white drop-shadow-md flex items-center gap-1">
                       <Play size={10} fill="white" />
-                      {formatNumber(video.stats.views)}
+                      {formatNumber(video.stats?.views || 0)}
                     </div>
                   </div>
                 ))}
@@ -322,7 +322,7 @@ export default function UserProfileModal({ isOpen, onClose, user, onFollow }: Us
     if (navigator.share) {
       navigator.share({
         title: `Check out ${user.name}'s profile`,
-        text: `Check out ${user.name} (@${user.username}) on Elix Star - ${user.bio || ''}`,
+        text: `Check out ${user.name} (@${user.username}) on Elix Star${user.bio ? ` - ${user.bio}` : ''}`,
         url: profileUrl,
       });
     } else {

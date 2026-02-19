@@ -178,98 +178,9 @@ export const useVideoStore = create<VideoStore>()(
           data = res.data || [];
 
           if (data.length === 0) {
-            data = [
-              {
-                id: 'mock-cartoon-1',
-                url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-                thumbnail_url: 'https://picsum.photos/400/600?random=901',
-                caption: 'Demo cartoon 1 🐰',
-                views: 0,
-                likes: 0,
-                comments_count: 0,
-                shares_count: 0,
-                created_at: new Date().toISOString(),
-                user: {
-                  id: 'demo',
-                  username: 'demo',
-                  display_name: 'Demo',
-                  avatar_url: 'https://i.pravatar.cc/150?u=demo',
-                  is_creator: true
-                }
-              },
-              {
-                id: 'mock-cartoon-2',
-                url: 'https://media.w3.org/2010/05/sintel/trailer.mp4',
-                thumbnail_url: 'https://picsum.photos/400/600?random=902',
-                caption: 'Demo cartoon 2 🎬',
-                views: 0,
-                likes: 0,
-                comments_count: 0,
-                shares_count: 0,
-                created_at: new Date(Date.now() - 60_000).toISOString(),
-                user: {
-                  id: 'demo',
-                  username: 'demo',
-                  display_name: 'Demo',
-                  avatar_url: 'https://i.pravatar.cc/150?u=demo',
-                  is_creator: true
-                }
-              },
-              {
-                id: 'mock-cartoon-3',
-                url: 'https://download.blender.org/durian/trailer/sintel_trailer-480p.mp4',
-                thumbnail_url: 'https://picsum.photos/400/600?random=903',
-                caption: 'Demo cartoon 3 ⚔️',
-                views: 0,
-                likes: 0,
-                comments_count: 0,
-                shares_count: 0,
-                created_at: new Date(Date.now() - 120_000).toISOString(),
-                user: {
-                  id: 'demo',
-                  username: 'demo',
-                  display_name: 'Demo',
-                  avatar_url: 'https://i.pravatar.cc/150?u=demo',
-                  is_creator: true
-                }
-              },
-              {
-                id: 'mock-cartoon-4',
-                url: 'https://download.blender.org/ED/ed_1024.mp4',
-                thumbnail_url: 'https://picsum.photos/400/600?random=904',
-                caption: 'Demo cartoon 4 🤖',
-                views: 0,
-                likes: 0,
-                comments_count: 0,
-                shares_count: 0,
-                created_at: new Date(Date.now() - 180_000).toISOString(),
-                user: {
-                  id: 'demo',
-                  username: 'demo',
-                  display_name: 'Demo',
-                  avatar_url: 'https://i.pravatar.cc/150?u=demo',
-                  is_creator: true
-                }
-              },
-              {
-                id: 'mock-cartoon-5',
-                url: 'https://download.blender.org/peach/bigbuckbunny_movies/BigBuckBunny_640x360.m4v',
-                thumbnail_url: 'https://picsum.photos/400/600?random=905',
-                caption: 'Demo cartoon 5 🌸',
-                views: 0,
-                likes: 0,
-                comments_count: 0,
-                shares_count: 0,
-                created_at: new Date(Date.now() - 240_000).toISOString(),
-                user: {
-                  id: 'demo',
-                  username: 'demo',
-                  display_name: 'Demo',
-                  avatar_url: 'https://i.pravatar.cc/150?u=demo',
-                  is_creator: true
-                }
-              }
-            ];
+            // No videos found in production DB
+            set({ videos: [], likedVideos: [], loading: false });
+            return;
           }
 
           err = res.error;
@@ -361,6 +272,7 @@ export const useVideoStore = create<VideoStore>()(
         const snapshot = get().videos;
         try {
           if (videoId.startsWith('mock-')) {
+            console.warn('Attempted to delete a mock video in production mode.');
             set({ videos: get().videos.filter((v) => v.id !== videoId) });
             return;
           }

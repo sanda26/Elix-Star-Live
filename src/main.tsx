@@ -6,11 +6,26 @@ import { ErrorBoundary } from './components/ErrorBoundary'
 import './index.css'
 
 // Debug: catch any unhandled errors that cause white screen
+// Only show critical crashes in dev, or log in prod
 window.addEventListener('error', (e) => {
-  document.body.innerHTML = `<div style="padding:20px;color:red;font-family:monospace;background:#111;min-height:100vh"><h2>⚠️ App Crash</h2><pre>${e.message}\n\n${e.filename}:${e.lineno}</pre></div>`;
+  if (import.meta.env.DEV) {
+     console.error('Global Error:', e.error);
+  }
 });
+
 window.addEventListener('unhandledrejection', (e) => {
-  document.body.innerHTML = `<div style="padding:20px;color:orange;font-family:monospace;background:#111;min-height:100vh"><h2>⚠️ Async Crash</h2><pre>${e.reason}</pre></div>`;
+  // Ignore AbortError as it's usually benign (cancelled requests)
+  if (e.reason?.name === 'AbortError' || e.reason?.message?.includes('aborted')) {
+    e.preventDefault(); // Prevent browser console noise
+    return;
+  }
+  
+  console.error('Unhandled Promise Rejection:', e.reason);
+  
+  // Only show the crash screen in DEV mode and for non-abort errors
+  if (import.meta.env.DEV) {
+    document.body.innerHTML = `<div style="padding:20px;color:orange;font-family:monospace;background:#111;min-height:100vh"><h2>⚠️ Async Crash</h2><pre>${e.reason}</pre></div>`;
+  }
 });
 
 try {

@@ -170,33 +170,59 @@ export const useAuthStore = create<AuthStore>()(
         return { error: 'Authentication is not configured. Missing Supabase credentials.', needsEmailConfirmation: false };
       }
       try {
+        console.log('Attempting signup for:', email);
         const { data, error } = await supabase.auth.signUp({
-          email,
+          email: email.trim(),
           password,
           options: {
             data: {
               username: username || email.split('@')[0],
-              avatar_url: `https://ui-avatars.com/api/?name=${encodeURIComponent(username || '')}&background=random`,
               full_name: username,
+              avatar_url: `https://ui-avatars.com/api/?name=${encodeURIComponent(username || '')}&background=random`,
             },
           },
         });
+
         if (error) {
+          console.error('Supabase Signup Error:', error);
+          if (error.message.includes('fetch')) {
+             return { error: 'Network error. Please check your connection.', needsEmailConfirmation: false };
+          }
           return { error: error.message, needsEmailConfirmation: false };
         }
+
         if (data.user && data.session) {
-          set({ supabaseUser: data.user, session: data.session, user: mapUserToUser(data.user), isAuthenticated: true, isLoading: false, authMode: 'supabase' });
+          console.log('Signup successful (session active):', data.user.id);
+          set({ 
+            supabaseUser: data.user, 
+            session: data.session, 
+            user: mapUserToUser(data.user), 
+            isAuthenticated: true, 
+            isLoading: false, 
+            authMode: 'supabase' 
+          });
           return { error: null, needsEmailConfirmation: false };
         }
         
         // If Supabase returned user but no session, email confirmation is likely required
         if (data.user && !data.session) {
+           console.log('Signup successful (waiting for confirmation):', data.user.id);
            return { error: null, needsEmailConfirmation: true };
         }
 
         return { error: 'Signup failed (No user data returned). Please try again.', needsEmailConfirmation: false };
-      } catch (error) {
-        const msg = getAuthErrorMessage(error);
+      } catch (err: any) {
+        console.error('Unexpected Signup Exception:', err);
+        const msg = err?.message || 'Unknown error occurred';
+        
+        if (msg.includes('fetch')) {
+           return { error: 'Network error. Please check your connection.', needsEmailConfirmation: false };
+        }
+        if (err.name === 'AbortError' || msg.includes('aborted')) {
+           console.warn('Signup request aborted');
+           return { error: 'aborted', needsEmailConfirmation: false }; 
+        }
+
         return { error: msg, needsEmailConfirmation: false };
       }
     },

@@ -17,8 +17,18 @@ export default function Register() {
   const [info, setInfo] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const isMounted = React.useRef(true);
+  React.useEffect(() => {
+    isMounted.current = true;
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
+
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
+
     setError(null);
     setInfo(null);
 
@@ -41,23 +51,40 @@ export default function Register() {
     try {
       const res = await signUpWithPassword(email.trim(), password, username.trim() || undefined);
       
+      if (!isMounted.current) return;
+
       if (res.error) {
-        setError(res.error);
-        setIsSubmitting(false);
+        if (res.error === 'aborted' || res.error.includes('aborted')) {
+          if (isMounted.current) setIsSubmitting(false);
+          return;
+        }
+        if (isMounted.current) {
+          setError(res.error);
+          setIsSubmitting(false);
+        }
         return;
       }
 
       if (res.needsEmailConfirmation) {
-        setInfo('Please check your email to confirm your account.');
-        setIsSubmitting(false);
+        if (isMounted.current) {
+          setInfo('Please check your email to confirm your account.');
+          setIsSubmitting(false);
+        }
         return;
       }
 
       // Success - navigate to home
-      navigate('/', { replace: true });
-    } catch {
+      if (isMounted.current) {
+        navigate('/', { replace: true });
+      }
+    } catch (err: any) {
+      if (!isMounted.current) return;
+      
+      if (err.name === 'AbortError' || err.message?.includes('aborted')) {
+         setIsSubmitting(false);
+         return;
+      }
       setError('Failed to create account');
-    } finally {
       setIsSubmitting(false);
     }
   };

@@ -13,6 +13,7 @@ export default defineConfig(({ mode }) => ({
   },
   build: {
     sourcemap: true, // Enable sourcemaps for debugging
+    target: 'esnext', // Use modern JS features
     rollupOptions: {
       output: {
         manualChunks: {
@@ -22,6 +23,9 @@ export default defineConfig(({ mode }) => ({
         },
       },
     },
+  },
+  server: {
+    cors: true, // Enable CORS for local dev
   },
   plugins: [
     react({

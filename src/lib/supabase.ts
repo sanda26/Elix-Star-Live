@@ -51,12 +51,7 @@ export const supabase = createClient(
       detectSessionInUrl: false,
     },
     global: {
-      fetch: (url, options) => {
-        return fetch(url, {
-          ...options,
-          referrerPolicy: 'no-referrer', // Fixes some CORS/security blocking issues
-        });
-      },
+      headers: { 'x-application-name': 'elix-star-live' }, // Helpful for debugging on server side
     },
   }
 );

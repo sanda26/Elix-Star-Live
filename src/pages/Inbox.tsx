@@ -112,7 +112,7 @@ export default function Inbox() {
           .eq('user_id', currentUserId)
           .order('created_at', { ascending: false })
           .limit(50);
-        if (data) setNotifications(data.map((n: any) => ({
+        if (data && data.length > 0) setNotifications(data.map((n: any) => ({
           id: n.id,
           type: n.type || 'system',
           actor_id: n.actor_id || '',
@@ -123,7 +123,8 @@ export default function Inbox() {
           is_read: n.is_read ?? false,
           created_at: n.created_at,
         })));
-      } catch { /* ignore */ }
+        else setNotifications(DEMO_NOTIFICATIONS);
+      } catch { setNotifications(DEMO_NOTIFICATIONS); }
     };
     const fetchConversations = async () => {
       try {
@@ -150,9 +151,11 @@ export default function Inbox() {
               lastMessage: t.last_message_preview || '',
             };
           }));
-          setConversations(mapped);
+          setConversations(mapped.length > 0 ? mapped : DEMO_CONVERSATIONS);
+        } else {
+          setConversations(DEMO_CONVERSATIONS);
         }
-      } catch { /* ignore */ }
+      } catch { setConversations(DEMO_CONVERSATIONS); }
     };
     fetchNotifications();
     fetchConversations();

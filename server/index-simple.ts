@@ -57,15 +57,26 @@ if (!fs.existsSync(indexPath)) {
 
 // Health check endpoint
 app.get('/health', (req, res) => {
-  console.log('🔍 Health check hit successfully');
-  res.status(200).json({ 
-    status: 'ok', 
+  console.log('ðŸ” Health check hit successfully');
+  res.status(200).json({
+    status: 'ok',
     timestamp: new Date().toISOString(),
     port: PORT,
     uptime: process.uptime()
   });
 });
 
+app.get('/env.js', (_req, res) => {
+  const env: Record<string, string> = {};
+  for (const [k, v] of Object.entries(process.env)) {
+    if (!k.startsWith('VITE_')) continue;
+    if (typeof v !== 'string') continue;
+    env[k] = v;
+  }
+  res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-store');
+  res.status(200).send('window.__ENV = Object.assign({}, window.__ENV || {}, ' + JSON.stringify(env) + ');');
+});
 // Debug endpoint to check files
 app.get('/debug', (req, res) => {
   const debugInfo = {

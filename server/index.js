@@ -27,6 +27,17 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+app.get('/env.js', (_req, res) => {
+  const env = {};
+  for (const [k, v] of Object.entries(process.env)) {
+    if (!k.startsWith('VITE_')) continue;
+    if (typeof v !== 'string') continue;
+    env[k] = v;
+  }
+  res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-store');
+  res.status(200).send('window.__ENV = Object.assign({}, window.__ENV || {}, ' + JSON.stringify(env) + ');');
+});
 // Serve static files from dist
 const distPath = path.resolve(__dirname, '..', 'dist');
 console.log('Serving static files from:', distPath);

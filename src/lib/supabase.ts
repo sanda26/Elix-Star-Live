@@ -1,7 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const runtimeEnv = (globalThis as any).__ENV as Record<string, string> | undefined;
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || runtimeEnv?.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || runtimeEnv?.VITE_SUPABASE_ANON_KEY;
 
 const isValidSupabaseConfig = (url?: string, key?: string) => {
   if (!url || !key) return false;

@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 
-const API_BASE = import.meta.env.VITE_API_URL || '';
+const runtimeEnv = (globalThis as any).__ENV as Record<string, string> | undefined;
+const API_BASE = import.meta.env.VITE_API_URL || runtimeEnv?.VITE_API_URL || '';
 
 async function getAuthHeaders(): Promise<Record<string, string>> {
   const { data: { session } } = await supabase.auth.getSession();
@@ -11,9 +12,18 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
   };
 }
 
+async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit, timeoutMs: number): Promise<Response> {
+  const controller = new AbortController();
+  const t = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(t);
+  }
+}
 async function apiPost(path: string, body: any): Promise<any> {
   const headers = await getAuthHeaders();
-  const res = await fetch(`${API_BASE}${path}`, { method: 'POST', headers, body: JSON.stringify(body) });
+  const res = await fetchWithTimeout(`${API_BASE}${path}`, { method: 'POST', headers, body: JSON.stringify(body) }, 7000);
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
     throw new Error(err.error || 'API error');
@@ -23,7 +33,7 @@ async function apiPost(path: string, body: any): Promise<any> {
 
 async function apiGet(path: string): Promise<any> {
   const headers = await getAuthHeaders();
-  const res = await fetch(`${API_BASE}${path}`, { headers });
+  const res = await fetchWithTimeout(`${API_BASE}${path}`, { headers }, 7000);
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
     throw new Error(err.error || 'API error');

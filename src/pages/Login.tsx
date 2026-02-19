@@ -39,6 +39,12 @@ export default function Login() {
     try {
       const res = await signInWithPassword(email.trim(), password);
       if (res.error) {
+        // Handle AbortError specifically in UI if needed, though store handles it
+        if (res.error.includes('aborted')) {
+           console.warn('Login aborted by user or timeout');
+           setIsSubmitting(false);
+           return;
+        }
         setError(res.error);
         setIsSubmitting(false);
         return;
@@ -47,7 +53,7 @@ export default function Login() {
       // Save email AND password if checkbox is checked
       if (saveDetails) {
         window.localStorage.setItem('login_saved_email', email.trim());
-        window.localStorage.setItem('login_saved_password', password); // User explicitly requested this
+        window.localStorage.setItem('login_saved_password', password); 
         window.localStorage.setItem('login_save_details', 'true');
       } else {
         window.localStorage.removeItem('login_saved_email');
@@ -56,10 +62,9 @@ export default function Login() {
       }
 
       navigate(from, { replace: true });
-    } catch {
-      setError('Failed to sign in');
-      setIsSubmitting(false);
-    } finally {
+    } catch (err) {
+      console.error('Login submit error:', err);
+      setError('An unexpected error occurred. Please try again.');
       setIsSubmitting(false);
     }
   };

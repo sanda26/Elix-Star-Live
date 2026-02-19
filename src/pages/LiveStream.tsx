@@ -195,10 +195,6 @@ const CHAT_MESSAGES = {
   emoji: [],
   gift_reaction: [],
   gift_encourage: [],
-
-    'show some love people!! 💗', 'a rose costs nothing send one 🌹', 'who wants top gifter spot? 👑',
-    'im saving up for a big gift 😤', 'the gift leaderboard is heating up 🔥', 'send hearts everyone ❤️',
-  ],
   reply_style: [],
   streamer_talk: [],
   viewer_to_viewer: [],

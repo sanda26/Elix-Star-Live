@@ -18,9 +18,20 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 // Prefer localStorage so app works in browser; Capacitor apps can switch to Preferences if needed
 const storage = {
-  getItem: async (key: string) => (typeof localStorage !== 'undefined' ? localStorage.getItem(key) : null),
-  setItem: async (key: string, value: string) => { if (typeof localStorage !== 'undefined') localStorage.setItem(key, value); },
-  removeItem: async (key: string) => { if (typeof localStorage !== 'undefined') localStorage.removeItem(key); },
+  getItem: (key: string) => {
+    if (typeof localStorage === 'undefined') return null;
+    return localStorage.getItem(key);
+  },
+  setItem: (key: string, value: string) => {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(key, value);
+    }
+  },
+  removeItem: (key: string) => {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem(key);
+    }
+  },
 };
 
 export const supabase = createClient(
@@ -28,7 +39,7 @@ export const supabase = createClient(
   supabaseAnonKey || 'placeholder',
   {
     auth: {
-      storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+      storage,
       persistSession: true,
       autoRefreshToken: true,
       detectSessionInUrl: false,

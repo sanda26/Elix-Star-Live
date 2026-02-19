@@ -25,21 +25,19 @@ export function GiftOverlay({ videoSrc, onEnded, isBattleMode: _isBattleMode }: 
   const isVideo = videoSrc.endsWith('.webm') || videoSrc.endsWith('.mp4');
 
   return (
-    <div className="absolute inset-0 pointer-events-none flex items-end justify-center overflow-hidden" style={{ zIndex: 30 }}>
-      <div className="w-full flex items-end justify-center" style={{ height: '50%', WebkitMaskImage: 'linear-gradient(to top, black 0%, black 60%, transparent 100%)', maskImage: 'linear-gradient(to top, black 0%, black 60%, transparent 100%)' }}>
-        {isVideo ? (
-          <video ref={videoRef} key={videoSrc} src={videoSrc} className="w-full h-full object-cover drop-shadow-2xl" playsInline autoPlay muted preload="auto"
-            onLoadedData={() => { if (videoRef.current && !muteAllSounds) videoRef.current.muted = false; }}
-            onEnded={() => { if (safetyTimerRef.current) clearTimeout(safetyTimerRef.current); onEnded(); }}
-            onError={() => { if (safetyTimerRef.current) clearTimeout(safetyTimerRef.current); onEnded(); }}
-          />
-        ) : (
-          <img src={videoSrc} alt="Gift" className="w-full h-full object-cover opacity-90 drop-shadow-2xl animate-bounce-small"
-            onLoad={() => { if (safetyTimerRef.current) clearTimeout(safetyTimerRef.current); setTimeout(onEnded, 1500); }}
-            onError={() => { if (safetyTimerRef.current) clearTimeout(safetyTimerRef.current); onEnded(); }}
-          />
-        )}
-      </div>
+    <div className="absolute left-0 right-0 bottom-0 pointer-events-none overflow-hidden" style={{ height: '50%', zIndex: 30, WebkitMaskImage: 'linear-gradient(to top, black 0%, black 60%, transparent 100%)', maskImage: 'linear-gradient(to top, black 0%, black 60%, transparent 100%)' }}>
+      {isVideo ? (
+        <video ref={videoRef} key={videoSrc} src={videoSrc} className="absolute inset-0 w-full h-full object-cover drop-shadow-2xl" playsInline autoPlay muted preload="auto"
+          onLoadedData={() => { if (videoRef.current && !muteAllSounds) videoRef.current.muted = false; }}
+          onEnded={() => { if (safetyTimerRef.current) clearTimeout(safetyTimerRef.current); onEnded(); }}
+          onError={() => { if (safetyTimerRef.current) clearTimeout(safetyTimerRef.current); onEnded(); }}
+        />
+      ) : (
+        <img src={videoSrc} alt="Gift" className="absolute inset-0 w-full h-full object-cover opacity-90 drop-shadow-2xl animate-bounce-small"
+          onLoad={() => { if (safetyTimerRef.current) clearTimeout(safetyTimerRef.current); setTimeout(onEnded, 1500); }}
+          onError={() => { if (safetyTimerRef.current) clearTimeout(safetyTimerRef.current); onEnded(); }}
+        />
+      )}
     </div>
   );
 }

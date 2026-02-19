@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { UserPlus, UserMinus, MessageCircle, Share2, MoreHorizontal, Flag, Ban, Bell, BellOff, X, Play } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useVideoStore } from '../store/useVideoStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { useSafetyStore } from '../store/useSafetyStore';
@@ -29,6 +30,7 @@ interface UserProfileModalProps {
 }
 
 export default function UserProfileModal({ isOpen, onClose, user, onFollow }: UserProfileModalProps) {
+  const navigate = useNavigate();
   const [showMoreOptions, setShowMoreOptions] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [showReportModal, setShowReportModal] = useState(false);
@@ -46,7 +48,8 @@ export default function UserProfileModal({ isOpen, onClose, user, onFollow }: Us
   if (!isOpen) return null;
 
   const handleMessage = () => {
-    // Navigate to chat with user
+    onClose();
+    navigate(`/inbox/${user.id}`);
   };
 
   const handleBlockUser = async () => {

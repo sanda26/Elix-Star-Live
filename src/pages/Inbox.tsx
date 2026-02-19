@@ -91,6 +91,7 @@ export default function Inbox() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [activeFilter, setActiveFilter] = useState<'main' | 'requests' | 'unread' | 'starred'>('main');
 
   const loadCurrentUser = async () => {
     const { data } = await supabase.auth.getUser();
@@ -178,8 +179,8 @@ export default function Inbox() {
             </button>
 
             <div className="flex items-center gap-4 z-10">
-                <Search size={24} className="text-[#00f2ea]" />
-                <button title="New message" className="w-8 h-8 rounded-full flex items-center justify-center">
+                <button onClick={() => navigate('/search')} title="Search"><Search size={24} className="text-[#00f2ea]" /></button>
+                <button onClick={() => navigate('/search')} title="New message" className="w-8 h-8 rounded-full flex items-center justify-center">
                      <div className="w-6 h-6 rounded-full border-2 border-white flex items-center justify-center">
                         <Plus size={16} className="text-[#00f2ea] stroke-[4px]" />
                      </div>
@@ -191,7 +192,7 @@ export default function Inbox() {
         <div className="px-4 py-2">
             <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2">
                 {/* Create - Blue Circle */}
-                <div className="flex flex-col items-center gap-1 min-w-[64px]">
+                <button onClick={() => navigate('/create')} className="flex flex-col items-center gap-1 min-w-[64px]">
                     <div className="relative w-16 h-16">
                         <div className="w-full h-full rounded-full p-[2px] bg-gradient-to-tr from-[#00f2ea] to-[#00f2ea]">
                             <div className="w-full h-full rounded-full border-2 border-[#121212] overflow-hidden">
@@ -203,27 +204,27 @@ export default function Inbox() {
                         </div>
                     </div>
                     <span className="text-xs text-[#00f2ea] font-semibold mt-1">Create</span>
-                </div>
+                </button>
 
                 {conversations.slice(0, 6).map(c => (
-                    <div key={c.id} className="flex flex-col items-center gap-1 min-w-[64px]">
+                    <button key={c.id} onClick={() => navigate(`/inbox/${c.id}`)} className="flex flex-col items-center gap-1 min-w-[64px]">
                         <div className="w-16 h-16 rounded-full p-[2px] bg-gradient-to-tr from-[#00f2ea] to-[#00f2ea]">
                             <div className="w-full h-full rounded-full border-2 border-[#121212] overflow-hidden bg-gray-800">
                                 <img src={c.otherUser?.avatar_url || ''} alt={c.otherUser?.username || 'User'} className="w-full h-full object-cover" />
                             </div>
                         </div>
                         <span className="text-xs text-[#00f2ea] font-semibold mt-1 truncate w-16 text-center">{c.otherUser?.username || 'User'}</span>
-                    </div>
+                    </button>
                 ))}
             </div>
         </div>
 
         {/* Filters */}
         <div className="pl-[calc(1rem+22mm)] pr-4 py-2 flex items-center justify-center gap-2 overflow-x-auto no-scrollbar mb-2">
-            <button className="px-4 py-1.5 rounded bg-[#00f2ea]/20 text-[#00f2ea] text-xs font-bold whitespace-nowrap">Main</button>
-            <button className="px-4 py-1.5 rounded bg-[#2F2F2F] hover:bg-[#3F3F3F] text-[#00f2ea] text-xs font-bold whitespace-nowrap">Requests</button>
-            <button className="px-4 py-1.5 rounded bg-[#2F2F2F] hover:bg-[#3F3F3F] text-[#00f2ea] text-xs font-bold whitespace-nowrap">Unread</button>
-            <button className="px-4 py-1.5 rounded bg-[#2F2F2F] hover:bg-[#3F3F3F] text-[#00f2ea] text-xs font-bold whitespace-nowrap">Starred</button>
+            <button onClick={() => setActiveFilter('main')} className={`px-4 py-1.5 rounded text-[#00f2ea] text-xs font-bold whitespace-nowrap ${activeFilter === 'main' ? 'bg-[#00f2ea]/20' : 'bg-[#2F2F2F] hover:bg-[#3F3F3F]'}`}>Main</button>
+            <button onClick={() => setActiveFilter('requests')} className={`px-4 py-1.5 rounded text-[#00f2ea] text-xs font-bold whitespace-nowrap ${activeFilter === 'requests' ? 'bg-[#00f2ea]/20' : 'bg-[#2F2F2F] hover:bg-[#3F3F3F]'}`}>Requests</button>
+            <button onClick={() => setActiveFilter('unread')} className={`px-4 py-1.5 rounded text-[#00f2ea] text-xs font-bold whitespace-nowrap ${activeFilter === 'unread' ? 'bg-[#00f2ea]/20' : 'bg-[#2F2F2F] hover:bg-[#3F3F3F]'}`}>Unread</button>
+            <button onClick={() => setActiveFilter('starred')} className={`px-4 py-1.5 rounded text-[#00f2ea] text-xs font-bold whitespace-nowrap ${activeFilter === 'starred' ? 'bg-[#00f2ea]/20' : 'bg-[#2F2F2F] hover:bg-[#3F3F3F]'}`}>Starred</button>
             <div className="ml-auto text-[#00f2ea]">
                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line><line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line><line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line><line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line><line x1="17" y1="16" x2="23" y2="16"></line></svg>
             </div>
@@ -233,7 +234,7 @@ export default function Inbox() {
         <div className="flex-1 overflow-y-auto px-4 py-1 space-y-4">
             
             {/* New Followers */}
-            <div className="flex items-center gap-3">
+            <button onClick={() => navigate('/profile')} className="flex items-center gap-3 w-full text-left">
                 <div className="w-12 h-12 rounded-full bg-[#00f2ea] flex items-center justify-center">
                     <UserPlus className="w-6 h-6 text-[#00f2ea]" fill="white" />
                 </div>
@@ -243,10 +244,10 @@ export default function Inbox() {
                       {notifications.find(n => n.type === 'follow')?.body || 'No new followers'}
                     </p>
                 </div>
-            </div>
+            </button>
 
             {/* Activity */}
-            <div className="flex items-center gap-3">
+            <button onClick={() => navigate('/profile')} className="flex items-center gap-3 w-full text-left">
                 <div className="w-12 h-12 rounded-full bg-[#00f2ea] flex items-center justify-center">
                     <Heart className="w-6 h-6 text-[#00f2ea]" fill="white" />
                 </div>
@@ -256,7 +257,7 @@ export default function Inbox() {
                       {notifications.find(n => n.type === 'like' || n.type === 'comment')?.body || 'No recent activity'}
                     </p>
                 </div>
-            </div>
+            </button>
 
             {/* Message Items (Mixed) */}
             {conversations.map((conv, i) => (
@@ -279,7 +280,7 @@ export default function Inbox() {
 
             {/* System Notification */}
             {notifications.filter(n => n.type === 'system').map(notif => (
-                <div key={notif.id} className="flex items-center gap-3">
+                <button key={notif.id} onClick={() => notif.action_url ? navigate(notif.action_url) : null} className="flex items-center gap-3 w-full text-left">
                     <div className="w-12 h-12 rounded-full bg-[#1a1a1a] border border-white/10 flex items-center justify-center">
                         <Archive className="w-6 h-6 text-[#00f2ea]" />
                     </div>
@@ -288,12 +289,12 @@ export default function Inbox() {
                         <p className="text-[#00f2ea]/60 text-xs truncate">{notif.body}</p>
                     </div>
                     <span className="text-[10px] text-[#00f2ea]/40">21h</span>
-                </div>
+                </button>
             ))}
 
              {/* Shop Notification */}
              {notifications.filter(n => n.type === 'shop').map(notif => (
-                <div key={notif.id} className="flex items-center gap-3">
+                <button key={notif.id} onClick={() => navigate('/purchase-coins')} className="flex items-center gap-3 w-full text-left">
                     <div className="w-12 h-12 rounded-full bg-[#00f2ea] flex items-center justify-center">
                         <ShoppingBag className="w-6 h-6 text-[#00f2ea]" fill="white" />
                     </div>
@@ -302,7 +303,7 @@ export default function Inbox() {
                         <p className="text-[#00f2ea]/60 text-xs truncate">{notif.body}</p>
                     </div>
                     <span className="text-[10px] text-[#00f2ea]/40">1d</span>
-                </div>
+                </button>
             ))}
              
         </div>

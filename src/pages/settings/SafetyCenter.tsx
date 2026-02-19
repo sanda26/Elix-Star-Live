@@ -4,9 +4,12 @@ import { Shield, Lock, Eye, AlertTriangle, Ban, Flag, HelpCircle } from 'lucide-
 
 export default function SafetyCenter() {
   const navigate = useNavigate();
+  const [toast, setToast] = React.useState('');
+  const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 2000); };
 
   return (
     <div className="min-h-[100dvh] bg-[#121212] text-[#00f2ea] flex justify-center px-2">
+      {toast && <div className="fixed top-16 left-1/2 -translate-x-1/2 bg-white/10 backdrop-blur-md text-white text-sm px-4 py-2 rounded-xl z-[9999]">{toast}</div>}
       <div className="w-full max-w-[480px] h-[100dvh] rounded-3xl overflow-hidden bg-[#121212] flex flex-col pt-[var(--safe-top)] pb-[calc(var(--safe-bottom)+12mm)]">
         {/* Header */}
         <div className="sticky top-0 bg-[#121212] z-10 px-4 py-4 border-b border-transparent flex items-center gap-3">
@@ -50,13 +53,13 @@ export default function SafetyCenter() {
             icon={<Lock className="w-6 h-6" />}
             title="Account Privacy"
             description="Control who can see your content and interact with you"
-            onClick={() => alert('Coming soon')}
+            onClick={() => showToast('Account privacy settings coming soon')}
           />
           <ActionCard
             icon={<Eye className="w-6 h-6" />}
             title="Data & Personalization"
             description="Manage how your data is used"
-            onClick={() => alert('Coming soon')}
+            onClick={() => showToast('Data settings coming soon')}
           />
         </Section>
 

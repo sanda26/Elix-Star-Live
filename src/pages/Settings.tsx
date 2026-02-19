@@ -1,3 +1,4 @@
+import React from 'react';
 import { supabase } from '../lib/supabase';
 import {
   ChevronRight,
@@ -18,6 +19,8 @@ import { useNavigate } from 'react-router-dom';
 
 export default function Settings() {
   const navigate = useNavigate();
+  const [toast, setToast] = React.useState('');
+  const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 2000); };
 
   const handleLogout = async () => {
     if (confirm('Are you sure you want to log out?')) {
@@ -57,6 +60,7 @@ export default function Settings() {
 
   return (
     <div className="min-h-[100dvh] bg-[#121212] text-[#00f2ea] flex justify-center px-2">
+      {toast && <div className="fixed top-16 left-1/2 -translate-x-1/2 bg-white/10 backdrop-blur-md text-white text-sm px-4 py-2 rounded-xl z-[9999] animate-pulse">{toast}</div>}
       <div className="w-full max-w-[480px] h-[100dvh] rounded-3xl overflow-hidden bg-[#121212] flex flex-col pt-[var(--safe-top)] pb-[calc(var(--safe-bottom)+12mm)]">
       {/* Header */}
       <div className="sticky top-0 z-10 px-4 py-4 flex items-center gap-3 bg-[#121212]">
@@ -97,13 +101,13 @@ export default function Settings() {
             icon={<Moon className="w-5 h-5" />}
             label="Dark Mode"
             value="Always On"
-            onClick={() => {}}
+            onClick={() => showToast('Dark mode is always on')}
           />
           <SettingItem
             icon={<Globe className="w-5 h-5" />}
             label="Language"
             value="English"
-            onClick={() => {}}
+            onClick={() => showToast('More languages coming soon')}
           />
         </Section>
 
@@ -113,7 +117,7 @@ export default function Settings() {
             icon={<Video className="w-5 h-5" />}
             label="Video Quality"
             value="Auto"
-            onClick={() => {}}
+            onClick={() => showToast('Video quality is set to Auto')}
           />
           <SettingItem
             icon={<Heart className="w-5 h-5" />}

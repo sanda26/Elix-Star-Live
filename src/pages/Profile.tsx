@@ -236,7 +236,7 @@ export default function Profile() {
           </button>
           <div className="flex-1" />
           <div className="flex items-center gap-4">
-            <button title="Share profile" className="p-1">
+            <button onClick={() => { if (navigator.share) navigator.share({ title: displayName, url: window.location.href }); else navigator.clipboard.writeText(window.location.href); }} title="Share profile" className="p-1">
               <Share2 size={22} className="text-[#00f2ea]" />
             </button>
             <button type="button" onClick={() => setShowAccountMenu(true)} title="Menu" className="p-1">
@@ -368,7 +368,7 @@ export default function Profile() {
             >
               Message
             </button>
-            <button type="button" className="w-10 h-10 bg-white/10 border border-white/10 rounded-md flex items-center justify-center" title="Share profile">
+            <button type="button" onClick={() => { if (navigator.share) navigator.share({ title: displayName, url: window.location.href }); else navigator.clipboard.writeText(window.location.href); }} className="w-10 h-10 bg-white/10 border border-white/10 rounded-md flex items-center justify-center" title="Share profile">
               <Share2 size={18} className="text-[#00f2ea]" />
             </button>
           </div>

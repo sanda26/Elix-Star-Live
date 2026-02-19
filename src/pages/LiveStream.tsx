@@ -757,7 +757,7 @@ export default function LiveStream() {
   const [floatingHearts, setFloatingHearts] = useState<
     Array<{ id: string; x: number; y: number; dx: number; rot: number; size: number; color: string; username?: string; avatar?: string }>
   >([]);
-  const [miniProfile, setMiniProfile] = useState<null | { username: string; avatar: string; level: number | null; coins?: number; donated?: number }>(null);
+  const [miniProfile, setMiniProfile] = useState<null | { id?: string; username: string; avatar: string; level: number | null; coins?: number; donated?: number }>(null);
   const [showMembershipBar, setShowMembershipBar] = useState(false);
   const [showTeamStatus, setShowTeamStatus] = useState(false);
   const [showJoinAnimation, setShowJoinAnimation] = useState(false);
@@ -770,17 +770,26 @@ export default function LiveStream() {
   const [isSubscribing, setIsSubscribing] = useState(false);
 
   const handleSubscribe = async () => {
-    // Immediate feedback - force the button to work visually first
-    console.log('Subscribe button clicked');
     setIsSubscribing(true);
-
-    // Simulate delay for effect
-    setTimeout(() => {
-        setIsSubscribing(false);
-        // Show success directly without relying on complex backend logic for now
-        alert('Redirecting to Stripe Checkout for £3.00 subscription...');
-        // In a real scenario, this would be: window.location.href = result.url;
-    }, 1000);
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      const res = await fetch('/api/create-subscription', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.session?.access_token}` },
+        body: JSON.stringify({ creatorId: streamId, amount: 300 }),
+      });
+      if (res.ok) {
+        const { url } = await res.json();
+        if (url) window.location.href = url;
+        else navigate('/purchase-coins');
+      } else {
+        navigate('/purchase-coins');
+      }
+    } catch {
+      navigate('/purchase-coins');
+    } finally {
+      setIsSubscribing(false);
+    }
   };
 
   // Auto-close Fan Club after 10 seconds of inactivity
@@ -3595,7 +3604,14 @@ export default function LiveStream() {
               </div>
 
               <div className="mt-5 grid grid-cols-5 gap-2">
-                <button type="button" onClick={() => alert('Followed')} className="h-9 rounded-lg bg-[#00f2ea] text-black text-[11px] font-black hover:bg-[#00f2ea]/90 active:scale-95 transition-all">
+                <button type="button" onClick={async () => {
+                  if (!user?.id || !miniProfile) return;
+                  try {
+                    await supabase.from('follows').upsert({ follower_id: user.id, following_id: miniProfile.id }, { onConflict: 'follower_id,following_id' });
+                    setIsFollowing(true);
+                    closeMiniProfile();
+                  } catch {}
+                }} className="h-9 rounded-lg bg-[#00f2ea] text-black text-[11px] font-black hover:bg-[#00f2ea]/90 active:scale-95 transition-all">
                   Follow
                 </button>
                 <button
@@ -3621,7 +3637,13 @@ export default function LiveStream() {
                 <button type="button" onClick={handleShare} className="h-9 rounded-lg bg-white/10 text-[#00f2ea] text-[11px] font-bold hover:bg-white/20 active:scale-95 transition-all">
                   Share
                 </button>
-                <button type="button" onClick={() => alert('Blocked')} className="h-9 rounded-lg bg-red-950/50 text-red-400 text-[11px] font-bold border border-red-900/50 hover:bg-red-900/50 active:scale-95 transition-all">
+                <button type="button" onClick={async () => {
+                  if (!user?.id || !miniProfile) return;
+                  try {
+                    await supabase.from('blocked_users').upsert({ blocker_id: user.id, blocked_id: miniProfile.id }, { onConflict: 'blocker_id,blocked_id' });
+                    closeMiniProfile();
+                  } catch {}
+                }} className="h-9 rounded-lg bg-red-950/50 text-red-400 text-[11px] font-bold border border-red-900/50 hover:bg-red-900/50 active:scale-95 transition-all">
                   Block
                 </button>
               </div>
@@ -3677,7 +3699,7 @@ export default function LiveStream() {
                         )}
                       </div>
                     </div>
-                    <button className="px-2 py-0.5 rounded-full bg-[#00f2ea]/15 border border-[#00f2ea]/25 text-[#00f2ea] text-[9px] font-bold hover:bg-[#00f2ea]/25 transition-colors">
+                    <button onClick={(e) => { e.stopPropagation(); setMiniProfile({ id: v.id, username: v.displayName, avatar: v.avatar, level: v.level ?? null }); setShowViewerList(false); }} className="px-2 py-0.5 rounded-full bg-[#00f2ea]/15 border border-[#00f2ea]/25 text-[#00f2ea] text-[9px] font-bold hover:bg-[#00f2ea]/25 transition-colors">
                       Follow
                     </button>
                   </div>
@@ -4262,7 +4284,6 @@ export default function LiveStream() {
                     key={user.id} 
                     className="flex flex-col items-center gap-1 min-w-[56px] active:scale-95 transition-transform"
                     onClick={() => {
-                      alert(`Sent to ${user.displayName}`);
                       setShowSharePanel(false);
                     }}
                   >
@@ -4314,9 +4335,9 @@ export default function LiveStream() {
             {/* Actions Row */}
             <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar shrink-0">
               {[
-                { name: 'Promote', color: '#00f2ea', icon: <TrendingUp size={24} className="text-[#00f2ea]" />, action: () => alert('Promote panel opening...') },
+                { name: 'Promote', color: '#00f2ea', icon: <TrendingUp size={24} className="text-[#00f2ea]" />, action: () => { if (navigator.share) navigator.share({ title: 'Watch my LIVE on Elix!', url: window.location.href }); } },
                 { name: 'Report', color: '#EF4444', icon: <AlertTriangle size={24} className="text-[#00f2ea]" />, action: () => setIsReportModalOpen(true) },
-                { name: 'Add Story', color: '#3B82F6', icon: <PlusCircle size={24} className="text-[#00f2ea]" />, action: () => alert('Adding to story...') },
+                { name: 'Add Story', color: '#3B82F6', icon: <PlusCircle size={24} className="text-[#00f2ea]" />, action: () => navigate('/create') },
                 { name: 'Settings', color: '#6B7280', icon: <Settings2 size={24} className="text-[#00f2ea]" />, action: () => setIsLiveSettingsOpen(true) },
               ].map((item) => (
                 <button 

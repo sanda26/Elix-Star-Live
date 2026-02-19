@@ -18,6 +18,8 @@ export default function Upload() {
   const [isPaused, setIsPaused] = useState(false);
   const [chunks, setChunks] = useState<Blob[]>([]);
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [toast, setToast] = useState('');
+  const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 1500); };
   const [cameraRetry, setCameraRetry] = useState(0);
   const [recordedVideoUrl, setRecordedVideoUrl] = useState<string | null>(null);
   const [showMusicModal, setShowMusicModal] = useState(false);
@@ -368,7 +370,7 @@ export default function Upload() {
 
       // Must have video data to upload
       if (!chunks.length) {
-        alert("No video to upload. Record or choose a video first.");
+        showToast('No video to upload. Record or choose a video first.'); return;
         return;
       }
 
@@ -377,7 +379,7 @@ export default function Upload() {
       const blob = new Blob(chunks, { type: mimeType });
 
       if (blob.size === 0) {
-        alert("Video is empty. Record or choose a valid video.");
+        showToast('Video is empty. Record or choose a valid video.'); return;
         return;
       }
 
@@ -455,8 +457,8 @@ export default function Upload() {
         setChunks([]);
         setIsPosting(false);
         setPostProgress(0);
-        alert("Video Posted to For You Feed! ✅");
-        navigate('/feed');
+        showToast('Video posted!');
+        setTimeout(() => navigate('/feed'), 500);
         
       } catch (error: any) {
         const msg = error?.message || error?.error_description || String(error) || 'Unknown error';
@@ -494,7 +496,7 @@ export default function Upload() {
 
   return (
     <div className="fixed inset-0 h-[100dvh] w-full bg-[#121212] overflow-hidden flex items-end justify-center">
-      
+      {toast && <div className="fixed top-16 left-1/2 -translate-x-1/2 bg-white/10 backdrop-blur-md text-white text-sm px-4 py-2 rounded-xl z-[9999]">{toast}</div>}
       {/* PREVIEW MODE */}
        {recordedVideoUrl ? (
          <>
@@ -728,7 +730,7 @@ export default function Upload() {
                   {/* 3. Flip Camera */}
                   <button 
                     className="absolute top-[34%] right-[5%] w-8 h-8 flex items-center justify-center opacity-0 hover:opacity-100 hover:brightness-125 rounded-full"
-                    onClick={() => alert('Flip Camera')}
+                    onClick={() => showToast('Flip Camera')}
                     title="Flip Camera"
                   >
                     <RefreshCw size={20} className="text-[#00f2ea]" />
@@ -737,7 +739,7 @@ export default function Upload() {
                   {/* 4. Speed */}
                   <button 
                     className="absolute top-[42%] right-[5%] w-8 h-8 flex items-center justify-center opacity-0 hover:opacity-100 hover:brightness-125 rounded-full"
-                    onClick={() => alert('Speed')}
+                    onClick={() => showToast('Speed: 1x')}
                     title="Speed"
                   >
                     <span className="text-[#00f2ea] font-bold text-xs">1x</span>
@@ -746,7 +748,7 @@ export default function Upload() {
                   {/* 5. Beauty */}
                   <button 
                     className="absolute top-[50%] right-[5%] w-8 h-8 flex items-center justify-center opacity-0 hover:opacity-100 hover:brightness-125 rounded-full"
-                    onClick={() => alert('Beauty')}
+                    onClick={() => showToast('Beauty filter on')}
                     title="Beauty"
                   >
                     <span className="text-[#00f2ea] text-xs">✨</span>
@@ -755,7 +757,7 @@ export default function Upload() {
                   {/* 6. Timer */}
                   <button 
                     className="absolute top-[58%] right-[5%] w-8 h-8 flex items-center justify-center opacity-0 hover:opacity-100 hover:brightness-125 rounded-full"
-                    onClick={() => alert('Timer')}
+                    onClick={() => showToast('Timer: Off')}
                     title="Timer"
                   >
                     <Clock size={20} className="text-[#00f2ea]" />
@@ -764,7 +766,7 @@ export default function Upload() {
                   {/* 7. Flash */}
                   <button 
                     className="absolute top-[66%] right-[5%] w-8 h-8 flex items-center justify-center opacity-0 hover:opacity-100 hover:brightness-125 rounded-full"
-                    onClick={() => alert('Flash')}
+                    onClick={() => showToast('Flash: Off')}
                     title="Flash"
                   >
                     <Zap size={20} className="text-[#00f2ea]" />
@@ -775,7 +777,7 @@ export default function Upload() {
                   {/* 8. Effects */}
                   <button 
                     className="absolute bottom-[15%] left-[15%] w-10 h-10 bg-[#00f2ea]/50 rounded-lg"
-                    onClick={() => alert('Effects')}
+                    onClick={() => showToast('Effects')}
                   >
                     Ef
                   </button>

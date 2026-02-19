@@ -94,7 +94,7 @@ export default function FollowingFeed() {
 
           <div className="flex items-center gap-4 z-10">
             <button onClick={() => navigate('/search')} aria-label="Search"><Search size={24} /></button>
-            <button title="Add" className="w-8 h-8 rounded-full flex items-center justify-center">
+            <button onClick={() => navigate('/search')} title="Add" className="w-8 h-8 rounded-full flex items-center justify-center">
               <div className="w-6 h-6 rounded-full border-2 border-white flex items-center justify-center">
                 <Plus size={16} className="text-[#00f2ea] stroke-[4px]" />
               </div>
@@ -169,13 +169,13 @@ export default function FollowingFeed() {
                 <div className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.15) 35%, rgba(0,0,0,0.55) 100%)' }} />
 
                 <div className="absolute right-3 bottom-4 flex flex-col items-center gap-4 pointer-events-auto">
-                  <button type="button" title="Like" className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center">
+                  <button type="button" onClick={() => navigate('/discover')} title="Discover" className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center">
                     <Heart className="w-5 h-5 text-[#00f2ea]" />
                   </button>
-                  <button type="button" title="Comment" className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center">
+                  <button type="button" onClick={() => navigate('/inbox')} title="Messages" className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center">
                     <MessageCircle className="w-5 h-5 text-[#00f2ea]" />
                   </button>
-                  <button type="button" title="Share" className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center">
+                  <button type="button" onClick={() => { if (navigator.share) navigator.share({ title: 'Elix', url: window.location.href }); }} title="Share" className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center">
                     <Share2 className="w-5 h-5 text-[#00f2ea]" />
                   </button>
                 </div>

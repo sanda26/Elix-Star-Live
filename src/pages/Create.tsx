@@ -751,12 +751,7 @@ export default function Create() {
             setIsPreviewPlaying(false);
           }}
           onPost={() => {
-             // In a real app, you would upload the video blob here.
-             // Since we don't have the upload logic fully connected in this file yet (it's in Upload.tsx),
-             // we will just navigate to the For You feed as requested.
-             // Ideally: navigate('/upload', { state: { videoBlob: ... } }) or similar.
-             alert("Video posted to For You! (Simulation)");
-             navigate('/feed');
+             navigate('/upload');
           }}
         />
 

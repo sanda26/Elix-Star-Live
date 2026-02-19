@@ -153,16 +153,25 @@ export const useVideoStore = create<VideoStore>()(
           // 1. Try fetching all public videos sorted by creation time (newest first)
           let res = await supabase
             .from('videos')
-            .select(baseSelect)
-            .eq('is_private', false)
+            .select(`
+              *,
+              user:users ( id, username, display_name, avatar_url ),
+              likes:likes ( count )
+            `)
+            .eq('is_public', true)
             .order('created_at', { ascending: false });
 
-          // 2. Fallback for profile relation
-          if (res.error && (res.error.message?.includes('users') || res.error.message?.includes('relation'))) {
-            res = await supabase
+          // 2. Fallback for profile relation if different join syntax needed
+          if (res.error) {
+             console.log('Trying alternate query for videos...');
+             res = await supabase
                 .from('videos')
-                .select(profileSelect)
-                .eq('is_private', false)
+                .select(`
+                  id, url, thumbnail_url, description, created_at, is_public,
+                  user_id,
+                  user:profiles!user_id ( id, username, display_name, avatar_url )
+                `)
+                .eq('is_public', true)
                 .order('created_at', { ascending: false });
           }
 
@@ -281,12 +290,13 @@ export const useVideoStore = create<VideoStore>()(
 
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const mappedVideos: Video[] = data.map((v: any) => {
-            const u = v.user;
+            const u = v.user || {};
             const uid = u?.user_id ?? u?.id ?? v.user_id ?? 'unknown';
             const uname = u?.username ?? 'user';
+            
             return {
               id: v.id,
-              url: v.url,
+              url: v.url, 
               thumbnail: v.thumbnail_url || 'https://picsum.photos/400/600',
               duration: '0:15',
               user: {
@@ -299,10 +309,16 @@ export const useVideoStore = create<VideoStore>()(
                 followers: 0,
                 following: 0
               },
-              description: v.caption || '',
+              description: v.description || '',
               hashtags: [],
               music: { id: 'original', title: 'Original Sound', artist: u?.display_name ?? uname, duration: '0:15' },
-              stats: { views: v.views || 0, likes: v.likes || 0, comments: v.comments_count || 0, shares: v.shares_count || 0, saves: 0 },
+              stats: { 
+                  views: v.views || 0, 
+                  likes: v.likes || 0, 
+                  comments: v.comments || 0, 
+                  shares: v.shares || 0, 
+                  saves: 0 
+              },
               createdAt: v.created_at,
               location: 'For You',
               isLiked: likedSet.has(v.id),
@@ -310,7 +326,7 @@ export const useVideoStore = create<VideoStore>()(
               isFollowing: false,
               comments: [],
               quality: 'auto',
-              privacy: 'public'
+              privacy: v.is_public ? 'public' : 'private'
             };
           });
 

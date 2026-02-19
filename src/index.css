@@ -1,3 +1,4 @@
+/* 🔒 LOCKED FILE: DO NOT MODIFY Z-INDEX VALUES */
 @import './styles/ui-polish.css';
 @tailwind base;
 @tailwind components;
@@ -15,7 +16,7 @@
 @layer base {
   :root {
     --color-primary: #6B46C1;
-    --color-secondary: #E6B36A;
+    --color-secondary: #00f2ea;
     --color-rose: #F4C2C2;
     --color-background: #0B0B0F;
     --color-surface: #1F1F1F;
@@ -334,10 +335,10 @@
 /* Premium Glow Pulse */
 @keyframes premium-glow {
   0%, 100% {
-    filter: drop-shadow(0 0 8px rgba(230, 179, 106, 0.6)) drop-shadow(0 0 16px rgba(230, 179, 106, 0.4));
+    filter: drop-shadow(0 0 8px rgba(0, 242, 234, 0.6)) drop-shadow(0 0 16px rgba(0, 242, 234, 0.4));
   }
   50% {
-    filter: drop-shadow(0 0 16px rgba(230, 179, 106, 0.8)) drop-shadow(0 0 24px rgba(230, 179, 106, 0.6));
+    filter: drop-shadow(0 0 16px rgba(0, 242, 234, 0.8)) drop-shadow(0 0 24px rgba(0, 242, 234, 0.6));
   }
 }
 
@@ -356,7 +357,7 @@
 }
 
 .animate-shimmer {
-  background: linear-gradient(90deg, transparent 0%, rgba(230, 179, 106, 0.3) 50%, transparent 100%);
+  background: linear-gradient(90deg, transparent 0%, rgba(0, 242, 234, 0.3) 50%, transparent 100%);
   background-size: 200% 100%;
   animation: shimmer 3s ease-in-out infinite;
 }
@@ -377,9 +378,9 @@
   animation: luxury-pulse 2s ease-in-out infinite;
 }
 
-/* Rose Gold Gradient */
+/* Rose Gold Gradient -> Cyan Gradient */
 .bg-luxury-gradient {
-  background: linear-gradient(145deg, #FFD700 0%, #E6B36A 25%, #C9A172 50%, #E6B36A 75%, #FFD700 100%);
+  background: linear-gradient(145deg, #E0FFFF 0%, #00f2ea 25%, #00c2be 50%, #00f2ea 75%, #E0FFFF 100%);
   background-size: 200% 200%;
   animation: gradient-shift 4s ease infinite;
 }
@@ -396,10 +397,10 @@
 /* Glowing Border */
 @keyframes glow-border {
   0%, 100% {
-    box-shadow: 0 0 10px rgba(230, 179, 106, 0.5), 0 0 20px rgba(230, 179, 106, 0.3), inset 0 0 10px rgba(230, 179, 106, 0.1);
+    box-shadow: 0 0 10px rgba(0, 242, 234, 0.5), 0 0 20px rgba(0, 242, 234, 0.3), inset 0 0 10px rgba(0, 242, 234, 0.1);
   }
   50% {
-    box-shadow: 0 0 20px rgba(230, 179, 106, 0.8), 0 0 40px rgba(230, 179, 106, 0.5), inset 0 0 20px rgba(230, 179, 106, 0.2);
+    box-shadow: 0 0 20px rgba(0, 242, 234, 0.8), 0 0 40px rgba(0, 242, 234, 0.5), inset 0 0 20px rgba(0, 242, 234, 0.2);
   }
 }
 
@@ -544,7 +545,7 @@
   content: '';
   position: absolute;
   top: -2px; left: -2px; right: -2px; bottom: -2px;
-  background: radial-gradient(circle, rgba(230, 179, 106, 0.3) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(0, 242, 234, 0.3) 0%, transparent 70%);
   border-radius: 50%;
   animation: elix-sparkle 2s ease-in-out infinite;
   pointer-events: none;

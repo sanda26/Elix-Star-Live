@@ -220,7 +220,7 @@ export default function ChatThread() {
                 <div
                     className={`max-w-[80%] rounded-2xl px-4 py-2 text-sm leading-snug break-words ${
                     isMe
-                        ? 'bg-[#E6B36A] text-black rounded-tr-none'
+                        ? 'bg-[#00f2ea] text-black rounded-tr-none'
                         : 'bg-[#222] text-white rounded-tl-none'
                     }`}
                 >
@@ -246,7 +246,7 @@ export default function ChatThread() {
                 <button
                     type="submit"
                     disabled={!draft.trim()}
-                    className="p-2 bg-[#E6B36A] rounded-full text-black disabled:opacity-50 disabled:bg-gray-600"
+                    className="p-2 bg-[#00f2ea] rounded-full text-black disabled:opacity-50 disabled:bg-gray-600"
                 >
                     <Send size={16} />
                 </button>

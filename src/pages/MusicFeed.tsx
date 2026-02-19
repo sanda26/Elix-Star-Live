@@ -52,8 +52,8 @@ export default function MusicFeed() {
          <div className="flex-1">
             <h1 className="text-xl font-bold mb-1">Original Sound{songId ? ` #${songId}` : ''}</h1>
             <p className="text-white/60 text-sm mb-4">Trending</p>
-            <button className="bg-[#FE2C55] text-white px-6 py-1.5 rounded-sm font-semibold flex items-center gap-2 text-sm w-fit">
-               <Play size={14} fill="white" /> Use this sound
+            <button className="bg-[#00f2ea] text-black px-6 py-1.5 rounded-sm font-semibold flex items-center gap-2 text-sm w-fit">
+               <Play size={14} fill="black" /> Use this sound
             </button>
          </div>
          </div>
@@ -63,7 +63,7 @@ export default function MusicFeed() {
       <div className="grid grid-cols-3 gap-0.5 p-0.5">
         {loading ? (
           <div className="col-span-3 flex items-center justify-center h-[40vh]">
-            <div className="w-8 h-8 border-2 border-[#E6B36A] border-t-transparent rounded-full animate-spin" />
+            <div className="w-8 h-8 border-2 border-[#00f2ea] border-t-transparent rounded-full animate-spin" />
           </div>
         ) : videos.length === 0 ? (
           <div className="col-span-3 flex flex-col items-center justify-center h-[40vh] text-center opacity-60">

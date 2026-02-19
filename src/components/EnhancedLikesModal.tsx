@@ -223,7 +223,7 @@ export default function EnhancedLikesModal({ isOpen, onClose, likes }: LikesModa
                 onClick={() => setFilter(filterType as 'all' | 'following' | 'followers')}
                 className={`px-3 py-1 rounded-full text-sm transition-colors ${
                   filter === filterType
-                    ? 'bg-[#FE2C55] text-white'
+                    ? 'bg-[#00f2ea] text-black'
                     : 'bg-black text-white/80 hover:brightness-125'
                 }`}
               >
@@ -293,7 +293,7 @@ export default function EnhancedLikesModal({ isOpen, onClose, likes }: LikesModa
                           ) : (
                             <button
                               onClick={() => handleFollowToggle(user.id)}
-                              className="px-3 py-1.5 bg-[#FE2C55] text-white rounded-lg hover:bg-[#FE2C55]/80 transition-colors text-sm"
+                              className="px-3 py-1.5 bg-[#00f2ea] text-black rounded-lg hover:bg-[#00f2ea]/80 transition-colors text-sm"
                             >
                               <UserPlus size={14} className="inline mr-1" />
                               Follow

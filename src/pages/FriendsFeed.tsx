@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Heart, MessageCircle, Search, Share2 } from 'lucide-react';
+import { Heart, MessageCircle, Search, Share2, Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../store/useAuthStore';
@@ -56,14 +56,21 @@ export default function FriendsFeed() {
   return (
     <div className="min-h-[100dvh] bg-black text-white flex justify-center px-2">
       <div className="w-full max-w-[480px] h-[100dvh] rounded-3xl overflow-hidden bg-[#121212] pt-[var(--safe-top)] pb-[calc(var(--safe-bottom)+12mm)] overflow-y-auto">
-        <div className="p-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <button onClick={() => navigate(-1)} className="p-1" title="Back">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg>
-            </button>
-            <h1 className="text-lg font-bold">Friends</h1>
+        <div className="p-4 flex items-center justify-between relative">
+          <button onClick={() => navigate(-1)} className="p-1 z-10" title="Back">
+             <img src="/Icons/power-button.png" alt="Back" className="w-5 h-5" />
+          </button>
+          
+          <h1 className="text-lg font-bold absolute left-1/2 transform -translate-x-1/2">Friends</h1>
+
+          <div className="flex items-center gap-4 z-10">
+             <button onClick={() => navigate('/search')} aria-label="Search"><Search size={24} /></button>
+             <button className="w-8 h-8 rounded-full flex items-center justify-center">
+                  <div className="w-6 h-6 rounded-full border-2 border-white flex items-center justify-center">
+                     <Plus size={16} className="text-white stroke-[4px]" />
+                  </div>
+             </button>
           </div>
-          <button onClick={() => navigate('/search')} aria-label="Search"><Search size={24} /></button>
         </div>
 
         {/* Circles Section (Like Inbox) */}
@@ -75,12 +82,10 @@ export default function FriendsFeed() {
               className="flex-shrink-0 w-[72px] flex flex-col items-center gap-2"
             >
               <div className="relative w-16 h-16 rounded-full bg-black">
-                <div className="absolute inset-0 rounded-full ring-2 ring-[#00f5ff]" />
-                <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-[#00f5ff] flex items-center justify-center text-black font-bold leading-none">
-                  +
-                </div>
+                <div className="absolute inset-0 rounded-full ring-2 ring-[#00f2ea]" />
+                <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-[#00f2ea] flex items-center justify-center text-black font-bold leading-none">+</div>
                 <img
-                  src="https://ui-avatars.com/api/?name=Create&background=121212&color=E6B36A"
+                  src="https://ui-avatars.com/api/?name=Create&background=121212&color=00f2ea"
                   alt="Create"
                   className="w-full h-full rounded-full object-cover"
                   draggable={false}
@@ -99,7 +104,7 @@ export default function FriendsFeed() {
                 }}
                 className="flex-shrink-0 w-[72px] flex flex-col items-center gap-2"
               >
-                <div className="w-16 h-16 rounded-full p-[2px] bg-gradient-to-tr from-[#00f5ff] via-[#00f5ff] to-[#E6B36A]">
+                <div className="w-16 h-16 rounded-full p-[2px] bg-gradient-to-tr from-[#00f2ea] to-[#00f2ea]">
                   <div className="w-full h-full rounded-full bg-[#121212] p-[2px]">
                     <img
                       src={u.avatar_url || ''}

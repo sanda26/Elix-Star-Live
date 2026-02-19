@@ -88,7 +88,7 @@ export default function SearchPage() {
               </button>
             )}
           </form>
-          <button className="text-[#FE2C55] font-semibold text-sm" onClick={handleSearch}>Search</button>
+          <button className="text-[#00f2ea] font-semibold text-sm" onClick={handleSearch}>Search</button>
         </div>
         {!normalizedQuery ? (
           <>

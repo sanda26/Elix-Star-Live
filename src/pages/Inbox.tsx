@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { Heart, UserPlus, Bell, Search, MoreHorizontal, ChevronDown, Camera, ShoppingBag, Archive, MicOff } from 'lucide-react';
+import { Heart, UserPlus, Bell, Search, MoreHorizontal, ChevronDown, Camera, ShoppingBag, Archive, MicOff, ChevronLeft, Plus } from 'lucide-react';
 
 interface Notification {
   id: string;
@@ -109,22 +109,27 @@ export default function Inbox() {
         
         {/* Header */}
         <div className="px-4 py-3 flex items-center justify-between sticky top-0 z-10 bg-[#121212]">
-            <button className="w-8 h-8 rounded-full flex items-center justify-center">
-                 <div className="w-6 h-6 rounded-full border-2 border-white flex items-center justify-center">
-                    <span className="text-white text-sm font-bold leading-none pb-0.5">+</span>
-                 </div>
+            <button 
+              onClick={() => navigate(-1)}
+              className="w-8 h-8 rounded-full flex items-center justify-center -ml-2"
+            >
+                 <img src="/Icons/power-button.png" alt="Back" className="w-5 h-5" />
             </button>
             
             <button className="flex items-center gap-1 font-bold text-lg">
                 Inbox
-                <div className="bg-[#FE2C55] rounded px-1 py-0.5 ml-1">
+                <div className="bg-[#00f2ea] rounded px-1 py-0.5 ml-1">
                     <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
                 </div>
             </button>
 
             <div className="flex items-center gap-4">
                 <Search size={24} />
-                <MoreHorizontal size={24} />
+                <button className="w-8 h-8 rounded-full flex items-center justify-center">
+                     <div className="w-6 h-6 rounded-full border-2 border-white flex items-center justify-center">
+                        <Plus size={16} className="text-white stroke-[4px]" />
+                     </div>
+                </button>
             </div>
         </div>
 
@@ -182,19 +187,19 @@ export default function Inbox() {
                     <h3 className="font-bold text-sm">New followers</h3>
                     <p className="text-white/60 text-xs truncate">Kashmir started following you.</p>
                 </div>
-                <div className="w-5 h-5 rounded-full bg-[#FE2C55] flex items-center justify-center text-white text-[10px] font-bold">1</div>
+                <div className="w-5 h-5 rounded-full bg-[#00f2ea] flex items-center justify-center text-white text-[10px] font-bold">1</div>
             </div>
 
             {/* Activity */}
             <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-[#FE2C55] flex items-center justify-center">
+                <div className="w-12 h-12 rounded-full bg-[#00f2ea] flex items-center justify-center">
                     <Heart className="w-6 h-6 text-white" fill="white" />
                 </div>
                 <div className="flex-1 min-w-0">
                     <h3 className="font-bold text-sm">Activity</h3>
                     <p className="text-white/60 text-xs truncate">Stefanuca Radu liked your video.</p>
                 </div>
-                <div className="w-5 h-5 rounded-full bg-[#FE2C55] flex items-center justify-center text-white text-[10px] font-bold">8</div>
+                <div className="w-5 h-5 rounded-full bg-[#00f2ea] flex items-center justify-center text-white text-[10px] font-bold">8</div>
             </div>
 
             {/* Message Items (Mixed) */}

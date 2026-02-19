@@ -114,15 +114,17 @@ export class VideoUploadService {
       if (!file || file.size === 0) {
         throw new Error('Video file is empty. Record or choose a valid video.');
       }
-      // Note: "new row violates row-level security policy" usually means Storage policies are missing or too strict.
-      // Ensure 'user-content' bucket is Public and has policies for authenticated users to INSERT.
-
+      
       const videoMeta = this.validateVideo(file);
 
       this.updateProgress('uploading', 40, 'Uploading video...');
 
+      // Generate Video ID upfront
+      const videoId = crypto.randomUUID();
       const fileExt = file.name.split('.').pop() || 'mp4';
-      const fileName = `videos/${userId}/${Date.now()}.${fileExt}`;
+      
+      // Structure: videos/{userId}/{videoId}/original.ext
+      const fileName = `videos/${userId}/${videoId}/original.${fileExt}`;
 
       const { error: uploadError } = await supabase.storage
         .from('user-content')
@@ -131,9 +133,10 @@ export class VideoUploadService {
           upsert: true,
           contentType: file.type || 'video/webm',
         });
+        
       if (uploadError) {
         const msg = (uploadError as any)?.message ?? String(uploadError);
-        throw new Error(`Storage failed: ${msg}. Check Supabase: bucket "user-content" exists and Storage policies allow upload.`);
+        throw new Error(`Storage failed: ${msg}. Check Supabase: bucket "user-content" exists.`);
       }
 
       this.updateProgress('uploading', 70, 'Upload complete');
@@ -145,70 +148,35 @@ export class VideoUploadService {
 
       this.updateProgress('processing', 80, 'Creating video record...');
 
-      // Thumbnail: don't block upload – use placeholder if it fails or takes too long
+      // Thumbnail
       let thumbnailUrl = 'https://picsum.photos/400/600';
       try {
         thumbnailUrl = await Promise.race([
-          this.generateThumbnail(file, userId),
+          this.generateThumbnail(file, userId, videoId),
           new Promise<string>((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000)),
         ]);
       } catch {
         // keep placeholder
       }
 
-      // Insert with only columns that exist in minimal setup (supabase-upload-setup.sql)
-      // NOTE: 'is_private' might be missing in some schemas. We check for errors.
-      const payload: any = {
+      // Insert into 'videos' table
+      const payload = {
+        id: videoId,
         user_id: userId,
         url: publicUrl,
         thumbnail_url: thumbnailUrl,
-        caption: metadata.description || '',
+        description: metadata.description || '',
+        is_public: !metadata.isPrivate,
       };
       
-      // Try to insert with is_private first
-      let data, error;
-      
-      try {
-        // NOTE: If user_id is missing in auth.users, this will fail with FK constraint.
-        // We assume auth.getUser() check passed, but maybe the user was deleted?
-        // Or maybe RLS is blocking it?
-        
-        const res = await supabase
-          .from('videos')
-          .insert({ ...payload, is_private: metadata.isPrivate ?? false })
-          .select()
-          .single();
-        data = res.data;
-        error = res.error;
-      } catch (e) {
-        // Ignored
-      }
-
-      // If failed due to column missing, try without it
-      if (error && (error.message?.includes('is_private') || error.code === '42703')) {
-         console.warn('is_private column missing, inserting without it');
-         const res = await supabase
-          .from('videos')
-          .insert(payload)
-          .select()
-          .single();
-         data = res.data;
-         error = res.error;
-      }
-
-      // If failed due to FK constraint (videos_user_id_fkey), it means the user ID in 'videos' table
-      // does not match any ID in 'auth.users'.
-      // However, we just got the ID from auth.getUser().
-      // This usually happens if the trigger 'handle_new_user' failed to run or if there's a weird mismatch.
-      // BUT 'videos' references 'auth.users', not 'public.profiles'.
-      // So if auth.getUser() returns a user, that user DEFINITELY exists in auth.users.
-      // The only other possibility is RLS blocking the INSERT because auth.uid() != user_id
-      // OR the trigger that checks something failed.
+      const { data, error } = await supabase
+        .from('videos')
+        .insert(payload)
+        .select()
+        .single();
       
       if (error) {
           console.error('Video insert error details:', error);
-          // If foreign key violation, it might be due to user deletion or sync issue.
-          // In a real app we might try to recover or logout.
           if (error.code === '23503') { // foreign_key_violation
              throw new Error(`User ID mismatch (Code: 23503). Try logging out and back in.`);
           }
@@ -225,10 +193,10 @@ export class VideoUploadService {
       try {
         await boostNewVideo(videoData.id);
       } catch {
-        /* non-critical – video is uploaded even if boost fails */
+        /* non-critical */
       }
 
-      // Hashtags only if tables exist (ignore errors)
+      // Hashtags
       if (metadata.hashtags.length > 0) {
         try {
           await this.addHashtags(videoData.id, metadata.hashtags);
@@ -257,7 +225,7 @@ export class VideoUploadService {
   /**
    * Generate thumbnail from video
    */
-  private async generateThumbnail(file: File, userId: string): Promise<string> {
+  private async generateThumbnail(file: File, userId: string, videoId: string): Promise<string> {
     return new Promise((resolve, reject) => {
       const video = document.createElement('video');
       const canvas = document.createElement('canvas');
@@ -279,8 +247,7 @@ export class VideoUploadService {
               return;
             }
 
-            // Upload thumbnail to 'user-content' bucket with 'thumbnails/' prefix
-            const fileName = `thumbnails/${userId}/${Date.now()}_thumb.jpg`;
+            const fileName = `thumbnails/${userId}/${videoId}/thumb.jpg`;
             const { error } = await supabase.storage
               .from('user-content')
               .upload(fileName, blob);
@@ -347,7 +314,6 @@ export class VideoUploadService {
         if (newTag) {
           hashtagId = newTag.id;
         } else if (error) {
-             // Handle race condition where tag might have been created by another user in between
              const { data: retryTag } = await supabase.from('hashtags').select('id').eq('tag', tag).single();
              if (retryTag) hashtagId = retryTag.id;
         }

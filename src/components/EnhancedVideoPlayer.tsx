@@ -50,10 +50,10 @@ export const PremiumSidebarButton = ({
       style={{
         background: 'linear-gradient(145deg, rgba(30,30,30,0.95) 0%, rgba(10,10,10,0.98) 100%)',
         boxShadow: isActive 
-          ? '0 0 20px rgba(230,179,106,0.5), inset 0 1px 1px rgba(255,255,255,0.1)' 
+          ? '0 0 20px rgba(0, 242, 234, 0.5), inset 0 1px 1px rgba(255,255,255,0.1)' 
           : '0 4px 15px rgba(0,0,0,0.4), inset 0 1px 1px rgba(255,255,255,0.05)',
         border: '2px solid',
-        borderColor: isActive ? '#E6B36A' : 'rgba(230,179,106,0.4)',
+        borderColor: isActive ? '#00f2ea' : 'rgba(0, 242, 234, 0.4)',
       }}
     >
       {/* Inner glow */}
@@ -65,30 +65,30 @@ export const PremiumSidebarButton = ({
       />
       
       {/* Light reflection */}
-      <div className="absolute top-1 left-1/2 -translate-x-1/2 w-6 h-1 bg-gradient-to-r from-transparent via-[#E6B36A]/30 to-transparent rounded-full" />
+      <div className="absolute top-1 left-1/2 -translate-x-1/2 w-6 h-1 bg-gradient-to-r from-transparent via-[#00f2ea]/30 to-transparent rounded-full" />
       
       {iconSrc ? (
         <img 
           src={iconSrc} 
           alt="" 
           className={`w-7 h-7 object-contain transition-all duration-200 ${isActive ? 'brightness-125' : 'opacity-80'}`}
-          style={{ filter: isActive ? 'drop-shadow(0 0 8px rgba(230,179,106,0.6))' : 'none' }}
+          style={{ filter: isActive ? 'drop-shadow(0 0 8px rgba(0, 242, 234, 0.6))' : 'none' }}
         />
       ) : Icon && (
         <Icon 
           className={`w-7 h-7 stroke-[1.5px] transition-all duration-200 ${
             isActive 
-              ? 'text-[#E6B36A] drop-shadow-[0_0_8px_rgba(230,179,106,0.6)]' 
-              : 'text-[#E6B36A]/70'
+              ? 'text-[#00f2ea] drop-shadow-[0_0_8px_rgba(0, 242, 234, 0.6)]' 
+              : 'text-[#00f2ea]/70'
           }`}
-          style={isActive ? { fill: '#E6B36A' } : { fill: 'transparent' }}
+          style={isActive ? { fill: '#00f2ea' } : { fill: 'transparent' }}
         />
       )}
     </button>
     {label && (
       <span 
         className={`text-xs font-semibold mt-1.5 cursor-pointer hover:underline transition-colors ${
-          isActive ? 'text-[#E6B36A]' : 'text-[#E6B36A]/70'
+          isActive ? 'text-[#00f2ea]' : 'text-[#00f2ea]/70'
         }`}
         style={{ textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}
         onClick={onClick}
@@ -405,12 +405,12 @@ export default function EnhancedVideoPlayer({
 
 
 
-            <div className="absolute bottom-3 left-3 right-3 h-1.5 rounded-full overflow-hidden shadow-lg">
+        <div className="absolute bottom-3 left-3 right-3 h-1.5 rounded-full overflow-hidden shadow-lg">
           <div
-            className="h-full bg-gradient-to-r from-[#FFD700] via-[#E6B36A] to-[#FFD700] relative overflow-hidden"
+            className="h-full bg-gradient-to-r from-[#00f2ea] via-[#00c2be] to-[#00f2ea] relative overflow-hidden"
             style={{
               width: `${duration > 0 ? Math.min(100, Math.max(0, (currentTime / duration) * 100)) : 0}%`,
-              boxShadow: '0 0 10px rgba(230,179,106,0.6)',
+              boxShadow: '0 0 10px rgba(0, 242, 234, 0.6)',
             }}
           >
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
@@ -421,7 +421,7 @@ export default function EnhancedVideoPlayer({
         {showHeartAnimation && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-50">
             <div className="animate-ping">
-              <Heart className="w-24 h-24 text-[#E6B36A] fill-current" />
+              <Heart className="w-24 h-24 text-[#00f2ea] fill-current" />
             </div>
           </div>
         )}
@@ -443,9 +443,9 @@ export default function EnhancedVideoPlayer({
             className="w-12 h-12 rounded-full cursor-pointer hover:scale-105 transition-transform relative"
             onClick={handleProfileClick}
             style={{
-              background: 'linear-gradient(145deg, #FF6B9D 0%, #C44569 50%, #FF8E9E 100%)',
+              background: 'linear-gradient(145deg, #00f2ea 0%, #00c2be 50%, #00f2ea 100%)',
               padding: '2px',
-              boxShadow: '0 4px 15px rgba(255,107,157,0.4)',
+              boxShadow: '0 4px 15px rgba(0, 242, 234, 0.4)',
             }}
           >
             <img 
@@ -472,10 +472,10 @@ export default function EnhancedVideoPlayer({
           <img 
             src="/Icons/side-like.png?v=10" 
             alt="Like" 
-            className={`w-full h-full object-contain ${video.isLiked ? 'brightness-125 drop-shadow-[0_0_10px_rgba(230,179,106,0.6)]' : ''}`}
+            className={`w-full h-full object-contain ${video.isLiked ? 'brightness-125 drop-shadow-[0_0_10px_rgba(0,242,234,0.6)]' : ''}`}
           />
         </button>
-        <span className="text-[#E6B36A] text-xs font-semibold -mt-1">{formatNumber(video.stats.likes)}</span>
+        <span className="text-[#00f2ea] text-xs font-semibold -mt-1">{formatNumber(video.stats.likes)}</span>
 
         {/* Comment Button - SAME SIZE */}
         <button 
@@ -485,7 +485,7 @@ export default function EnhancedVideoPlayer({
         >
           <img src="/Icons/side-comment.png" alt="Comments" className="w-full h-full object-contain" />
         </button>
-        <span className="text-[#E6B36A] text-xs font-semibold -mt-1">{formatNumber(video.stats.comments)}</span>
+        <span className="text-[#00f2ea] text-xs font-semibold -mt-1">{formatNumber(video.stats.comments)}</span>
 
         {/* Save Button - SAME SIZE */}
         <button 
@@ -496,7 +496,7 @@ export default function EnhancedVideoPlayer({
           <img 
             src="/Icons/side-save.png" 
             alt="Save" 
-            className={`w-full h-full object-contain ${video.isSaved ? 'brightness-125 drop-shadow-[0_0_10px_rgba(230,179,106,0.6)]' : ''}`}
+            className={`w-full h-full object-contain ${video.isSaved ? 'brightness-125 drop-shadow-[0_0_10px_rgba(0,242,234,0.6)]' : ''}`}
           />
         </button>
         <span className="text-white text-xs font-semibold -mt-1">{formatNumber(video.stats.saves || 0)}</span>
@@ -535,14 +535,14 @@ export default function EnhancedVideoPlayer({
       <div className="absolute z-[10] left-4 bottom-[120px] md:bottom-[150px] w-[70%] pb-4 pointer-events-none">
         <div className="flex items-center gap-2 mb-2">
           <LevelBadge level={video.user.level ?? 1} size={10} layout="fixed" />
-          <h3 className="text-[#E6B36A] font-bold text-shadow-md">{video.user.username}</h3>
+          <h3 className="text-[#00f2ea] font-bold text-shadow-md">{video.user.username}</h3>
           {video.user.isVerified && (
             <div className="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
               <div className="w-2 h-2 bg-white rounded-full" />
             </div>
           )}
-          <span className="text-[#E6B36A]/60 text-sm">Ã¢â‚¬Â¢</span>
-          <span className="text-[#E6B36A]/60 text-sm">{formatNumber(video.user.followers)} followers</span>
+          <span className="text-[#00f2ea]/60 text-sm">Ã¢â‚¬Â¢</span>
+          <span className="text-[#00f2ea]/60 text-sm">{formatNumber(video.user.followers)} followers</span>
         </div>
         
         <p className="text-white/90 text-sm mb-2 text-shadow-md line-clamp-2">
@@ -554,7 +554,7 @@ export default function EnhancedVideoPlayer({
             <button
               key={hashtag}
               onClick={() => navigate(`/hashtag/${hashtag}`)}
-              className="text-[#E6B36A] text-xs font-medium hover:underline"
+              className="text-[#00f2ea] text-xs font-medium hover:underline"
             >
               #{hashtag}
             </button>
@@ -569,7 +569,7 @@ export default function EnhancedVideoPlayer({
         )}
         
         <div className="flex items-center gap-2 text-white/90">
-          <Music size={14} className="text-[#E6B36A]" />
+          <Music size={14} className="text-[#00f2ea]" />
           <span className="text-xs font-medium animate-marquee whitespace-nowrap overflow-hidden w-32">
             {video.music.title} - {video.music.artist}
           </span>

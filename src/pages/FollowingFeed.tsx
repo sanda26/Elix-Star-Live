@@ -107,7 +107,7 @@ export default function FollowingFeed() {
                   onClick={() => navigate(`/profile/${u.id}`)}
                   className="flex-shrink-0 w-[72px] flex flex-col items-center gap-2"
                 >
-                  <div className="w-16 h-16 rounded-full p-[2px] bg-gradient-to-tr from-[#00f5ff] via-[#00f5ff] to-[#E6B36A]">
+                  <div className="w-16 h-16 rounded-full p-[2px] bg-gradient-to-tr from-[#00f2ea] to-[#00f2ea]">
                     <div className="w-full h-full rounded-full bg-[#121212] p-[2px]">
                       <img src={u.avatar_url || ''} alt={u.username} className="w-full h-full rounded-full object-cover" draggable={false} />
                     </div>
@@ -154,7 +154,7 @@ export default function FollowingFeed() {
           <p className="text-white/60 mb-6">Videos from people you follow will appear here</p>
           <button
             onClick={() => navigate('/discover')}
-            className="px-6 py-3 bg-[#E6B36A] text-black rounded-full font-bold hover:opacity-90 transition"
+            className="px-6 py-3 bg-[#00f2ea] text-black rounded-full font-bold hover:opacity-90 transition"
           >
             Discover Creators
           </button>

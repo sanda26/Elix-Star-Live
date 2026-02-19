@@ -83,7 +83,7 @@ async function getTrendingVideos(limit: number): Promise<any[]> {
   let res = await db
     .from('videos')
     .select('*, user:users ( id, username, display_name, avatar_url, is_creator )')
-    .eq('is_private', false)
+    .eq('is_public', true)
     .order('engagement_score', { ascending: false })
     .order('created_at', { ascending: false })
     .limit(100);
@@ -92,13 +92,13 @@ async function getTrendingVideos(limit: number): Promise<any[]> {
     res = await db
       .from('videos')
       .select('*, user:profiles!user_id ( user_id, username, display_name, avatar_url, is_creator )')
-      .eq('is_private', false)
+      .eq('is_public', true)
       .order('created_at', { ascending: false })
       .limit(100);
   }
 
   if (res.error) {
-    res = await db.from('videos').select('*').eq('is_private', false).order('created_at', { ascending: false }).limit(100);
+    res = await db.from('videos').select('*').eq('is_public', true).order('created_at', { ascending: false }).limit(100);
   }
 
   const data = res.data || [];
@@ -112,7 +112,7 @@ async function getFollowingVideoIds(userId: string): Promise<string[]> {
   const { data: following } = await db.from('followers').select('following_id').eq('follower_id', userId);
   const ids = following?.map((f: any) => f.following_id) || [];
   if (ids.length === 0) return [];
-  const { data } = await db.from('videos').select('id').in('user_id', ids).eq('is_private', false).order('created_at', { ascending: false }).limit(20);
+  const { data } = await db.from('videos').select('id').in('user_id', ids).eq('is_public', true).order('created_at', { ascending: false }).limit(20);
   return data?.map((v: any) => v.id) || [];
 }
 
@@ -138,6 +138,7 @@ async function getNotInterestedIds(userId: string): Promise<Set<string>> {
 
 async function getLikedVideoCategories(userId: string): Promise<string[]> {
   if (!db) return [];
+  // Use likes table
   const { data: likes } = await db.from('likes').select('video_id').eq('user_id', userId).order('created_at', { ascending: false }).limit(50);
   if (!likes || likes.length === 0) return [];
   const videoIds = likes.map((l: any) => l.video_id);
@@ -193,8 +194,8 @@ function formatVideoForClient(v: any, likedSet: Set<string>, followingSet: Set<s
   const uname = u?.username ?? 'user';
   return {
     id: v.id,
-    url: v.url,
-    thumbnail: v.thumbnail_url || '',
+    url: v.url || v.video_url, // Handle both
+    thumbnail: v.thumbnail_url || v.thumb_url || '',
     duration: v.duration_seconds ? `${Math.floor(v.duration_seconds / 60)}:${String(Math.floor(v.duration_seconds % 60)).padStart(2, '0')}` : '0:15',
     user: {
       id: uid,
@@ -206,14 +207,14 @@ function formatVideoForClient(v: any, likedSet: Set<string>, followingSet: Set<s
       followers: 0,
       following: 0,
     },
-    description: v.caption || '',
+    description: v.description || v.caption || '',
     hashtags: v.hashtags || [],
     music: { id: 'original', title: 'Original Sound', artist: u?.display_name ?? uname, duration: '0:15' },
     stats: {
       views: v.views || 0,
-      likes: v.likes || 0,
-      comments: v.comments_count || 0,
-      shares: v.shares_count || 0,
+      likes: v.likes || v.likes_count || 0,
+      comments: v.comments || v.comments_count || 0,
+      shares: v.shares || v.shares_count || 0,
       saves: 0,
     },
     createdAt: v.created_at,
@@ -223,7 +224,7 @@ function formatVideoForClient(v: any, likedSet: Set<string>, followingSet: Set<s
     isFollowing: uid !== 'unknown' && followingSet.has(uid),
     comments: [],
     quality: 'auto',
-    privacy: 'public',
+    privacy: v.is_public === false ? 'private' : 'public',
     engagementScore: v.engagement_score || 0,
   };
 }
@@ -371,7 +372,7 @@ export async function handleTrackInteraction(req: Request, res: Response) {
     const _ipHash = getIpHash(req);
 
     if (type === 'like') {
-      const existing = await db.from('likes').select('id').eq('user_id', userId).eq('video_id', videoId).limit(1);
+      const existing = await db.from('likes').select('video_id').eq('user_id', userId).eq('video_id', videoId).limit(1);
       if (existing.data && existing.data.length > 0) {
         await db.from('likes').delete().eq('user_id', userId).eq('video_id', videoId);
         const r = await db.from('videos').select('likes').eq('id', videoId).single();
@@ -384,15 +385,15 @@ export async function handleTrackInteraction(req: Request, res: Response) {
     } else if (type === 'comment') {
       await db.from('comments').insert({ user_id: userId, video_id: videoId, text: data?.text || '' });
       const { count } = await db.from('comments').select('id', { count: 'exact', head: true }).eq('video_id', videoId);
-      await db.from('videos').update({ comments_count: count || 0 }).eq('id', videoId);
+      await db.from('videos').update({ comments: count || 0 }).eq('id', videoId);
     } else if (type === 'share') {
       await db.from('shares').insert({ user_id: userId, video_id: videoId, platform: data?.platform || 'copy' });
       const { count } = await db.from('shares').select('id', { count: 'exact', head: true }).eq('video_id', videoId);
-      await db.from('videos').update({ shares_count: count || 0 }).eq('id', videoId);
+      await db.from('videos').update({ shares: count || 0 }).eq('id', videoId);
     } else if (type === 'follow') {
       const targetUserId = data?.targetUserId;
       if (!targetUserId) return res.status(400).json({ error: 'targetUserId required' });
-      const existing = await db.from('followers').select('id').eq('follower_id', userId).eq('following_id', targetUserId).limit(1);
+      const existing = await db.from('followers').select('follower_id').eq('follower_id', userId).eq('following_id', targetUserId).limit(1);
       if (existing.data && existing.data.length > 0) {
         await db.from('followers').delete().eq('follower_id', userId).eq('following_id', targetUserId);
       } else {
@@ -416,7 +417,7 @@ async function updateVideoScore(videoId: string) {
   try {
     const [viewsRes, likesRes, commentsRes, sharesRes, completionsRes, watchTimeRes] = await Promise.all([
       db.from('video_views').select('id', { count: 'exact', head: true }).eq('video_id', videoId),
-      db.from('likes').select('id', { count: 'exact', head: true }).eq('video_id', videoId),
+      db.from('likes').select('video_id', { count: 'exact', head: true }).eq('video_id', videoId),
       db.from('comments').select('id', { count: 'exact', head: true }).eq('video_id', videoId),
       db.from('shares').select('id', { count: 'exact', head: true }).eq('video_id', videoId),
       db.from('video_views').select('id', { count: 'exact', head: true }).eq('video_id', videoId).eq('completed', true),
@@ -484,8 +485,8 @@ async function updateVideoScore(videoId: string) {
       is_eligible_for_fyp: distributionPhase !== 'limited',
       views: totalViews,
       likes: totalLikes,
-      comments_count: totalComments,
-      shares_count: totalShares,
+      comments: totalComments,
+      shares: totalShares,
     }).eq('id', videoId);
 
     trendingCache.data = null;
@@ -507,14 +508,18 @@ async function updateUserInterests(userId: string, videoId: string) {
       await db.from('user_interests').insert({ user_id: userId, category: video.category, weight: 1.0 });
     }
 
-    const { data: hashtags } = await db.from('video_hashtags').select('hashtag').eq('video_id', videoId);
+    const { data: hashtags } = await db.from('video_hashtags').select('hashtag_id').eq('video_id', videoId);
+    
     if (hashtags) {
       for (const h of hashtags) {
-        const { data: ex } = await db.from('user_interests').select('id, weight').eq('user_id', userId).eq('category', h.hashtag).single();
+        const { data: tagRow } = await db.from('hashtags').select('tag').eq('id', h.hashtag_id).single();
+        if (!tagRow) continue;
+        
+        const { data: ex } = await db.from('user_interests').select('id, weight').eq('user_id', userId).eq('category', tagRow.tag).single();
         if (ex) {
           await db.from('user_interests').update({ weight: Math.min(100, ex.weight + 0.3), updated_at: new Date().toISOString() }).eq('id', ex.id);
         } else {
-          await db.from('user_interests').insert({ user_id: userId, category: h.hashtag, weight: 0.5 });
+          await db.from('user_interests').insert({ user_id: userId, category: tagRow.tag, weight: 0.5 });
         }
       }
     }

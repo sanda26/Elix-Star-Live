@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { CreditCard, Smartphone } from 'lucide-react';
+import { CreditCard, Smartphone, Coins } from 'lucide-react';
 import { STRIPE_CONFIG } from '@/config/stripe';
 import { StripePaymentElement } from './StripePaymentElement';
 import { IS_STORE_BUILD } from '@/config/build';
@@ -43,11 +43,15 @@ export const BuyCoinsModal: React.FC<BuyCoinsModalProps> = ({ isOpen, onClose, o
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[430px] z-[950]" onPointerDown={(e) => e.stopPropagation()}>
-        <DialogHeader>
-          <DialogTitle className="text-center">
-            {!showPaymentElement ? 'Buy Coins' : 'Complete Payment'}
-          </DialogTitle>
-        </DialogHeader>
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-10 h-10 rounded-full bg-[#00f2ea]/20 flex items-center justify-center">
+            <Coins className="text-[#00f2ea]" size={20} />
+          </div>
+          <div>
+            <h2 className="text-white font-bold text-lg">Recharge Coins</h2>
+            <p className="text-white/60 text-xs">Secure Payment</p>
+          </div>
+        </div>
 
         {IS_STORE_BUILD ? (
           <div className="space-y-4">
@@ -69,17 +73,26 @@ export const BuyCoinsModal: React.FC<BuyCoinsModalProps> = ({ isOpen, onClose, o
                 <Button
                   key={coinPackage.id}
                   variant={selectedPackage.id === coinPackage.id ? 'default' : 'outline'}
-                  className="w-full justify-between h-auto py-3"
+                  className={`w-full justify-between h-auto py-3 relative border-white/10 hover:border-[#00f2ea]/50 transition-colors ${
+                    selectedPackage.id === coinPackage.id 
+                      ? 'bg-[#00f2ea]/10 border-[#00f2ea] text-white hover:bg-[#00f2ea]/20' 
+                      : 'bg-white/5 hover:bg-white/10'
+                  }`}
                   onClick={() => handlePackageSelect(coinPackage)}
                   disabled={loading}
                 >
                   <div className="flex items-center gap-3">
                     <div className="text-left">
-                      <div className="font-semibold">{coinPackage.label}</div>
+                      <div className={`font-semibold ${selectedPackage.id === coinPackage.id ? 'text-[#00f2ea]' : 'text-white'}`}>
+                        {coinPackage.label}
+                      </div>
                       <div className="text-sm opacity-75">${coinPackage.price}</div>
                     </div>
                   </div>
-                  <Badge variant="secondary" className="ml-2">
+                  <Badge 
+                    variant="secondary" 
+                    className={`ml-2 ${selectedPackage.id === coinPackage.id ? 'bg-[#00f2ea] text-black' : 'bg-white/10 text-white'}`}
+                  >
                     {coinPackage.coins} coins
                   </Badge>
                 </Button>
@@ -103,7 +116,7 @@ export const BuyCoinsModal: React.FC<BuyCoinsModalProps> = ({ isOpen, onClose, o
                 variant="ghost"
                 size="sm"
                 onClick={handleBackToPackages}
-                className="text-sm"
+                className="text-[#00f2ea] hover:text-[#00f2ea]/80 hover:bg-[#00f2ea]/10"
               >
                 ← Back to packages
               </Button>

@@ -2524,8 +2524,8 @@ export default function LiveStream() {
                       ) : battleSlots[0].status === 'invited' ? (
                         <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-gray-900">
                           <img src={battleSlots[0].avatar} alt={battleSlots[0].name} className="w-12 h-12 rounded-full border-2 border-[#E6B36A] opacity-60" />
-                          <div className="w-5 h-5 border-2 border-[#E6B36A] border-t-transparent rounded-full animate-spin" />
-                          <span className="text-[#E6B36A] text-[10px] font-bold">Waiting...</span>
+                          <div className="w-5 h-5 border-2 border-[#00f2ea] border-t-transparent rounded-full animate-spin" />
+                          <span className="text-[#00f2ea] text-[10px] font-bold">Waiting...</span>
                         </div>
                       ) : (
                         <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-gray-900/80 pointer-events-auto" onClick={(e) => { e.stopPropagation(); setIsFindCreatorsOpen(true); }}>
@@ -2587,8 +2587,8 @@ export default function LiveStream() {
                         ) : battleSlots[1].status === 'invited' ? (
                           <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-gray-900">
                             <img src={battleSlots[1].avatar} alt={battleSlots[1].name} className="w-12 h-12 rounded-full border-2 border-[#E6B36A] opacity-60" />
-                            <div className="w-5 h-5 border-2 border-[#E6B36A] border-t-transparent rounded-full animate-spin" />
-                            <span className="text-[#E6B36A] text-[10px] font-bold">Waiting...</span>
+                            <div className="w-5 h-5 border-2 border-[#00f2ea] border-t-transparent rounded-full animate-spin" />
+                            <span className="text-[#00f2ea] text-[10px] font-bold">Waiting...</span>
                           </div>
                         ) : (
                           <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-gray-900/80 pointer-events-auto" onClick={(e) => { e.stopPropagation(); setIsFindCreatorsOpen(true); }}>
@@ -2646,8 +2646,8 @@ export default function LiveStream() {
                         ) : battleSlots[2].status === 'invited' ? (
                           <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-gray-900">
                             <img src={battleSlots[2].avatar} alt={battleSlots[2].name} className="w-12 h-12 rounded-full border-2 border-[#E6B36A] opacity-60" />
-                            <div className="w-5 h-5 border-2 border-[#E6B36A] border-t-transparent rounded-full animate-spin" />
-                            <span className="text-[#E6B36A] text-[10px] font-bold">Waiting...</span>
+                            <div className="w-5 h-5 border-2 border-[#00f2ea] border-t-transparent rounded-full animate-spin" />
+                            <span className="text-[#00f2ea] text-[10px] font-bold">Waiting...</span>
                           </div>
                         ) : (
                           <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-gray-900/80 pointer-events-auto" onClick={(e) => { e.stopPropagation(); setIsFindCreatorsOpen(true); }}>
@@ -2716,11 +2716,11 @@ export default function LiveStream() {
 
               {/* Speed Challenge Timer - MOVED HERE between circles */}
               {SPEED_CHALLENGE_ENABLED && speedChallengeActive && (
-                <div className="flex items-center gap-3 px-5 py-1 rounded-full bg-black/70 backdrop-blur-md border border-[#E6B36A]/30 shadow-[0_0_15px_rgba(230,179,106,0.3)] animate-luxury-fade-in">
-                  <span className="text-[#E6B36A] text-[9px] font-bold uppercase tracking-[0.1em]">⚡ Speed</span>
+                <div className="flex items-center gap-3 px-5 py-1 rounded-full bg-black/70 backdrop-blur-md border border-[#00f2ea]/30 shadow-[0_0_15px_rgba(0,242,234,0.3)] animate-luxury-fade-in">
+                  <span className="text-[#00f2ea] text-[9px] font-bold uppercase tracking-[0.1em]">⚡ Speed</span>
                   <span className="text-white text-[14px] font-black tabular-nums">{speedChallengeTime}s</span>
                   {speedMultiplier > 1 && (
-                    <span className="text-[#FF6B00] text-[11px] font-black animate-pulse">x{speedMultiplier}</span>
+                    <span className="text-[#00f2ea] text-[11px] font-black animate-pulse">x{speedMultiplier}</span>
                   )}
                 </div>
               )}
@@ -2745,13 +2745,6 @@ export default function LiveStream() {
 
         <div className="relative z-10 h-full pointer-events-none">
           {/* Input Layer Removed - Moved to Bottom Zone */}
-
-          {/* Full-screen Gift Overlay Animation */}
-          <GiftOverlay 
-            videoSrc={currentGift} 
-            onEnded={handleGiftEnded} 
-            isBattleMode={isBattleMode}
-          />
 
           <div className="relative flex flex-col h-full pointer-events-none">
             {/* TOP AREA: Overlays (Top Bar & Floating Buttons) */}
@@ -2937,11 +2930,11 @@ export default function LiveStream() {
                         <button type="button" onClick={() => openMiniProfile(myCreatorName)} className="pr-3 pl-2 py-2 hover:scale-105 transition-all animate-luxury-fade-in">
                           <div className="flex items-center gap-2">
                             <div 
-                              className="relative z-10 w-11 h-11 rounded-full border-2 border-[#E6B36A] shadow-lg overflow-hidden flex-shrink-0 pointer-events-auto cursor-pointer active:scale-95 transition-transform"
+                              className="relative z-10 w-11 h-11 rounded-full border-2 border-[#00f2ea] shadow-lg overflow-hidden flex-shrink-0 pointer-events-auto cursor-pointer active:scale-95 transition-transform"
                               onClick={(e) => { e.stopPropagation(); openMiniProfile(myCreatorName); }}
                             >
                               <img src={myAvatar} alt={myCreatorName} className="w-full h-full object-cover" />
-                              <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-gradient-to-br from-red-400 to-red-600 rounded-full border-2 border-black animate-premium-glow" />
+                              <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-gradient-to-br from-[#00f2ea] to-[#00c2be] rounded-full border-2 border-black animate-premium-glow" />
                             </div>
                             <div className="min-w-0 flex items-center gap-2">
                               <p className="text-white font-black text-[14px] truncate max-w-[160px]">{myCreatorName}</p>
@@ -2975,9 +2968,9 @@ export default function LiveStream() {
                           const greyCount = VIEWER_POOL.filter(v => !activeIds.has(v.id) && (v.lastVisitDaysAgo ?? 0) >= 2).length;
                           return (
                             <button type="button" className="flex items-center gap-1 pointer-events-auto" onClick={(e) => { e.stopPropagation(); if (showMembershipBar) closeMembershipBar(); else openMembershipBar(); }}>
-                              <Heart className={`w-3.5 h-3.5 drop-shadow-[0_0_3px_rgba(255,45,85,0.5)] transition-colors duration-300 ${membershipHeartActive ? 'text-[#FF2D55]' : 'text-[#E6B36A]'}`} strokeWidth={2} fill={membershipHeartActive ? '#FF2D55' : '#E6B36A'} />
+                              <Heart className={`w-3.5 h-3.5 drop-shadow-[0_0_3px_rgba(0,242,234,0.5)] transition-colors duration-300 ${membershipHeartActive ? 'text-[#00f2ea]' : 'text-[#00f2ea]'}`} strokeWidth={2} fill={membershipHeartActive ? '#00f2ea' : '#00f2ea'} />
                               <div className="flex flex-col leading-none gap-px">
-                                <span className="text-[#FF2D55] text-[7px] font-bold tabular-nums">{redCount}</span>
+                                <span className="text-[#00f2ea] text-[7px] font-bold tabular-nums">{redCount}</span>
                                 <span className="text-[#6B7280] text-[7px] font-bold tabular-nums">{greyCount}</span>
                               </div>
                             </button>
@@ -2987,7 +2980,7 @@ export default function LiveStream() {
 
                       <div className="pointer-events-auto flex flex-col items-center gap-2">
                         <div className="h-9 px-3 flex items-center gap-2 animate-luxury-fade-in">
-                          <Flame className="w-4 h-4 text-[#E6B36A] animate-float" strokeWidth={2.5} />
+                          <Flame className="w-4 h-4 text-[#00f2ea] animate-float" strokeWidth={2.5} />
                           <span className="text-white text-xs font-black">Popular</span>
                         </div>
                       </div>
@@ -3029,7 +3022,7 @@ export default function LiveStream() {
 
             {/* MIDDLE ZONE: CHAT (Scrollable) */}
             <div 
-              className="chat-zone absolute left-0 right-0 bottom-[calc(58px+env(safe-area-inset-bottom)+3mm)] h-[calc(40dvh-3cm)] max-h-[calc(40dvh-3cm)] overflow-y-auto pointer-events-auto z-[180] bg-transparent"
+              className="chat-zone absolute left-0 right-0 bottom-[calc(58px+env(safe-area-inset-bottom)+3mm)] h-[calc(40dvh-3cm)] max-h-[calc(40dvh-3cm)] overflow-y-auto pointer-events-auto z-[20] bg-transparent"
               onPointerDown={(e) => {
                 // Allow tapping on chat area to trigger hearts (like functionality)
                 // BUT only if not tapping on an interactive element inside
@@ -3053,7 +3046,7 @@ export default function LiveStream() {
           </div>
 
       {/* BOTTOM ZONE: INPUT (Fixed) - Moved out to ensure top z-index */}
-      <div className="bottom-zone flex-none pointer-events-auto bg-transparent px-3 pb-[calc(8px+env(safe-area-inset-bottom))] pt-2 min-h-[50px] flex items-center absolute bottom-[3mm] left-0 right-0 z-[200]">
+      <div className="bottom-zone flex-none pointer-events-auto bg-transparent px-3 pb-[calc(8px+env(safe-area-inset-bottom))] pt-2 min-h-[50px] flex items-center absolute bottom-[3mm] left-0 right-0 z-[50]">
         <div className="w-full mx-auto">
           {/* Spectator Input & Actions */}
           {!isBroadcast && (
@@ -3084,7 +3077,7 @@ export default function LiveStream() {
                 <button
                   type="button"
                   onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                  className={`text-white/60 hover:text-white transition flex-shrink-0 ${showEmojiPicker ? 'text-[#E6B36A]' : ''}`}
+                  className={`text-white/60 hover:text-white transition flex-shrink-0 ${showEmojiPicker ? 'text-[#00f2ea]' : ''}`}
                 >
                   <Smile size={20} />
                 </button>
@@ -3168,8 +3161,8 @@ export default function LiveStream() {
               <button type="button" onClick={() => { if (!isBattleMode) toggleBattle(); else setIsFindCreatorsOpen(true); }} className="w-10 h-10 rounded-full bg-[#4DA6FF]/20 backdrop-blur-md border border-[#4DA6FF]/40 flex items-center justify-center shadow-lg">
                 <Users size={20} className="text-[#4DA6FF]" />
               </button>
-              <button type="button" onClick={() => { setGiftTarget('me'); setShowGiftPanel(true); }} className="w-10 h-10 rounded-full bg-[#E6B36A]/20 backdrop-blur-md border border-[#E6B36A]/40 flex items-center justify-center shadow-lg">
-                <Gift size={20} className="text-[#E6B36A]" />
+              <button type="button" onClick={() => { setGiftTarget('me'); setShowGiftPanel(true); }} className="w-10 h-10 rounded-full bg-[#00f2ea]/20 backdrop-blur-md border border-[#00f2ea]/40 flex items-center justify-center shadow-lg">
+                <Gift size={20} className="text-[#00f2ea]" />
               </button>
               <button type="button" onClick={() => setShowSharePanel(true)} className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-md border border-white/20 flex items-center justify-center shadow-lg">
                 <Share2 size={20} className="text-white" />
@@ -3233,10 +3226,10 @@ export default function LiveStream() {
                           </div>
                         ) : (
                           <div className="relative">
-                            <img src={slot.avatar} alt={slot.name} className="w-10 h-10 rounded-full object-cover border-2" style={{ borderColor: slot.status === 'accepted' ? '#00C853' : '#E6B36A' }} />
+                            <img src={slot.avatar} alt={slot.name} className="w-10 h-10 rounded-full object-cover border-2" style={{ borderColor: slot.status === 'accepted' ? '#00C853' : '#00f2ea' }} />
                             {slot.status === 'invited' && (
                               <div className="absolute inset-0 rounded-full flex items-center justify-center bg-black/40">
-                                <div className="w-4 h-4 border-2 border-[#E6B36A] border-t-transparent rounded-full animate-spin" />
+                                <div className="w-4 h-4 border-2 border-[#00f2ea] border-t-transparent rounded-full animate-spin" />
                               </div>
                             )}
                             {slot.status === 'accepted' && (
@@ -3287,8 +3280,8 @@ export default function LiveStream() {
                           Joined ✓
                         </span>
                       ) : isInvited ? (
-                        <span className="px-3 py-1 bg-[#E6B36A]/20 text-[#E6B36A] text-[10px] font-bold rounded-full border border-[#E6B36A]/30 flex items-center gap-1.5">
-                          <div className="w-2 h-2 border border-[#E6B36A] border-t-transparent rounded-full animate-spin" />
+                        <span className="px-3 py-1 bg-[#00f2ea]/20 text-[#00f2ea] text-[10px] font-bold rounded-full border border-[#00f2ea]/30 flex items-center gap-1.5">
+                          <div className="w-2 h-2 border border-[#00f2ea] border-t-transparent rounded-full animate-spin" />
                           Sent
                         </span>
                       ) : (
@@ -3402,7 +3395,7 @@ export default function LiveStream() {
                     </div>
 
                     {miniProfile.donated != null && miniProfile.donated > 0 && (
-                      <div className="text-[#E6B36A] text-[11px] font-bold mt-2 pt-2 border-t border-white/10">
+                      <div className="text-[#00f2ea] text-[11px] font-bold mt-2 pt-2 border-t border-white/10">
                         Donated: {formatCoinsShort(miniProfile.donated)} coins
                       </div>
                     )}
@@ -3411,7 +3404,7 @@ export default function LiveStream() {
               </div>
 
               <div className="mt-5 grid grid-cols-5 gap-2">
-                <button type="button" onClick={() => alert('Followed')} className="h-9 rounded-lg bg-[#E6B36A] text-black text-[11px] font-black hover:bg-[#d4a35a] active:scale-95 transition-all">
+                <button type="button" onClick={() => alert('Followed')} className="h-9 rounded-lg bg-[#00f2ea] text-black text-[11px] font-black hover:bg-[#00f2ea]/90 active:scale-95 transition-all">
                   Follow
                 </button>
                 <button
@@ -3478,7 +3471,7 @@ export default function LiveStream() {
                     <div className="relative flex-shrink-0">
                       <img src={v.avatar} alt={v.displayName} className="w-8 h-8 rounded-full object-cover border border-white/10" />
                       {idx < 10 && (
-                        <span className="absolute -top-0.5 -left-0.5 bg-[#E6B36A] text-black text-[6px] font-black w-3 h-3 rounded-full flex items-center justify-center">{idx + 1}</span>
+                        <span className="absolute -top-0.5 -left-0.5 bg-[#00f2ea] text-black text-[6px] font-black w-3 h-3 rounded-full flex items-center justify-center">{idx + 1}</span>
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -3487,13 +3480,13 @@ export default function LiveStream() {
                         <span className="text-white/40 text-[9px]">{v.country}</span>
                       </div>
                       <div className="flex items-center gap-1 mt-0.5">
-                        <span className="text-[8px] font-bold text-[#E6B36A] bg-[#E6B36A]/10 px-1 py-px rounded-full">LVL {v.level}</span>
+                        <span className="text-[8px] font-bold text-[#00f2ea] bg-[#00f2ea]/10 px-1 py-px rounded-full">LVL {v.level}</span>
                         {idx < 10 && v.donated > 0 && (
                           <span className="text-[8px] font-bold text-[#FF2D55]">{formatCoinsShort(v.donated)}</span>
                         )}
                       </div>
                     </div>
-                    <button className="px-2 py-0.5 rounded-full bg-[#E6B36A]/15 border border-[#E6B36A]/25 text-[#E6B36A] text-[9px] font-bold hover:bg-[#E6B36A]/25 transition-colors">
+                    <button className="px-2 py-0.5 rounded-full bg-[#00f2ea]/15 border border-[#00f2ea]/25 text-[#00f2ea] text-[9px] font-bold hover:bg-[#00f2ea]/25 transition-colors">
                       Follow
                     </button>
                   </div>
@@ -3569,11 +3562,11 @@ export default function LiveStream() {
                    <div>
                      <div className="text-white/50 text-[10px] font-bold uppercase tracking-wider">Current Status</div>
                      <div className="text-white font-bold text-base">
-                       {myHeartCount === 0 ? 'New Viewer' : myHeartCount < 5 ? 'Rising Fan' : myHeartCount < 20 ? 'Loyal Member' : 'Super Fan'}
-                     </div>
-                     <div className="text-[#E6B36A] text-[10px] font-bold mt-0.5">
-                       {myHeartCount} Hearts Sent • {myHeartCount} Days Supported
-                     </div>
+                      {myHeartCount === 0 ? 'New Viewer' : myHeartCount < 5 ? 'Rising Fan' : myHeartCount < 20 ? 'Loyal Member' : 'Super Fan'}
+                    </div>
+                    <div className="text-[#00f2ea] text-[10px] font-bold mt-0.5">
+                      {myHeartCount} Hearts Sent • {myHeartCount} Days Supported
+                    </div>
                    </div>
                  </div>
                </div>
@@ -3596,9 +3589,9 @@ export default function LiveStream() {
                           </div>
                         </div>
                         <div className="flex-1">
-                          <div className="text-xs font-bold text-white">You</div>
-                          <div className="text-[10px] text-[#E6B36A]">Just joined the team!</div>
-                        </div>
+                        <div className="text-xs font-bold text-white">You</div>
+                        <div className="text-[10px] text-[#00f2ea]">Just joined the team!</div>
+                      </div>
                         <div className="text-white/40 text-[9px]">Now</div>
                      </div>
                    )}
@@ -3699,7 +3692,7 @@ export default function LiveStream() {
                       </div>
                       Photo Stickers
                     </h3>
-                    <span className="bg-[#E6B36A]/20 text-[#E6B36A] text-[9px] font-bold px-2 py-0.5 rounded-full border border-[#E6B36A]/30">SUBSCRIBER ONLY</span>
+                    <span className="bg-[#00f2ea]/20 text-[#00f2ea] text-[9px] font-bold px-2 py-0.5 rounded-full border border-[#00f2ea]/30">SUBSCRIBER ONLY</span>
                   </div>
 
                   <div className="grid grid-cols-4 gap-2">
@@ -3832,10 +3825,10 @@ export default function LiveStream() {
                 <button
                   type="button"
                   onClick={() => { startSpeedChallenge(); setIsMoreMenuOpen(false); }}
-                  className="w-full px-4 py-3 flex items-center gap-3 text-[#E6B36A] hover:bg-white/5 rounded-xl"
+                  className="w-full px-4 py-3 flex items-center gap-3 text-[#00f2ea] hover:bg-white/5 rounded-xl"
                 >
                   <Zap className="w-5 h-5" strokeWidth={2} />
-                  <span className="text-sm font-bold text-yellow-400">Start Speed Challenge</span>
+                  <span className="text-sm font-bold text-[#00f2ea]">Start Speed Challenge</span>
                 </button>
               )}
 
@@ -3880,7 +3873,7 @@ export default function LiveStream() {
               <button
                 type="button"
                 onClick={() => { setIsMoreMenuOpen(false); setCoinPassword(''); setShowCoinModal(true); }}
-                className="w-full px-4 py-3 flex items-center gap-3 text-[#E6B36A] hover:bg-white/5 rounded-xl"
+                className="w-full px-4 py-3 flex items-center gap-3 text-[#00f2ea] hover:bg-white/5 rounded-xl"
               >
                 <span className="text-xl">💰</span>
                 <span className="text-sm font-bold">Reload Coins</span>
@@ -3897,10 +3890,10 @@ export default function LiveStream() {
           onClick={() => setShowCoinModal(false)}
         >
           <div
-            className="bg-[#1a1a2e] rounded-2xl p-6 mx-4 w-full max-w-[320px] border border-[#E6B36A]/30 pointer-events-auto"
+            className="bg-[#1a1a2e] rounded-2xl p-6 mx-4 w-full max-w-[320px] border border-[#00f2ea]/30 pointer-events-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-[#E6B36A] text-lg font-bold text-center mb-4">Enter Password</h3>
+            <h3 className="text-[#00f2ea] text-lg font-bold text-center mb-4">Enter Password</h3>
             <input
               type="password"
               value={coinPassword}
@@ -3918,7 +3911,7 @@ export default function LiveStream() {
                 }
               }}
               placeholder="Password..."
-              className="w-full px-4 py-3 bg-black/50 border border-[#E6B36A]/40 rounded-xl text-white text-center outline-none focus:border-[#E6B36A] transition"
+              className="w-full px-4 py-3 bg-black/50 border border-[#00f2ea]/40 rounded-xl text-white text-center outline-none focus:border-[#00f2ea] transition"
               autoFocus
             />
             <button
@@ -3933,7 +3926,7 @@ export default function LiveStream() {
                   setCoinPassword('');
                 }
               }}
-              className="w-full mt-3 py-3 bg-[#E6B36A] text-black font-bold rounded-xl hover:bg-[#d4a35a] transition"
+              className="w-full mt-3 py-3 bg-[#00f2ea] text-black font-bold rounded-xl hover:bg-[#00f2ea]/90 transition"
             >
               Confirm
             </button>
@@ -3955,16 +3948,16 @@ export default function LiveStream() {
               role="button"
               tabIndex={-1}
             >
-              <div className="px-4 py-3 flex items-center justify-between text-[#E6B36A]">
+              <div className="px-4 py-3 flex items-center justify-between text-[#00f2ea]">
                 <div className="flex flex-col">
                   <span className="font-extrabold">Live settings</span>
                   <span className="text-[10px] text-white/40 font-mono">v1.5 (Clean UI)</span>
                 </div>
                 <button type="button" onClick={() => setIsLiveSettingsOpen(false)} className="p-2">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#E6B36A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00f2ea" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </button>
               </div>
-              <div className="h-px bg-[#E6B36A]" />
+              <div className="h-px bg-[#00f2ea]" />
               <div className="p-2">
                 <button
                   type="button"
@@ -3972,7 +3965,7 @@ export default function LiveStream() {
                     toggleMic();
                     setIsLiveSettingsOpen(false);
                   }}
-                  className="w-full px-4 py-3 flex items-center justify-between text-[#E6B36A] hover:brightness-125"
+                  className="w-full px-4 py-3 flex items-center justify-between text-[#00f2ea] hover:brightness-125"
                 >
                   <div className="flex items-center gap-3">
                     {isMicMuted ? <MicOff className="w-5 h-5" strokeWidth={2} /> : <Mic className="w-5 h-5" strokeWidth={2} />}
@@ -3986,7 +3979,7 @@ export default function LiveStream() {
                     setIsChatVisible((v) => !v);
                     setIsLiveSettingsOpen(false);
                   }}
-                  className="w-full px-4 py-3 flex items-center justify-between text-[#E6B36A] hover:brightness-125"
+                  className="w-full px-4 py-3 flex items-center justify-between text-[#00f2ea] hover:brightness-125"
                 >
                   <div className="flex items-center gap-3">
                     <MessageCircle className="w-5 h-5" strokeWidth={2} />
@@ -4000,7 +3993,7 @@ export default function LiveStream() {
                     await handleShare();
                     setIsLiveSettingsOpen(false);
                   }}
-                  className="w-full px-4 py-3 flex items-center justify-between text-[#E6B36A] hover:brightness-125"
+                  className="w-full px-4 py-3 flex items-center justify-between text-[#00f2ea] hover:brightness-125"
                 >
                   <div className="flex items-center gap-3">
                     <Share2 className="w-5 h-5" strokeWidth={2} />
@@ -4013,7 +4006,7 @@ export default function LiveStream() {
         </div>
       )}
 
-      {/* New Full Screen Gift Animation Overlay */}
+      {/* Full-screen Gift Overlay Animation */}
       <GiftAnimationOverlay streamId={effectiveStreamId} />
 
       {/* Gift Panel Slide-up */}
@@ -4036,7 +4029,14 @@ export default function LiveStream() {
         </>
       )}
 
-      {showRankingPanel && <RankingPanel onClose={() => setShowRankingPanel(false)} />}
+      {/* Full-screen Video Effect Overlay (Behind controls but above video) */}
+      <GiftOverlay 
+        videoSrc={currentGift} 
+        onEnded={handleGiftEnded} 
+        isBattleMode={isBattleMode}
+      />
+      
+      {/* ═══ SHARE PANEL ═══ */}
 
       {/* ═══ SHARE PANEL ═══ */}
       {showSharePanel && (
@@ -4094,7 +4094,7 @@ export default function LiveStream() {
                 { name: 'Facebook', color: '#1877F2', icon: <Share2 size={24} /> },
                 { name: 'Instagram', color: '#E4405F', icon: <Share2 size={24} /> },
                 { name: 'GitHub', color: '#333333', icon: <Github size={24} /> },
-                { name: 'Copy Link', color: '#E6B36A', icon: <Copy size={24} /> },
+                { name: 'Copy Link', color: '#00f2ea', icon: <Copy size={24} /> },
                 { name: 'Message', color: '#00C853', icon: <MessageCircle size={24} /> },
               ].map((item) => (
                 <button 
@@ -4123,7 +4123,7 @@ export default function LiveStream() {
             {/* Actions Row */}
             <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar shrink-0">
               {[
-                { name: 'Promote', color: '#E6B36A', icon: <TrendingUp size={24} className="text-white" />, action: () => alert('Promote panel opening...') },
+                { name: 'Promote', color: '#00f2ea', icon: <TrendingUp size={24} className="text-white" />, action: () => alert('Promote panel opening...') },
                 { name: 'Report', color: '#EF4444', icon: <AlertTriangle size={24} className="text-white" />, action: () => setIsReportModalOpen(true) },
                 { name: 'Add Story', color: '#3B82F6', icon: <PlusCircle size={24} className="text-white" />, action: () => alert('Adding to story...') },
                 { name: 'Settings', color: '#6B7280', icon: <Settings2 size={24} className="text-white" />, action: () => setIsLiveSettingsOpen(true) },
@@ -4170,7 +4170,7 @@ export default function LiveStream() {
                       e.stopPropagation();
                       handleComboClick();
                     }}
-                    className="w-16 h-14 rounded-full bg-gradient-to-r from-secondary to-orange-500 flex flex-col items-center justify-center animate-pulse active:scale-90 transition-transform shadow-[0_0_20px_rgba(230,179,106,0.5)] border-2 border-white/30"
+                    className="w-16 h-14 rounded-full bg-gradient-to-r from-secondary to-orange-500 flex flex-col items-center justify-center animate-pulse active:scale-90 transition-transform shadow-[0_0_20px_rgba(0,242,234,0.5)] border-2 border-white/30"
                 >
                     <span className="text-xl font-black italic text-white drop-shadow-md">x{comboCount}</span>
                     <span className="text-[9px] font-bold text-white uppercase tracking-widest">Combo</span>

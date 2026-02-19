@@ -43,7 +43,7 @@ export const BottomNav = () => {
             className="w-full h-auto pointer-events-none block"
             draggable={false}
             style={{
-              filter: 'drop-shadow(0 -4px 20px rgba(230,179,106,0.3)) drop-shadow(0 0 40px rgba(0,0,0,0.8))',
+              filter: 'drop-shadow(0 -4px 20px rgba(0,242,234,0.3)) drop-shadow(0 0 40px rgba(0,0,0,0.8))',
               clipPath: 'inset(8mm 0 0 0)',
             }}
           />

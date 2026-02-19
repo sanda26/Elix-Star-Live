@@ -207,13 +207,19 @@ export default function Discover() {
       {/* Content */}
       <div className="px-4 py-4">
         {activeTab === 'trending' && (
-          <div className="grid grid-cols-3 gap-1">
-            {trendingVideos.map(video => (
-              <VideoThumbnail key={video.id} video={video} />
-            ))}
-            {trendingVideos.length === 0 && !loading && (
-              <div className="col-span-3 text-center py-12 text-white/40">No trending videos</div>
-            )}
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <TrendingUp className="w-5 h-5 text-[#00f2ea]" />
+              <h2 className="text-lg font-bold">Trending Now</h2>
+            </div>
+            <div className="grid grid-cols-3 gap-1">
+              {trendingVideos.map(video => (
+                <VideoThumbnail key={video.id} video={video} />
+              ))}
+              {trendingVideos.length === 0 && !loading && (
+                <div className="col-span-3 text-center py-12 text-white/40">No trending videos</div>
+              )}
+            </div>
           </div>
         )}
 

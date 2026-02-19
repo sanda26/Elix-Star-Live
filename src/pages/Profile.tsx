@@ -325,7 +325,7 @@ export default function Profile() {
             <h2 className="text-xl font-extrabold mt-2 text-white/80">@{displayUsername}</h2>
 
             {/* Creator Login Details (moved here) */}
-            <div className="flex items-center gap-1 mt-1 text-[#E6B36A] cursor-pointer" onClick={() => navigate('/creator/login-details')}>
+            <div className="flex items-center gap-1 mt-1 text-[#00f2ea] cursor-pointer" onClick={() => navigate('/creator/login-details')}>
                 <Sparkles size={12} />
                 <span className="text-xs font-semibold">Creator login details</span>
             </div>
@@ -381,7 +381,7 @@ export default function Profile() {
                       className={`flex-1 px-8 py-2 rounded text-sm font-semibold transition ${
                         isFollowing
                           ? 'bg-transparent10 text-white hover:bg-transparent20'
-                          : 'bg-[#E6B36A] text-black hover:opacity-90'
+                          : 'bg-[#00f2ea] text-black hover:opacity-90'
                       }`}
                     >
                       {isFollowing ? 'Following' : 'Follow'}

@@ -221,7 +221,7 @@ export default function ReportModal({ isOpen, onClose, videoId, contentType, con
 
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
-            <Flag className="w-4 h-4 text-[#E6B36A]" />
+            <Flag className="w-4 h-4 text-[#00f2ea]" />
             <h3 className="text-white font-bold whitespace-nowrap">Report {getContentTypeLabel()}</h3>
           </div>
           <button type="button" onClick={onClose} className="text-white/70 hover:text-white text-sm font-semibold">
@@ -267,7 +267,7 @@ export default function ReportModal({ isOpen, onClose, videoId, contentType, con
                 key={reason.id}
                 type="button"
                 onClick={() => setSelectedReason(reason.id)}
-                className={`w-full px-4 py-3 flex items-center justify-between border rounded-xl transition-colors ${selected ? 'border-[#E6B36A]/60 bg-white/5' : 'border-white/10 hover:bg-white/5'}`}
+                className={`w-full px-4 py-3 flex items-center justify-between border rounded-xl transition-colors ${selected ? 'border-[#00f2ea]/60 bg-white/5' : 'border-white/10 hover:bg-white/5'}`}
               >
                 <div className="flex items-start gap-3 min-w-0">
                   <div className={`w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center flex-shrink-0 ${reason.color}`}>
@@ -278,7 +278,7 @@ export default function ReportModal({ isOpen, onClose, videoId, contentType, con
                     <div className="text-white/40 text-xs leading-snug">{reason.description}</div>
                   </div>
                 </div>
-                <div className={`w-5 h-5 rounded-full border flex items-center justify-center flex-shrink-0 ${selected ? 'border-[#E6B36A] bg-[#E6B36A]' : 'border-white/30'}`}>
+                <div className={`w-5 h-5 rounded-full border flex items-center justify-center flex-shrink-0 ${selected ? 'border-[#00f2ea] bg-[#00f2ea]' : 'border-white/30'}`}>
                   {selected && (
                     <svg className="w-3 h-3 text-black" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
@@ -328,7 +328,7 @@ export default function ReportModal({ isOpen, onClose, videoId, contentType, con
             type="button"
             onClick={handleSubmit}
             disabled={isSubmitting || !selectedReason}
-            className="flex-1 py-3 bg-[#E6B36A] text-black font-extrabold rounded-xl hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed transition"
+            className="flex-1 py-3 bg-[#00f2ea] text-black font-extrabold rounded-xl hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed transition"
           >
             {isSubmitting ? 'Submitting...' : 'Submit Report'}
           </button>

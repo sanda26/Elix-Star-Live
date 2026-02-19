@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { UserPlus, UserMinus, MessageCircle, Share2, MoreHorizontal, Flag, Ban, Bell, BellOff } from 'lucide-react';
+import { UserPlus, UserMinus, MessageCircle, Share2, MoreHorizontal, Flag, Ban, Bell, BellOff, X, Play } from 'lucide-react';
 import { useVideoStore } from '../store/useVideoStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { useSafetyStore } from '../store/useSafetyStore';
@@ -121,200 +121,190 @@ export default function UserProfileModal({ isOpen, onClose, user, onFollow }: Us
   }
 
   return (
-    <div className="fixed inset-0 z-modals bg-black" onClick={onClose}>
-      <div className="bg-[#121212] w-[calc(100%-7mm)] h-[calc(100%-40mm)] mx-auto my-auto mt-[20mm] rounded-2xl overflow-hidden flex flex-col pb-[10mm]" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 bg-black/95 flex items-end justify-center animate-in fade-in duration-200" onClick={onClose}>
+      <div 
+        className="w-full h-[90vh] bg-[#121212] rounded-t-3xl overflow-y-auto animate-in slide-in-from-bottom duration-300 relative"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
-        <div className="flex items-center justify-between p-4 -mt-[6mm] border-b border-transparent">
-          <h3 className="text-white font-semibold relative top-[3mm]">Profile</h3>
-          <button onClick={onClose} className="text-white/70 hover:text-white text-sm font-semibold relative top-[3mm]">Close</button>
+        <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-3 bg-[#121212]/95 backdrop-blur-sm border-b border-white/5">
+          <h3 className="text-white font-bold text-lg">{user.username}</h3>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={handleShareProfile}
+              className="p-2 text-white/70 hover:text-white transition-colors"
+              aria-label="Share profile"
+            >
+              <Share2 size={24} />
+            </button>
+            <button 
+              onClick={onClose} 
+              className="p-2 -mr-2 text-white/70 hover:text-white transition-colors"
+              aria-label="Close profile"
+            >
+              <X size={24} />
+            </button>
+          </div>
         </div>
 
-        {/* Profile Info */}
-        <div className="p-6">
-          <div className="flex items-start gap-4 mb-4">
-            <div className="relative">
-              <img
-                src={user.avatar}
-                alt={user.name}
-                className="w-20 h-20 rounded-full object-cover -mt-[6mm]"
-              />
+        <div className="p-4 pb-safe">
+          {/* Profile Header */}
+          <div className="flex flex-col items-center mb-6">
+            <div className="w-24 h-24 rounded-full mb-3 p-[2px] bg-gradient-to-tr from-[#00f2ea] to-[#00f2ea]">
+              <div className="w-full h-full rounded-full border-2 border-[#121212] overflow-hidden bg-gray-800">
+                <img 
+                  src={user.avatar} 
+                  alt={user.name} 
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            </div>
+            
+            <h2 className="text-xl font-bold text-white flex items-center gap-1">
+              @{user.username}
               {user.isVerified && (
-                <div className="absolute -bottom-1 -right-1 bg-blue-500 rounded-full p-1">
-                  <div className="w-4 h-4 bg-white rounded-full flex items-center justify-center">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full" />
-                  </div>
+                <div className="bg-[#00f2ea] rounded-full p-[2px]">
+                   <div className="w-2 h-2 bg-white rounded-full"></div> 
                 </div>
               )}
-            </div>
-            <div className="flex-1 min-w-0">
-              <h2 className="flex items-center gap-2 mb-1 text-white font-bold text-lg min-w-0">
-                <span className="truncate">{user.name}</span>
-                <button
-                  type="button"
-                  className="h-6 px-3 rounded-full border border-white/30 text-white text-[10px] font-extrabold"
-                >
-                  LV {user.level ?? 1}
-                </button>
-              </h2>
-              
-              {/* Stats */}
-              <div className="flex gap-4 text-sm">
-                <div className="text-center">
-                  <div className="text-white font-semibold">{formatNumber(user.followers)}</div>
-                  <div className="text-white/60">Followers</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-white font-semibold">{formatNumber(user.following)}</div>
-                  <div className="text-white/60">Following</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-white font-semibold">{userVideos.length}</div>
-                  <div className="text-white/60">Videos</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Bio */}
-          {user.bio && (
-            <div className="mb-4">
-              <p className="text-white text-sm leading-relaxed">{user.bio}</p>
-            </div>
-          )}
-
-          {/* Additional Info */}
-          <div className="space-y-2 mb-6">
-            {user.location && (
-              <div className="flex items-center gap-2 text-white/60 text-sm">
-                <div className="w-4 h-4 bg-white rounded-full" />
-                <span>{user.location}</span>
-              </div>
-            )}
-            {user.website && (
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-white rounded-full" />
-                <a
-                  href={user.website}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[#FE2C55] text-sm hover:underline"
-                >
-                  {user.website}
-                </a>
-              </div>
-            )}
-            {user.joinedDate && (
-              <div className="flex items-center gap-2 text-white/60 text-sm">
-                <div className="w-4 h-4 bg-white rounded-full" />
-                <span>Joined {formatDate(user.joinedDate)}</span>
-              </div>
-            )}
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex gap-2 mb-4 ml-[15mm]">
-            {!isOwnProfile && (
-              <>
-                {user.isFollowing ? (
-                  <button
-                    onClick={onFollow}
-                    className="w-[20mm] h-6 flex items-center justify-center bg-white/10 text-white rounded-full hover:bg-white/15 transition-colors"
-                    aria-label="Following"
-                  >
-                    <UserMinus size={12} />
-                  </button>
-                ) : (
-                  <button
-                    onClick={onFollow}
-                    className="w-[20mm] h-6 flex items-center justify-center bg-[#FE2C55] text-white rounded-full hover:bg-[#FE2C55]/80 transition-colors"
-                    aria-label="Follow"
-                  >
-                    <UserPlus size={12} />
-                  </button>
-                )}
-                
-                <button
-                  onClick={handleMessage}
-                  className="w-[20mm] h-6 bg-white/10 text-white rounded-full hover:bg-white/15 transition-colors flex items-center justify-center"
-                >
-                  <MessageCircle size={14} />
-                </button>
-              </>
-            )}
+            </h2>
             
-            <div className="relative">
-              <button
-                onClick={() => setShowMoreOptions(!showMoreOptions)}
-                className="w-[20mm] h-6 bg-white/10 text-white rounded-full hover:bg-white/15 transition-colors flex items-center justify-center"
-              >
-                <MoreHorizontal size={14} />
-              </button>
-              
-              {showMoreOptions && (
-                <div className="absolute top-full right-0 mt-2 bg-[#1a1a1a] rounded-lg shadow-xl border border-transparent z-10 min-w-[200px]">
-                  {!isOwnProfile && (
-                    <>
-                      <button
-                        onClick={() => setNotificationsEnabled(!notificationsEnabled)}
-                        className="w-full flex items-center gap-3 px-4 py-3 text-white hover:bg-white/10 transition-colors text-left"
-                      >
-                        {notificationsEnabled ? <BellOff size={16} /> : <Bell size={16} />}
-                        <span>{notificationsEnabled ? 'Disable' : 'Enable'} Notifications</span>
-                      </button>
-                      
-                      <button
-                        onClick={handleShareProfile}
-                        className="w-full flex items-center gap-3 px-4 py-3 text-white hover:bg-white/10 transition-colors text-left"
-                      >
-                        <Share2 size={16} />
-                        <span>Share Profile</span>
-                      </button>
-                      
-                      <div className="border-t border-transparent my-1" />
-                      
-                      <button
-                        onClick={handleReportUser}
-                        className="w-full flex items-center gap-3 px-4 py-3 text-orange-400 hover:bg-white/10 transition-colors text-left"
-                      >
-                        <Flag size={16} />
-                        <span>Report User</span>
-                      </button>
-                      
-                      <button
-                        onClick={handleBlockUser}
-                        className="w-full flex items-center gap-3 px-4 py-3 text-red-400 hover:bg-white/10 transition-colors text-left"
-                      >
-                        <Ban size={16} />
-                        <span>Block User</span>
-                      </button>
-                    </>
+            <div className="mt-1 flex items-center gap-2">
+              <span className="text-sm text-white/90 font-medium">{user.name}</span>
+              {user.level && (
+                <span className="px-1.5 py-0.5 rounded bg-white/10 text-[10px] font-bold text-[#00f2ea] border border-[#00f2ea]/30">
+                  LV {user.level}
+                </span>
+              )}
+            </div>
+
+            {/* Stats */}
+            <div className="flex items-center gap-8 mt-6 w-full justify-center border-b border-white/5 pb-6">
+              <div className="flex flex-col items-center">
+                <span className="font-bold text-lg text-white">{formatNumber(user.following)}</span>
+                <span className="text-xs text-white/50">Following</span>
+              </div>
+              <div className="flex flex-col items-center">
+                <span className="font-bold text-lg text-white">{formatNumber(user.followers)}</span>
+                <span className="text-xs text-white/50">Followers</span>
+              </div>
+              <div className="flex flex-col items-center">
+                <span className="font-bold text-lg text-white">{userVideos.length}</span>
+                <span className="text-xs text-white/50">Videos</span>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex items-center gap-2 w-full mt-6 px-4">
+              {!isOwnProfile && (
+                <>
+                  {user.isFollowing ? (
+                     <button
+                       onClick={onFollow}
+                       className="flex-1 h-9 flex items-center justify-center bg-white/10 text-white rounded-lg font-semibold text-sm hover:bg-white/20 transition-colors"
+                     >
+                       Following
+                     </button>
+                  ) : (
+                    <button
+                      onClick={onFollow}
+                      className="flex-1 h-9 flex items-center justify-center bg-[#00f2ea] text-black rounded-lg font-semibold text-sm hover:bg-[#00f2ea]/90 transition-colors"
+                    >
+                      Follow
+                    </button>
                   )}
                   
-                  {isOwnProfile && (
-                    <>
-                      <button
-                        onClick={() => {/* Edit profile */}}
-                        className="w-full flex items-center gap-3 px-4 py-3 text-white hover:bg-white transition-colors text-left"
-                      >
-                        <div className="w-4 h-4 bg-white rounded-full" />
-                        <span>Edit Profile</span>
-                      </button>
-                      
-                      <button
-                        onClick={() => {/* View analytics */}}
-                        className="w-full flex items-center gap-3 px-4 py-3 text-white hover:bg-white transition-colors text-left"
-                      >
-                        <div className="w-4 h-4 bg-white rounded-full" />
-                        <span>View Analytics</span>
-                      </button>
-                    </>
-                  )}
-                </div>
+                  <button
+                    onClick={handleMessage}
+                    className="flex-1 h-9 flex items-center justify-center bg-white/10 text-white rounded-lg font-semibold text-sm hover:bg-white/20 transition-colors"
+                  >
+                    Message
+                  </button>
+
+                  <button
+                    onClick={() => setShowMoreOptions(!showMoreOptions)}
+                    className="w-9 h-9 flex items-center justify-center bg-white/10 text-white rounded-lg hover:bg-white/20 transition-colors relative"
+                  >
+                    <MoreHorizontal size={20} />
+                    
+                    {showMoreOptions && (
+                      <div className="absolute top-full right-0 mt-2 w-48 bg-[#252525] rounded-xl shadow-xl border border-white/10 z-50 overflow-hidden">
+                        <button
+                          onClick={handleReportUser}
+                          className="w-full px-4 py-3 text-left text-sm text-white hover:bg-white/5 flex items-center gap-2"
+                        >
+                          <Flag size={16} /> Report
+                        </button>
+                        <button
+                          onClick={handleBlockUser}
+                          className="w-full px-4 py-3 text-left text-sm text-red-400 hover:bg-white/5 flex items-center gap-2 border-t border-white/5"
+                        >
+                          <Ban size={16} /> Block
+                        </button>
+                      </div>
+                    )}
+                  </button>
+                </>
               )}
             </div>
+
+            {/* Bio */}
+            {user.bio && (
+              <p className="mt-6 text-sm text-white/80 text-center px-4 leading-relaxed max-w-md">
+                {user.bio}
+              </p>
+            )}
+            
+            {(user.location || user.website || user.joinedDate) && (
+               <div className="flex flex-wrap justify-center gap-4 mt-4 text-xs text-white/50">
+                  {user.location && <span>📍 {user.location}</span>}
+                  {user.joinedDate && <span>📅 Joined {formatDate(user.joinedDate)}</span>}
+                  {user.website && (
+                    <a
+                      href={user.website}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[#00f2ea] text-sm hover:underline"
+                    >
+                      {user.website}
+                    </a>
+                  )}
+               </div>
+            )}
+          </div>
+
+          {/* Video Grid */}
+          <div className="mt-2 border-t border-white/10">
+            <div className="flex items-center justify-center py-3 border-b border-white/10">
+               <div className="flex items-center gap-2 text-white font-semibold">
+                 <div className="w-0.5 h-4 bg-white"></div>
+                 <span>Videos</span>
+               </div>
+            </div>
+            
+            {userVideos.length > 0 ? (
+              <div className="grid grid-cols-3 gap-0.5 mt-0.5">
+                {userVideos.map((video) => (
+                  <div key={video.id} className="aspect-[3/4] bg-gray-900 relative">
+                    <img 
+                      src={video.thumbnail || video.thumbnail_url} 
+                      alt="" 
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute bottom-1 left-1 text-xs font-bold text-white drop-shadow-md flex items-center gap-1">
+                      <Play size={10} fill="white" />
+                      {formatNumber(video.stats.views)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="py-12 text-center text-white/40 text-sm">
+                No videos yet
+              </div>
+            )}
           </div>
         </div>
-
       </div>
 
       <ReportModal

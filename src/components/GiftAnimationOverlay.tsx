@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from 'react'; 
+// 🔒 LOCKED FILE: DO NOT MODIFY.
+// This file is locked to preserve the gift animation behavior.
+import React, { useState, useEffect, useRef } from 'react'; 
 import { websocket } from '../lib/websocket'; 
 import { Sparkles } from 'lucide-react'; 
 
@@ -9,6 +11,7 @@ interface GiftAnimation {
   giftName: string; 
   quantity: number; 
   timestamp: number; 
+  videoUrl?: string; // Optional: If gift has a video effect
 } 
 
 interface GiftAnimationOverlayProps { 
@@ -17,6 +20,8 @@ interface GiftAnimationOverlayProps {
 
 export default function GiftAnimationOverlay({ streamId: _streamId }: GiftAnimationOverlayProps) { 
   const [activeGifts, setActiveGifts] = useState<GiftAnimation[]>([]); 
+  const [activeVideoGift, setActiveVideoGift] = useState<GiftAnimation | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => { 
     // Listen for gift events 
@@ -36,15 +41,22 @@ export default function GiftAnimationOverlay({ streamId: _streamId }: GiftAnimat
       giftName: data.gift_name, 
       quantity: data.quantity, 
       timestamp: Date.now(), 
+      videoUrl: data.video_url, // Assuming backend sends this if applicable
     }; 
 
     setActiveGifts(prev => [...prev, animation]); 
+
+    // If it's a large gift with video, trigger video overlay
+    if (data.video_url) {
+        setActiveVideoGift(animation);
+        setTimeout(() => setActiveVideoGift(null), 8000); // Hide after 8s
+    }
 
     // Remove after animation completes 
     setTimeout(() => { 
       setActiveGifts(prev => prev.filter(g => g.id !== animation.id)); 
     }, 4000); 
-  }; 
+  };  
 
   return ( 
     <div className="fixed inset-0 pointer-events-none z-gift-animations"> 
@@ -53,37 +65,46 @@ export default function GiftAnimationOverlay({ streamId: _streamId }: GiftAnimat
         {activeGifts.slice(-3).map(gift => ( 
           <div 
             key={gift.id} 
-            className="animate-slide-in-right bg-gradient-to-r from-[#E6B36A]/90 to-[#B8935C]/90  rounded-2xl px-4 py-3 shadow-2xl flex items-center gap-3 min-w-[200px]" 
+            className="animate-slide-in-right bg-gradient-to-r from-[#00f2ea]/90 to-[#00c2be]/90  rounded-2xl px-4 py-3 shadow-2xl flex items-center gap-3 min-w-[200px]" 
           > 
-            <div className="text-4xl animate-bounce">{gift.giftIcon}</div> 
+            <div className="text-4xl animate-bounce" style={{ filter: 'drop-shadow(0 0 10px rgba(0, 242, 234, 0.6))' }}>{gift.giftIcon}</div> 
             <div className="flex-1"> 
               <p className="text-sm font-bold text-white">{gift.username}</p> 
-              <p className="text-xs text-white/90"> 
-                sent {gift.giftName} x{gift.quantity} 
-              </p> 
+              <p className="text-xs text-black font-extrabold uppercase tracking-wide">Sent {gift.giftName}</p> 
             </div> 
-            <Sparkles className="w-5 h-5 text-white animate-spin" /> 
+            <div className="text-3xl font-black italic text-white drop-shadow-lg animate-pulse"> 
+              x{gift.quantity} 
+            </div> 
           </div> 
         ))} 
       </div> 
 
-      {/* Full-Screen Gift Animation (for large gifts) */} 
-      {activeGifts.filter(g => g.quantity >= 100).slice(-1).map(gift => ( 
-        <div 
-          key={`fullscreen-${gift.id}`} 
-          className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-[#E6B36A]/20 to-[#B8935C]/20 animate-fade-in-out" 
-        > 
-          <div className="text-center"> 
-            <div className="text-9xl animate-bounce-slow mb-4">{gift.giftIcon}</div> 
-            <div className="bg-black  rounded-2xl px-8 py-6"> 
-              <p className="text-3xl font-bold text-[#E6B36A] mb-2">{gift.username}</p> 
-              <p className="text-xl text-white"> 
-                sent {gift.giftName} x{gift.quantity} 
+      {/* --- FULLSCREEN VIDEO OVERLAY --- */} 
+      {activeVideoGift && ( 
+        <div className="absolute inset-0 z-[50] pointer-events-none flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in duration-300"> 
+          <div className="relative w-full h-full max-w-md max-h-[60vh] flex flex-col items-center justify-center"> 
+             
+            <div className="absolute top-10 text-center animate-bounce-slow z-20"> 
+              <h2 className="text-3xl font-black text-white drop-shadow-[0_0_15px_rgba(0,242,234,0.8)] italic transform -skew-x-12"> 
+                {activeVideoGift.username} 
+              </h2> 
+              <p className="text-[#00f2ea] text-lg font-bold uppercase tracking-widest drop-shadow-md mt-1"> 
+                SENT {activeVideoGift.giftName} 
               </p> 
             </div> 
+
+            {/* Video Element */} 
+            <video 
+              ref={videoRef} 
+              src={activeVideoGift.videoUrl} 
+              className="w-full h-full object-contain drop-shadow-[0_0_30px_rgba(0,242,234,0.4)]" 
+              autoPlay 
+              playsInline 
+              muted={false} 
+            /> 
           </div> 
         </div> 
-      ))} 
+      )} 
     </div> 
   ); 
 }

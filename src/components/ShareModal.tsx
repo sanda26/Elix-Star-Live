@@ -200,7 +200,7 @@ export default function ShareModal({ isOpen, onClose, video }: ShareModalProps) 
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-transparent">
           <div className="flex items-center gap-3">
-            <Share2 className="w-4 h-4 text-[#FE2C55]" />
+            <Share2 className="w-4 h-4 text-[#00f2ea]" />
             <h3 className="text-white font-semibold">Share Video</h3>
           </div>
         </div>

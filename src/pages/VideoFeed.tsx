@@ -311,7 +311,7 @@ export default function VideoFeed() {
               alt="Navigation" 
               className="w-full h-auto pointer-events-none"
               style={{ 
-                filter: 'drop-shadow(0 0 20px rgba(230,179,106,0.5)) drop-shadow(0 4px 15px rgba(0,0,0,0.6))',
+                filter: 'drop-shadow(0 0 20px rgba(0,242,234,0.5)) drop-shadow(0 4px 15px rgba(0,0,0,0.6))',
               }}
             />
             <img

@@ -48,6 +48,7 @@ export function ChatOverlay({ messages, variant = 'panel', compact = false, clas
     MozOsxFontSmoothing: 'grayscale',
     pointerEvents: 'none',
     alignItems: 'flex-start', // Align messages to the left
+    zIndex: 90, // Explicitly set z-index lower than video gift (100)
   };
 
   const scrollStyle: React.CSSProperties = {
@@ -91,7 +92,7 @@ export function ChatOverlay({ messages, variant = 'panel', compact = false, clas
             <div className="flex flex-col min-w-0 justify-center">
               <div className="flex items-center gap-1.5 flex-wrap">
                 <span 
-                    className="text-[#B8BCC4] font-bold text-[13px] leading-tight cursor-pointer hover:underline whitespace-nowrap" 
+                    className="text-[#00f2ea] font-bold text-[13px] leading-tight cursor-pointer hover:underline whitespace-nowrap" 
                     onClick={() => onProfileTap?.(msg.username)}
                 >
                   {msg.username}
@@ -99,7 +100,7 @@ export function ChatOverlay({ messages, variant = 'panel', compact = false, clas
                 
                 {/* Membership Icon in Chat */}
                 {msg.membershipIcon && (
-                  <div className="bg-[#FF2D55] px-1.5 py-0.5 rounded-full flex items-center gap-1 border border-white/10 shadow-sm inline-flex align-middle">
+                  <div className="bg-[#00f2ea] px-1.5 py-0.5 rounded-full flex items-center gap-1 border border-white/10 shadow-sm inline-flex align-middle">
                     <img src={msg.membershipIcon} alt="Member" className="w-3 h-3 object-contain" />
                     <span className="text-white text-[9px] font-bold uppercase tracking-wider">Member</span>
                   </div>

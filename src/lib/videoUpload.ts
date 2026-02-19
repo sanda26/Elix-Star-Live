@@ -149,7 +149,7 @@ export class VideoUploadService {
       this.updateProgress('processing', 80, 'Creating video record...');
 
       // Thumbnail
-      let thumbnailUrl = 'https://picsum.photos/400/600';
+      let thumbnailUrl = '';
       try {
         thumbnailUrl = await Promise.race([
           this.generateThumbnail(file, userId, videoId),
@@ -253,8 +253,7 @@ export class VideoUploadService {
               .upload(fileName, blob);
 
             if (error) {
-              console.warn('Thumbnail upload failed, using placeholder', error);
-              resolve('https://picsum.photos/400/600'); // Fallback
+              resolve('');
               return;
             }
 
@@ -265,14 +264,12 @@ export class VideoUploadService {
             resolve(publicUrl);
           }, 'image/jpeg', 0.85);
         } catch (error) {
-          console.warn('Thumbnail generation failed', error);
-          resolve('https://picsum.photos/400/600');
+          resolve('');
         }
       };
 
       video.onerror = () => {
-        console.warn('Video load for thumbnail failed');
-        resolve('https://picsum.photos/400/600');
+        resolve('');
       };
 
       video.src = URL.createObjectURL(file);

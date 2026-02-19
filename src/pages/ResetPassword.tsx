@@ -52,11 +52,11 @@ export default function ResetPassword() {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center p-4">
+      <div className="min-h-[100dvh] h-[100dvh] bg-[#121212] text-[#00f2ea] flex items-center justify-center p-4 overflow-y-auto">
         <div className="w-full max-w-[420px] bg-white/5 border border-white/10 rounded-2xl p-6 text-center">
-          <CheckCircle className="w-12 h-12 text-green-400 mx-auto mb-4" />
+          <CheckCircle className="w-12 h-12 text-[#00f2ea] mx-auto mb-4" />
           <h1 className="text-xl font-bold mb-2">Password Reset!</h1>
-          <p className="text-sm text-white/60">
+          <p className="text-sm text-[#00f2ea]/60">
             Your password has been updated. Redirecting to login...
           </p>
         </div>
@@ -65,21 +65,21 @@ export default function ResetPassword() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white flex items-center justify-center p-4">
+    <div className="min-h-[100dvh] h-[100dvh] bg-[#121212] text-[#00f2ea] flex items-center justify-center p-4 overflow-y-auto">
       <div className="w-full max-w-[420px] bg-white/5 border border-white/10 rounded-2xl p-6">
         <h1 className="text-2xl font-bold mb-2">Reset Password</h1>
-        <p className="text-sm text-white/60 mb-6">Enter your new password below.</p>
+        <p className="text-sm text-[#00f2ea]/60 mb-6">Enter your new password below.</p>
 
         <form onSubmit={onSubmit} className="space-y-4">
           <div className="space-y-2">
-            <label className="text-sm text-white/70">New Password</label>
+            <label className="text-sm text-[#00f2ea]/70">New Password</label>
             <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/50" />
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#00f2ea]/50" />
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-white/10 border border-white/10 rounded-xl pl-10 pr-3 py-3 text-sm text-white outline-none focus:border-[#E6B36A]/50"
+                className="w-full bg-white/10 border border-white/10 rounded-xl pl-10 pr-3 py-3 text-sm text-[#00f2ea] outline-none focus:border-[#00f2ea]/50"
                 placeholder="••••••••"
                 autoComplete="new-password"
                 required
@@ -89,14 +89,14 @@ export default function ResetPassword() {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm text-white/70">Confirm Password</label>
+            <label className="text-sm text-[#00f2ea]/70">Confirm Password</label>
             <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/50" />
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#00f2ea]/50" />
               <input
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full bg-white/10 border border-white/10 rounded-xl pl-10 pr-3 py-3 text-sm text-white outline-none focus:border-[#E6B36A]/50"
+                className="w-full bg-white/10 border border-white/10 rounded-xl pl-10 pr-3 py-3 text-sm text-[#00f2ea] outline-none focus:border-[#00f2ea]/50"
                 placeholder="••••••••"
                 autoComplete="new-password"
                 required
@@ -114,7 +114,7 @@ export default function ResetPassword() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full bg-[#E6B36A] text-black font-bold rounded-xl py-3 text-sm disabled:opacity-60"
+            className="w-full bg-[#00f2ea] text-black font-bold rounded-xl py-3 text-sm disabled:opacity-60"
           >
             {isSubmitting ? 'Updating...' : 'Reset Password'}
           </button>

@@ -61,14 +61,14 @@ export class ErrorBoundary extends Component<Props, State> {
       }
 
       return (
-        <div className="min-h-screen bg-black text-white flex items-center justify-center px-4">
+        <div className="min-h-[100dvh] bg-[#121212] text-[#00f2ea] flex items-center justify-center px-4">
           <div className="max-w-md text-center">
             <div className="w-20 h-20 bg-red-500 rounded-full mx-auto mb-6 flex items-center justify-center">
               <AlertTriangle className="w-10 h-10 text-red-500" />
             </div>
 
             <h1 className="text-2xl font-bold mb-3">Oops! Something went wrong</h1>
-            <p className="text-white/60 mb-6">
+            <p className="text-[#00f2ea]/60 mb-6">
               We're sorry for the inconvenience. Please try reloading the page.
             </p>
 
@@ -76,7 +76,7 @@ export class ErrorBoundary extends Component<Props, State> {
               <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-left">
                 <p className="text-sm font-mono text-red-400 mb-2">{this.state.error.message}</p>
                 {this.state.errorInfo && (
-                  <details className="text-xs text-white/40">
+                  <details className="text-xs text-[#00f2ea]/40">
                     <summary className="cursor-pointer mb-2">Stack trace</summary>
                     <pre className="whitespace-pre-wrap overflow-x-auto">
                       {this.state.errorInfo.componentStack}
@@ -89,14 +89,14 @@ export class ErrorBoundary extends Component<Props, State> {
             <div className="flex gap-3 justify-center">
               <button
                 onClick={this.handleReload}
-                className="flex items-center gap-2 px-6 py-3 bg-[#E6B36A] text-black rounded-full font-bold hover:opacity-90 transition"
+                className="flex items-center gap-2 px-6 py-3 bg-[#00f2ea] text-black rounded-full font-bold hover:opacity-90 transition"
               >
                 <RefreshCw className="w-5 h-5" />
                 Reload
               </button>
               <button
                 onClick={this.handleGoHome}
-                className="flex items-center gap-2 px-6 py-3 bg-transparent text-white rounded-full font-bold hover:brightness-125 transition"
+                className="flex items-center gap-2 px-6 py-3 bg-transparent text-[#00f2ea] rounded-full font-bold hover:brightness-125 transition"
               >
                 <Home className="w-5 h-5" />
                 Go Home

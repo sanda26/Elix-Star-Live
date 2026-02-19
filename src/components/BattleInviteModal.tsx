@@ -112,7 +112,7 @@ export default function BattleInviteModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black z-modals flex items-end" onClick={onClose}>
+    <div className="fixed inset-0 bg-[#121212] z-modals flex items-end" onClick={onClose}>
       <div
         className="bg-[#1a1a1a] w-full max-h-[80vh] rounded-t-3xl flex flex-col"
         onClick={e => e.stopPropagation()}
@@ -134,7 +134,7 @@ export default function BattleInviteModal({
         <div className="flex-1 overflow-y-auto px-4 py-4">
           <div className="flex items-center gap-2 mb-3 justify-between">
             <div className="flex items-center gap-2">
-              <Users className="w-5 h-5 text-white/60" />
+              <Users className="w-5 h-5 text-[#00f2ea]/60" />
               <span className="text-sm font-semibold">Select Opponent</span>
             </div>
             <button onClick={loadLiveStreams} className="text-xs text-[#00f2ea] hover:underline">
@@ -143,7 +143,7 @@ export default function BattleInviteModal({
           </div>
 
           {liveStreams.length === 0 && (
-            <div className="text-center py-12 text-white/40">No live streams available</div>
+            <div className="text-center py-12 text-[#00f2ea]/40">No live streams available</div>
           )}
 
           <div className="space-y-2">
@@ -164,8 +164,8 @@ export default function BattleInviteModal({
                 />
                 <div className="flex-1 text-left">
                   <p className="font-semibold mb-1">{stream.creator?.username || 'Unknown'}</p>
-                  <p className="text-sm text-white/60 truncate">{stream.title}</p>
-                  <div className="flex items-center gap-1 text-xs text-white/40 mt-1">
+                  <p className="text-sm text-[#00f2ea]/60 truncate">{stream.title}</p>
+                  <div className="flex items-center gap-1 text-xs text-[#00f2ea]/40 mt-1">
                     <Users className="w-3 h-3" />
                     {stream.viewer_count} watching
                   </div>

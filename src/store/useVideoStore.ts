@@ -224,7 +224,7 @@ export const useVideoStore = create<VideoStore>()(
             return {
               id: v.id,
               url: v.url, 
-              thumbnail: v.thumbnail_url || 'https://picsum.photos/400/600',
+              thumbnail: v.thumbnail_url || '',
               duration: '0:15',
               user: {
                 id: uid,
@@ -287,12 +287,6 @@ export const useVideoStore = create<VideoStore>()(
       deleteVideo: async (videoId) => {
         const snapshot = get().videos;
         try {
-          if (videoId.startsWith('mock-')) {
-            console.warn('Attempted to delete a mock video in production mode.');
-            set({ videos: get().videos.filter((v) => v.id !== videoId) });
-            return;
-          }
-
           const { data: auth } = await supabase.auth.getUser();
           const user = auth.user;
           if (!user) {

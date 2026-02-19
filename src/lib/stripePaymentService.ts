@@ -103,11 +103,6 @@ export class StripePaymentService {
 
       if (error) {
         console.error('Error creating subscription session:', error);
-        // For demo purposes, if the function doesn't exist, we'll simulate a success
-        if (error.message.includes('Function not found')) {
-           console.warn('Subscription function not found, simulating success for demo');
-           return { sessionId: 'mock_session_' + Date.now() };
-        }
         return { sessionId: '', error: error.message };
       }
 
@@ -126,9 +121,7 @@ export class StripePaymentService {
       if (!this.stripe) {
         await this.initializeStripe();
         if (!this.stripe) {
-          // Fallback for development if Stripe key is missing
-          console.warn('Stripe not initialized. Simulating success for dev.');
-          return { success: true, message: 'Mock success: Stripe not configured' };
+          return { success: false, message: 'Payment service not configured' };
         }
       }
 
@@ -139,11 +132,6 @@ export class StripePaymentService {
         return { success: false, message: error };
       }
       
-      if (sessionId.startsWith('mock_')) {
-          // Simulate success for demo
-          return { success: true, message: 'Redirecting to payment...' };
-      }
-
       // Redirect to Stripe Checkout
       const { error: redirectError } = await this.stripe.redirectToCheckout({
         sessionId,

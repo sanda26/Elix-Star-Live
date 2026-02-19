@@ -13,8 +13,8 @@ export default function SavedVideos() {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-black text-white flex justify-center">
-      <div className="w-full">
+    <div className="min-h-[100dvh] bg-[#121212] text-[#00f2ea] flex justify-center px-2">
+      <div className="w-full max-w-[480px] h-[100dvh] rounded-3xl overflow-hidden overflow-y-auto bg-[#121212] flex flex-col pt-[var(--safe-top)] pb-[calc(var(--safe-bottom)+12mm)]">
         <div className="p-4 flex items-center gap-4">
           <button onClick={() => navigate('/feed')} className="p-1">
             <img src="/Icons/power-button.png" alt="Back" className="w-5 h-5" />
@@ -23,7 +23,7 @@ export default function SavedVideos() {
         </div>
 
       {/* Grid */}
-      <div className="grid grid-cols-3 gap-0.5 p-0.5">
+      <div className="grid grid-cols-3 gap-0.5 p-0.5 flex-1 overflow-y-auto">
         {SAVED_VIDEOS.map((video) => (
           <div key={video.id} className="aspect-[3/4] bg-gray-900 relative cursor-pointer" onClick={() => navigate('/feed')}>
              <video 
@@ -34,7 +34,7 @@ export default function SavedVideos() {
                onMouseOver={e => e.currentTarget.play()} 
                onMouseOut={e => { e.currentTarget.pause(); e.currentTarget.currentTime = 0; }}
              />
-             <div className="absolute bottom-1 left-1 flex items-center gap-1 text-white text-xs drop-shadow-md">
+             <div className="absolute bottom-1 left-1 flex items-center gap-1 text-[#00f2ea] text-xs drop-shadow-md">
                <Bookmark size={12} fill="white" />
              </div>
           </div>

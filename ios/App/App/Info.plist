@@ -46,9 +46,9 @@
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>We use your camera to let you record and upload videos.</string>
+	<string>Elix Star Live uses your camera to record videos, go live, and make video calls.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>We use your microphone to capture audio when recording videos and when going live.</string>
+	<string>Elix Star Live uses your microphone to capture audio when recording videos, going live, and during video calls.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>We use your photo library to let you pick videos to upload.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>

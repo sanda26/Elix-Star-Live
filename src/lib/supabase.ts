@@ -107,6 +107,7 @@ function createDisabledSupabase(message: string) {
     channel() {
       return createDisabledQuery(message);
     },
+    removeChannel() {},
     removeAllChannels() {},
   } as any;
 }
@@ -119,7 +120,7 @@ export const supabase = canUseSupabase
         storage,
         persistSession: true,
         autoRefreshToken: true,
-        detectSessionInUrl: false,
+        detectSessionInUrl: true,
       },
     })
   : createDisabledSupabase('Supabase is not configured.');

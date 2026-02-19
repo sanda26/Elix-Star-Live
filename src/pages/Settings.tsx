@@ -1,4 +1,4 @@
-import { supabase, checkSupabaseConnection } from '../lib/supabase';
+import { supabase } from '../lib/supabase';
 import {
   ChevronRight,
   User,
@@ -56,16 +56,17 @@ export default function Settings() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white pb-24">
+    <div className="min-h-[100dvh] bg-[#121212] text-[#00f2ea] flex justify-center px-2">
+      <div className="w-full max-w-[480px] h-[100dvh] rounded-3xl overflow-hidden bg-[#121212] flex flex-col pt-[var(--safe-top)] pb-[calc(var(--safe-bottom)+12mm)]">
       {/* Header */}
-      <div className="sticky top-0 z-10 px-4 py-4 flex items-center gap-3">
+      <div className="sticky top-0 z-10 px-4 py-4 flex items-center gap-3 bg-[#121212]">
         <button onClick={() => navigate('/feed')} className="p-1 hover:brightness-125 transition" title="Back to For You">
           <img src="/Icons/power-button.png" alt="Back" className="w-5 h-5" />
         </button>
         <h1 className="text-2xl font-bold">Settings</h1>
       </div>
 
-      <div className="px-4 py-6 space-y-6">
+      <div className="px-4 py-6 space-y-6 flex-1 overflow-y-auto">
         {/* Account Section */}
         <Section title="Account">
           <SettingItem
@@ -76,12 +77,12 @@ export default function Settings() {
           <SettingItem
             icon={<Lock className="w-5 h-5" />}
             label="Privacy"
-            onClick={() => alert('Coming soon')}
+            onClick={() => navigate('/settings/safety')}
           />
           <SettingItem
             icon={<Shield className="w-5 h-5" />}
             label="Security"
-            onClick={() => alert('Coming soon')}
+            onClick={() => navigate('/settings/safety')}
           />
         </Section>
 
@@ -90,7 +91,7 @@ export default function Settings() {
           <SettingItem
             icon={<Bell className="w-5 h-5" />}
             label="Notifications"
-            onClick={() => alert('Coming soon')}
+            onClick={() => navigate('/settings/safety')}
           />
           <SettingItem
             icon={<Moon className="w-5 h-5" />}
@@ -102,7 +103,7 @@ export default function Settings() {
             icon={<Globe className="w-5 h-5" />}
             label="Language"
             value="English"
-            onClick={() => alert('Coming soon')}
+            onClick={() => {}}
           />
         </Section>
 
@@ -112,7 +113,7 @@ export default function Settings() {
             icon={<Video className="w-5 h-5" />}
             label="Video Quality"
             value="Auto"
-            onClick={() => alert('Coming soon')}
+            onClick={() => {}}
           />
           <SettingItem
             icon={<Heart className="w-5 h-5" />}
@@ -147,17 +148,6 @@ export default function Settings() {
           <SettingItem label="Community Guidelines" onClick={() => navigate('/guidelines')} />
         </Section>
 
-        {/* Developer */}
-        <Section title="Developer">
-          <SettingItem
-            label="Check Supabase connection"
-            onClick={async () => {
-              const result = await checkSupabaseConnection();
-              alert(result.ok ? 'Supabase connection OK.' : 'Supabase: ' + ('message' in result ? result.message : 'Error'));
-            }}
-          />
-        </Section>
-
         {/* Actions */}
         <div className="space-y-3 pt-4">
           <button
@@ -177,7 +167,8 @@ export default function Settings() {
         </div>
 
         {/* Version */}
-        <div className="text-center text-xs text-white/40 pt-6">Version 1.0.0</div>
+        <div className="text-center text-xs text-[#00f2ea]/40 pt-6">Version 1.0.0</div>
+      </div>
       </div>
     </div>
   );
@@ -186,7 +177,7 @@ export default function Settings() {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div>
-      <h2 className="text-sm font-semibold text-white/60 mb-3 px-2">{title}</h2>
+      <h2 className="text-sm font-semibold text-[#00f2ea]/60 mb-3 px-2">{title}</h2>
       <div className="rounded-xl overflow-hidden">
         {children}
       </div>
@@ -210,10 +201,10 @@ function SettingItem({
       onClick={onClick}
       className="w-full flex items-center gap-3 px-4 py-4 hover:brightness-125 transition text-left"
     >
-      {icon && <div className="text-white/60">{icon}</div>}
+      {icon && <div className="text-[#00f2ea]/60">{icon}</div>}
       <span className="flex-1">{label}</span>
-      {value && <span className="text-white/40 text-sm">{value}</span>}
-      <ChevronRight className="w-5 h-5 text-white/40" />
+      {value && <span className="text-[#00f2ea]/40 text-sm">{value}</span>}
+      <ChevronRight className="w-5 h-5 text-[#00f2ea]/40" />
     </button>
   );
 }

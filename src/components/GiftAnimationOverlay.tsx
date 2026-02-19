@@ -69,10 +69,10 @@ export default function GiftAnimationOverlay({ streamId: _streamId }: GiftAnimat
           > 
             <div className="text-4xl animate-bounce" style={{ filter: 'drop-shadow(0 0 10px rgba(0, 242, 234, 0.6))' }}>{gift.giftIcon}</div> 
             <div className="flex-1"> 
-              <p className="text-sm font-bold text-white">{gift.username}</p> 
+              <p className="text-sm font-bold text-[#00f2ea]">{gift.username}</p> 
               <p className="text-xs text-black font-extrabold uppercase tracking-wide">Sent {gift.giftName}</p> 
             </div> 
-            <div className="text-3xl font-black italic text-white drop-shadow-lg animate-pulse"> 
+            <div className="text-3xl font-black italic text-[#00f2ea] drop-shadow-lg animate-pulse"> 
               x{gift.quantity} 
             </div> 
           </div> 
@@ -81,11 +81,11 @@ export default function GiftAnimationOverlay({ streamId: _streamId }: GiftAnimat
 
       {/* --- FULLSCREEN VIDEO OVERLAY --- */} 
       {activeVideoGift && ( 
-        <div className="absolute inset-0 z-[50] pointer-events-none flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in duration-300"> 
+        <div className="absolute inset-0 z-[50] pointer-events-none flex items-center justify-center bg-[#121212]/40 backdrop-blur-sm animate-in fade-in duration-300"> 
           <div className="relative w-full h-full max-w-md max-h-[60vh] flex flex-col items-center justify-center"> 
              
             <div className="absolute top-10 text-center animate-bounce-slow z-20"> 
-              <h2 className="text-3xl font-black text-white drop-shadow-[0_0_15px_rgba(0,242,234,0.8)] italic transform -skew-x-12"> 
+              <h2 className="text-3xl font-black text-[#00f2ea] drop-shadow-[0_0_15px_rgba(0,242,234,0.8)] italic transform -skew-x-12"> 
                 {activeVideoGift.username} 
               </h2> 
               <p className="text-[#00f2ea] text-lg font-bold uppercase tracking-widest drop-shadow-md mt-1"> 

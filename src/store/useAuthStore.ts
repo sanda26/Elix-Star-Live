@@ -72,6 +72,37 @@ function mapUserToUser(supabaseUser: SupabaseUser | null): User | null {
   };
 }
 
+async function enrichUserWithProfile(user: User): Promise<User> {
+  try {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('username, display_name, avatar_url, bio, website')
+      .eq('user_id', user.id)
+      .single();
+
+    const { count: followersCount } = await supabase
+      .from('followers')
+      .select('*', { count: 'exact', head: true })
+      .eq('following_id', user.id);
+
+    const { count: followingCount } = await supabase
+      .from('followers')
+      .select('*', { count: 'exact', head: true })
+      .eq('follower_id', user.id);
+
+    return {
+      ...user,
+      username: profile?.username || user.username,
+      name: profile?.display_name || user.name,
+      avatar: profile?.avatar_url || user.avatar,
+      followers: followersCount ?? 0,
+      following: followingCount ?? 0,
+    };
+  } catch {
+    return user;
+  }
+}
+
 const getAuthErrorMessage = (error: unknown) => {
   if (error instanceof Error) {
     const m = error.message.toLowerCase();
@@ -271,28 +302,36 @@ export const useAuthStore = create<AuthStore>()(
         return;
       }
       
-      // Attempt to get the session first to avoid "flash of unauthenticated"
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
-          set({ supabaseUser: session.user, session, user: mapUserToUser(session.user), isAuthenticated: true, isLoading: false, authMode: 'supabase' });
+          const mapped = mapUserToUser(session.user);
+          if (mapped) {
+            const enriched = await enrichUserWithProfile(mapped);
+            set({ supabaseUser: session.user, session, user: enriched, isAuthenticated: true, isLoading: false, authMode: 'supabase' });
+          } else {
+            set({ supabaseUser: session.user, session, user: mapped, isAuthenticated: true, isLoading: false, authMode: 'supabase' });
+          }
         } else {
-           // If no session is found, we should set isLoading to false so the app knows we are done checking.
-           // Previously, this was skipped, causing the app to get stuck in a loading state if no user was logged in.
            set({ supabaseUser: null, session: null, user: null, isAuthenticated: false, isLoading: false, authMode: 'supabase' });
         }
       } catch (error) {
         console.error('getSession error:', error);
-        // Even on error, stop loading
         set({ isLoading: false });
       }
 
       if (!authUnsubscribe) {
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
           console.log('Auth state change:', event, session?.user?.id);
           const user = session?.user;
           if (user) {
-            set({ supabaseUser: user, session, user: mapUserToUser(user), isAuthenticated: true, isLoading: false, authMode: 'supabase' });
+            const mapped = mapUserToUser(user);
+            if (mapped) {
+              const enriched = await enrichUserWithProfile(mapped);
+              set({ supabaseUser: user, session, user: enriched, isAuthenticated: true, isLoading: false, authMode: 'supabase' });
+            } else {
+              set({ supabaseUser: user, session, user: mapped, isAuthenticated: true, isLoading: false, authMode: 'supabase' });
+            }
             return;
           }
           

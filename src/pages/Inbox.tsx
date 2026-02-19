@@ -58,7 +58,7 @@ const DEMO_CONVERSATIONS: Conversation[] = [
     participant_1: 'demo',
     participant_2: 'demo',
     last_message_at: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
-    otherUser: { username: 'ðŸ’—ðŸŒ¸sandraa.monicaaðŸŒ¸ðŸ’—', avatar_url: 'https://ui-avatars.com/api/?name=Sandra&background=121212&color=E6B36A' },
+    otherUser: { username: 'ðŸ’—ðŸŒ¸sandraa.monicaaðŸŒ¸ðŸ’—', avatar_url: 'https://ui-avatars.com/api/?name=Sandra&background=121212&color=00f2ea' },
     lastMessage: 'Posted a video',
   },
   {
@@ -66,7 +66,7 @@ const DEMO_CONVERSATIONS: Conversation[] = [
     participant_1: 'demo',
     participant_2: 'demo',
     last_message_at: new Date(Date.now() - 1000 * 60 * 60 * 17).toISOString(),
-    otherUser: { username: 'albertgashi.81', avatar_url: 'https://ui-avatars.com/api/?name=Albert&background=121212&color=E6B36A' },
+    otherUser: { username: 'albertgashi.81', avatar_url: 'https://ui-avatars.com/api/?name=Albert&background=121212&color=00f2ea' },
     lastMessage: '[28 messages] shared a LIVE Â· 17h',
   },
   {
@@ -74,16 +74,16 @@ const DEMO_CONVERSATIONS: Conversation[] = [
     participant_1: 'demo',
     participant_2: 'demo',
     last_message_at: new Date(Date.now() - 1000 * 60 * 60 * 18).toISOString(),
-    otherUser: { username: 'ðŸ†VÄƒduva. neagrÄƒ.30ðŸ† 4foryouâœ…', avatar_url: 'https://ui-avatars.com/api/?name=Vaduva&background=121212&color=E6B36A' },
+    otherUser: { username: 'ðŸ†VÄƒduva. neagrÄƒ.30ðŸ† 4foryouâœ…', avatar_url: 'https://ui-avatars.com/api/?name=Vaduva&background=121212&color=00f2ea' },
     lastMessage: '[24 messages] shared a LIVE Â· 18h',
   },
 ];
 
 const STORY_USERS = [
-  { id: 'u1', username: 'narcisa', avatar_url: 'https://ui-avatars.com/api/?name=Narcisa&background=121212&color=E6B36A', hasStory: false },
-  { id: 'u2', username: 'ðŸ’ŽHaicu...', avatar_url: 'https://ui-avatars.com/api/?name=Haiducu&background=121212&color=E6B36A', hasStory: true },
-  { id: 'u3', username: 'Raluca Be...', avatar_url: 'https://ui-avatars.com/api/?name=Raluca&background=121212&color=E6B36A', hasStory: true },
-  { id: 'u4', username: 'Eu Si Atat', avatar_url: 'https://ui-avatars.com/api/?name=Eu&background=121212&color=E6B36A', hasStory: true },
+  { id: 'u1', username: 'narcisa', avatar_url: 'https://ui-avatars.com/api/?name=Narcisa&background=121212&color=00f2ea', hasStory: false },
+  { id: 'u2', username: 'ðŸ’ŽHaicu...', avatar_url: 'https://ui-avatars.com/api/?name=Haiducu&background=121212&color=00f2ea', hasStory: true },
+  { id: 'u3', username: 'Raluca Be...', avatar_url: 'https://ui-avatars.com/api/?name=Raluca&background=121212&color=00f2ea', hasStory: true },
+  { id: 'u4', username: 'Eu Si Atat', avatar_url: 'https://ui-avatars.com/api/?name=Eu&background=121212&color=00f2ea', hasStory: true },
 ];
 
 export default function Inbox() {
@@ -99,35 +99,89 @@ export default function Inbox() {
 
   useEffect(() => {
     loadCurrentUser();
-    setNotifications(DEMO_NOTIFICATIONS);
-    setConversations(DEMO_CONVERSATIONS);
   }, []);
 
+  useEffect(() => {
+    if (!currentUserId) return;
+    const fetchNotifications = async () => {
+      try {
+        const { data } = await supabase
+          .from('notifications')
+          .select('*')
+          .eq('user_id', currentUserId)
+          .order('created_at', { ascending: false })
+          .limit(50);
+        if (data) setNotifications(data.map((n: any) => ({
+          id: n.id,
+          type: n.type || 'system',
+          actor_id: n.actor_id || '',
+          title: n.title || 'Notification',
+          body: n.body,
+          image_url: n.image_url,
+          action_url: n.action_url,
+          is_read: n.is_read ?? false,
+          created_at: n.created_at,
+        })));
+      } catch { /* ignore */ }
+    };
+    const fetchConversations = async () => {
+      try {
+        const { data } = await supabase
+          .from('chat_threads')
+          .select('*')
+          .or(`participant_1.eq.${currentUserId},participant_2.eq.${currentUserId}`)
+          .order('last_message_at', { ascending: false })
+          .limit(50);
+        if (data) {
+          const mapped = await Promise.all(data.map(async (t: any) => {
+            const otherId = t.participant_1 === currentUserId ? t.participant_2 : t.participant_1;
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('username, avatar_url')
+              .eq('user_id', otherId)
+              .single();
+            return {
+              id: t.id,
+              participant_1: t.participant_1,
+              participant_2: t.participant_2,
+              last_message_at: t.last_message_at || t.created_at,
+              otherUser: profile ? { username: profile.username || 'User', avatar_url: profile.avatar_url } : { username: 'User', avatar_url: null },
+              lastMessage: t.last_message_preview || '',
+            };
+          }));
+          setConversations(mapped);
+        }
+      } catch { /* ignore */ }
+    };
+    fetchNotifications();
+    fetchConversations();
+  }, [currentUserId]);
+
   return (
-    <div className="min-h-[100dvh] bg-black text-white flex justify-center px-2">
+    <div className="min-h-[100dvh] bg-[#121212] text-[#00f2ea] flex justify-center px-2">
       <div className="w-full max-w-[480px] h-[100dvh] rounded-3xl overflow-hidden bg-[#121212] flex flex-col pt-[var(--safe-top)] pb-[calc(var(--safe-bottom)+12mm)]">
         
         {/* Header */}
-        <div className="px-4 py-3 flex items-center justify-between sticky top-0 z-10 bg-[#121212]">
+        <div className="px-4 py-3 flex items-center justify-between sticky top-0 z-10 bg-[#121212] relative">
             <button 
               onClick={() => navigate(-1)}
-              className="w-8 h-8 rounded-full flex items-center justify-center -ml-2"
+              className="w-8 h-8 rounded-full flex items-center justify-center -ml-2 z-10"
             >
                  <img src="/Icons/power-button.png" alt="Back" className="w-5 h-5" />
             </button>
             
-            <button className="flex items-center gap-1 font-bold text-lg">
-                Inbox
+            <button className="absolute inset-0 flex items-center justify-center gap-1 font-bold text-lg pointer-events-none">
+                <span className="pointer-events-auto">Inbox</span>
                 <div className="bg-[#00f2ea] rounded px-1 py-0.5 ml-1">
                     <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
                 </div>
             </button>
 
-            <div className="flex items-center gap-4">
-                <Search size={24} />
-                <button className="w-8 h-8 rounded-full flex items-center justify-center">
+            <div className="flex items-center gap-4 z-10">
+                <Search size={24} className="text-[#00f2ea]" />
+                <button title="New message" className="w-8 h-8 rounded-full flex items-center justify-center">
                      <div className="w-6 h-6 rounded-full border-2 border-white flex items-center justify-center">
-                        <Plus size={16} className="text-white stroke-[4px]" />
+                        <Plus size={16} className="text-[#00f2ea] stroke-[4px]" />
                      </div>
                 </button>
             </div>
@@ -141,36 +195,36 @@ export default function Inbox() {
                     <div className="relative w-16 h-16">
                         <div className="w-full h-full rounded-full p-[2px] bg-gradient-to-tr from-[#00f2ea] to-[#00f2ea]">
                             <div className="w-full h-full rounded-full border-2 border-[#121212] overflow-hidden">
-                                 <img src="https://ui-avatars.com/api/?name=Me&background=333&color=fff" className="w-full h-full object-cover opacity-80" />
+                                 <img src="https://ui-avatars.com/api/?name=Me&background=333&color=fff" alt="Create" className="w-full h-full object-cover opacity-80" />
                             </div>
                         </div>
                         <div className="absolute bottom-0 right-0 bg-[#00f2ea] rounded-full p-0.5 border-2 border-[#121212] w-5 h-5 flex items-center justify-center">
-                            <span className="text-white font-bold text-xs leading-none">+</span>
+                            <span className="text-[#00f2ea] font-bold text-xs leading-none">+</span>
                         </div>
                     </div>
-                    <span className="text-xs text-white font-semibold mt-1">Create</span>
+                    <span className="text-xs text-[#00f2ea] font-semibold mt-1">Create</span>
                 </div>
 
-                {STORY_USERS.map(u => (
-                    <div key={u.id} className="flex flex-col items-center gap-1 min-w-[64px]">
-                        <div className={`w-16 h-16 rounded-full p-[2px] ${u.hasStory || u.username === 'Eu Si Atat' || u.username === 'narcisa' ? 'bg-gradient-to-tr from-[#00f2ea] to-[#00f2ea]' : 'bg-transparent'}`}>
+                {conversations.slice(0, 6).map(c => (
+                    <div key={c.id} className="flex flex-col items-center gap-1 min-w-[64px]">
+                        <div className="w-16 h-16 rounded-full p-[2px] bg-gradient-to-tr from-[#00f2ea] to-[#00f2ea]">
                             <div className="w-full h-full rounded-full border-2 border-[#121212] overflow-hidden bg-gray-800">
-                                <img src={u.avatar_url} className="w-full h-full object-cover" />
+                                <img src={c.otherUser?.avatar_url || ''} alt={c.otherUser?.username || 'User'} className="w-full h-full object-cover" />
                             </div>
                         </div>
-                        <span className="text-xs text-white font-semibold mt-1 truncate w-16 text-center">{u.username}</span>
+                        <span className="text-xs text-[#00f2ea] font-semibold mt-1 truncate w-16 text-center">{c.otherUser?.username || 'User'}</span>
                     </div>
                 ))}
             </div>
         </div>
 
         {/* Filters */}
-        <div className="pl-[calc(1rem+6mm)] pr-4 py-2 flex items-center gap-2 overflow-x-auto no-scrollbar mb-2">
-            <button className="px-4 py-1.5 rounded bg-[#00f2ea]/20 text-[#00f2ea] text-xs font-bold whitespace-nowrap">Main 11</button>
-            <button className="px-4 py-1.5 rounded bg-[#2F2F2F] hover:bg-[#3F3F3F] text-white text-xs font-bold whitespace-nowrap">Requests</button>
-            <button className="px-4 py-1.5 rounded bg-[#2F2F2F] hover:bg-[#3F3F3F] text-white text-xs font-bold whitespace-nowrap">Unread 2</button>
-            <button className="px-4 py-1.5 rounded bg-[#2F2F2F] hover:bg-[#3F3F3F] text-white text-xs font-bold whitespace-nowrap">Starred</button>
-            <div className="ml-auto text-white">
+        <div className="pl-[calc(1rem+22mm)] pr-4 py-2 flex items-center justify-center gap-2 overflow-x-auto no-scrollbar mb-2">
+            <button className="px-4 py-1.5 rounded bg-[#00f2ea]/20 text-[#00f2ea] text-xs font-bold whitespace-nowrap">Main</button>
+            <button className="px-4 py-1.5 rounded bg-[#2F2F2F] hover:bg-[#3F3F3F] text-[#00f2ea] text-xs font-bold whitespace-nowrap">Requests</button>
+            <button className="px-4 py-1.5 rounded bg-[#2F2F2F] hover:bg-[#3F3F3F] text-[#00f2ea] text-xs font-bold whitespace-nowrap">Unread</button>
+            <button className="px-4 py-1.5 rounded bg-[#2F2F2F] hover:bg-[#3F3F3F] text-[#00f2ea] text-xs font-bold whitespace-nowrap">Starred</button>
+            <div className="ml-auto text-[#00f2ea]">
                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line><line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line><line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line><line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line><line x1="17" y1="16" x2="23" y2="16"></line></svg>
             </div>
         </div>
@@ -181,42 +235,44 @@ export default function Inbox() {
             {/* New Followers */}
             <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-full bg-[#00f2ea] flex items-center justify-center">
-                    <UserPlus className="w-6 h-6 text-white" fill="white" />
+                    <UserPlus className="w-6 h-6 text-[#00f2ea]" fill="white" />
                 </div>
                 <div className="flex-1 min-w-0">
                     <h3 className="font-bold text-sm">New followers</h3>
-                    <p className="text-white/60 text-xs truncate">Kashmir started following you.</p>
+                    <p className="text-[#00f2ea]/60 text-xs truncate">
+                      {notifications.find(n => n.type === 'follow')?.body || 'No new followers'}
+                    </p>
                 </div>
-                <div className="w-5 h-5 rounded-full bg-[#00f2ea] flex items-center justify-center text-white text-[10px] font-bold">1</div>
             </div>
 
             {/* Activity */}
             <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-full bg-[#00f2ea] flex items-center justify-center">
-                    <Heart className="w-6 h-6 text-white" fill="white" />
+                    <Heart className="w-6 h-6 text-[#00f2ea]" fill="white" />
                 </div>
                 <div className="flex-1 min-w-0">
                     <h3 className="font-bold text-sm">Activity</h3>
-                    <p className="text-white/60 text-xs truncate">Stefanuca Radu liked your video.</p>
+                    <p className="text-[#00f2ea]/60 text-xs truncate">
+                      {notifications.find(n => n.type === 'like' || n.type === 'comment')?.body || 'No recent activity'}
+                    </p>
                 </div>
-                <div className="w-5 h-5 rounded-full bg-[#00f2ea] flex items-center justify-center text-white text-[10px] font-bold">8</div>
             </div>
 
             {/* Message Items (Mixed) */}
             {conversations.map((conv, i) => (
-                <div key={conv.id} className="flex items-center gap-3">
+                <div key={conv.id} className="flex items-center gap-3 cursor-pointer" onClick={() => navigate(`/inbox/${conv.id}`)}>
                     <div className={`w-12 h-12 rounded-full p-[2px] ${i === 0 ? 'bg-gradient-to-tr from-[#00f2ea] to-[#00f2ea]' : 'bg-transparent'}`}>
                         <div className="w-full h-full rounded-full border-2 border-[#121212] overflow-hidden">
-                             <img src={conv.otherUser?.avatar_url || ''} className="w-full h-full object-cover" />
+                             <img src={conv.otherUser?.avatar_url || ''} alt={conv.otherUser?.username || 'User'} className="w-full h-full object-cover" />
                         </div>
                     </div>
                     <div className="flex-1 min-w-0">
                         <h3 className="font-bold text-sm truncate">{conv.otherUser?.username}</h3>
-                        <p className={`text-xs truncate ${i === 0 ? 'text-white' : 'text-white/60'}`}>{conv.lastMessage}</p>
+                        <p className={`text-xs truncate ${i === 0 ? 'text-[#00f2ea]' : 'text-[#00f2ea]/60'}`}>{conv.lastMessage}</p>
                     </div>
                     <div className="flex items-center gap-2">
-                         {i > 0 && <MicOff size={14} className="text-white/40" />}
-                        <Camera size={20} className="text-white/60" />
+                         {i > 0 && <MicOff size={14} className="text-[#00f2ea]/40" />}
+                        <Camera size={20} className="text-[#00f2ea]/60" />
                     </div>
                 </div>
             ))}
@@ -225,42 +281,30 @@ export default function Inbox() {
             {notifications.filter(n => n.type === 'system').map(notif => (
                 <div key={notif.id} className="flex items-center gap-3">
                     <div className="w-12 h-12 rounded-full bg-[#1a1a1a] border border-white/10 flex items-center justify-center">
-                        <Archive className="w-6 h-6 text-white" />
+                        <Archive className="w-6 h-6 text-[#00f2ea]" />
                     </div>
                     <div className="flex-1 min-w-0">
                         <h3 className="font-bold text-sm">{notif.title}</h3>
-                        <p className="text-white/60 text-xs truncate">{notif.body}</p>
+                        <p className="text-[#00f2ea]/60 text-xs truncate">{notif.body}</p>
                     </div>
-                    <span className="text-[10px] text-white/40">21h</span>
+                    <span className="text-[10px] text-[#00f2ea]/40">21h</span>
                 </div>
             ))}
 
              {/* Shop Notification */}
              {notifications.filter(n => n.type === 'shop').map(notif => (
                 <div key={notif.id} className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-full bg-orange-500 flex items-center justify-center">
-                        <ShoppingBag className="w-6 h-6 text-white" fill="white" />
+                    <div className="w-12 h-12 rounded-full bg-[#00f2ea] flex items-center justify-center">
+                        <ShoppingBag className="w-6 h-6 text-[#00f2ea]" fill="white" />
                     </div>
                     <div className="flex-1 min-w-0">
                         <h3 className="font-bold text-sm">{notif.title}</h3>
-                        <p className="text-white/60 text-xs truncate">{notif.body}</p>
+                        <p className="text-[#00f2ea]/60 text-xs truncate">{notif.body}</p>
                     </div>
-                    <span className="text-[10px] text-white/40">1d</span>
+                    <span className="text-[10px] text-[#00f2ea]/40">1d</span>
                 </div>
             ))}
              
-             {/* Extra User */}
-             <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-gray-700 overflow-hidden">
-                     <img src="https://ui-avatars.com/api/?name=Eu&background=333" className="w-full h-full object-cover" />
-                </div>
-                <div className="flex-1 min-w-0">
-                    <h3 className="font-bold text-sm">Eu Si Atat</h3>
-                    <p className="text-white/60 text-xs truncate">Sent a video</p>
-                </div>
-                <Camera size={20} className="text-white/60" />
-            </div>
-
         </div>
       </div>
     </div>

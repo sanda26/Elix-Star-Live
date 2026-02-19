@@ -105,9 +105,10 @@ export default function PurchaseCoins() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-[100dvh] bg-[#121212] text-[#00f2ea] flex justify-center px-2">
+      <div className="w-full max-w-[480px] h-[100dvh] rounded-3xl overflow-hidden bg-[#121212] flex flex-col pt-[var(--safe-top)] pb-[calc(var(--safe-bottom)+12mm)]">
       {/* Header */}
-      <div className="sticky top-0 bg-black z-10 px-4 py-4 border-b border-transparent flex items-center justify-between">
+      <div className="sticky top-0 bg-[#121212] z-10 px-4 py-4 border-b border-transparent flex items-center justify-between">
         <button onClick={() => navigate('/feed')} className="p-2 hover:brightness-125 rounded-full transition">
           <img src="/Icons/power-button.png" alt="Back" className="w-5 h-5" />
         </button>
@@ -115,14 +116,14 @@ export default function PurchaseCoins() {
         <div className="w-10"></div>
       </div>
 
-      <div className="px-4 py-6">
+      <div className="px-4 py-6 flex-1 overflow-y-auto">
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="w-20 h-20 bg-gradient-to-br from-[#E6B36A] to-[#B8935C] rounded-full mx-auto mb-4 flex items-center justify-center">
+          <div className="w-20 h-20 bg-gradient-to-br from-[#00f2ea] to-[#00c4bd] rounded-full mx-auto mb-4 flex items-center justify-center">
             <Sparkles className="w-10 h-10 text-black" />
           </div>
           <h2 className="text-2xl font-bold mb-2">Buy Coins</h2>
-          <p className="text-sm text-white/60">Send gifts, unlock features, and support creators</p>
+          <p className="text-sm text-[#00f2ea]/60">Send gifts, unlock features, and support creators</p>
         </div>
 
         {/* Packages */}
@@ -134,12 +135,12 @@ export default function PurchaseCoins() {
               disabled={loading && selectedPackage?.id === pkg.id}
               className={`w-full p-6 rounded-2xl transition relative overflow-hidden ${
                 pkg.is_popular
-                  ? 'bg-gradient-to-br from-[#E6B36A]/20 to-[#B8935C]/20 border-2 border-[#E6B36A]'
+                  ? 'bg-gradient-to-br from-[#00f2ea]/20 to-[#00c4bd]/20 border-2 border-[#00f2ea]'
                   : 'bg-white border-2 border-transparent hover:brightness-125'
               } disabled:opacity-50 disabled:cursor-not-allowed`}
             >
               {pkg.is_popular && (
-                <div className="absolute top-3 right-3 px-3 py-1 bg-[#E6B36A] text-black rounded-full text-xs font-bold">
+                <div className="absolute top-3 right-3 px-3 py-1 bg-[#00f2ea] text-black rounded-full text-xs font-bold">
                   POPULAR
                 </div>
               )}
@@ -147,20 +148,20 @@ export default function PurchaseCoins() {
               <div className="flex items-center justify-between">
                 <div className="text-left">
                   <div className="flex items-center gap-2 mb-2">
-                    <Sparkles className="w-6 h-6 text-[#E6B36A]" />
+                    <Sparkles className="w-6 h-6 text-[#00f2ea]" />
                     <span className="text-2xl font-bold">{formatNumber(pkg.coins)}</span>
                     {pkg.bonus_coins > 0 && (
-                      <span className="px-2 py-1 bg-green-500 text-black rounded-full text-xs font-bold">
+                      <span className="px-2 py-1 bg-[#00f2ea] text-black rounded-full text-xs font-bold">
                         +{formatNumber(pkg.bonus_coins)} Bonus
                       </span>
                     )}
                   </div>
-                  <p className="text-sm text-white/60">{pkg.name}</p>
+                  <p className="text-sm text-[#00f2ea]/60">{pkg.name}</p>
                 </div>
                 <div className="text-right">
                   <div className="text-2xl font-bold">${(pkg.price || 0).toFixed(2)}</div>
                   {pkg.bonus_coins > 0 && (
-                    <div className="text-xs text-green-400 font-semibold">
+                    <div className="text-xs text-[#00f2ea] font-semibold">
                       {Math.round((pkg.bonus_coins / pkg.coins) * 100)}% Bonus
                     </div>
                   )}
@@ -168,7 +169,7 @@ export default function PurchaseCoins() {
               </div>
 
               {loading && selectedPackage?.id === pkg.id && (
-                <div className="mt-4 text-center text-sm text-white/60">Processing...</div>
+                <div className="mt-4 text-center text-sm text-[#00f2ea]/60">Processing...</div>
               )}
             </button>
           ))}
@@ -184,17 +185,18 @@ export default function PurchaseCoins() {
         </div>
 
         {/* Terms */}
-        <p className="text-xs text-white/40 text-center mt-6 px-4">
+        <p className="text-xs text-[#00f2ea]/40 text-center mt-6 px-4">
           By purchasing, you agree to our{' '}
-          <a href="/terms" className="text-[#E6B36A] underline">
+          <a href="/terms" className="text-[#00f2ea] underline">
             Terms of Service
           </a>{' '}
           and{' '}
-          <a href="/privacy" className="text-[#E6B36A] underline">
+          <a href="/privacy" className="text-[#00f2ea] underline">
             Privacy Policy
           </a>
           . Purchases are non-refundable except as required by law.
         </p>
+      </div>
       </div>
     </div>
   );
@@ -203,10 +205,10 @@ export default function PurchaseCoins() {
 function FeatureItem({ text }: { text: string }) {
   return (
     <div className="flex items-start gap-3">
-      <div className="w-5 h-5 bg-[#E6B36A] rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+      <div className="w-5 h-5 bg-[#00f2ea] rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
         <Check className="w-3 h-3 text-black" />
       </div>
-      <p className="text-sm text-white/80">{text}</p>
+      <p className="text-sm text-[#00f2ea]/80">{text}</p>
     </div>
   );
 }

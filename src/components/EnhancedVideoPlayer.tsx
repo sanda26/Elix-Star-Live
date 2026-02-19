@@ -27,7 +27,7 @@ interface EnhancedVideoPlayerProps {
   onProgress?: (progress: number) => void;
 }
 
-// Premium Sidebar Button Component with Metallic Rose Gold Design
+// Premium Sidebar Button Component
 export const PremiumSidebarButton = ({ 
   onClick, 
   isActive = false, 
@@ -378,7 +378,7 @@ export default function EnhancedVideoPlayer({
     >
       {/* Video Element - iPhone 14 Pro Max: 6.7" Super Retina XDR, 2796Ãƒâ€”1290px, 19.5:9, ~460ppi */}
       <div
-        className="absolute inset-0 flex items-center justify-center bg-black"
+        className="absolute inset-0 flex items-center justify-center bg-[#121212]"
         style={{ margin: 0, padding: 0, gap: 0 }}
       >
         <div className="w-full h-full" style={{ margin: 0, padding: 0 }}>
@@ -395,9 +395,9 @@ export default function EnhancedVideoPlayer({
           onError={(e) => {
             console.warn(`Video ${video.id} failed to load:`, e);
             e.currentTarget.style.display = 'none';
-            e.currentTarget.parentElement?.classList.add('bg-black');
+            e.currentTarget.parentElement?.classList.add('bg-[#121212]');
             const errorText = document.createElement('div');
-            errorText.className = 'absolute inset-0 flex items-center justify-center text-white/50 text-sm';
+            errorText.className = 'absolute inset-0 flex items-center justify-center text-[#00f2ea]/50 text-sm';
             errorText.innerText = 'Video unavailable';
             e.currentTarget.parentElement?.appendChild(errorText);
           }}
@@ -454,9 +454,9 @@ export default function EnhancedVideoPlayer({
               className="w-full h-full rounded-full object-cover"
             />
             {video.user.isVerified && (
-              <div className="absolute -bottom-1 -right-1 bg-blue-500 rounded-full p-0.5 border-2 border-black">
+              <div className="absolute -bottom-1 -right-1 bg-[#00f2ea] rounded-full p-0.5 border-2 border-black">
                 <div className="w-2.5 h-2.5 bg-white rounded-full flex items-center justify-center">
-                  <div className="w-1.5 h-1.5 bg-blue-500 rounded-full" />
+                  <div className="w-1.5 h-1.5 bg-[#00f2ea] rounded-full" />
                 </div>
               </div>
             )}
@@ -468,7 +468,7 @@ export default function EnhancedVideoPlayer({
                     handleFollow();
                  }}
                >
-                 <UserPlus size={16} className="text-white" />
+                 <UserPlus size={16} className="text-[#00f2ea]" />
                </div>
             )}
           </div>
@@ -510,7 +510,7 @@ export default function EnhancedVideoPlayer({
             className={`w-full h-full object-contain ${video.isSaved ? 'brightness-125 drop-shadow-[0_0_10px_rgba(0,242,234,0.6)]' : ''}`}
           />
         </button>
-        <span className="text-white text-xs font-semibold -mt-1">{formatNumber(video.stats.saves || 0)}</span>
+        <span className="text-[#00f2ea] text-xs font-semibold -mt-1">{formatNumber(video.stats.saves || 0)}</span>
 
         {/* Share Button - SAME SIZE */}
         <button 
@@ -520,7 +520,7 @@ export default function EnhancedVideoPlayer({
         >
           <img src="/Icons/side-share.png" alt="Share" className="w-full h-full object-contain" />
         </button>
-        <span className="text-white text-xs font-semibold -mt-1">{formatNumber(video.stats.shares)}</span>
+        <span className="text-[#00f2ea] text-xs font-semibold -mt-1">{formatNumber(video.stats.shares)}</span>
 
         {/* Music Button - SAME SIZE */}
         <button 
@@ -548,7 +548,7 @@ export default function EnhancedVideoPlayer({
           <LevelBadge level={video.user.level ?? 1} size={10} layout="fixed" />
           <h3 className="text-[#00f2ea] font-bold text-shadow-md">{video.user.username}</h3>
           {video.user.isVerified && (
-            <div className="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
+            <div className="w-4 h-4 bg-[#00f2ea] rounded-full flex items-center justify-center">
               <div className="w-2 h-2 bg-white rounded-full" />
             </div>
           )}
@@ -556,7 +556,7 @@ export default function EnhancedVideoPlayer({
           <span className="text-[#00f2ea]/60 text-sm">{formatNumber(video.user.followers)} followers</span>
         </div>
         
-        <p className="text-white/90 text-sm mb-2 text-shadow-md line-clamp-2">
+        <p className="text-[#00f2ea]/90 text-sm mb-2 text-shadow-md line-clamp-2">
           {video.description}
         </p>
         
@@ -573,20 +573,20 @@ export default function EnhancedVideoPlayer({
         </div>
 
         {video.location && (
-          <div className="flex items-center gap-1 text-white/60 text-xs mb-2">
+          <div className="flex items-center gap-1 text-[#00f2ea]/60 text-xs mb-2">
             <div className="w-3 h-3 rounded-full" />
             <span>{video.location}</span>
           </div>
         )}
         
-        <div className="flex items-center gap-2 text-white/90">
+        <div className="flex items-center gap-2 text-[#00f2ea]/90">
           <Music size={14} className="text-[#00f2ea]" />
           <span className="text-xs font-medium animate-marquee whitespace-nowrap overflow-hidden w-32">
             {video.music.title} - {video.music.artist}
           </span>
         </div>
 
-        <div className="flex items-center gap-4 mt-2 text-white/60 text-xs">
+        <div className="flex items-center gap-4 mt-2 text-[#00f2ea]/60 text-xs">
           <span>{formatNumber(video.stats.views)} views</span>
           <span>Ã¢â‚¬Â¢</span>
           <span>{new Date(video.createdAt).toLocaleDateString()}</span>
@@ -629,8 +629,8 @@ export default function EnhancedVideoPlayer({
           >
             <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
               <div className="flex items-center gap-2">
-                <Settings2 className="w-4 h-4 text-white" />
-                <span className="text-white font-bold text-sm">More Options</span>
+                <Settings2 className="w-4 h-4 text-[#00f2ea]" />
+                <span className="text-[#00f2ea] font-bold text-sm">More Options</span>
               </div>
             </div>
             <div className="p-2 overflow-y-auto">
@@ -640,7 +640,7 @@ export default function EnhancedVideoPlayer({
                   setIsMoreMenuOpen(false);
                   handleShare();
                 }}
-                className="w-full px-4 py-3 flex items-center gap-3 text-white hover:bg-white/5 rounded-xl"
+                className="w-full px-4 py-3 flex items-center gap-3 text-[#00f2ea] hover:bg-white/5 rounded-xl"
               >
                 <Share2 className="w-5 h-5" strokeWidth={2} />
                 <span className="text-sm font-bold">Share</span>
@@ -651,7 +651,7 @@ export default function EnhancedVideoPlayer({
                   handleSave();
                   setIsMoreMenuOpen(false);
                 }}
-                className="w-full px-4 py-3 flex items-center gap-3 text-white hover:bg-white/5 rounded-xl"
+                className="w-full px-4 py-3 flex items-center gap-3 text-[#00f2ea] hover:bg-white/5 rounded-xl"
               >
                 <Bookmark className="w-5 h-5" strokeWidth={2} />
                 <span className="text-sm font-bold">{video.isSaved ? 'Unsave' : 'Save'}</span>
@@ -662,7 +662,7 @@ export default function EnhancedVideoPlayer({
                   handleFollow();
                   setIsMoreMenuOpen(false);
                 }}
-                className="w-full px-4 py-3 flex items-center gap-3 text-white hover:bg-white/5 rounded-xl"
+                className="w-full px-4 py-3 flex items-center gap-3 text-[#00f2ea] hover:bg-white/5 rounded-xl"
               >
                 {video.isFollowing ? <UserMinus className="w-5 h-5" strokeWidth={2} /> : <UserPlus className="w-5 h-5" strokeWidth={2} />}
                 <span className="text-sm font-bold">{video.isFollowing ? 'Unfollow' : 'Follow'}</span>

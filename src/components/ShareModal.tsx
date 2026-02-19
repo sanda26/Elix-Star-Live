@@ -43,8 +43,8 @@ const sharePlatforms = [
   {
     name: 'Messages',
     icon: MessageCircle,
-    color: 'bg-green-600',
-    hover: 'hover:bg-green-700',
+    color: 'bg-[#00f2ea]',
+    hover: 'hover:bg-[#00c4bd]',
     action: 'sms'
   },
   {
@@ -57,22 +57,22 @@ const sharePlatforms = [
   {
     name: 'WhatsApp',
     icon: MessageCircle,
-    color: 'bg-green-500',
-    hover: 'hover:bg-green-600',
+    color: 'bg-[#00f2ea]',
+    hover: 'hover:bg-[#00c4bd]',
     action: 'whatsapp'
   },
   {
     name: 'Facebook',
     icon: Facebook,
-    color: 'bg-blue-600',
-    hover: 'hover:bg-blue-700',
+    color: 'bg-[#00f2ea]',
+    hover: 'hover:bg-[#00c4bd]',
     action: 'facebook'
   },
   {
     name: 'Twitter',
     icon: Twitter,
-    color: 'bg-blue-400',
-    hover: 'hover:bg-blue-500',
+    color: 'bg-[#00f2ea]',
+    hover: 'hover:bg-[#00c4bd]',
     action: 'twitter'
   },
   {
@@ -195,13 +195,13 @@ export default function ShareModal({ isOpen, onClose, video }: ShareModalProps) 
   };
 
   return (
-    <div className="fixed inset-0 z-modals bg-black flex items-end" onClick={onClose}>
+    <div className="fixed inset-0 z-modals bg-[#121212] flex items-end" onClick={onClose}>
       <div className="bg-[#121212] w-full h-[40dvh] rounded-t-2xl overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-transparent">
           <div className="flex items-center gap-3">
             <Share2 className="w-4 h-4 text-[#00f2ea]" />
-            <h3 className="text-white font-semibold">Share Video</h3>
+            <h3 className="text-[#00f2ea] font-semibold">Share Video</h3>
           </div>
         </div>
 
@@ -216,12 +216,12 @@ export default function ShareModal({ isOpen, onClose, video }: ShareModalProps) 
               >
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${platform.color} ${platform.hover}`}>
                     {platform.action === 'copy' && copiedLink ? (
-                      <Check className="w-1/2 h-1/2 text-white" />
+                      <Check className="w-1/2 h-1/2 text-[#00f2ea]" />
                     ) : (
-                      <platform.icon className="w-1/2 h-1/2 text-white" />
+                      <platform.icon className="w-1/2 h-1/2 text-[#00f2ea]" />
                     )}
                   </div>
-                  <span className="text-white text-[11px] text-center leading-tight">{platform.name}</span>
+                  <span className="text-[#00f2ea] text-[11px] text-center leading-tight">{platform.name}</span>
               </button>
             ))}
             <button
@@ -229,9 +229,9 @@ export default function ShareModal({ isOpen, onClose, video }: ShareModalProps) 
                 className="flex flex-col items-center gap-1.5"
             >
                 <div className="w-10 h-10 rounded-full flex items-center justify-center transition-colors bg-white/10 hover:bg-white/15">
-                  <Download className="w-1/2 h-1/2 text-white" />
+                  <Download className="w-1/2 h-1/2 text-[#00f2ea]" />
                 </div>
-                <span className="text-white text-[11px] text-center leading-tight">Download</span>
+                <span className="text-[#00f2ea] text-[11px] text-center leading-tight">Download</span>
             </button>
 
             <button
@@ -239,9 +239,9 @@ export default function ShareModal({ isOpen, onClose, video }: ShareModalProps) 
                 className="flex flex-col items-center gap-1.5"
             >
                 <div className="w-10 h-10 rounded-full flex items-center justify-center transition-colors bg-white/10 hover:bg-white/15">
-                  <QrCode className="w-1/2 h-1/2 text-white" />
+                  <QrCode className="w-1/2 h-1/2 text-[#00f2ea]" />
                 </div>
-                <span className="text-white text-[11px] text-center leading-tight">QR Code</span>
+                <span className="text-[#00f2ea] text-[11px] text-center leading-tight">QR Code</span>
             </button>
 
             <button
@@ -249,9 +249,9 @@ export default function ShareModal({ isOpen, onClose, video }: ShareModalProps) 
                 className="flex flex-col items-center gap-1.5"
             >
                 <div className="w-10 h-10 rounded-full flex items-center justify-center transition-colors bg-white/10 hover:bg-white/15">
-                  <Code className="w-1/2 h-1/2 text-white" />
+                  <Code className="w-1/2 h-1/2 text-[#00f2ea]" />
                 </div>
-                <span className="text-white text-[11px] text-center leading-tight">Embed</span>
+                <span className="text-[#00f2ea] text-[11px] text-center leading-tight">Embed</span>
             </button>
           </div>
 
@@ -260,19 +260,19 @@ export default function ShareModal({ isOpen, onClose, video }: ShareModalProps) 
         {/* QR Code Modal */}
         {showQRCode && (
           <div
-            className="fixed inset-0 z-modals bg-black flex items-center justify-center p-4"
+            className="fixed inset-0 z-modals bg-[#121212] flex items-center justify-center p-4"
             onClick={() => setShowQRCode(false)}
           >
             <div className="bg-[#121212] rounded-2xl p-6 max-w-sm w-full" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4">
-                <h4 className="text-white font-semibold">QR Code</h4>
+                <h4 className="text-[#00f2ea] font-semibold">QR Code</h4>
               </div>
               <div className="bg-white p-4 rounded-lg flex items-center justify-center">
                 <div className="w-48 h-48 bg-gray-300 rounded flex items-center justify-center">
-                  <QrCode className="w-1/2 h-1/2 text-gray-600" />
+                  <QrCode className="w-1/2 h-1/2 text-[#00f2ea]" />
                 </div>
               </div>
-              <p className="text-white/60 text-sm text-center mt-3">
+              <p className="text-[#00f2ea]/60 text-sm text-center mt-3">
                 Scan this QR code to view the video
               </p>
             </div>

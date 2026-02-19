@@ -60,8 +60,8 @@ export default function SearchPage() {
   }, [normalizedQuery, videos]);
 
   return (
-    <div className="min-h-screen bg-black text-white flex justify-center">
-      <div className="w-full">
+    <div className="min-h-[100dvh] bg-[#121212] text-[#00f2ea] flex justify-center px-2">
+      <div className="w-full max-w-[480px] h-[100dvh] rounded-3xl overflow-hidden bg-[#121212] flex flex-col pt-[var(--safe-top)] pb-[calc(var(--safe-bottom)+12mm)] overflow-y-auto">
       {/* Content */}
       <div className="p-4">
         <div className="flex items-center gap-2 mb-4">
@@ -72,17 +72,17 @@ export default function SearchPage() {
             <input 
               type="text" 
               placeholder="Search" 
-              className="w-full bg-gray-800 text-white rounded-md py-2 pl-10 pr-4 text-sm focus:outline-none focus:bg-gray-700"
+              className="w-full bg-gray-800 text-[#00f2ea] rounded-md py-2 pl-10 pr-4 text-sm focus:outline-none focus:bg-gray-700"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               autoFocus
             />
-            <SearchIcon size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <SearchIcon size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#00f2ea]/60" />
             {query && (
               <button 
                 type="button" 
                 onClick={() => setQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#00f2ea]/60"
               >
                 <X size={14} />
               </button>
@@ -124,7 +124,7 @@ export default function SearchPage() {
                       <img src={u.avatar} alt={u.username} className="w-10 h-10 rounded-full" />
                       <div className="text-left">
                         <div className="text-sm font-semibold">@{u.username}</div>
-                        <div className="text-xs text-white/60">{u.name}</div>
+                        <div className="text-xs text-[#00f2ea]/60">{u.name}</div>
                       </div>
                     </button>
                   ))}
@@ -135,7 +135,7 @@ export default function SearchPage() {
             <div>
               <h2 className="font-bold mb-3">Videos</h2>
               {matchedVideos.length === 0 ? (
-                <div className="text-sm text-white/60">No videos found.</div>
+                <div className="text-sm text-[#00f2ea]/60">No videos found.</div>
               ) : (
                 <div className="space-y-2">
                   {matchedVideos.map((v) => (
@@ -147,12 +147,12 @@ export default function SearchPage() {
                       <img
                         src={v.thumbnail ?? 'https://picsum.photos/120/160'}
                         alt={v.description}
-                        className="w-20 h-28 rounded-md object-cover bg-black"
+                        className="w-20 h-28 rounded-md object-cover bg-[#121212]"
                       />
                       <div className="text-left flex-1">
                         <div className="text-sm font-semibold line-clamp-2">{v.description}</div>
-                        <div className="text-xs text-white/60 mt-1">@{v.user.username}</div>
-                        <div className="text-xs text-white/40 mt-2 line-clamp-1">
+                        <div className="text-xs text-[#00f2ea]/60 mt-1">@{v.user.username}</div>
+                        <div className="text-xs text-[#00f2ea]/40 mt-2 line-clamp-1">
                           {v.hashtags.map((h) => `#${h}`).join(' ')}
                         </div>
                       </div>

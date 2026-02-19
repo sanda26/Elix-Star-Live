@@ -18,7 +18,7 @@ const reportReasons = [
     title: 'Spam or misleading',
     description: 'Promotes scams, fake engagement, or misleading content',
     icon: AlertTriangle,
-    color: 'text-yellow-400'
+    color: 'text-[#00f2ea]'
   },
   {
     id: 'hate',
@@ -32,7 +32,7 @@ const reportReasons = [
     title: 'Harassment or bullying',
     description: 'Targets individuals with repeated unwanted contact or abuse',
     icon: MessageSquare,
-    color: 'text-orange-400'
+    color: 'text-[#00f2ea]'
   },
   {
     id: 'violence',
@@ -46,14 +46,14 @@ const reportReasons = [
     title: 'Nudity or sexual content',
     description: 'Contains explicit sexual content or nudity',
     icon: EyeOff,
-    color: 'text-purple-400'
+    color: 'text-[#00f2ea]'
   },
   {
     id: 'copyright',
     title: 'Copyright infringement',
     description: 'Uses copyrighted material without permission',
     icon: Flag,
-    color: 'text-blue-400'
+    color: 'text-[#00f2ea]'
   },
   {
     id: 'impersonation',
@@ -67,7 +67,7 @@ const reportReasons = [
     title: 'Other issue',
     description: 'Something else that violates community guidelines',
     icon: Flag,
-    color: 'text-gray-400'
+    color: 'text-[#00f2ea]'
   }
 ];
 
@@ -192,17 +192,17 @@ export default function ReportModal({ isOpen, onClose, videoId, contentType, con
 
   if (showSuccess) {
     return (
-      <div className="fixed inset-0 z-modals bg-black flex items-center justify-center p-4">
+      <div className="fixed inset-0 z-modals bg-[#121212] flex items-center justify-center p-4">
         <div className="bg-[#121212] rounded-2xl p-6 max-w-sm w-full text-center">
-          <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-            <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
-              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="w-16 h-16 bg-[#00f2ea]/20 rounded-full flex items-center justify-center mx-auto mb-4">
+            <div className="w-8 h-8 bg-[#00f2ea] rounded-full flex items-center justify-center">
+              <svg className="w-5 h-5 text-[#00f2ea]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
             </div>
           </div>
-          <h3 className="text-white font-semibold mb-2">Report Submitted</h3>
-          <p className="text-white/60 text-sm">
+          <h3 className="text-[#00f2ea] font-semibold mb-2">Report Submitted</h3>
+          <p className="text-[#00f2ea]/60 text-sm">
             Thank you for helping keep our community safe. We'll review your report and take appropriate action.
           </p>
         </div>
@@ -212,7 +212,7 @@ export default function ReportModal({ isOpen, onClose, videoId, contentType, con
 
   return (
     <div className="fixed inset-0 z-modals flex flex-col justify-end">
-      <div className="absolute inset-0 bg-black pointer-events-auto" onClick={onClose} />
+      <div className="absolute inset-0 bg-[#121212] pointer-events-auto" onClick={onClose} />
 
       <div className="relative w-full z-10 bg-[#1a1a1a] rounded-t-2xl p-4 pb-safe flex flex-col gap-1 shadow-2xl border-t border-white/10 pointer-events-auto h-[40dvh] max-h-[40dvh] overflow-y-auto no-scrollbar">
         <div className="flex justify-center mb-2">
@@ -222,9 +222,9 @@ export default function ReportModal({ isOpen, onClose, videoId, contentType, con
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
             <Flag className="w-4 h-4 text-[#00f2ea]" />
-            <h3 className="text-white font-bold whitespace-nowrap">Report {getContentTypeLabel()}</h3>
+            <h3 className="text-[#00f2ea] font-bold whitespace-nowrap">Report {getContentTypeLabel()}</h3>
           </div>
-          <button type="button" onClick={onClose} className="text-white/70 hover:text-white text-sm font-semibold">
+          <button type="button" onClick={onClose} className="text-[#00f2ea]/70 hover:text-[#00f2ea] text-sm font-semibold">
             Close
           </button>
         </div>
@@ -252,8 +252,8 @@ export default function ReportModal({ isOpen, onClose, videoId, contentType, con
         )}
 
         <div className="mt-1 px-1">
-          <div className="text-white text-sm font-semibold mb-1">Why are you reporting this {getContentTypeLabel()}?</div>
-          <div className="text-white/40 text-xs leading-snug">
+          <div className="text-[#00f2ea] text-sm font-semibold mb-1">Why are you reporting this {getContentTypeLabel()}?</div>
+          <div className="text-[#00f2ea]/40 text-xs leading-snug">
             Your report helps us understand what violates our community guidelines.
           </div>
         </div>
@@ -274,8 +274,8 @@ export default function ReportModal({ isOpen, onClose, videoId, contentType, con
                     <IconComponent className="w-4 h-4" />
                   </div>
                   <div className="min-w-0 text-left">
-                    <div className="text-white/90 text-sm font-semibold truncate">{reason.title}</div>
-                    <div className="text-white/40 text-xs leading-snug">{reason.description}</div>
+                    <div className="text-[#00f2ea]/90 text-sm font-semibold truncate">{reason.title}</div>
+                    <div className="text-[#00f2ea]/40 text-xs leading-snug">{reason.description}</div>
                   </div>
                 </div>
                 <div className={`w-5 h-5 rounded-full border flex items-center justify-center flex-shrink-0 ${selected ? 'border-[#00f2ea] bg-[#00f2ea]' : 'border-white/30'}`}>
@@ -291,27 +291,27 @@ export default function ReportModal({ isOpen, onClose, videoId, contentType, con
         </div>
 
         <div className="mt-3">
-          <label className="text-white text-xs font-semibold mb-1 block">Additional details (optional)</label>
+          <label className="text-[#00f2ea] text-xs font-semibold mb-1 block">Additional details (optional)</label>
           <textarea
             value={additionalDetails}
             onChange={(e) => setAdditionalDetails(e.target.value)}
             placeholder="Provide more context..."
-            className="w-full bg-black/40 border border-white/10 text-white rounded-xl p-3 text-sm focus:outline-none focus:border-white/20 resize-none leading-snug"
+            className="w-full bg-[#121212]/40 border border-white/10 text-[#00f2ea] rounded-xl p-3 text-sm focus:outline-none focus:border-white/20 resize-none leading-snug"
             rows={3}
             maxLength={500}
           />
-          <div className="text-right text-white/40 text-xs mt-1">
+          <div className="text-right text-[#00f2ea]/40 text-xs mt-1">
             {additionalDetails.length}/500
           </div>
         </div>
 
         <div className="mt-2 bg-white/5 rounded-xl p-3 border border-white/10">
           <div className="flex items-start gap-2">
-            <div className="w-4 h-4 bg-blue-500/20 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-              <div className="w-2 h-2 bg-blue-500 rounded-full" />
+            <div className="w-4 h-4 bg-[#00f2ea]/20 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+              <div className="w-2 h-2 bg-[#00f2ea] rounded-full" />
             </div>
-            <div className="text-white/60 text-xs leading-snug">
-              <span className="text-white font-semibold">Your privacy matters.</span> The person you're reporting won't know who reported them.
+            <div className="text-[#00f2ea]/60 text-xs leading-snug">
+              <span className="text-[#00f2ea] font-semibold">Your privacy matters.</span> The person you're reporting won't know who reported them.
             </div>
           </div>
         </div>
@@ -320,7 +320,7 @@ export default function ReportModal({ isOpen, onClose, videoId, contentType, con
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 py-3 bg-white/10 text-white font-semibold rounded-xl hover:bg-white/15 transition-colors"
+            className="flex-1 py-3 bg-white/10 text-[#00f2ea] font-semibold rounded-xl hover:bg-white/15 transition-colors"
           >
             Cancel
           </button>

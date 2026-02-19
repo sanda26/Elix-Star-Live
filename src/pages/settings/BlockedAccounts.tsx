@@ -72,9 +72,10 @@ export default function BlockedAccounts() {
   );
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      {/* Header */}
-      <div className="sticky top-0 bg-black z-10 px-4 py-4 border-b border-transparent">
+    <div className="min-h-[100dvh] bg-[#121212] text-[#00f2ea] flex justify-center px-2">
+      <div className="w-full max-w-[480px] h-[100dvh] rounded-3xl overflow-hidden bg-[#121212] flex flex-col pt-[var(--safe-top)] pb-[calc(var(--safe-bottom)+12mm)]">
+        {/* Header */}
+        <div className="sticky top-0 bg-[#121212] z-10 px-4 py-4 border-b border-transparent">
         <div className="flex items-center gap-3 mb-4">
           <button onClick={() => navigate(-1)} className="p-2 hover:brightness-125 rounded-full transition">
             <img src="/Icons/power-button.png" alt="Back" className="w-5 h-5" />
@@ -83,14 +84,14 @@ export default function BlockedAccounts() {
         </div>
 
         {/* Search */}
-        <div className="flex items-center gap-3 bg-black rounded-full px-4 py-3">
-          <Search className="w-5 h-5 text-white/60" />
+        <div className="flex items-center gap-3 bg-[#121212] rounded-full px-4 py-3">
+          <Search className="w-5 h-5 text-[#00f2ea]/60" />
           <input
             type="text"
             placeholder="Search blocked users..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            className="flex-1 bg-transparent outline-none text-white placeholder-white/40"
+            className="flex-1 bg-transparent outline-none text-[#00f2ea] placeholder-[#00f2ea]/40"
           />
         </div>
       </div>
@@ -98,7 +99,7 @@ export default function BlockedAccounts() {
       {/* Blocked Users List */}
       <div className="px-4 py-4">
         {loading ? (
-          <div className="text-center py-12 text-white/40">Loading...</div>
+          <div className="text-center py-12 text-[#00f2ea]/40">Loading...</div>
         ) : (
           <div className="space-y-2">
             {filteredUsers.map(block => (
@@ -116,11 +117,11 @@ export default function BlockedAccounts() {
                 />
                 <div className="flex-1">
                   <p className="font-semibold">{block.blocked_user?.username}</p>
-                  <p className="text-sm text-white/60">Blocked {formatDate(block.created_at)}</p>
+                  <p className="text-sm text-[#00f2ea]/60">Blocked {formatDate(block.created_at)}</p>
                 </div>
                 <button
                   onClick={() => unblockUser(block.id)}
-                  className="px-4 py-2 bg-black rounded-full text-sm font-semibold hover:brightness-125 transition"
+                  className="px-4 py-2 bg-[#121212] rounded-full text-sm font-semibold hover:brightness-125 transition"
                 >
                   Unblock
                 </button>
@@ -131,12 +132,13 @@ export default function BlockedAccounts() {
 
         {!loading && filteredUsers.length === 0 && (
           <div className="text-center py-12">
-            <Ban className="w-12 h-12 text-white/20 mx-auto mb-3" />
-            <p className="text-white/40">
+            <Ban className="w-12 h-12 text-[#00f2ea]/20 mx-auto mb-3" />
+            <p className="text-[#00f2ea]/40">
               {searchQuery ? 'No blocked users found' : 'You haven\'t blocked anyone'}
             </p>
           </div>
         )}
+      </div>
       </div>
     </div>
   );

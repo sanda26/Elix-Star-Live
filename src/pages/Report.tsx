@@ -84,22 +84,23 @@ export default function Report() {
 
   if (submitted) {
     return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center px-4">
+      <div className="min-h-[100dvh] bg-[#121212] text-[#00f2ea] flex items-center justify-center px-4">
         <div className="text-center">
-          <div className="w-20 h-20 bg-green-500 rounded-full mx-auto mb-4 flex items-center justify-center">
-            <CheckCircle className="w-10 h-10 text-white" />
+          <div className="w-20 h-20 bg-[#00f2ea] rounded-full mx-auto mb-4 flex items-center justify-center">
+            <CheckCircle className="w-10 h-10 text-[#00f2ea]" />
           </div>
           <h2 className="text-2xl font-bold mb-2">Report Submitted</h2>
-          <p className="text-white/60">Thank you for helping keep our community safe.</p>
+          <p className="text-[#00f2ea]/60">Thank you for helping keep our community safe.</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-[100dvh] bg-[#121212] text-[#00f2ea] flex justify-center px-2">
+      <div className="w-full max-w-[480px] h-[100dvh] rounded-3xl overflow-hidden bg-[#121212] flex flex-col pt-[var(--safe-top)] pb-[calc(var(--safe-bottom)+12mm)]">
       {/* Header */}
-      <div className="sticky top-0 bg-black z-10 px-4 py-4 border-b border-transparent flex items-center justify-between">
+      <div className="sticky top-0 bg-[#121212] z-10 px-4 py-4 border-b border-transparent flex items-center justify-between">
         <button onClick={() => navigate(-1)} className="p-2 hover:brightness-125 rounded-full transition">
           <img src="/Icons/power-button.png" alt="Back" className="w-5 h-5" />
         </button>
@@ -107,14 +108,14 @@ export default function Report() {
         <div className="w-10"></div>
       </div>
 
-      <div className="px-4 py-6">
+      <div className="px-4 py-6 flex-1 overflow-y-auto">
         {/* Icon */}
         <div className="text-center mb-6">
           <div className="w-16 h-16 bg-red-500/20 rounded-full mx-auto mb-3 flex items-center justify-center">
             <Flag className="w-8 h-8 text-red-500" />
           </div>
           <h2 className="text-xl font-bold mb-2">Why are you reporting this?</h2>
-          <p className="text-sm text-white/60">
+          <p className="text-sm text-[#00f2ea]/60">
             Your report is anonymous and helps us maintain a safe community
           </p>
         </div>
@@ -127,14 +128,14 @@ export default function Report() {
               onClick={() => setSelectedReason(reason.id)}
               className={`w-full text-left px-4 py-4 rounded-xl transition ${
                 selectedReason === reason.id
-                  ? 'bg-[#E6B36A]/20 border-2 border-[#E6B36A]'
+                  ? 'bg-[#00f2ea]/20 border-2 border-[#00f2ea]'
                   : 'bg-white border-2 border-transparent hover:brightness-125'
               }`}
             >
               <div className="flex items-center justify-between">
                 <span className="font-semibold">{reason.label}</span>
                 {selectedReason === reason.id && (
-                  <div className="w-6 h-6 bg-[#E6B36A] rounded-full flex items-center justify-center">
+                  <div className="w-6 h-6 bg-[#00f2ea] rounded-full flex items-center justify-center">
                     <CheckCircle className="w-4 h-4 text-black" />
                   </div>
                 )}
@@ -154,19 +155,20 @@ export default function Report() {
             placeholder="Provide more context to help us understand the issue..."
             maxLength={500}
             rows={4}
-            className="w-full bg-white rounded-xl px-4 py-3 outline-none text-white placeholder-white/40 border border-transparent focus:border-[#E6B36A] transition resize-none"
+            className="w-full bg-white rounded-xl px-4 py-3 outline-none text-[#00f2ea] placeholder-[#00f2ea]/40 border border-transparent focus:border-[#00f2ea] transition resize-none"
           />
-          <p className="text-xs text-white/40 mt-1 text-right">{details.length}/500</p>
+          <p className="text-xs text-[#00f2ea]/40 mt-1 text-right">{details.length}/500</p>
         </div>
 
         {/* Submit */}
         <button
           onClick={handleSubmit}
           disabled={!selectedReason || loading}
-          className="w-full py-4 bg-red-500 text-white rounded-xl font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 transition"
+          className="w-full py-4 bg-red-500 text-[#00f2ea] rounded-xl font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 transition"
         >
           {loading ? 'Submitting...' : 'Submit Report'}
         </button>
+      </div>
       </div>
     </div>
   );

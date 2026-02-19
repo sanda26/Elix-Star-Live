@@ -378,7 +378,7 @@
   animation: luxury-pulse 2s ease-in-out infinite;
 }
 
-/* Rose Gold Gradient -> Cyan Gradient */
+/* Cyan Gradient */
 .bg-luxury-gradient {
   background: linear-gradient(145deg, #E0FFFF 0%, #00f2ea 25%, #00c2be 50%, #00f2ea 75%, #E0FFFF 100%);
   background-size: 200% 200%;

@@ -66,11 +66,11 @@ export function GiftPanel({ onSelectGift, userCoins, onRechargeSuccess }: GiftPa
   return ( 
     <div ref={panelRef} className="bg-[#1a1a1a]/95 rounded-t-2xl p-3 pb-safe max-h-[40dvh] overflow-y-auto no-scrollbar shadow-2xl w-full relative z-[99999]"> 
       <div className="flex justify-between items-center mb-3"> 
-        <h3 className="text-white font-semibold text-sm flex items-center gap-2"> 
+        <h3 className="text-[#00f2ea] font-semibold text-sm flex items-center gap-2"> 
           <Gift className="text-[#00f2ea]" size={16} /> 
           Send Gift 
         </h3> 
-        <div className="flex items-center gap-2 bg-black px-2.5 py-0.5 rounded-full border border-secondary/20"> 
+        <div className="flex items-center gap-2 bg-[#121212] px-2.5 py-0.5 rounded-full border border-secondary/20"> 
             <Coins size={13} className="text-secondary" /> 
             <span className="text-secondary font-bold text-xs">{userCoins.toLocaleString()}</span> 
             {!IS_STORE_BUILD && ( 
@@ -95,21 +95,21 @@ export function GiftPanel({ onSelectGift, userCoins, onRechargeSuccess }: GiftPa
       {/* Tabs */} 
       <div className="flex items-center gap-4 mb-2 px-1"> 
         <button 
-            className={`text-xs font-medium pb-1.5 transition-colors relative ${activeTab === 'small' ? 'text-[#00f2ea]' : 'text-white/50 hover:text-white/80'}`} 
+            className={`text-xs font-medium pb-1.5 transition-colors relative ${activeTab === 'small' ? 'text-[#00f2ea]' : 'text-[#00f2ea]/50 hover:text-[#00f2ea]/80'}`} 
             onClick={() => setActiveTab('small')} 
         > 
             Small Gift 
             {activeTab === 'small' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-[#00f2ea] rounded-t-full" />} 
         </button> 
         <button 
-            className={`text-xs font-medium pb-1.5 transition-colors relative ${activeTab === 'exclusive' ? 'text-[#00f2ea]' : 'text-white/50 hover:text-white/80'}`} 
+            className={`text-xs font-medium pb-1.5 transition-colors relative ${activeTab === 'exclusive' ? 'text-[#00f2ea]' : 'text-[#00f2ea]/50 hover:text-[#00f2ea]/80'}`} 
             onClick={() => setActiveTab('exclusive')} 
         > 
             Exclusive Gift 
             {activeTab === 'exclusive' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-secondary rounded-t-full" />} 
         </button> 
         <button 
-            className={`text-sm font-bold pb-2 transition-colors relative ${activeTab === 'big' ? 'text-secondary' : 'text-white/50 hover:text-white/80'}`} 
+            className={`text-sm font-bold pb-2 transition-colors relative ${activeTab === 'big' ? 'text-secondary' : 'text-[#00f2ea]/50 hover:text-[#00f2ea]/80'}`} 
             onClick={() => setActiveTab('big')} 
         > 
             Big Gift 
@@ -147,7 +147,7 @@ export function GiftPanel({ onSelectGift, userCoins, onRechargeSuccess }: GiftPa
                     /> 
                   </div> 
                   <div className="text-center z-10"> 
-                    <p className="text-[10px] text-white/90 font-medium truncate w-full mb-0.5 group-hover:text-white"> 
+                    <p className="text-[10px] text-[#00f2ea] font-medium truncate w-full mb-0.5 group-hover:text-[#00f2ea]"> 
                       {universeGift.name} 
                     </p> 
                     <div className="flex items-center justify-center gap-1"> 
@@ -191,7 +191,7 @@ export function GiftPanel({ onSelectGift, userCoins, onRechargeSuccess }: GiftPa
                     /> 
                   </div> 
                   <div className="text-center z-10"> 
-                    <p className="text-[10px] text-white/90 font-medium truncate w-full mb-0.5 group-hover:text-white">{gift.name}</p> 
+                    <p className="text-[10px] text-[#00f2ea] font-medium truncate w-full mb-0.5 group-hover:text-[#00f2ea]">{gift.name}</p> 
                     <div className="flex items-center justify-center gap-1"> 
                       <Coins size={9} className="text-secondary" /> 
                       <p className="text-[10px] text-secondary font-bold">{gift.coins.toLocaleString()}</p> 
@@ -234,7 +234,7 @@ export function GiftPanel({ onSelectGift, userCoins, onRechargeSuccess }: GiftPa
                     <div className="elix-gift-sparkle" /> 
                   </div> 
                 <div className="text-center z-10"> 
-                  <p className="text-[10px] text-white/90 font-medium truncate w-full mb-0.5 group-hover:text-white">{gift.name}</p> 
+                  <p className="text-[10px] text-[#00f2ea] font-medium truncate w-full mb-0.5 group-hover:text-[#00f2ea]">{gift.name}</p> 
                   <div className="flex items-center justify-center gap-1"> 
                     <Coins size={9} className="text-secondary" /> 
                     <p className="text-[10px] text-secondary font-bold">{gift.coins.toLocaleString()}</p> 

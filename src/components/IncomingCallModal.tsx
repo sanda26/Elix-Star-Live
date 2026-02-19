@@ -1,0 +1,68 @@
+import React, { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Phone, PhoneOff } from 'lucide-react';
+import { useCallStore } from '../store/useCallStore';
+import { acceptCall, rejectCall } from '../lib/callService';
+
+export function IncomingCallModal() {
+  const navigate = useNavigate();
+  const { callId, status, remoteUser } = useCallStore();
+
+  useEffect(() => {
+    if (status === 'connecting' && callId) {
+      navigate('/call');
+    }
+  }, [status, callId, navigate]);
+
+  if (status !== 'incoming' || !callId || !remoteUser) return null;
+
+  const handleAccept = async () => {
+    await acceptCall(callId);
+    navigate('/call');
+  };
+
+  const handleReject = async () => {
+    await rejectCall(callId);
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] bg-[#121212]/70 backdrop-blur-md flex items-center justify-center">
+      <div className="bg-gray-900 rounded-3xl p-8 max-w-sm w-full mx-4 text-center shadow-2xl">
+        {remoteUser.avatar ? (
+          <img
+            src={remoteUser.avatar}
+            alt={remoteUser.username}
+            className="w-24 h-24 rounded-full object-cover mx-auto mb-4 border-2 border-white/20"
+          />
+        ) : (
+          <div className="w-24 h-24 rounded-full bg-white/10 mx-auto mb-4 flex items-center justify-center text-3xl text-[#00f2ea]">
+            {remoteUser.username[0]?.toUpperCase()}
+          </div>
+        )}
+
+        <h2 className="text-[#00f2ea] text-xl font-bold mb-1">
+          {remoteUser.username}
+        </h2>
+        <p className="text-[#00f2ea]/60 text-sm mb-8">Incoming video call...</p>
+
+        <div className="flex items-center justify-center gap-12">
+          <button
+            onClick={handleReject}
+            title="Decline call"
+            className="w-16 h-16 rounded-full bg-red-500 flex items-center justify-center shadow-lg active:scale-95 transition-transform"
+          >
+            <PhoneOff className="w-7 h-7 text-[#00f2ea]" />
+          </button>
+
+          <button
+            onClick={handleAccept}
+            title="Accept call"
+            className="w-16 h-16 rounded-full bg-green-500 flex items-center justify-center shadow-lg active:scale-95 transition-transform animate-pulse"
+          >
+            <Phone className="w-7 h-7 text-[#00f2ea]" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

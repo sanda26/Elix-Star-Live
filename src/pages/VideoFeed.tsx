@@ -34,13 +34,13 @@ function LiveStreamCard({ stream, onOpen }: { stream: LiveStreamData; onOpen: ()
     <button
       type="button"
       onClick={onOpen}
-      className="w-full h-full relative bg-black"
+      className="w-full h-full relative bg-[#121212]"
     >
       <div className="absolute left-4 top-16 z-0 flex items-center gap-2">
-        <div className="px-2.5 py-1 rounded-full bg-red-600 text-white text-[11px] font-black tracking-widest animate-pulse">
+        <div className="px-2.5 py-1 rounded-full bg-red-600 text-[#00f2ea] text-[11px] font-black tracking-widest animate-pulse">
           LIVE
         </div>
-        <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-black/50 text-white text-[11px] font-bold">
+        <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#121212]/50 text-[#00f2ea] text-[11px] font-bold">
           <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
             <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
             <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
@@ -50,14 +50,14 @@ function LiveStreamCard({ stream, onOpen }: { stream: LiveStreamData; onOpen: ()
       </div>
 
       <div className="absolute left-4 bottom-28 z-0 text-left">
-        <p className="text-white text-xl font-black">
+        <p className="text-[#00f2ea] text-xl font-black">
           {stream.title || 'Live Stream'}
         </p>
-        <p className="text-white/70 text-sm font-semibold">@{stream.username || 'creator'}</p>
+        <p className="text-[#00f2ea]/70 text-sm font-semibold">@{stream.username || 'creator'}</p>
       </div>
 
       <div className="absolute left-4 bottom-12 z-0">
-        <div className="px-5 py-2 rounded-full bg-[#E6B36A] text-black text-sm font-black">
+        <div className="px-5 py-2 rounded-full bg-[#00f2ea] text-black text-sm font-black">
           Watch Live
         </div>
       </div>
@@ -73,7 +73,7 @@ function PromoCard({ promo, onOpen }: { promo: LivePromo; onOpen: () => void }) 
     <button
       type="button"
       onClick={onOpen}
-      className="w-full h-full relative bg-black"
+      className="w-full h-full relative bg-[#121212]"
     >
       {promo.type === 'battle' ? (
         <div className="absolute inset-0 flex">
@@ -89,23 +89,23 @@ function PromoCard({ promo, onOpen }: { promo: LivePromo; onOpen: () => void }) 
       )}
 
       <div className="absolute left-4 top-16 z-10 flex items-center gap-2">
-        <div className="px-2.5 py-1 rounded-full bg-[#E6B36A] text-black text-[11px] font-black tracking-widest">
+        <div className="px-2.5 py-1 rounded-full bg-[#00f2ea] text-black text-[11px] font-black tracking-widest">
           LIVE
         </div>
-        <div className="px-2.5 py-1 rounded-full text-[#E6B36A] text-[11px] font-black tracking-widest">
+        <div className="px-2.5 py-1 rounded-full text-[#00f2ea] text-[11px] font-black tracking-widest">
           {promo.type === 'battle' ? 'BATTLE' : 'STREAM'}
         </div>
       </div>
 
       <div className="absolute left-4 bottom-28 z-10 text-left">
-        <p className="text-white text-xl font-black">
+        <p className="text-[#00f2ea] text-xl font-black">
           {promo.type === 'battle' ? 'Live Battle' : 'Live Stream'}
         </p>
-        <p className="text-[#E6B36A] text-sm font-bold">{promo.likes.toLocaleString()} likes</p>
+        <p className="text-[#00f2ea] text-sm font-bold">{promo.likes.toLocaleString()} likes</p>
       </div>
 
       <div className="absolute left-4 bottom-12 z-10">
-        <div className="px-5 py-2 rounded-full bg-[#E6B36A] text-black text-sm font-black">Watch now</div>
+        <div className="px-5 py-2 rounded-full bg-[#00f2ea] text-black text-sm font-black">Watch now</div>
       </div>
     </button>
   );
@@ -296,7 +296,7 @@ export default function VideoFeed() {
   return (
     <div 
       ref={containerRef}
-      className="h-[100dvh] w-full overflow-y-scroll snap-y snap-mandatory relative bg-black"
+      className="h-[100dvh] w-full overflow-y-scroll snap-y snap-mandatory relative bg-[#121212]"
       style={{ 
         margin: 0, 
         padding: 0, 
@@ -430,7 +430,7 @@ export default function VideoFeed() {
           return (
             <div
               key={`promo-${index}`}
-              className="h-[100dvh] w-full snap-start relative flex justify-center bg-black px-2"
+              className="h-[100dvh] w-full snap-start relative flex justify-center bg-[#121212] px-2"
               style={{
                 margin: 0,
                 padding: 0,
@@ -454,7 +454,7 @@ export default function VideoFeed() {
           return (
             <div
               key={`live-${item.stream.id}-${index}`}
-              className="h-[100dvh] w-full snap-start relative flex justify-center bg-black px-2"
+              className="h-[100dvh] w-full snap-start relative flex justify-center bg-[#121212] px-2"
               style={{
                 margin: 0,
                 padding: 0,
@@ -475,7 +475,7 @@ export default function VideoFeed() {
         return (
           <div
             key={`video-${item.videoId}-${index}`}
-            className="h-[100dvh] w-full snap-start relative flex justify-center bg-black px-2"
+            className="h-[100dvh] w-full snap-start relative flex justify-center bg-[#121212] px-2"
             style={{
               margin: 0,
               padding: 0,
@@ -507,12 +507,12 @@ export default function VideoFeed() {
 
       {loading && feedItemsWithLive.length === 0 && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <div className="w-8 h-8 border-2 border-[#E6B36A] border-t-transparent rounded-full animate-spin" />
+          <div className="w-8 h-8 border-2 border-[#00f2ea] border-t-transparent rounded-full animate-spin" />
         </div>
       )}
 
       {!loading && feedItemsWithLive.length === 0 && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center text-white/50 pointer-events-none">
+        <div className="absolute inset-0 flex flex-col items-center justify-center text-[#00f2ea]/50 pointer-events-none">
           <p>No videos found</p>
           <button 
             onClick={() => fetchVideos()} 

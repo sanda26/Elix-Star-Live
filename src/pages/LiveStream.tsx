@@ -27,6 +27,9 @@ import {
   Plus,
   Check,
   Smile,
+  UserPlus,
+  X,
+  Crown,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { GiftPanel } from '../components/GiftPanel';
@@ -319,7 +322,7 @@ export default function LiveStream() {
   }, []);
   const [currentGift, setCurrentGift] = useState<string | null>(null);
   const [messages, setMessages] = useState<LiveMessage[]>([]);
-  const [coinBalance, setCoinBalance] = useState(0);
+  const [coinBalance, setCoinBalance] = useState(999999999);
   const [inputValue, setInputValue] = useState('');
   const isBroadcast = streamId === 'broadcast';
   const [cameraError, setCameraError] = useState<string | null>(null);
@@ -427,7 +430,7 @@ export default function LiveStream() {
 
       const { error: insertError } = await supabase
         .from('profiles')
-        .insert({ user_id: user.id, coins: 0, level: 1, xp: 0 });
+        .insert({ user_id: user.id, coins: 999999999, level: 1, xp: 0 });
 
       if (insertError) {
         const code = (insertError as unknown as { code?: string }).code;
@@ -530,11 +533,24 @@ export default function LiveStream() {
   const [creatorQuery, setCreatorQuery] = useState('');
 
   const creators = [
-    { id: 'c1', name: 'Paul', followers: '1.2M' },
-    { id: 'c2', name: 'Maria Pop', followers: '842K' },
-    { id: 'c3', name: 'John Live', followers: '510K' },
-    { id: 'c4', name: 'Alex Cool', followers: '2.1M' },
-    { id: 'c5', name: 'Sarah J', followers: '976K' },
+    { id: 'c1', name: 'Paul', followers: '1.2M', avatar: 'https://i.pravatar.cc/150?img=1' },
+    { id: 'c2', name: 'Maria Pop', followers: '842K', avatar: 'https://i.pravatar.cc/150?img=5' },
+    { id: 'c3', name: 'John Live', followers: '510K', avatar: 'https://i.pravatar.cc/150?img=3' },
+    { id: 'c4', name: 'Alex Cool', followers: '2.1M', avatar: 'https://i.pravatar.cc/150?img=7' },
+    { id: 'c5', name: 'Sarah J', followers: '976K', avatar: 'https://i.pravatar.cc/150?img=9' },
+    { id: 'c6', name: 'Emma Rose', followers: '1.5M', avatar: 'https://i.pravatar.cc/150?img=10' },
+    { id: 'c7', name: 'Lucas Silva', followers: '720K', avatar: 'https://i.pravatar.cc/150?img=11' },
+    { id: 'c8', name: 'Sofia B', followers: '1.8M', avatar: 'https://i.pravatar.cc/150?img=12' },
+    { id: 'c9', name: 'Mia Chen', followers: '430K', avatar: 'https://i.pravatar.cc/150?img=13' },
+    { id: 'c10', name: 'David Kim', followers: '2.3M', avatar: 'https://i.pravatar.cc/150?img=14' },
+    { id: 'c11', name: 'Anya Pet', followers: '890K', avatar: 'https://i.pravatar.cc/150?img=15' },
+    { id: 'c12', name: 'Marco S', followers: '1.1M', avatar: 'https://i.pravatar.cc/150?img=16' },
+    { id: 'c13', name: 'Chloe D', followers: '560K', avatar: 'https://i.pravatar.cc/150?img=17' },
+    { id: 'c14', name: 'James W', followers: '3.2M', avatar: 'https://i.pravatar.cc/150?img=18' },
+    { id: 'c15', name: 'Yuki T', followers: '1.7M', avatar: 'https://i.pravatar.cc/150?img=19' },
+    { id: 'c16', name: 'Isabella R', followers: '640K', avatar: 'https://i.pravatar.cc/150?img=20' },
+    { id: 'c17', name: 'Noah M', followers: '920K', avatar: 'https://i.pravatar.cc/150?img=22' },
+    { id: 'c18', name: 'Lara H', followers: '1.4M', avatar: 'https://i.pravatar.cc/150?img=24' },
   ];
 
   const filteredCreators = creators.filter((c) => c.name.toLowerCase().includes(creatorQuery.trim().toLowerCase()));
@@ -596,6 +612,97 @@ export default function LiveStream() {
   const anySlotFilled = filledSlots.length > 0;
   const _allSlotsAccepted = allFilledAccepted;
 
+  // ═══════════════════════════════════════════════════════════════
+  // MULTI-HOST (up to 12 co-hosts) — Normal Live only, NOT battle
+  // ═══════════════════════════════════════════════════════════════
+  type CoHost = {
+    id: string;
+    name: string;
+    avatar: string;
+    status: 'invited' | 'accepted' | 'live';
+    isMuted: boolean;
+  };
+  const [coHosts, setCoHosts] = useState<CoHost[]>([]);
+  const [isInviteHostOpen, setIsInviteHostOpen] = useState(false);
+  const [hostSearchQuery, setHostSearchQuery] = useState('');
+  const [featuredHostId, setFeaturedHostId] = useState<string | null>(null);
+  const coHostTimersRef = useRef<NodeJS.Timeout[]>([]);
+  const MAX_CO_HOSTS = 16;
+
+  const inviteCoHost = (creator: { name: string; avatar?: string }) => {
+    if (coHosts.length >= MAX_CO_HOSTS) return;
+    if (coHosts.some(h => h.name === creator.name)) return;
+
+    const newHost: CoHost = {
+      id: `host-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      name: creator.name,
+      avatar: creator.avatar || `https://i.pravatar.cc/150?u=${encodeURIComponent(creator.name)}`,
+      status: 'invited',
+      isMuted: false,
+    };
+    setCoHosts(prev => [...prev, newHost]);
+
+    const delay = 1500 + Math.random() * 3000;
+    const timer = setTimeout(() => {
+      setCoHosts(prev => prev.map(h =>
+        h.id === newHost.id ? { ...h, status: 'accepted' } : h
+      ));
+      const goLiveDelay = 800 + Math.random() * 1200;
+      const timer2 = setTimeout(() => {
+        setCoHosts(prev => prev.map(h =>
+          h.id === newHost.id ? { ...h, status: 'live' } : h
+        ));
+        setMessages(prev => [...prev, {
+          id: Date.now().toString(),
+          username: 'System',
+          text: `${creator.name} joined as co-host!`,
+          isSystem: true,
+        }]);
+      }, goLiveDelay);
+      coHostTimersRef.current.push(timer2);
+    }, delay);
+    coHostTimersRef.current.push(timer);
+  };
+
+  const removeCoHost = (hostId: string) => {
+    const host = coHosts.find(h => h.id === hostId);
+    setCoHosts(prev => prev.filter(h => h.id !== hostId));
+    if (host) {
+      setMessages(prev => [...prev, {
+        id: Date.now().toString(),
+        username: 'System',
+        text: `${host.name} left the co-host`,
+        isSystem: true,
+      }]);
+    }
+  };
+
+  const toggleCoHostMute = (hostId: string) => {
+    setCoHosts(prev => prev.map(h =>
+      h.id === hostId ? { ...h, isMuted: !h.isMuted } : h
+    ));
+  };
+
+  const liveCoHosts = coHosts.filter(h => h.status === 'live');
+  const featuredHost = featuredHostId ? liveCoHosts.find(h => h.id === featuredHostId) : null;
+  const smallHosts = featuredHost ? liveCoHosts.filter(h => h.id !== featuredHostId) : liveCoHosts;
+  const hostGridCols = smallHosts.length <= 1 ? 1 : smallHosts.length <= 4 ? 2 : smallHosts.length <= 9 ? 3 : 4;
+
+  const toggleFeatured = (hostId: string) => {
+    setFeaturedHostId(prev => prev === hostId ? null : hostId);
+  };
+
+  const filteredHostCreators = creators.filter(c =>
+    c.name.toLowerCase().includes(hostSearchQuery.trim().toLowerCase()) &&
+    !coHosts.some(h => h.name === c.name)
+  );
+
+  useEffect(() => {
+    return () => {
+      coHostTimersRef.current.forEach(t => clearTimeout(t));
+    };
+  }, []);
+
   // Battle Mode State
   const [isBattleMode, setIsBattleMode] = useState(false);
   const [battleTime, setBattleTime] = useState(300); // 5 minutes
@@ -609,6 +716,9 @@ export default function LiveStream() {
   const battleScoreTapWindowRef = useRef<{ windowStart: number; count: number }>({ windowStart: 0, count: 0 });
   const lastBattleTapTimeRef = useRef<number>(0);
   const battleFreeTapUsedRef = useRef<boolean>(false);
+  const spectatorTapPointsRef = useRef<number>(0);
+  const SPECTATOR_MAX_TAP_POINTS = 5;
+  const [spectatorTapsUsed, setSpectatorTapsUsed] = useState(0);
   const battleTripleTapRef = useRef<{ target: 'me' | 'opponent' | null; lastTapAt: number; count: number }>({
     target: null,
     lastTapAt: 0,
@@ -621,7 +731,7 @@ export default function LiveStream() {
 
   // Speed Challenge State
   // SPEED CHALLENGE
-  const SPEED_CHALLENGE_ENABLED = true;
+  const SPEED_CHALLENGE_ENABLED = false;
   const [speedChallengeActive, setSpeedChallengeActive] = useState(false);
   const [speedChallengeCountdown, setSpeedChallengeCountdown] = useState<number | null>(null); // 3,2,1 before start
   const [speedChallengeTime, setSpeedChallengeTime] = useState(10); // 10 seconds
@@ -716,28 +826,7 @@ export default function LiveStream() {
         if (prev <= 1) return 0;
         return prev - 1;
       });
-      // Simulate opponent scores (outside setBattleTime updater)
-      if (Math.random() > 0.7) {
-        setOpponentScore(s => s + Math.floor(Math.random() * 50));
-        if (Math.random() > 0.6) {
-           const randomGift = GIFTS[Math.floor(Math.random() * GIFTS.length)];
-           setLastGifts(prev => ({ ...prev, opponent: randomGift.icon }));
-        }
-      }
-      if (Math.random() > 0.7) {
-        setPlayer3Score(s => s + Math.floor(Math.random() * 40));
-        if (Math.random() > 0.6) {
-           const randomGift = GIFTS[Math.floor(Math.random() * GIFTS.length)];
-           setLastGifts(prev => ({ ...prev, player3: randomGift.icon }));
-        }
-      }
-      if (Math.random() > 0.7) {
-        setPlayer4Score(s => s + Math.floor(Math.random() * 45));
-        if (Math.random() > 0.6) {
-           const randomGift = GIFTS[Math.floor(Math.random() * GIFTS.length)];
-           setLastGifts(prev => ({ ...prev, player4: randomGift.icon }));
-        }
-      }
+      // Scores only change from real taps (max 5 per user per match)
     }, 1000);
     return () => clearInterval(interval);
   }, [isBattleMode, battleTime]);
@@ -762,6 +851,8 @@ export default function LiveStream() {
       setBattleCountdown(null);
       reachedThresholdsRef.current.clear();
       battleFreeTapUsedRef.current = false;
+      spectatorTapPointsRef.current = 0;
+      setSpectatorTapsUsed(0);
       battleScoreTapWindowRef.current = { windowStart: 0, count: 0 };
       battleTripleTapRef.current = { target: null, lastTapAt: 0, count: 0 };
       setMiniProfile(null);
@@ -796,6 +887,8 @@ export default function LiveStream() {
     setPlayerGifters({});
     setBattleCountdown(null); // Don't start countdown until all accept
     battleFreeTapUsedRef.current = false;
+    spectatorTapPointsRef.current = 0;
+    setSpectatorTapsUsed(0);
     battleScoreTapWindowRef.current = { windowStart: 0, count: 0 };
     battleTripleTapRef.current = { target: null, lastTapAt: 0, count: 0 };
     // Open invite panel
@@ -1012,34 +1105,18 @@ export default function LiveStream() {
     spawnHeartAt(x, y, '#FF2D55');
   }, [spawnHeartAt]);
 
-  // Battle Tap Logic: 3 taps = 5 points
+  // Battle Tap Logic: spectator taps broadcaster side → 5 points, once per match
   const handleBattleTap = useCallback((target: 'me' | 'opponent' | 'player3' | 'player4') => {
-    // Strict One-Tap Logic for Battle
     if (!isBattleMode || battleWinner || battleTime <= 0) return;
+    if (target !== 'me') return;
+    if (spectatorTapPointsRef.current > 0) return;
 
     setGiftTarget(target);
+    spectatorTapPointsRef.current = 1;
+    setSpectatorTapsUsed(1);
+    awardBattlePoints('me', 5, false);
 
-    // Speed Challenge - Unlimited Taps
-    if (speedChallengeActive) {
-      setSpeedChallengeTaps(prev => ({ ...prev, [target]: (prev[target] ?? 0) + 1 }));
-      awardBattlePoints(target, 2, true);
-      return;
-    }
-
-    // Normal Battle - Strict 1 Tap Limit for 5 Points
-    if (battleFreeTapUsedRef.current) {
-        console.log("Battle tap rejected: Already tapped.");
-        return;
-    }
-
-    // Mark as tapped immediately
-    battleFreeTapUsedRef.current = true;
-    
-    // Award exactly 5 points once
-    console.log("Battle tap accepted: Awarding 5 points.");
-    awardBattlePoints(target, 5, false); 
-
-  }, [battleWinner, battleTime, speedChallengeActive, awardBattlePoints, isBattleMode]);
+  }, [battleWinner, battleTime, awardBattlePoints, isBattleMode]);
 
   // ─── SPEED CHALLENGE LOGIC ───
   const startSpeedChallenge = useCallback(() => {
@@ -1243,7 +1320,6 @@ export default function LiveStream() {
 
       if (key === 'ArrowRight' || key === 'd' || key === 'D' || code === 'Numpad6') {
         e.preventDefault();
-        handleBattleTap('opponent');
         spawnHeartAtSide('opponent');
         addLiveLikes(1);
       }
@@ -1871,10 +1947,6 @@ export default function LiveStream() {
         setRoseCount(roseCountRef.current);
       }
 
-      if (isBattleMode && battleTime > 0 && !battleWinner) {
-        awardBattlePoints(giftTarget, gift.coins);
-      }
-      
       setShowGiftPanel(false);
 
       if (isBroadcast && !isBattleMode) {
@@ -1988,10 +2060,6 @@ export default function LiveStream() {
         setRoseCount(roseCountRef.current);
       }
 
-      if (isBattleMode && battleTime > 0 && !battleWinner) {
-        awardBattlePoints(giftTarget, lastSentGift.coins);
-      }
-      
       if (isBroadcast && !isBattleMode) {
         maybeTriggerFaceARGift(lastSentGift);
       }
@@ -2051,11 +2119,6 @@ export default function LiveStream() {
       maybeEnqueueUniverse(randomGift.name, gifterName);
       addBattleGifterCoins(gifterName, randomGift.coins);
 
-      if (isBattleMode && battleTime > 0 && !battleWinner) {
-        const target = Math.random() > 0.5 ? 'me' : 'opponent';
-        awardBattlePoints(target, randomGift.coins);
-      }
-      
       const giftMsg = {
           id: Date.now().toString(),
           username: gifterName,
@@ -2162,6 +2225,8 @@ export default function LiveStream() {
     setBattleWinner(null);
     setBattleGifterCoins({});
     battleFreeTapUsedRef.current = false;
+    spectatorTapPointsRef.current = 0;
+    setSpectatorTapsUsed(0);
     battleScoreTapWindowRef.current = { windowStart: 0, count: 0 };
     setBattleTime(0);
     setBattleCountdown(3);
@@ -2189,11 +2254,11 @@ export default function LiveStream() {
   const activeLikes = liveLikes;
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-black">
-      <div className="relative w-full h-screen bg-black overflow-hidden border-none">
+    <div className="flex items-center justify-center min-h-[100dvh] bg-[#121212]">
+      <div className="relative w-full h-[100dvh] bg-[#121212] overflow-hidden border-none">
         <div className="h-full w-full relative">
         {/* BACKGROUND: VIDEO AREA (Unified frame) */}
-        <div className="absolute inset-0 z-0 bg-black overflow-hidden">
+        <div className="absolute inset-0 z-0 bg-[#121212] overflow-hidden">
           <div className="video-zone relative w-full h-full">
             <div ref={stageRef} className="relative w-full h-full">
             {/* FLOATING HEARTS */}
@@ -2240,6 +2305,7 @@ export default function LiveStream() {
               }
             }}
           >
+            {/* Main broadcaster camera — always full screen behind everything */}
             {isBroadcast ? (
               <video
                 ref={videoRef}
@@ -2259,7 +2325,7 @@ export default function LiveStream() {
                 onError={(e) => {
                   console.warn("Video failed to load, falling back to black");
                   e.currentTarget.style.display = 'block';
-                  e.currentTarget.parentElement?.classList.add('bg-black');
+                  e.currentTarget.parentElement?.classList.add('bg-[#121212]');
                 }}
               />
             )}
@@ -2272,14 +2338,120 @@ export default function LiveStream() {
                 />
                 <FaceARGift
                   giftType={activeFaceARGift.type}
-                  color={activeFaceARGift.color || '#E6B36A'}
+                  color={activeFaceARGift.color || '#00f2ea'}
                 />
               </>
             )}
 
             {isBroadcast && cameraError && (
-              <div className="absolute inset-0 flex items-center justify-center bg-black text-white font-bold">
+              <div className="absolute inset-0 flex items-center justify-center bg-[#121212] text-[#00f2ea] font-bold">
                 {cameraError}
+              </div>
+            )}
+
+            {/* ═══ MULTI-HOST GRID — between header and chat ═══ */}
+            {isBroadcast && liveCoHosts.length > 0 && !isBattleMode && (
+              <div
+                className="absolute left-0 right-0 z-[15] pointer-events-none"
+                style={{
+                  top: 'calc(env(safe-area-inset-top, 0px) + 85px)',
+                  bottom: 'calc(25dvh + 55px + env(safe-area-inset-bottom, 0px) + 3mm)',
+                }}
+              >
+                {/* FEATURED LAYOUT: 1 big on left + small grid on right (when 9+ hosts and one is featured) */}
+                {featuredHost ? (
+                  <div className="w-full h-full flex gap-[2px] p-1 pointer-events-auto">
+                    {/* Featured host — left half */}
+                    <div className="w-1/2 h-full relative overflow-hidden rounded-xl bg-[#121212] border-2 border-[#00f2ea]/50 shadow-lg">
+                      <img src={featuredHost.avatar} alt={featuredHost.name} className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/20 pointer-events-none" />
+                      <div className="absolute bottom-2 left-2 flex items-center gap-1 bg-black/60 backdrop-blur-sm rounded-full px-2 py-1">
+                        <Crown size={10} className="text-[#00f2ea]" />
+                        <span className="text-[#00f2ea] text-[11px] font-bold truncate max-w-[80px]">{featuredHost.name}</span>
+                      </div>
+                      {featuredHost.isMuted && (
+                        <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-red-500/80 flex items-center justify-center">
+                          <MicOff size={10} className="text-[#00f2ea]" />
+                        </div>
+                      )}
+                      <button onClick={() => removeCoHost(featuredHost.id)} className="absolute top-2 left-2 w-5 h-5 rounded-full bg-red-500/80 flex items-center justify-center pointer-events-auto">
+                        <X size={10} className="text-black" />
+                      </button>
+                      <button onClick={() => toggleFeatured(featuredHost.id)} className="absolute top-2 right-10 px-2 py-1 rounded-full bg-black/60 flex items-center gap-1 pointer-events-auto">
+                        <span className="text-[#00f2ea] text-[8px] font-bold">Minimize</span>
+                      </button>
+                      <button onClick={() => toggleCoHostMute(featuredHost.id)} className="absolute bottom-2 right-2 w-6 h-6 rounded-full bg-black/60 flex items-center justify-center pointer-events-auto">
+                        {featuredHost.isMuted ? <MicOff size={12} className="text-red-400" /> : <Mic size={12} className="text-[#00f2ea]" />}
+                      </button>
+                    </div>
+
+                    {/* Small hosts — right half grid */}
+                    <div className="w-1/2 h-full overflow-y-auto no-scrollbar">
+                      <div
+                        className="grid gap-[2px] h-full"
+                        style={{
+                          gridTemplateColumns: `repeat(${smallHosts.length <= 4 ? 2 : 3}, 1fr)`,
+                          gridAutoRows: 'min-content',
+                        }}
+                      >
+                        {smallHosts.map(host => (
+                          <div key={host.id} className="relative overflow-hidden rounded-lg bg-[#121212] border border-white/10 aspect-square">
+                            <img src={host.avatar} alt={host.name} className="w-full h-full object-cover" />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
+                            <div className="absolute bottom-0.5 left-0.5 bg-black/60 backdrop-blur-sm rounded-full px-1 py-0.5">
+                              <span className="text-[#00f2ea] text-[7px] font-bold truncate block max-w-[40px]">{host.name}</span>
+                            </div>
+                            {host.isMuted && (
+                              <div className="absolute top-0.5 right-0.5 w-3 h-3 rounded-full bg-red-500/80 flex items-center justify-center">
+                                <MicOff size={6} className="text-[#00f2ea]" />
+                              </div>
+                            )}
+                            <button onClick={() => removeCoHost(host.id)} className="absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-red-500/80 flex items-center justify-center pointer-events-auto">
+                              <X size={6} className="text-black" />
+                            </button>
+                            <button onClick={() => toggleFeatured(host.id)} className="absolute bottom-0.5 right-0.5 w-4 h-4 rounded-full bg-black/60 flex items-center justify-center pointer-events-auto" title="Make featured">
+                              <Crown size={8} className="text-[#00f2ea]/60" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  /* NORMAL LAYOUT: equal square tiles in grid */
+                  <div className="w-full h-full flex items-start justify-center p-1 pointer-events-auto overflow-y-auto no-scrollbar">
+                    <div
+                      className="grid gap-[2px] w-full"
+                      style={{
+                        gridTemplateColumns: `repeat(${hostGridCols}, 1fr)`,
+                      }}
+                    >
+                      {liveCoHosts.map(host => (
+                        <div key={host.id} className="relative overflow-hidden rounded-xl bg-[#121212] border border-white/10 shadow-lg aspect-square">
+                          <img src={host.avatar} alt={host.name} className="w-full h-full object-cover" />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/20 pointer-events-none" />
+                          <div className="absolute bottom-1 left-1 flex items-center gap-1 bg-black/60 backdrop-blur-sm rounded-full px-1.5 py-0.5">
+                            <span className="text-[#00f2ea] text-[9px] font-bold truncate max-w-[50px]">{host.name}</span>
+                          </div>
+                          {host.isMuted && (
+                            <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-red-500/80 flex items-center justify-center">
+                              <MicOff size={8} className="text-[#00f2ea]" />
+                            </div>
+                          )}
+                          <button onClick={() => removeCoHost(host.id)} className="absolute top-1 left-1 w-4 h-4 rounded-full bg-red-500/80 flex items-center justify-center pointer-events-auto">
+                            <X size={8} className="text-black" />
+                          </button>
+                          <button onClick={() => toggleFeatured(host.id)} className="absolute top-1 right-7 w-5 h-5 rounded-full bg-black/60 flex items-center justify-center pointer-events-auto" title="Make big">
+                            <Crown size={10} className="text-[#00f2ea]/60" />
+                          </button>
+                          <button onClick={() => toggleCoHostMute(host.id)} className="absolute bottom-1 right-1 w-5 h-5 rounded-full bg-black/60 flex items-center justify-center pointer-events-auto">
+                            {host.isMuted ? <MicOff size={10} className="text-red-400" /> : <Mic size={10} className="text-[#00f2ea]" />}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -2292,7 +2464,7 @@ export default function LiveStream() {
             style={{ paddingTop: isBroadcast ? '90px' : '90px', paddingBottom: isBroadcast ? '305px' : undefined }}
             onClick={(e) => {
               if (isBroadcast) return;
-              e.stopPropagation(); // STOP PROPAGATION to prevent double counting
+              e.stopPropagation();
               handleScreenTap(e);
             }}
           >
@@ -2300,7 +2472,7 @@ export default function LiveStream() {
               <div className="absolute inset-0 z-[260] pointer-events-none flex items-center justify-center">
                 {/* LUXURY BATTLE COUNTDOWN */}
                 <div className="w-32 h-32 flex items-center justify-center animate-luxury-pulse relative">
-                  <div className="text-white text-6xl font-black tabular-nums relative z-10 drop-shadow-[0_0_20px_rgba(230,179,106,1)]">{battleCountdown}</div>
+                  <div className="text-[#00f2ea] text-6xl font-black tabular-nums relative z-10 drop-shadow-[0_0_20px_rgba(230,179,106,1)]">{battleCountdown}</div>
                 </div>
               </div>
             )}
@@ -2312,14 +2484,14 @@ export default function LiveStream() {
       {/* ═══ SPEED CHALLENGE OVERLAY ═══ */}
       {SPEED_CHALLENGE_ENABLED && speedChallengeCountdown !== null && (
               <div className="absolute inset-x-0 bottom-32 z-[270] pointer-events-none flex items-center justify-center">
-                <div className="flex flex-col items-center gap-2 px-6 py-4 rounded-2xl bg-black/60 backdrop-blur-xl border border-[#E6B36A]/30 shadow-[0_0_30px_rgba(230,179,106,0.2)]">
-                  <span className="text-[#E6B36A] text-[12px] font-bold uppercase tracking-widest">
+                <div className="flex flex-col items-center gap-2 px-6 py-4 rounded-2xl bg-[#121212]/60 backdrop-blur-xl border border-[#00f2ea]/30 shadow-[0_0_30px_rgba(230,179,106,0.2)]">
+                  <span className="text-[#00f2ea] text-[12px] font-bold uppercase tracking-widest">
                     Speed Challenge {speedMultiplier > 1 ? `x${speedMultiplier}` : ''}
                   </span>
-                  <div className="text-white text-7xl font-black tabular-nums drop-shadow-[0_0_30px_rgba(230,179,106,1)] animate-pulse">
+                  <div className="text-[#00f2ea] text-7xl font-black tabular-nums drop-shadow-[0_0_30px_rgba(230,179,106,1)] animate-pulse">
                     {speedChallengeCountdown}
                   </div>
-                  <span className="text-white/60 text-[10px] font-semibold">Get ready to tap!</span>
+                  <span className="text-[#00f2ea]/60 text-[10px] font-semibold">Get ready to tap!</span>
                 </div>
               </div>
             )}
@@ -2328,9 +2500,9 @@ export default function LiveStream() {
 
             {SPEED_CHALLENGE_ENABLED && speedChallengeResult && !speedChallengeActive && (
               <div className="absolute inset-x-0 bottom-24 z-[270] pointer-events-none flex items-center justify-center">
-                <div className="flex flex-col items-center gap-1 px-6 py-3 rounded-xl bg-black/70 backdrop-blur-md border border-[#E6B36A]/30 shadow-[0_0_20px_rgba(230,179,106,0.3)]">
-                  <span className="text-[#E6B36A] text-[10px] font-bold uppercase tracking-widest">⚡ Speed Challenge Result</span>
-                  <span className="text-white text-lg font-black drop-shadow-[0_0_15px_rgba(230,179,106,0.8)] animate-bounce">{speedChallengeResult}</span>
+                <div className="flex flex-col items-center gap-1 px-6 py-3 rounded-xl bg-[#121212]/70 backdrop-blur-md border border-[#00f2ea]/30 shadow-[0_0_20px_rgba(230,179,106,0.3)]">
+                  <span className="text-[#00f2ea] text-[10px] font-bold uppercase tracking-widest">⚡ Speed Challenge Result</span>
+                  <span className="text-[#00f2ea] text-lg font-black drop-shadow-[0_0_15px_rgba(230,179,106,0.8)] animate-bounce">{speedChallengeResult}</span>
                 </div>
               </div>
             )}
@@ -2366,35 +2538,44 @@ export default function LiveStream() {
                       <div className="h-full flex-1 transition-all duration-500 ease-out" style={{ backgroundImage: 'linear-gradient(90deg, #1E90FF, #4169E1, #0047AB)' }} />
                     </div>
                     <div className="relative z-10 h-full flex items-center justify-between px-2">
-                      <div className="text-white font-black text-[8px] tabular-nums">{redTeamScore.toLocaleString()}</div>
+                      <div className="text-[#00f2ea] font-black text-[8px] tabular-nums">{redTeamScore.toLocaleString()}</div>
                       
                       {/* Battle Timer with VS */}
                       <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-1">
-                        <span className="text-[#E6B36A] text-[10px] font-black italic">VS</span>
-                        <div className="px-1.5 py-0.5 rounded bg-black/50 backdrop-blur-sm border border-[#E6B36A]/30">
-                          <span className="text-[#E6B36A] text-[9px] font-black tabular-nums leading-none">
+                        <span className="text-[#00f2ea] text-[10px] font-black italic">VS</span>
+                        <div className="px-1.5 py-0.5 rounded bg-[#121212]/50 backdrop-blur-sm border border-[#00f2ea]/30">
+                          <span className="text-[#00f2ea] text-[9px] font-black tabular-nums leading-none">
                             {formatTime(battleTime)}
                           </span>
                         </div>
                       </div>
 
-                      <div className="text-white font-black text-[8px] tabular-nums">{blueTeamScore.toLocaleString()}</div>
+                      <div className="text-[#00f2ea] font-black text-[8px] tabular-nums">{blueTeamScore.toLocaleString()}</div>
                     </div>
                   </button>
 
+                  {/* Spectator Tap Indicator: 1 tap = 5 pts, then done */}
+                  {!isBroadcast && battleTime > 0 && !battleWinner && (
+                    <div className="absolute top-6 left-1/2 -translate-x-1/2 z-30 pointer-events-none">
+                      <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#121212]/70 backdrop-blur-md border border-[#00f2ea]/30">
+                        <span className={`text-[9px] font-bold ${spectatorTapsUsed > 0 ? 'text-[#00f2ea]/40' : 'text-[#00f2ea]'}`}>
+                          {spectatorTapsUsed > 0 ? 'Voted +5' : 'Tap to vote +5'}
+                        </span>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Top Row (or only row for 2-player): P1 & P2 */}
                   <div className="flex flex-1">
                     <button
                       type="button"
-                      onClick={(e) => { e.stopPropagation(); setGiftTarget('me'); }}
-                      onPointerDown={(e) => { e.stopPropagation(); handleBattleTap('me'); spawnHeartFromClient(e.clientX, e.clientY); }}
-                      className={`w-1/2 h-full overflow-hidden relative bg-black pointer-events-auto border-r border-white/5 ${is4Player ? 'border-b' : ''}`}
+                      onClick={(e) => { e.stopPropagation(); handleBattleTap('me'); setGiftTarget('me'); spawnHeartFromClient(e.clientX, e.clientY); }}
+                      className={`w-1/2 h-full overflow-hidden relative bg-[#121212] pointer-events-auto border-r border-white/5 ${is4Player ? 'border-b' : ''}`}
                     >
                       <video ref={videoRef} className="w-full h-full object-cover transform scale-x-[-1]" autoPlay playsInline muted />
                       <div className="absolute top-1 right-1 z-10 pointer-events-auto flex items-center gap-1">
                         <div onClick={(e) => { e.stopPropagation(); togglePlayerMute('me'); }}>
-                          {mutedPlayers['me'] ? <VolumeX className="w-5 h-5 text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]" strokeWidth={2.5} /> : <Volume2 className="w-5 h-5 text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]" strokeWidth={2.5} />}
+                          {mutedPlayers['me'] ? <VolumeX className="w-5 h-5 text-[#00f2ea] drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]" strokeWidth={2.5} /> : <Volume2 className="w-5 h-5 text-[#00f2ea] drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]" strokeWidth={2.5} />}
                         </div>
                         <div onClick={(e) => { e.stopPropagation(); toggleBattle(); }}>
                           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FF4D6A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
@@ -2404,7 +2585,7 @@ export default function LiveStream() {
 
                       {battleWinner && (
                         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                          <span className={`text-sm font-black drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)] ${battleWinner === 'me' ? 'text-green-400' : battleWinner === 'draw' ? 'text-white' : 'text-red-400'}`}>
+                          <span className={`text-sm font-black drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)] ${battleWinner === 'me' ? 'text-[#00f2ea]' : battleWinner === 'draw' ? 'text-[#00f2ea]' : 'text-red-400'}`}>
                             {battleWinner === 'me' ? 'WIN' : battleWinner === 'draw' ? 'DRAW' : 'LOSS'}
                           </span>
                         </div>
@@ -2412,31 +2593,30 @@ export default function LiveStream() {
                     </button>
                     <button
                       type="button"
-                      onClick={(e) => { e.stopPropagation(); setGiftTarget('opponent'); }}
-                      onPointerDown={(e) => { e.stopPropagation(); handleBattleTap('opponent'); spawnHeartFromClient(e.clientX, e.clientY); addLiveLikes(1); }}
+                      onClick={(e) => { e.stopPropagation(); setGiftTarget('opponent'); spawnHeartFromClient(e.clientX, e.clientY); }}
                       className={`w-1/2 h-full overflow-hidden relative bg-gray-900 pointer-events-auto ${is4Player ? 'border-b border-white/5' : ''}`}
                     >
                       {battleSlots[0].status === 'accepted' ? (
                         <video ref={opponentVideoRef} className="w-full h-full object-cover" autoPlay playsInline muted />
                       ) : battleSlots[0].status === 'invited' ? (
                         <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-gray-900">
-                          <img src={battleSlots[0].avatar} alt={battleSlots[0].name} className="w-12 h-12 rounded-full border-2 border-[#E6B36A] opacity-60" />
+                          <img src={battleSlots[0].avatar} alt={battleSlots[0].name} className="w-12 h-12 rounded-full border-2 border-[#00f2ea] opacity-60" />
                           <div className="w-5 h-5 border-2 border-[#00f2ea] border-t-transparent rounded-full animate-spin" />
                           <span className="text-[#00f2ea] text-[10px] font-bold">Waiting...</span>
                         </div>
                       ) : (
                         <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-gray-900/80 pointer-events-auto" onClick={(e) => { e.stopPropagation(); setIsFindCreatorsOpen(true); }}>
                           <div className="w-12 h-12 rounded-full border-2 border-dashed border-white/20 flex items-center justify-center">
-                            <span className="text-white/30 text-2xl">+</span>
+                            <span className="text-[#00f2ea]/30 text-2xl">+</span>
                           </div>
-                          <span className="text-white/40 text-[10px] font-bold">Invite P2</span>
+                          <span className="text-[#00f2ea]/40 text-[10px] font-bold">Invite P2</span>
                         </div>
                       )}
 
                       {battleSlots[0].status !== 'empty' && (
                         <div className="absolute top-1 right-1 z-10 pointer-events-auto flex items-center gap-1">
                           <div onClick={(e) => { e.stopPropagation(); togglePlayerMute('opponent'); }}>
-                            {mutedPlayers['opponent'] ? <VolumeX className="w-5 h-5 text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]" strokeWidth={2.5} /> : <Volume2 className="w-5 h-5 text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]" strokeWidth={2.5} />}
+                            {mutedPlayers['opponent'] ? <VolumeX className="w-5 h-5 text-[#00f2ea] drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]" strokeWidth={2.5} /> : <Volume2 className="w-5 h-5 text-[#00f2ea] drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]" strokeWidth={2.5} />}
                           </div>
                           <div onClick={(e) => { e.stopPropagation(); removePlayerFromSlot(0); }}>
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FF4D6A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
@@ -2449,12 +2629,12 @@ export default function LiveStream() {
                         onClick={(e) => { e.stopPropagation(); openMiniProfile(battleSlots[0].name); }}
                       >
                         {lastGifts.opponent && (
-                          <div className="w-5 h-5 rounded-full bg-black/40 border border-white/20 overflow-hidden flex items-center justify-center drop-shadow-md z-10 relative">
+                          <div className="w-5 h-5 rounded-full bg-[#121212]/40 border border-white/20 overflow-hidden flex items-center justify-center drop-shadow-md z-10 relative">
                             <img src={lastGifts.opponent} alt="gift" className="w-full h-full object-cover" />
                           </div>
                         )}
                         <div 
-                          className={`h-4 flex items-center rounded-full text-[8px] font-bold text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)] relative z-0 bg-black/40 backdrop-blur-md border border-white/10 ${lastGifts.opponent ? '-ml-2 pl-3 pr-1.5' : 'px-1.5'}`}
+                          className={`h-4 flex items-center rounded-full text-[8px] font-bold text-[#00f2ea] drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)] relative z-0 bg-[#121212]/40 backdrop-blur-md border border-white/10 ${lastGifts.opponent ? '-ml-2 pl-3 pr-1.5' : 'px-1.5'}`}
                         >
                           {battleSlots[0].status !== 'empty' ? battleSlots[0].name : 'P2'}
                         </div>
@@ -2462,7 +2642,7 @@ export default function LiveStream() {
 
                       {battleWinner && (
                         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                          <span className={`text-sm font-black drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)] ${battleWinner === 'opponent' ? 'text-green-400' : battleWinner === 'draw' ? 'text-white' : 'text-red-400'}`}>
+                          <span className={`text-sm font-black drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)] ${battleWinner === 'opponent' ? 'text-[#00f2ea]' : battleWinner === 'draw' ? 'text-[#00f2ea]' : 'text-red-400'}`}>
                             {battleWinner === 'opponent' ? 'WIN' : battleWinner === 'draw' ? 'DRAW' : 'LOSS'}
                           </span>
                         </div>
@@ -2475,31 +2655,30 @@ export default function LiveStream() {
                     <div className="flex flex-1">
                       <button
                         type="button"
-                        onClick={(e) => { e.stopPropagation(); setGiftTarget('player3'); }}
-                        onPointerDown={(e) => { e.stopPropagation(); handleBattleTap('player3'); spawnHeartFromClient(e.clientX, e.clientY); }}
+                        onClick={(e) => { e.stopPropagation(); setGiftTarget('player3'); spawnHeartFromClient(e.clientX, e.clientY); }}
                         className="w-1/2 h-full overflow-hidden relative bg-gray-900 pointer-events-auto border-r border-white/5"
                       >
                         {battleSlots[1].status === 'accepted' ? (
                           <video ref={player3VideoRef} className="w-full h-full object-cover" autoPlay playsInline muted />
                         ) : battleSlots[1].status === 'invited' ? (
                           <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-gray-900">
-                            <img src={battleSlots[1].avatar} alt={battleSlots[1].name} className="w-12 h-12 rounded-full border-2 border-[#E6B36A] opacity-60" />
+                            <img src={battleSlots[1].avatar} alt={battleSlots[1].name} className="w-12 h-12 rounded-full border-2 border-[#00f2ea] opacity-60" />
                             <div className="w-5 h-5 border-2 border-[#00f2ea] border-t-transparent rounded-full animate-spin" />
                             <span className="text-[#00f2ea] text-[10px] font-bold">Waiting...</span>
                           </div>
                         ) : (
                           <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-gray-900/80 pointer-events-auto" onClick={(e) => { e.stopPropagation(); setIsFindCreatorsOpen(true); }}>
                             <div className="w-12 h-12 rounded-full border-2 border-dashed border-white/20 flex items-center justify-center">
-                              <span className="text-white/30 text-2xl">+</span>
+                              <span className="text-[#00f2ea]/30 text-2xl">+</span>
                             </div>
-                            <span className="text-white/40 text-[10px] font-bold">Invite P3</span>
+                            <span className="text-[#00f2ea]/40 text-[10px] font-bold">Invite P3</span>
                           </div>
                         )}
 
                         {battleSlots[1].status !== 'empty' && (
                           <div className="absolute top-1 right-1 z-10 pointer-events-auto flex items-center gap-1">
                             <div onClick={(e) => { e.stopPropagation(); togglePlayerMute('player3'); }}>
-                              {mutedPlayers['player3'] ? <VolumeX className="w-5 h-5 text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]" strokeWidth={2.5} /> : <Volume2 className="w-5 h-5 text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]" strokeWidth={2.5} />}
+                              {mutedPlayers['player3'] ? <VolumeX className="w-5 h-5 text-[#00f2ea] drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]" strokeWidth={2.5} /> : <Volume2 className="w-5 h-5 text-[#00f2ea] drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]" strokeWidth={2.5} />}
                             </div>
                             <div onClick={(e) => { e.stopPropagation(); removePlayerFromSlot(1); }}>
                               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FF4D6A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
@@ -2512,12 +2691,12 @@ export default function LiveStream() {
                         onClick={(e) => { e.stopPropagation(); openMiniProfile(battleSlots[1].name); }}
                       >
                         {lastGifts.player3 && (
-                          <div className="w-5 h-5 rounded-full bg-black/40 border border-white/20 overflow-hidden flex items-center justify-center drop-shadow-md z-10 relative">
+                          <div className="w-5 h-5 rounded-full bg-[#121212]/40 border border-white/20 overflow-hidden flex items-center justify-center drop-shadow-md z-10 relative">
                             <img src={lastGifts.player3} alt="gift" className="w-full h-full object-cover" />
                           </div>
                         )}
                         <div 
-                          className={`h-4 flex items-center rounded-full text-[8px] font-bold text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)] relative z-0 ${lastGifts.player3 ? '-ml-2 pl-3 pr-1.5' : 'px-1.5'}`}
+                          className={`h-4 flex items-center rounded-full text-[8px] font-bold text-[#00f2ea] drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)] relative z-0 ${lastGifts.player3 ? '-ml-2 pl-3 pr-1.5' : 'px-1.5'}`}
                           style={{ background: 'linear-gradient(135deg, rgba(0,200,83,0.7), rgba(0,200,83,0.3))' }}
                         >
                           {battleSlots[1].status !== 'empty' ? battleSlots[1].name : 'P3'}
@@ -2526,7 +2705,7 @@ export default function LiveStream() {
 
                       {battleWinner && (
                           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                            <span className={`text-sm font-black drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)] ${battleWinner === 'me' ? 'text-green-400' : battleWinner === 'draw' ? 'text-white' : 'text-red-400'}`}>
+                            <span className={`text-sm font-black drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)] ${battleWinner === 'me' ? 'text-[#00f2ea]' : battleWinner === 'draw' ? 'text-[#00f2ea]' : 'text-red-400'}`}>
                               {battleWinner === 'me' ? 'WIN' : battleWinner === 'draw' ? 'DRAW' : 'LOSS'}
                             </span>
                           </div>
@@ -2534,31 +2713,30 @@ export default function LiveStream() {
                       </button>
                       <button
                         type="button"
-                        onClick={(e) => { e.stopPropagation(); setGiftTarget('player4'); }}
-                        onPointerDown={(e) => { e.stopPropagation(); handleBattleTap('player4'); spawnHeartFromClient(e.clientX, e.clientY); }}
+                        onClick={(e) => { e.stopPropagation(); setGiftTarget('player4'); spawnHeartFromClient(e.clientX, e.clientY); }}
                         className="w-1/2 h-full overflow-hidden relative bg-gray-900 pointer-events-auto"
                       >
                         {battleSlots[2].status === 'accepted' ? (
                           <video ref={player4VideoRef} className="w-full h-full object-cover" autoPlay playsInline muted />
                         ) : battleSlots[2].status === 'invited' ? (
                           <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-gray-900">
-                            <img src={battleSlots[2].avatar} alt={battleSlots[2].name} className="w-12 h-12 rounded-full border-2 border-[#E6B36A] opacity-60" />
+                            <img src={battleSlots[2].avatar} alt={battleSlots[2].name} className="w-12 h-12 rounded-full border-2 border-[#00f2ea] opacity-60" />
                             <div className="w-5 h-5 border-2 border-[#00f2ea] border-t-transparent rounded-full animate-spin" />
                             <span className="text-[#00f2ea] text-[10px] font-bold">Waiting...</span>
                           </div>
                         ) : (
                           <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-gray-900/80 pointer-events-auto" onClick={(e) => { e.stopPropagation(); setIsFindCreatorsOpen(true); }}>
                             <div className="w-12 h-12 rounded-full border-2 border-dashed border-white/20 flex items-center justify-center">
-                              <span className="text-white/30 text-2xl">+</span>
+                              <span className="text-[#00f2ea]/30 text-2xl">+</span>
                             </div>
-                            <span className="text-white/40 text-[10px] font-bold">Invite P4</span>
+                            <span className="text-[#00f2ea]/40 text-[10px] font-bold">Invite P4</span>
                           </div>
                         )}
 
                         {battleSlots[2].status !== 'empty' && (
                           <div className="absolute top-1 right-1 z-10 pointer-events-auto flex items-center gap-1">
                             <div onClick={(e) => { e.stopPropagation(); togglePlayerMute('player4'); }}>
-                              {mutedPlayers['player4'] ? <VolumeX className="w-5 h-5 text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]" strokeWidth={2.5} /> : <Volume2 className="w-5 h-5 text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]" strokeWidth={2.5} />}
+                              {mutedPlayers['player4'] ? <VolumeX className="w-5 h-5 text-[#00f2ea] drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]" strokeWidth={2.5} /> : <Volume2 className="w-5 h-5 text-[#00f2ea] drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]" strokeWidth={2.5} />}
                             </div>
                             <div onClick={(e) => { e.stopPropagation(); removePlayerFromSlot(2); }}>
                               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FF4D6A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
@@ -2571,12 +2749,12 @@ export default function LiveStream() {
                         onClick={(e) => { e.stopPropagation(); openMiniProfile(battleSlots[2].name); }}
                       >
                         {lastGifts.player4 && (
-                          <div className="w-5 h-5 rounded-full bg-black/40 border border-white/20 overflow-hidden flex items-center justify-center drop-shadow-md z-10 relative">
+                          <div className="w-5 h-5 rounded-full bg-[#121212]/40 border border-white/20 overflow-hidden flex items-center justify-center drop-shadow-md z-10 relative">
                             <img src={lastGifts.player4} alt="gift" className="w-full h-full object-cover" />
                           </div>
                         )}
                         <div 
-                          className={`h-4 flex items-center rounded-full text-[8px] font-bold text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)] relative z-0 ${lastGifts.player4 ? '-ml-2 pl-3 pr-1.5' : 'px-1.5'}`}
+                          className={`h-4 flex items-center rounded-full text-[8px] font-bold text-[#00f2ea] drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)] relative z-0 ${lastGifts.player4 ? '-ml-2 pl-3 pr-1.5' : 'px-1.5'}`}
                           style={{ background: 'linear-gradient(135deg, rgba(156,39,176,0.7), rgba(156,39,176,0.3))' }}
                         >
                           {battleSlots[2].status !== 'empty' ? battleSlots[2].name : 'P4'}
@@ -2585,7 +2763,7 @@ export default function LiveStream() {
 
                       {battleWinner && (
                           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                            <span className={`text-sm font-black drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)] ${battleWinner === 'opponent' ? 'text-green-400' : battleWinner === 'draw' ? 'text-white' : 'text-red-400'}`}>
+                            <span className={`text-sm font-black drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)] ${battleWinner === 'opponent' ? 'text-[#00f2ea]' : battleWinner === 'draw' ? 'text-[#00f2ea]' : 'text-red-400'}`}>
                               {battleWinner === 'opponent' ? 'WIN' : battleWinner === 'draw' ? 'DRAW' : 'LOSS'}
                             </span>
                           </div>
@@ -2606,16 +2784,16 @@ export default function LiveStream() {
                   return g ? (
                     <div key={i} className="w-9 h-9 rounded-full overflow-hidden border-[2.5px] drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]" style={{ borderColor: c, zIndex: 3 - i }}><img src={g.avatar} alt={g.name} className="w-full h-full object-cover" /></div>
                   ) : (
-                    <div key={i} className="w-9 h-9 rounded-full overflow-hidden border-[2.5px] bg-black/80" style={{ borderColor: c, zIndex: 3 - i }}><img src={`https://i.pravatar.cc/100?img=${i + 10}`} alt="" className="w-full h-full object-cover opacity-50" /></div>
+                    <div key={i} className="w-9 h-9 rounded-full overflow-hidden border-[2.5px] bg-[#121212]/80" style={{ borderColor: c, zIndex: 3 - i }}><img src={`https://i.pravatar.cc/100?img=${i + 10}`} alt="" className="w-full h-full object-cover opacity-50" /></div>
                   );
                 })}
               </div>
 
               {/* Speed Challenge Timer - MOVED HERE between circles */}
               {SPEED_CHALLENGE_ENABLED && speedChallengeActive && (
-                <div className="flex items-center gap-3 px-5 py-1 rounded-full bg-black/70 backdrop-blur-md border border-[#00f2ea]/30 shadow-[0_0_15px_rgba(0,242,234,0.3)] animate-luxury-fade-in">
+                <div className="flex items-center gap-3 px-5 py-1 rounded-full bg-[#121212]/70 backdrop-blur-md border border-[#00f2ea]/30 shadow-[0_0_15px_rgba(0,242,234,0.3)] animate-luxury-fade-in">
                   <span className="text-[#00f2ea] text-[9px] font-bold uppercase tracking-[0.1em]">⚡ Speed</span>
-                  <span className="text-white text-[14px] font-black tabular-nums">{speedChallengeTime}s</span>
+                  <span className="text-[#00f2ea] text-[14px] font-black tabular-nums">{speedChallengeTime}s</span>
                   {speedMultiplier > 1 && (
                     <span className="text-[#00f2ea] text-[11px] font-black animate-pulse">x{speedMultiplier}</span>
                   )}
@@ -2629,7 +2807,7 @@ export default function LiveStream() {
                   return g ? (
                     <div key={i} className="w-9 h-9 rounded-full overflow-hidden border-[2.5px] drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]" style={{ borderColor: c, zIndex: 3 - i }}><img src={g.avatar} alt={g.name} className="w-full h-full object-cover" /></div>
                   ) : (
-                    <div key={i} className="w-9 h-9 rounded-full overflow-hidden border-[2.5px] bg-black/80" style={{ borderColor: c, zIndex: 3 - i }}><img src={`https://i.pravatar.cc/100?img=${i + 15}`} alt="" className="w-full h-full object-cover opacity-50" /></div>
+                    <div key={i} className="w-9 h-9 rounded-full overflow-hidden border-[2.5px] bg-[#121212]/80" style={{ borderColor: c, zIndex: 3 - i }}><img src={`https://i.pravatar.cc/100?img=${i + 15}`} alt="" className="w-full h-full object-cover opacity-50" /></div>
                   );
                 })}
               </div>
@@ -2661,8 +2839,8 @@ export default function LiveStream() {
                             >
                               <img src={myAvatar} alt={myCreatorName} className="w-full h-full object-cover" />
                             </div>
-                            <div className="flex flex-col justify-center -ml-4 pl-6 pr-16 h-9 rounded-full border border-white/60 bg-black/50 min-w-[140px] relative" style={{ borderTopLeftRadius: 0, borderBottomLeftRadius: 0 }}>
-                              <span className="text-white text-[10px] font-bold truncate max-w-[160px] leading-tight">{myCreatorName}</span>
+                            <div className="flex flex-col justify-center -ml-4 pl-6 pr-16 h-9 rounded-full border border-white/60 bg-[#121212]/50 min-w-[140px] relative" style={{ borderTopLeftRadius: 0, borderBottomLeftRadius: 0 }}>
+                              <span className="text-[#00f2ea] text-[10px] font-bold truncate max-w-[160px] leading-tight">{myCreatorName}</span>
                               <button
                   type="button"
                   className="flex items-center gap-0.5 pointer-events-auto -mt-0.5"
@@ -2671,7 +2849,7 @@ export default function LiveStream() {
                   }}
                 >
                                 <Heart className="w-2 h-2 text-[#FF2D55]" strokeWidth={2.5} fill="#FF2D55" />
-                                <span className="text-white/70 text-[8px] font-bold tabular-nums">{activeLikes.toLocaleString()}</span>
+                                <span className="text-[#00f2ea]/70 text-[8px] font-bold tabular-nums">{activeLikes.toLocaleString()}</span>
                               </button>
                               
                               {(() => {
@@ -2722,16 +2900,16 @@ export default function LiveStream() {
                                     >
                                       <div className="relative">
                                         <Heart
-                                          className={`w-3.5 h-3.5 ${hasJoinedToday ? 'text-white fill-white' : 'text-[#FF6B00] fill-[#FF6B00]'}`}
+                                          className={`w-3.5 h-3.5 ${hasJoinedToday ? 'text-[#00f2ea] fill-white' : 'text-[#FF6B00] fill-[#FF6B00]'}`}
                                           strokeWidth={2.5}
                                         />
                                         {!hasJoinedToday && (
                                           <div className="absolute -top-1 -right-1 w-2 h-2 bg-[#FF6B00] rounded-full flex items-center justify-center border border-white">
-                                            <span className="text-white text-[6px] font-bold leading-none">+</span>
+                                            <span className="text-[#00f2ea] text-[6px] font-bold leading-none">+</span>
                                           </div>
                                         )}
                                       </div>
-                                      <span className={`${hasJoinedToday ? 'text-white' : 'text-[#FF6B00]'} text-[10px] font-bold`}>Join</span>
+                                      <span className={`${hasJoinedToday ? 'text-[#00f2ea]' : 'text-[#FF6B00]'} text-[10px] font-bold`}>Join</span>
                                     </button>
 
                                     {/* Follow Button (Top) - Shows "+ Follow" */}
@@ -2744,8 +2922,8 @@ export default function LiveStream() {
                                           setIsFollowing(true);
                                         }}
                                       >
-                                        <Plus size={12} className="text-white" strokeWidth={3} />
-                                        <span className="text-white text-[10px] font-bold">Follow</span>
+                                        <Plus size={12} className="text-[#00f2ea]" strokeWidth={3} />
+                                        <span className="text-[#00f2ea] text-[10px] font-bold">Follow</span>
                                       </button>
                                     )}
                                   </div>
@@ -2761,8 +2939,8 @@ export default function LiveStream() {
                                 setShowRankingPanel(true);
                               }}
                             >
-                              <Trophy className="w-2.5 h-2.5 text-white" />
-                              <span className="text-white text-[9px] font-bold whitespace-nowrap">Weekly Ranking &gt;</span>
+                              <Trophy className="w-2.5 h-2.5 text-[#00f2ea]" />
+                              <span className="text-[#00f2ea] text-[9px] font-bold whitespace-nowrap">Weekly Ranking &gt;</span>
                             </div>
                             <div 
                               className="flex items-center gap-1 bg-[#FF2D55] rounded-full px-2 py-0.5 border border-white/10 shadow-sm cursor-pointer w-fit ml-4" 
@@ -2776,8 +2954,8 @@ export default function LiveStream() {
                                 e.currentTarget.style.display = 'none';
                                 e.currentTarget.nextElementSibling?.classList.remove('hidden');
                               }} />
-                              <Heart className="w-2.5 h-2.5 text-white fill-white hidden" />
-                              <span className="text-white text-[9px] font-bold whitespace-nowrap">Membership</span>
+                              <Heart className="w-2.5 h-2.5 text-[#00f2ea] fill-white hidden" />
+                              <span className="text-[#00f2ea] text-[9px] font-bold whitespace-nowrap">Membership</span>
                             </div>
                           </div>
                         </div>
@@ -2792,15 +2970,15 @@ export default function LiveStream() {
                                 return (
                                   <div key={v.id} className="relative flex flex-col items-center" style={{ zIndex: 3 - i }}>
                                     <div className="relative w-7 h-7">
-                                      <img src={v.avatar} alt={v.username} className="w-7 h-7 rounded-full border-2 border-[#E6B36A] object-cover" />
-                                      <span className="absolute bottom-0 inset-x-0 flex items-center justify-center text-white text-[5px] font-black leading-none drop-shadow-[0_1px_2px_rgba(0,0,0,1)]">{formatCoinsShort(donated)}</span>
+                                      <img src={v.avatar} alt={v.username} className="w-7 h-7 rounded-full border-2 border-[#00f2ea] object-cover" />
+                                      <span className="absolute bottom-0 inset-x-0 flex items-center justify-center text-[#00f2ea] text-[5px] font-black leading-none drop-shadow-[0_1px_2px_rgba(0,0,0,1)]">{formatCoinsShort(donated)}</span>
                                     </div>
                                   </div>
                                 );
                               })}
                             </div>
                           <button onClick={() => setShowViewerList(prev => !prev)} className="flex items-center gap-0.5 pointer-events-auto">
-                            <span className="text-white text-[9px] font-bold tabular-nums">{formatCountShort(viewerCount)}</span>
+                            <span className="text-[#00f2ea] text-[9px] font-bold tabular-nums">{formatCountShort(viewerCount)}</span>
                             <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round"><polyline points="6 9 12 15 18 9"/></svg>
                           </button>
                         </div>
@@ -2834,10 +3012,10 @@ export default function LiveStream() {
                               <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-gradient-to-br from-[#00f2ea] to-[#00c2be] rounded-full border-2 border-black animate-premium-glow" />
                             </div>
                             <div className="min-w-0 flex items-center gap-2">
-                              <p className="text-white font-black text-[14px] truncate max-w-[160px]">{myCreatorName}</p>
+                              <p className="text-[#00f2ea] font-black text-[14px] truncate max-w-[160px]">{myCreatorName}</p>
                               <button type="button" className="flex items-center gap-1 pointer-events-auto" onPointerDown={(e) => { spawnHeartFromClient(e.clientX, e.clientY); addLiveLikes(1); }}>
                                 <Heart className="w-3.5 h-3.5 text-[#FF2D55]" strokeWidth={2.5} fill="#FF2D55" />
-                                <span className="text-white/80 text-[10px] font-bold tabular-nums">{activeLikes.toLocaleString()}</span>
+                                <span className="text-[#00f2ea]/80 text-[10px] font-bold tabular-nums">{activeLikes.toLocaleString()}</span>
                               </button>
                             </div>
                               
@@ -2846,15 +3024,15 @@ export default function LiveStream() {
                                    e.stopPropagation();
                                    setShowRankingPanel(true);
                                 }}>
-                                  <Trophy className="w-2.5 h-2.5 text-white" />
-                                  <span className="text-white text-[9px] font-bold whitespace-nowrap">52 Weekly Ranking &gt;</span>
+                                  <Trophy className="w-2.5 h-2.5 text-[#00f2ea]" />
+                                  <span className="text-[#00f2ea] text-[9px] font-bold whitespace-nowrap">52 Weekly Ranking &gt;</span>
                                 </div>
                                 <div className="flex items-center gap-1 bg-[#FF2D55] rounded-full px-2 py-0.5 border border-white/10 shadow-sm cursor-pointer pointer-events-auto" onClick={(e) => {
                                    e.stopPropagation();
                                    setShowFanClub(true);
                                 }}>
-                                  <Heart className="w-2.5 h-2.5 text-white fill-white" />
-                                  <span className="text-white text-[9px] font-bold whitespace-nowrap">Join Super Fan</span>
+                                  <Heart className="w-2.5 h-2.5 text-[#00f2ea] fill-white" />
+                                  <span className="text-[#00f2ea] text-[9px] font-bold whitespace-nowrap">Join Super Fan</span>
                                 </div>
                               </div>
                             </div>
@@ -2878,21 +3056,21 @@ export default function LiveStream() {
                       <div className="pointer-events-auto flex flex-col items-center gap-2">
                         <div className="h-9 px-3 flex items-center gap-2 animate-luxury-fade-in">
                           <Flame className="w-4 h-4 text-[#00f2ea] animate-float" strokeWidth={2.5} />
-                          <span className="text-white text-xs font-black">Popular</span>
+                          <span className="text-[#00f2ea] text-xs font-black">Popular</span>
                         </div>
                       </div>
 
                       <div className="pointer-events-auto flex flex-col items-end gap-2">
                         <div className="flex items-center gap-2">
-                          <button onClick={() => setShowViewerList(prev => !prev)} className="flex items-center gap-1 bg-black/40 backdrop-blur-sm rounded-full px-2 py-1 pointer-events-auto">
+                          <button onClick={() => setShowViewerList(prev => !prev)} className="flex items-center gap-1 bg-[#121212]/40 backdrop-blur-sm rounded-full px-2 py-1 pointer-events-auto">
                             <div className="flex -space-x-1 pointer-events-auto" onClick={() => setShowViewerList(prev => !prev)}>
                               {activeViewers.slice(0, 3).map(v => (
                                 <img key={v.id} src={v.avatar} alt="" className="w-5 h-5 rounded-full border border-black object-cover" />
                               ))}
                             </div>
-                            <span className="text-white text-[9px] font-bold tabular-nums">{formatCountShort(viewerCount)}</span>
+                            <span className="text-[#00f2ea] text-[9px] font-bold tabular-nums">{formatCountShort(viewerCount)}</span>
                           </button>
-                          <button type="button" onClick={() => navigate('/')} className="w-10 h-10 text-white flex items-center justify-center hover:scale-110 active:scale-95 transition-all">
+                          <button type="button" onClick={() => navigate('/')} className="w-10 h-10 text-[#00f2ea] flex items-center justify-center hover:scale-110 active:scale-95 transition-all">
                             <LogOut size={20} strokeWidth={2.5} />
                           </button>
                         </div>
@@ -2901,7 +3079,7 @@ export default function LiveStream() {
                     {currentUniverse && (
                       <div className="mt-1 pointer-events-auto px-2">
                         <div className="h-9 rounded-xl bg-gradient-to-r from-red-700 via-red-600 to-red-700 border border-red-400/50 flex items-center justify-center px-4 gap-2">
-                          <span className="text-white text-[14px] font-extrabold tracking-wide truncate drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">✨ {universeText} ✨</span>
+                          <span className="text-[#00f2ea] text-[14px] font-extrabold tracking-wide truncate drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">✨ {universeText} ✨</span>
                         </div>
                       </div>
                     )}
@@ -2919,15 +3097,14 @@ export default function LiveStream() {
 
             {/* MIDDLE ZONE: CHAT (Scrollable) */}
             <div 
-              className="chat-zone absolute left-0 right-0 bottom-[calc(58px+env(safe-area-inset-bottom)+3mm)] h-[calc(40dvh-3cm)] max-h-[calc(40dvh-3cm)] overflow-y-auto pointer-events-auto z-[20] bg-transparent"
+              className="chat-zone absolute left-0 right-0 bottom-[calc(50px+env(safe-area-inset-bottom)-1mm)] h-[25dvh] max-h-[25dvh] overflow-y-auto pointer-events-auto z-[20] bg-transparent"
               onPointerDown={(e) => {
-                // Allow tapping on chat area to trigger hearts (like functionality)
-                // BUT only if not tapping on an interactive element inside
+                e.stopPropagation();
                 if (e.target instanceof Element) {
                   const interactive = e.target.closest('button, a, input, textarea, select, [role="button"]');
                   if (interactive) return;
                 }
-                // Chat tap -> Always LIKE, never battle points
+                // Chat tap -> hearts only, never battle points
                 handleLikeTap(e);
               }}
             >
@@ -2970,11 +3147,11 @@ export default function LiveStream() {
               )}
 
               {/* Input Form */}
-              <form onSubmit={handleSendMessage} className="flex-1 flex items-center gap-2 bg-black/40 backdrop-blur-md rounded-full px-3 py-1.5 border border-white/10 h-10 relative z-keyboard pointer-events-auto">
+              <form onSubmit={handleSendMessage} className="flex-1 flex items-center gap-2 bg-[#121212]/40 backdrop-blur-md rounded-full px-3 py-1.5 border border-white/10 h-10 relative z-keyboard pointer-events-auto">
                 <button
                   type="button"
                   onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                  className={`text-white/60 hover:text-white transition flex-shrink-0 ${showEmojiPicker ? 'text-[#00f2ea]' : ''}`}
+                  className={`text-[#00f2ea]/60 hover:text-[#00f2ea] transition flex-shrink-0 ${showEmojiPicker ? 'text-[#00f2ea]' : ''}`}
                 >
                   <Smile size={20} />
                 </button>
@@ -2985,25 +3162,25 @@ export default function LiveStream() {
                     autoComplete="off"
                     autoCorrect="off"
                     placeholder="Say something..." 
-                    className="bg-transparent text-white text-sm outline-none flex-1 placeholder:text-white/40 min-w-0"
+                    className="bg-transparent text-[#00f2ea] text-sm outline-none flex-1 placeholder:text-[#00f2ea]/40 min-w-0"
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
                     onFocus={() => setShowEmojiPicker(false)}
                 />
-                <button type="submit" className="text-[#E6B36A] hover:text-[#E6B36A]/80 transition flex-shrink-0" title="Send">
+                <button type="submit" className="text-[#00f2ea] hover:text-[#00f2ea]/80 transition flex-shrink-0" title="Send">
                     <Send size={18} />
                 </button>
               </form>
               
               <div className="flex items-center gap-2 flex-shrink-0 pointer-events-auto">
-                <button type="button" onClick={() => setIsReportModalOpen(true)} className="w-9 h-9 rounded-full bg-black/40 backdrop-blur-md border border-white/20 flex items-center justify-center shadow-lg active:scale-95 transition-transform">
+                <button type="button" onClick={() => setIsReportModalOpen(true)} className="w-9 h-9 rounded-full bg-[#121212]/40 backdrop-blur-md border border-white/20 flex items-center justify-center shadow-lg active:scale-95 transition-transform">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
                 </button>
-                <button type="button" onClick={handleShare} className="w-9 h-9 rounded-full bg-black/40 backdrop-blur-md border border-white/20 flex items-center justify-center shadow-lg active:scale-95 transition-transform">
-                  <Share2 size={16} className="text-white" />
+                <button type="button" onClick={handleShare} className="w-9 h-9 rounded-full bg-[#121212]/40 backdrop-blur-md border border-white/20 flex items-center justify-center shadow-lg active:scale-95 transition-transform">
+                  <Share2 size={16} className="text-[#00f2ea]" />
                 </button>
-                <button type="button" onClick={() => setShowGiftPanel(true)} className="w-9 h-9 rounded-full bg-[#E6B36A]/20 backdrop-blur-md border border-[#E6B36A]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform">
-                  <Gift size={16} className="text-[#E6B36A]" />
+                <button type="button" onClick={() => setShowGiftPanel(true)} className="w-9 h-9 rounded-full bg-[#00f2ea]/20 backdrop-blur-md border border-[#00f2ea]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform">
+                  <Gift size={16} className="text-[#00f2ea]" />
                 </button>
                 <button type="button" onPointerDown={(e) => { handleLikeTap(e); }} className="w-9 h-9 rounded-full bg-[#FF2D55]/20 backdrop-blur-md border border-[#FF2D55]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform">
                   <Heart size={16} fill="#FF2D55" className="text-[#FF2D55]" />
@@ -3015,7 +3192,7 @@ export default function LiveStream() {
           {isBroadcast && (
             <div className="flex items-center gap-3 pointer-events-auto translate-y-[12px]">
               {!currentGift ? (
-                <form onSubmit={handleSendMessage} className="flex-1 flex items-center gap-2 bg-black/40 backdrop-blur-md rounded-full px-4 py-2 border border-white/10 h-10 min-w-0">
+                <form onSubmit={handleSendMessage} className="flex-1 flex items-center gap-2 bg-[#121212]/40 backdrop-blur-md rounded-full px-4 py-2 border border-white/10 h-10 min-w-0">
                   <input
                     type="text"
                     inputMode="text"
@@ -3023,11 +3200,11 @@ export default function LiveStream() {
                     autoComplete="off"
                     autoCorrect="off"
                     placeholder="Say something..."
-                    className="bg-transparent text-white text-sm outline-none flex-1 placeholder:text-white/40 min-w-0"
+                    className="bg-transparent text-[#00f2ea] text-sm outline-none flex-1 placeholder:text-[#00f2ea]/40 min-w-0"
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
                   />
-                  <button type="submit" className="text-[#E6B36A] hover:text-[#E6B36A]/80 transition flex-shrink-0" title="Send">
+                  <button type="submit" className="text-[#00f2ea] hover:text-[#00f2ea]/80 transition flex-shrink-0" title="Send">
                     <Send size={18} />
                   </button>
                 </form>
@@ -3049,10 +3226,20 @@ export default function LiveStream() {
                     setBattleCountdown(3);
                     reachedThresholdsRef.current.clear();
                   }} 
-                  className="px-4 h-10 rounded-full bg-green-600/20 backdrop-blur-md border border-green-500/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform"
+                  className="px-4 h-10 rounded-full bg-[#00f2ea]/20 backdrop-blur-md border border-[#00f2ea]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform"
                 >
-                  <RefreshCw size={20} className="text-green-500 mr-2" />
-                  <span className="text-green-500 text-xs font-bold">Rematch</span>
+                  <RefreshCw size={20} className="text-[#00f2ea] mr-2" />
+                  <span className="text-[#00f2ea] text-xs font-bold">Rematch</span>
+                </button>
+              )}
+              {!isBattleMode && (
+                <button type="button" onClick={() => setIsInviteHostOpen(true)} className="w-10 h-10 rounded-full bg-[#00f2ea]/20 backdrop-blur-md border border-[#00f2ea]/40 flex items-center justify-center shadow-lg relative">
+                  <UserPlus size={20} className="text-[#00f2ea]" />
+                  {coHosts.length > 0 && (
+                    <div className="absolute -top-1 -right-1 w-5 h-5 bg-[#00f2ea] rounded-full flex items-center justify-center">
+                      <span className="text-black text-[10px] font-black">{coHosts.length}</span>
+                    </div>
+                  )}
                 </button>
               )}
               <button type="button" onClick={() => { if (!isBattleMode) toggleBattle(); else setIsFindCreatorsOpen(true); }} className="w-10 h-10 rounded-full bg-[#4DA6FF]/20 backdrop-blur-md border border-[#4DA6FF]/40 flex items-center justify-center shadow-lg">
@@ -3061,17 +3248,124 @@ export default function LiveStream() {
               <button type="button" onClick={() => { setGiftTarget('me'); setShowGiftPanel(true); }} className="w-10 h-10 rounded-full bg-[#00f2ea]/20 backdrop-blur-md border border-[#00f2ea]/40 flex items-center justify-center shadow-lg">
                 <Gift size={20} className="text-[#00f2ea]" />
               </button>
-              <button type="button" onClick={() => setShowSharePanel(true)} className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-md border border-white/20 flex items-center justify-center shadow-lg">
-                <Share2 size={20} className="text-white" />
+              <button type="button" onClick={() => setShowSharePanel(true)} className="w-10 h-10 rounded-full bg-[#121212]/40 backdrop-blur-md border border-white/20 flex items-center justify-center shadow-lg">
+                <Share2 size={20} className="text-[#00f2ea]" />
               </button>
-              <button type="button" onClick={() => setIsMoreMenuOpen(true)} className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-md border border-white/20 flex items-center justify-center shadow-lg">
-                <MoreVertical size={20} className="text-white" />
+              <button type="button" onClick={() => setIsMoreMenuOpen(true)} className="w-10 h-10 rounded-full bg-[#121212]/40 backdrop-blur-md border border-white/20 flex items-center justify-center shadow-lg">
+                <MoreVertical size={20} className="text-[#00f2ea]" />
               </button>
               </div>
             </div>
           )}
         </div>
       </div>
+
+      {/* ═══ INVITE HOST PANEL (Multi-Host, up to 12) ═══ */}
+      {isInviteHostOpen && (
+        <div className="absolute inset-0 z-[99999] flex flex-col justify-end">
+          <div className="absolute inset-0 pointer-events-auto" onClick={() => { setIsInviteHostOpen(false); setHostSearchQuery(''); }} />
+          <div
+            className="bg-[#1a1a1a]/95 rounded-t-2xl max-h-[65dvh] flex flex-col shadow-2xl border-t border-[#00f2ea]/20 pointer-events-auto w-full relative z-10 overflow-hidden pb-safe"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
+              <div className="flex items-center gap-2">
+                <Crown className="w-5 h-5 text-[#00f2ea]" />
+                <span className="text-[#00f2ea] font-bold text-sm">Invite Co-Hosts</span>
+                <span className="text-[#00f2ea]/40 text-xs">({coHosts.length}/{MAX_CO_HOSTS})</span>
+              </div>
+              <button onClick={() => { setIsInviteHostOpen(false); setHostSearchQuery(''); }} className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
+                <X size={16} className="text-[#00f2ea]" />
+              </button>
+            </div>
+
+            {/* Current Co-Hosts */}
+            {coHosts.length > 0 && (
+              <div className="px-4 py-3 border-b border-white/10">
+                <p className="text-[#00f2ea]/60 text-xs font-bold uppercase tracking-wider mb-2">Current Hosts ({coHosts.length})</p>
+                <div className="flex gap-3 overflow-x-auto no-scrollbar">
+                  {coHosts.map(host => (
+                    <div key={host.id} className="flex flex-col items-center gap-1 min-w-[60px]">
+                      <div className="relative">
+                        <img src={host.avatar} alt={host.name} className="w-12 h-12 rounded-full object-cover border-2 border-[#00f2ea]" />
+                        <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-[#1a1a1a] ${
+                          host.status === 'live' ? 'bg-[#00f2ea]' : host.status === 'accepted' ? 'bg-[#00f2ea]/60' : 'bg-[#00f2ea]/30 animate-pulse'
+                        }`} />
+                        <button
+                          onClick={() => removeCoHost(host.id)}
+                          className="absolute -top-1 -left-1 w-4 h-4 rounded-full bg-red-500 flex items-center justify-center"
+                        >
+                          <X size={10} className="text-black" />
+                        </button>
+                      </div>
+                      <span className="text-[#00f2ea] text-[10px] truncate w-14 text-center">{host.name}</span>
+                      <span className="text-[#00f2ea]/40 text-[8px] uppercase font-bold">
+                        {host.status === 'live' ? '● LIVE' : host.status === 'accepted' ? 'Joining...' : 'Invited'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Search */}
+            <div className="px-4 py-3">
+              <div className="flex items-center gap-2 bg-white/5 rounded-xl px-3 py-2 border border-white/10">
+                <Search className="w-4 h-4 text-[#00f2ea]/50" strokeWidth={2} />
+                <input
+                  type="text"
+                  placeholder="Search creators to invite..."
+                  className="bg-transparent text-[#00f2ea] text-sm outline-none flex-1 placeholder:text-[#00f2ea]/30"
+                  value={hostSearchQuery}
+                  onChange={(e) => setHostSearchQuery(e.target.value)}
+                  autoFocus
+                />
+              </div>
+            </div>
+
+            {/* Creator List */}
+            <div className="flex-1 overflow-y-auto px-4 pb-4">
+              {filteredHostCreators.length === 0 ? (
+                <div className="text-center text-[#00f2ea]/30 text-sm py-8">No creators found</div>
+              ) : (
+                <div className="space-y-2">
+                  {filteredHostCreators.map(creator => (
+                    <button
+                      key={creator.name}
+                      onClick={() => {
+                        inviteCoHost({ name: creator.name, avatar: creator.avatar });
+                      }}
+                      disabled={coHosts.length >= MAX_CO_HOSTS}
+                      className="w-full flex items-center gap-3 p-3 rounded-xl bg-white/5 hover:bg-[#00f2ea]/10 transition-all active:scale-[0.98] disabled:opacity-30"
+                    >
+                      <img src={creator.avatar} alt={creator.name} className="w-10 h-10 rounded-full object-cover border border-[#00f2ea]/30" />
+                      <div className="flex-1 text-left">
+                        <p className="text-[#00f2ea] text-sm font-bold">{creator.name}</p>
+                        <p className="text-[#00f2ea]/40 text-xs">Creator</p>
+                      </div>
+                      <div className="px-3 py-1.5 rounded-full bg-[#00f2ea] flex items-center gap-1">
+                        <UserPlus size={12} className="text-black" />
+                        <span className="text-black text-xs font-bold">Invite</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Weekly Ranking Panel */}
+      {showRankingPanel && (
+        <div className="absolute inset-0 z-[99999] flex items-end justify-center pointer-events-auto" onClick={() => setShowRankingPanel(false)}>
+          <div className="absolute inset-0 bg-black/50" />
+          <div className="relative z-10 w-full max-h-[70dvh] overflow-hidden rounded-t-2xl" onClick={(e) => e.stopPropagation()}>
+            <RankingPanel onClose={() => setShowRankingPanel(false)} />
+          </div>
+        </div>
+      )}
 
       {/* MODALS & OVERLAYS */}
       {isFindCreatorsOpen && (
@@ -3091,19 +3385,19 @@ export default function LiveStream() {
             <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
               <div className="flex items-center gap-2">
                 <Users className="w-4 h-4 text-[#4DA6FF]" strokeWidth={2} />
-                <span className="text-white font-bold text-sm">Invite Creators</span>
+                <span className="text-[#00f2ea] font-bold text-sm">Invite Creators</span>
               </div>
             </div>
 
             {/* Search */}
             <div className="px-4 py-3">
-              <div className="flex items-center gap-3 px-3 h-10 rounded-xl bg-black/50 border border-white/10 focus-within:border-[#4DA6FF]/50 transition-colors">
-                <Search className="w-4 h-4 text-white/50" strokeWidth={2} />
+              <div className="flex items-center gap-3 px-3 h-10 rounded-xl bg-[#121212]/50 border border-white/10 focus-within:border-[#4DA6FF]/50 transition-colors">
+                <Search className="w-4 h-4 text-[#00f2ea]/50" strokeWidth={2} />
                 <input
                   value={creatorQuery}
                   onChange={(e) => setCreatorQuery(e.target.value)}
                   placeholder="Search creators..."
-                  className="flex-1 bg-transparent outline-none text-white text-sm placeholder:text-white/30"
+                  className="flex-1 bg-transparent outline-none text-[#00f2ea] text-sm placeholder:text-[#00f2ea]/30"
                   autoFocus
                 />
               </div>
@@ -3113,30 +3407,30 @@ export default function LiveStream() {
             {anySlotFilled && (
               <div className="px-4 pb-2">
                 <div className="bg-white/5 rounded-xl p-3 border border-white/10">
-                  <p className="text-white/50 text-[10px] font-bold uppercase tracking-wider mb-2">Lobby Status</p>
+                  <p className="text-[#00f2ea]/50 text-[10px] font-bold uppercase tracking-wider mb-2">Lobby Status</p>
                   <div className="flex gap-3">
                     {battleSlots.map((slot, i) => (
                       <div key={i} className="flex flex-col items-center gap-1">
                         {slot.status === 'empty' ? (
                           <div className="w-10 h-10 rounded-full border border-dashed border-white/20 flex items-center justify-center bg-white/5">
-                            <span className="text-white/30 text-lg">+</span>
+                            <span className="text-[#00f2ea]/30 text-lg">+</span>
                           </div>
                         ) : (
                           <div className="relative">
                             <img src={slot.avatar} alt={slot.name} className="w-10 h-10 rounded-full object-cover border-2" style={{ borderColor: slot.status === 'accepted' ? '#00C853' : '#00f2ea' }} />
                             {slot.status === 'invited' && (
-                              <div className="absolute inset-0 rounded-full flex items-center justify-center bg-black/40">
+                              <div className="absolute inset-0 rounded-full flex items-center justify-center bg-[#121212]/40">
                                 <div className="w-4 h-4 border-2 border-[#00f2ea] border-t-transparent rounded-full animate-spin" />
                               </div>
                             )}
                             {slot.status === 'accepted' && (
-                              <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center border-2 border-black">
-                                <span className="text-white text-[8px] font-bold">✓</span>
+                              <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-[#00f2ea] rounded-full flex items-center justify-center border-2 border-black">
+                                <span className="text-[#00f2ea] text-[8px] font-bold">✓</span>
                               </div>
                             )}
                           </div>
                         )}
-                        <span className="text-white/60 text-[9px] font-bold truncate max-w-[50px]">
+                        <span className="text-[#00f2ea]/60 text-[9px] font-bold truncate max-w-[50px]">
                           {slot.status === 'empty' ? `Slot ${i + 1}` : slot.name}
                         </span>
                       </div>
@@ -3167,13 +3461,13 @@ export default function LiveStream() {
                           className="w-10 h-10 rounded-full object-cover bg-white/10"
                         />
                         <div className="min-w-0">
-                          <p className="text-white text-sm font-bold truncate">{c.name}</p>
-                          <p className="text-white/50 text-[10px] font-medium">{c.followers} followers</p>
+                          <p className="text-[#00f2ea] text-sm font-bold truncate">{c.name}</p>
+                          <p className="text-[#00f2ea]/50 text-[10px] font-medium">{c.followers} followers</p>
                         </div>
                       </div>
 
                       {isAccepted ? (
-                        <span className="px-3 py-1 bg-green-500/20 text-green-400 text-[10px] font-bold rounded-full border border-green-500/30">
+                        <span className="px-3 py-1 bg-[#00f2ea]/20 text-[#00f2ea] text-[10px] font-bold rounded-full border border-[#00f2ea]/30">
                           Joined ✓
                         </span>
                       ) : isInvited ? (
@@ -3188,8 +3482,8 @@ export default function LiveStream() {
                           disabled={allFull}
                           className={`px-4 py-1.5 text-[11px] font-bold rounded-full transition-all active:scale-95 ${
                             allFull 
-                              ? 'bg-white/5 text-white/30 cursor-not-allowed' 
-                              : 'bg-[#4DA6FF] hover:bg-[#3b8ad9] text-white shadow-lg shadow-blue-500/20'
+                              ? 'bg-white/5 text-[#00f2ea]/30 cursor-not-allowed' 
+                              : 'bg-[#4DA6FF] hover:bg-[#3b8ad9] text-[#00f2ea] shadow-lg shadow-blue-500/20'
                           }`}
                         >
                           Invite
@@ -3202,9 +3496,9 @@ export default function LiveStream() {
                 {filteredCreators.length === 0 && (
                   <div className="py-8 text-center">
                     <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-3">
-                      <Search className="w-5 h-5 text-white/20" />
+                      <Search className="w-5 h-5 text-[#00f2ea]/20" />
                     </div>
-                    <p className="text-white/40 text-xs font-medium">No creators found</p>
+                    <p className="text-[#00f2ea]/40 text-xs font-medium">No creators found</p>
                   </div>
                 )}
               </div>
@@ -3214,11 +3508,11 @@ export default function LiveStream() {
             {battleSlots.some(s => s.status !== 'empty') && (
               <div className="p-4 border-t border-white/10 bg-[#1a1a1a]">
                 <div className="flex items-center justify-between mb-3">
-                  <span className="text-white/50 text-xs font-bold">
+                  <span className="text-[#00f2ea]/50 text-xs font-bold">
                     Match Status
                   </span>
-                  <span className="text-white text-xs font-bold">
-                    {battleSlots.filter(s => s.status === 'accepted').length} Ready <span className="text-white/30">•</span> {battleSlots.filter(s => s.status === 'invited').length} Waiting
+                  <span className="text-[#00f2ea] text-xs font-bold">
+                    {battleSlots.filter(s => s.status === 'accepted').length} Ready <span className="text-[#00f2ea]/30">•</span> {battleSlots.filter(s => s.status === 'invited').length} Waiting
                   </span>
                 </div>
                 
@@ -3229,7 +3523,7 @@ export default function LiveStream() {
                       setBattleCountdown(3);
                       setIsFindCreatorsOpen(false);
                     }}
-                    className="w-full py-3 bg-green-600 hover:bg-green-500 text-white text-sm font-black rounded-xl shadow-lg active:scale-95 transition-all uppercase tracking-widest flex items-center justify-center gap-2"
+                    className="w-full py-3 bg-[#00f2ea] hover:bg-[#00c4bd] text-[#00f2ea] text-sm font-black rounded-xl shadow-lg active:scale-95 transition-all uppercase tracking-widest flex items-center justify-center gap-2"
                   >
                     <span>Start Match</span>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
@@ -3262,8 +3556,8 @@ export default function LiveStream() {
                     <img src={miniProfile.avatar} alt={miniProfile.username} className="w-20 h-20 rounded-full object-cover border-4 border-[#1a1a1a] aspect-square" />
                   </div>
                   <div className="min-w-0 pt-1">
-                    <div className="text-white font-black text-[16px] truncate">{miniProfile.username}</div>
-                    <div className="text-white/70 text-[12px] font-bold">
+                    <div className="text-[#00f2ea] font-black text-[16px] truncate">{miniProfile.username}</div>
+                    <div className="text-[#00f2ea]/70 text-[12px] font-bold">
                       {typeof miniProfile.level === 'number' ? (
                         <span className="inline-flex items-center gap-2">
                           <LevelBadge level={miniProfile.level} size={16} layout="fixed" />
@@ -3275,19 +3569,19 @@ export default function LiveStream() {
                       {miniProfile.coins != null ? ` • 🪙 ${formatCoinsShort(miniProfile.coins)}` : ''}
                     </div>
                     
-                    <div className="flex items-center gap-3 mt-1 text-[10px] text-white/50">
+                    <div className="flex items-center gap-3 mt-1 text-[10px] text-[#00f2ea]/50">
                       <div className="flex items-center gap-1">
-                        <span className="text-white font-bold tabular-nums">1.2k</span>
+                        <span className="text-[#00f2ea] font-bold tabular-nums">1.2k</span>
                         <span>Followers</span>
                       </div>
                       <div className="w-px h-2 bg-white/20" />
                       <div className="flex items-center gap-1">
-                        <span className="text-white font-bold tabular-nums">458</span>
+                        <span className="text-[#00f2ea] font-bold tabular-nums">458</span>
                         <span>Following</span>
                       </div>
                     </div>
 
-                    <div className="mt-2 text-[11px] text-white/80 leading-snug line-clamp-2">
+                    <div className="mt-2 text-[11px] text-[#00f2ea]/80 leading-snug line-clamp-2">
                       Welcome to my stream! 🎵 Music lover, gamer & content creator. Let's vibe! ✨
                     </div>
 
@@ -3310,7 +3604,7 @@ export default function LiveStream() {
                     setShowGiftPanel(true);
                     closeMiniProfile();
                   }}
-                  className="h-9 rounded-lg bg-white/10 text-white text-[11px] font-bold hover:bg-white/20 active:scale-95 transition-all"
+                  className="h-9 rounded-lg bg-white/10 text-[#00f2ea] text-[11px] font-bold hover:bg-white/20 active:scale-95 transition-all"
                 >
                   Gift
                 </button>
@@ -3320,11 +3614,11 @@ export default function LiveStream() {
                     closeMiniProfile();
                     navigate(`/profile/${miniProfile.username}`);
                   }}
-                  className="h-9 rounded-lg bg-white/10 text-white text-[11px] font-bold hover:bg-white/20 active:scale-95 transition-all"
+                  className="h-9 rounded-lg bg-white/10 text-[#00f2ea] text-[11px] font-bold hover:bg-white/20 active:scale-95 transition-all"
                 >
                   Profile
                 </button>
-                <button type="button" onClick={handleShare} className="h-9 rounded-lg bg-white/10 text-white text-[11px] font-bold hover:bg-white/20 active:scale-95 transition-all">
+                <button type="button" onClick={handleShare} className="h-9 rounded-lg bg-white/10 text-[#00f2ea] text-[11px] font-bold hover:bg-white/20 active:scale-95 transition-all">
                   Share
                 </button>
                 <button type="button" onClick={() => alert('Blocked')} className="h-9 rounded-lg bg-red-950/50 text-red-400 text-[11px] font-bold border border-red-900/50 hover:bg-red-900/50 active:scale-95 transition-all">
@@ -3350,8 +3644,8 @@ export default function LiveStream() {
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
               <div className="flex items-center gap-2">
-                <span className="text-white font-bold text-sm">Live Gifters</span>
-                <span className="bg-white/10 px-1.5 py-0.5 rounded-full text-white/70 text-[8px] font-bold tabular-nums">{formatCountShort(viewerCount)}</span>
+                <span className="text-[#00f2ea] font-bold text-sm">Live Gifters</span>
+                <span className="bg-white/10 px-1.5 py-0.5 rounded-full text-[#00f2ea]/70 text-[8px] font-bold tabular-nums">{formatCountShort(viewerCount)}</span>
               </div>
             </div>
             {/* Content */}
@@ -3373,8 +3667,8 @@ export default function LiveStream() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1">
-                        <span className="text-white text-[11px] font-semibold truncate">{v.displayName}</span>
-                        <span className="text-white/40 text-[9px]">{v.country}</span>
+                        <span className="text-[#00f2ea] text-[11px] font-semibold truncate">{v.displayName}</span>
+                        <span className="text-[#00f2ea]/40 text-[9px]">{v.country}</span>
                       </div>
                       <div className="flex items-center gap-1 mt-0.5">
                         <span className="text-[8px] font-bold text-[#00f2ea] bg-[#00f2ea]/10 px-1 py-px rounded-full">LVL {v.level}</span>
@@ -3389,7 +3683,7 @@ export default function LiveStream() {
                   </div>
                 ))}
               {activeViewers.length === 0 && (
-                <div className="py-6 text-center text-white/40 text-xs">
+                <div className="py-6 text-center text-[#00f2ea]/40 text-xs">
                   Viewers are joining...
                 </div>
               )}
@@ -3415,7 +3709,7 @@ export default function LiveStream() {
               }}
             />
             <Heart className="w-20 h-20 text-[#FF2D55] fill-[#FF2D55] drop-shadow-2xl animate-pulse hidden" />
-            <span className="text-white font-black text-2xl mt-2 drop-shadow-lg tracking-wider animate-bounce">JOIN</span>
+            <span className="text-[#00f2ea] font-black text-2xl mt-2 drop-shadow-lg tracking-wider animate-bounce">JOIN</span>
           </div>
         </div>
       )}
@@ -3436,7 +3730,7 @@ export default function LiveStream() {
             <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
               <div className="flex items-center gap-2">
                 <Heart className="w-4 h-4 text-[#FF2D55]" strokeWidth={2} fill="#FF2D55" />
-                <span className="text-white font-bold text-sm">Your Team Status</span>
+                <span className="text-[#00f2ea] font-bold text-sm">Your Team Status</span>
               </div>
             </div>
             
@@ -3454,11 +3748,11 @@ export default function LiveStream() {
                        setTimeout(() => setShowJoinAnimation(false), 2000);
                      }}
                    >
-                     <Heart className="w-6 h-6 text-white fill-white" />
+                     <Heart className="w-6 h-6 text-[#00f2ea] fill-white" />
                    </div>
                    <div>
-                     <div className="text-white/50 text-[10px] font-bold uppercase tracking-wider">Current Status</div>
-                     <div className="text-white font-bold text-base">
+                     <div className="text-[#00f2ea]/50 text-[10px] font-bold uppercase tracking-wider">Current Status</div>
+                     <div className="text-[#00f2ea] font-bold text-base">
                       {myHeartCount === 0 ? 'New Viewer' : myHeartCount < 5 ? 'Rising Fan' : myHeartCount < 20 ? 'Loyal Member' : 'Super Fan'}
                     </div>
                     <div className="text-[#00f2ea] text-[10px] font-bold mt-0.5">
@@ -3468,13 +3762,13 @@ export default function LiveStream() {
                  </div>
                </div>
                
-               <p className="text-white/40 text-xs text-center mt-4 px-4">
+               <p className="text-[#00f2ea]/40 text-xs text-center mt-4 px-4">
                  Join not tap tap one single heart
                </p>
 
                {/* Recent Supporters List */}
                <div className="mt-6">
-                 <h4 className="text-white/60 text-[10px] font-bold uppercase tracking-wider mb-3 px-1">Recent Supporters</h4>
+                 <h4 className="text-[#00f2ea]/60 text-[10px] font-bold uppercase tracking-wider mb-3 px-1">Recent Supporters</h4>
                  <div className="space-y-1">
                    {/* Show current user first if they joined */}
                    {hasJoinedToday && (
@@ -3482,14 +3776,14 @@ export default function LiveStream() {
                         <div className="relative">
                           <img src={'https://i.pravatar.cc/150?img=68'} alt="You" className="w-8 h-8 rounded-full object-cover border border-white/10" />
                           <div className="absolute -bottom-1 -right-1 bg-[#FF2D55] w-3.5 h-3.5 rounded-full flex items-center justify-center border border-[#1a1a1a]">
-                            <Heart size={8} className="text-white fill-white" />
+                            <Heart size={8} className="text-[#00f2ea] fill-white" />
                           </div>
                         </div>
                         <div className="flex-1">
-                        <div className="text-xs font-bold text-white">You</div>
+                        <div className="text-xs font-bold text-[#00f2ea]">You</div>
                         <div className="text-[10px] text-[#00f2ea]">Just joined the team!</div>
                       </div>
-                        <div className="text-white/40 text-[9px]">Now</div>
+                        <div className="text-[#00f2ea]/40 text-[9px]">Now</div>
                      </div>
                    )}
                    
@@ -3501,15 +3795,15 @@ export default function LiveStream() {
                           {/* Randomly show heart icon on some users to simulate they joined */}
                           {i % 3 === 0 && (
                             <div className="absolute -bottom-1 -right-1 bg-[#FF2D55] w-3.5 h-3.5 rounded-full flex items-center justify-center border border-[#1a1a1a]">
-                              <Heart size={8} className="text-white fill-white" />
+                              <Heart size={8} className="text-[#00f2ea] fill-white" />
                             </div>
                           )}
                         </div>
                         <div className="flex-1">
-                          <div className="text-xs font-bold text-white/90">{v.displayName}</div>
-                          <div className="text-[10px] text-white/40">Level {v.level} • {v.country}</div>
+                          <div className="text-xs font-bold text-[#00f2ea]/90">{v.displayName}</div>
+                          <div className="text-[10px] text-[#00f2ea]/40">Level {v.level} • {v.country}</div>
                         </div>
-                        <div className="text-white/30 text-[9px]">{i + 1}m ago</div>
+                        <div className="text-[#00f2ea]/30 text-[9px]">{i + 1}m ago</div>
                      </div>
                    ))}
                  </div>
@@ -3536,7 +3830,7 @@ export default function LiveStream() {
             <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
               <div className="flex items-center gap-2">
                 <Heart className="w-4 h-4 text-[#FF2D55]" strokeWidth={2} fill="#FF2D55" />
-                <span className="text-white font-bold text-sm">Super Fan Goal</span>
+                <span className="text-[#00f2ea] font-bold text-sm">Super Fan Goal</span>
               </div>
             </div>
             
@@ -3544,23 +3838,23 @@ export default function LiveStream() {
             <div className="max-h-[40vh] overflow-y-auto px-4 py-4" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
               <div className="flex flex-col gap-4">
                 {/* Subscription Banner */}
-                <div className="bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl p-4 shadow-lg border border-white/20 relative overflow-hidden">
+                <div className="bg-gradient-to-r from-[#00f2ea] to-[#00c4bd] rounded-xl p-4 shadow-lg border border-white/20 relative overflow-hidden">
                   <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-10 -mt-10 blur-2xl" />
                   
                   <div className="relative z-10">
                     <div className="flex items-center justify-between mb-3">
                       <div>
-                        <h3 className="text-white font-bold text-lg">Membership</h3>
-                        <p className="text-white/80 text-xs">Unlock photo stickers & exclusive perks</p>
+                        <h3 className="text-[#00f2ea] font-bold text-lg">Membership</h3>
+                        <p className="text-[#00f2ea]/80 text-xs">Unlock photo stickers & exclusive perks</p>
                       </div>
                       <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm shadow-inner">
-                        <Heart className="w-5 h-5 text-white fill-white animate-pulse" />
+                        <Heart className="w-5 h-5 text-[#00f2ea] fill-white animate-pulse" />
                       </div>
                     </div>
                     
                     <div className="flex items-end gap-1 mb-4">
-                      <span className="text-3xl font-black text-white">£3.00</span>
-                      <span className="text-white/70 text-sm font-medium mb-1">/ month</span>
+                      <span className="text-3xl font-black text-[#00f2ea]">£3.00</span>
+                      <span className="text-[#00f2ea]/70 text-sm font-medium mb-1">/ month</span>
                     </div>
 
                     <button
@@ -3583,8 +3877,8 @@ export default function LiveStream() {
                 {/* Photo Stickers - Only for Subscribers */}
                 <div className="bg-white/5 rounded-xl p-4 border border-white/10">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-white font-bold text-sm flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+                    <h3 className="text-[#00f2ea] font-bold text-sm flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#00f2ea] to-[#00c4bd] flex items-center justify-center">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
                       </div>
                       Photo Stickers
@@ -3615,7 +3909,7 @@ export default function LiveStream() {
                         <span className="group-hover:scale-125 transition-transform duration-200">{emoji}</span>
                         {/* Lock overlay if not subscribed (simulated check - assume not subscribed for demo if isSubscribing is false) */}
                         {!isSubscribing && ( // In real app, check actual subscription status
-                          <div className="absolute inset-0 bg-black/60 backdrop-blur-[1px] flex items-center justify-center">
+                          <div className="absolute inset-0 bg-[#121212]/60 backdrop-blur-[1px] flex items-center justify-center">
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-70"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                           </div>
                         )}
@@ -3654,18 +3948,18 @@ export default function LiveStream() {
                       }}
                     >
                       <div className="flex flex-col items-center gap-1">
-                        <PlusCircle size={20} className="text-white/50 group-hover:text-white transition-colors" />
-                        <span className="text-[8px] text-white/50 font-bold uppercase">Upload</span>
+                        <PlusCircle size={20} className="text-[#00f2ea]/50 group-hover:text-[#00f2ea] transition-colors" />
+                        <span className="text-[8px] text-[#00f2ea]/50 font-bold uppercase">Upload</span>
                       </div>
                        {/* Lock overlay if not subscribed */}
                        {!isSubscribing && (
-                          <div className="absolute inset-0 bg-black/60 backdrop-blur-[1px] flex items-center justify-center">
+                          <div className="absolute inset-0 bg-[#121212]/60 backdrop-blur-[1px] flex items-center justify-center">
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-70"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                           </div>
                         )}
                     </button>
                   </div>
-                  <p className="text-white/40 text-[10px] text-center mt-3">Subscribe to unlock photo stickers and send them in chat!</p>
+                  <p className="text-[#00f2ea]/40 text-[10px] text-center mt-3">Subscribe to unlock photo stickers and send them in chat!</p>
                 </div>
               </div>
             </div>
@@ -3690,8 +3984,8 @@ export default function LiveStream() {
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
               <div className="flex items-center gap-2">
-                <Settings2 className="w-4 h-4 text-white" />
-                <span className="text-white font-bold text-sm">More Options</span>
+                <Settings2 className="w-4 h-4 text-[#00f2ea]" />
+                <span className="text-[#00f2ea] font-bold text-sm">More Options</span>
               </div>
             </div>
 
@@ -3711,7 +4005,7 @@ export default function LiveStream() {
                     reachedThresholdsRef.current.clear();
                     setIsMoreMenuOpen(false);
                   }}
-                  className="w-full px-4 py-3 flex items-center gap-3 text-green-500 hover:bg-white/5 rounded-xl"
+                  className="w-full px-4 py-3 flex items-center gap-3 text-[#00f2ea] hover:bg-white/5 rounded-xl"
                 >
                   <RefreshCw className="w-5 h-5" strokeWidth={2} />
                   <span className="text-sm font-bold">Rematch</span>
@@ -3733,7 +4027,7 @@ export default function LiveStream() {
                 type="button"
                 disabled={!isBroadcast}
                 onClick={() => { flipCamera(); setIsMoreMenuOpen(false); }}
-                className="w-full px-4 py-3 flex items-center gap-3 text-white disabled:opacity-50 hover:bg-white/5 rounded-xl"
+                className="w-full px-4 py-3 flex items-center gap-3 text-[#00f2ea] disabled:opacity-50 hover:bg-white/5 rounded-xl"
               >
                 <RefreshCw className="w-5 h-5" strokeWidth={2} />
                 <span className="text-sm font-bold">Flip camera</span>
@@ -3743,7 +4037,7 @@ export default function LiveStream() {
                 type="button"
                 disabled={!isBroadcast}
                 onClick={() => { toggleMic(); setIsMoreMenuOpen(false); }}
-                className="w-full px-4 py-3 flex items-center gap-3 text-white disabled:opacity-50 hover:bg-white/5 rounded-xl"
+                className="w-full px-4 py-3 flex items-center gap-3 text-[#00f2ea] disabled:opacity-50 hover:bg-white/5 rounded-xl"
               >
                 {isMicMuted ? <MicOff className="w-5 h-5" strokeWidth={2} /> : <Mic className="w-5 h-5" strokeWidth={2} />}
                 <span className="text-sm font-bold">{isMicMuted ? 'Unmute mic' : 'Mute mic'}</span>
@@ -3752,7 +4046,7 @@ export default function LiveStream() {
               <button
                 type="button"
                 onClick={() => { setIsLiveSettingsOpen(true); setIsMoreMenuOpen(false); }}
-                className="w-full px-4 py-3 flex items-center gap-3 text-white hover:bg-white/5 rounded-xl"
+                className="w-full px-4 py-3 flex items-center gap-3 text-[#00f2ea] hover:bg-white/5 rounded-xl"
               >
                 <Settings2 className="w-5 h-5" strokeWidth={2} />
                 <span className="text-sm font-bold">Live settings</span>
@@ -3761,7 +4055,7 @@ export default function LiveStream() {
               <button
                 type="button"
                 onClick={() => { setIsChatVisible((v) => !v); setIsMoreMenuOpen(false); }}
-                className="w-full px-4 py-3 flex items-center gap-3 text-white hover:bg-white/5 rounded-xl"
+                className="w-full px-4 py-3 flex items-center gap-3 text-[#00f2ea] hover:bg-white/5 rounded-xl"
               >
                 <MessageCircle className="w-5 h-5" strokeWidth={2} />
                 <span className="text-sm font-bold">{isChatVisible ? 'Hide chat' : 'Show chat'}</span>
@@ -3783,7 +4077,7 @@ export default function LiveStream() {
       {/* Coin Reload Password Modal */}
       {showCoinModal && (
         <div
-          className="absolute inset-0 z-[800] bg-black/80 flex items-center justify-center pointer-events-auto"
+          className="absolute inset-0 z-[800] bg-[#121212]/80 flex items-center justify-center pointer-events-auto"
           onClick={() => setShowCoinModal(false)}
         >
           <div
@@ -3808,7 +4102,7 @@ export default function LiveStream() {
                 }
               }}
               placeholder="Password..."
-              className="w-full px-4 py-3 bg-black/50 border border-[#00f2ea]/40 rounded-xl text-white text-center outline-none focus:border-[#00f2ea] transition"
+              className="w-full px-4 py-3 bg-[#121212]/50 border border-[#00f2ea]/40 rounded-xl text-[#00f2ea] text-center outline-none focus:border-[#00f2ea] transition"
               autoFocus
             />
             <button
@@ -3833,14 +4127,14 @@ export default function LiveStream() {
 
       {isLiveSettingsOpen && (
         <div
-          className="absolute inset-0 z-[710] bg-black pointer-events-auto"
+          className="absolute inset-0 z-[710] bg-[#121212] pointer-events-auto"
           onClick={() => setIsLiveSettingsOpen(false)}
           role="button"
           tabIndex={-1}
         >
           <div className="absolute bottom-0 left-0 right-0 px-4 pb-[calc(16px+env(safe-area-inset-bottom))] pointer-events-auto">
             <div
-              className="mx-auto w-full bg-black overflow-hidden"
+              className="mx-auto w-full bg-[#121212] overflow-hidden"
               onClick={(e) => e.stopPropagation()}
               role="button"
               tabIndex={-1}
@@ -3848,7 +4142,7 @@ export default function LiveStream() {
               <div className="px-4 py-3 flex items-center justify-between text-[#00f2ea]">
                 <div className="flex flex-col">
                   <span className="font-extrabold">Live settings</span>
-                  <span className="text-[10px] text-white/40 font-mono">v1.5 (Clean UI)</span>
+                  <span className="text-[10px] text-[#00f2ea]/40 font-mono">v1.5 (Clean UI)</span>
                 </div>
                 <button type="button" onClick={() => setIsLiveSettingsOpen(false)} className="p-2">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00f2ea" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -3910,7 +4204,7 @@ export default function LiveStream() {
       {showGiftPanel && (
         <>
           <div 
-            className="absolute inset-0 bg-black/40 pointer-events-auto"
+            className="absolute inset-0 bg-[#121212]/40 pointer-events-auto"
             style={{ zIndex: 99998 }}
             onClick={() => setShowGiftPanel(false)}
           />
@@ -3948,14 +4242,14 @@ export default function LiveStream() {
             </div>
             
             <div className="flex items-center justify-between gap-2">
-              <h3 className="text-white font-bold whitespace-nowrap">Share to</h3>
+              <h3 className="text-[#00f2ea] font-bold whitespace-nowrap">Share to</h3>
               <div className="flex-none w-[120px] bg-white/5 rounded-lg px-2 py-1.5 flex items-center gap-2">
-                 <Search className="w-3.5 h-3.5 text-white/30" />
+                 <Search className="w-3.5 h-3.5 text-[#00f2ea]/30" />
                  <input 
                    value={shareQuery}
                    onChange={(e) => setShareQuery(e.target.value)}
                    placeholder="Search..."
-                   className="bg-transparent text-white text-xs outline-none w-full placeholder:text-white/20"
+                   className="bg-transparent text-[#00f2ea] text-xs outline-none w-full placeholder:text-[#00f2ea]/20"
                  />
               </div>
             </div>
@@ -3975,10 +4269,10 @@ export default function LiveStream() {
                     <div className="relative">
                       <img src={user.avatar} alt={user.username} className="w-12 h-12 rounded-full object-cover bg-white/10 border border-white/10" />
                       <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-[#FF2D55] rounded-full flex items-center justify-center border-2 border-[#1a1a1a]">
-                        <Send size={7} className="text-white" />
+                        <Send size={7} className="text-[#00f2ea]" />
                       </div>
                     </div>
-                    <span className="text-white text-[9px] font-bold truncate max-w-[56px]">{user.displayName}</span>
+                    <span className="text-[#00f2ea] text-[9px] font-bold truncate max-w-[56px]">{user.displayName}</span>
                   </button>
                 ))}
               </div>
@@ -4007,12 +4301,12 @@ export default function LiveStream() {
                   className="flex flex-col items-center gap-1 min-w-[60px]"
                 >
                   <div 
-                    className="w-12 h-12 rounded-full flex items-center justify-center text-white shadow-lg"
+                    className="w-12 h-12 rounded-full flex items-center justify-center text-[#00f2ea] shadow-lg"
                     style={{ backgroundColor: item.color }}
                   >
                     {item.icon}
                   </div>
-                  <span className="text-white/70 text-[10px]">{item.name}</span>
+                  <span className="text-[#00f2ea]/70 text-[10px]">{item.name}</span>
                 </button>
               ))}
             </div>
@@ -4020,10 +4314,10 @@ export default function LiveStream() {
             {/* Actions Row */}
             <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar shrink-0">
               {[
-                { name: 'Promote', color: '#00f2ea', icon: <TrendingUp size={24} className="text-white" />, action: () => alert('Promote panel opening...') },
-                { name: 'Report', color: '#EF4444', icon: <AlertTriangle size={24} className="text-white" />, action: () => setIsReportModalOpen(true) },
-                { name: 'Add Story', color: '#3B82F6', icon: <PlusCircle size={24} className="text-white" />, action: () => alert('Adding to story...') },
-                { name: 'Settings', color: '#6B7280', icon: <Settings2 size={24} className="text-white" />, action: () => setIsLiveSettingsOpen(true) },
+                { name: 'Promote', color: '#00f2ea', icon: <TrendingUp size={24} className="text-[#00f2ea]" />, action: () => alert('Promote panel opening...') },
+                { name: 'Report', color: '#EF4444', icon: <AlertTriangle size={24} className="text-[#00f2ea]" />, action: () => setIsReportModalOpen(true) },
+                { name: 'Add Story', color: '#3B82F6', icon: <PlusCircle size={24} className="text-[#00f2ea]" />, action: () => alert('Adding to story...') },
+                { name: 'Settings', color: '#6B7280', icon: <Settings2 size={24} className="text-[#00f2ea]" />, action: () => setIsLiveSettingsOpen(true) },
               ].map((item) => (
                 <button 
                   key={item.name}
@@ -4036,7 +4330,7 @@ export default function LiveStream() {
                   <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center border border-white/10">
                     {item.icon}
                   </div>
-                  <span className="text-white/70 text-[10px]">{item.name}</span>
+                  <span className="text-[#00f2ea]/70 text-[10px]">{item.name}</span>
                 </button>
               ))}
             </div>
@@ -4067,12 +4361,12 @@ export default function LiveStream() {
                       e.stopPropagation();
                       handleComboClick();
                     }}
-                    className="w-16 h-14 rounded-full bg-gradient-to-r from-secondary to-orange-500 flex flex-col items-center justify-center animate-pulse active:scale-90 transition-transform shadow-[0_0_20px_rgba(0,242,234,0.5)] border-2 border-white/30"
+                    className="w-16 h-14 rounded-full bg-gradient-to-r from-secondary to-[#00f2ea] flex flex-col items-center justify-center animate-pulse active:scale-90 transition-transform shadow-[0_0_20px_rgba(0,242,234,0.5)] border-2 border-white/30"
                 >
-                    <span className="text-xl font-black italic text-white drop-shadow-md">x{comboCount}</span>
-                    <span className="text-[9px] font-bold text-white uppercase tracking-widest">Combo</span>
+                    <span className="text-xl font-black italic text-[#00f2ea] drop-shadow-md">x{comboCount}</span>
+                    <span className="text-[9px] font-bold text-[#00f2ea] uppercase tracking-widest">Combo</span>
                 </button>
-                <div className="mt-1 px-3 py-1 text-[10px] text-secondary font-bold bg-black/60 rounded-full backdrop-blur-md border border-white/10 shadow-lg">
+                <div className="mt-1 px-3 py-1 text-[10px] text-secondary font-bold bg-[#121212]/60 rounded-full backdrop-blur-md border border-white/10 shadow-lg">
                     Send {lastSentGift.name}
                 </div>
             </motion.div>

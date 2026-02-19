@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Share2, Menu, Lock, Play, Heart, EyeOff, Camera, Sparkles, Sword, LogOut, UserPlus, X } from 'lucide-react';
+import { Share2, Menu, Lock, Play, Heart, Camera, Sparkles, LogOut, UserPlus, X, Bookmark, Grid3X3, Coins, ShoppingBag, Repeat2, ChevronDown, ChevronRight, Store } from 'lucide-react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
 import { supabase } from '../lib/supabase';
@@ -33,7 +33,7 @@ export default function Profile() {
   const tabParam = searchParams.get('tab');
   const { user, updateUser, signOut } = useAuthStore();
   
-  const [activeTab, setActiveTab] = useState<'videos' | 'private' | 'liked' | 'battles'>(
+  const [activeTab, setActiveTab] = useState<'videos' | 'shop' | 'private' | 'reposts' | 'saved' | 'liked'>(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (tabParam as any) || 'videos'
   );
@@ -107,20 +107,30 @@ export default function Profile() {
       } else if (activeTab === 'private' && isOwnProfile) {
         query = query.eq('user_id', displayUserId).eq('is_private', true);
       } else if (activeTab === 'liked') {
-        // Get liked videos
         const { data: likes } = await supabase
           .from('likes')
           .select('video_id')
           .eq('user_id', displayUserId);
-        
         const videoIds = likes?.map(l => l.video_id) || [];
-        if (videoIds.length === 0) {
-          setVideos([]);
-          return;
-        }
+        if (videoIds.length === 0) { setVideos([]); return; }
         query = query.in('id', videoIds);
-      } else if (activeTab === 'battles') {
-        // TODO: Load battle history
+      } else if (activeTab === 'saved') {
+        const { data: saved } = await supabase
+          .from('saved_videos')
+          .select('video_id')
+          .eq('user_id', displayUserId);
+        const videoIds = saved?.map(s => s.video_id) || [];
+        if (videoIds.length === 0) { setVideos([]); return; }
+        query = query.in('id', videoIds);
+      } else if (activeTab === 'reposts') {
+        const { data: shares } = await supabase
+          .from('shares')
+          .select('video_id')
+          .eq('user_id', displayUserId);
+        const videoIds = shares?.map(s => s.video_id) || [];
+        if (videoIds.length === 0) { setVideos([]); return; }
+        query = query.in('id', videoIds);
+      } else if (activeTab === 'shop') {
         setVideos([]);
         return;
       }
@@ -211,289 +221,296 @@ export default function Profile() {
     }
   };
 
-  const isProfileLoading = loading || !profileData;
-
   if (loading) {
-     return <div className="min-h-screen bg-black text-white flex items-center justify-center">Loading...</div>;
+     return <div className="min-h-[100dvh] bg-[#121212] text-[#00f2ea] flex items-center justify-center">Loading...</div>;
   }
 
   return (
-    <div className="min-h-screen bg-black text-white pb-24 pt-4 flex justify-center">
-      <div className="w-full max-w-md">
-        <header className="flex justify-between items-center px-4 mb-6">
-            <button onClick={() => navigate('/feed')} className="p-1 hover:brightness-125 transition" title="Back to For You">
-              <img src="/Icons/power-button.png" alt="Back" className="w-5 h-5" />
+    <div className="min-h-[100dvh] bg-[#121212] text-[#00f2ea] flex justify-center px-2">
+      <div className="w-full max-w-[480px] h-[100dvh] flex flex-col bg-[#121212] rounded-3xl overflow-hidden overflow-y-auto pt-[var(--safe-top)] pb-[calc(var(--safe-bottom)+12mm)]">
+
+        {/* ═══ TOP BAR ═══ */}
+        <header className="flex items-center justify-between pl-[calc(16px+3mm)] pr-4 pt-2 pb-2">
+          <button onClick={() => navigate('/feed')} title="Add friends" className="p-1">
+            <UserPlus size={22} className="text-[#00f2ea]" />
+          </button>
+          <div className="flex-1" />
+          <div className="flex items-center gap-4">
+            <button title="Share profile" className="p-1">
+              <Share2 size={22} className="text-[#00f2ea]" />
             </button>
-            <h1 className="font-black text-2xl flex items-center gap-2 text-white/90 tracking-tight drop-shadow-sm">
-                {displayName}
-            </h1>
-            <div className="flex space-x-4">
-                <EyeOff size={24} />
-                <button type="button" onClick={() => setShowAccountMenu(true)} className="cursor-pointer" aria-label="Account menu" title="Account menu">
-                  <Menu size={24} />
-                </button>
-            </div>
+            <button type="button" onClick={() => setShowAccountMenu(true)} title="Menu" className="p-1">
+              <Menu size={22} className="text-[#00f2ea]" />
+            </button>
+          </div>
         </header>
 
         {/* ═══ Account Menu Modal ═══ */}
         {showAccountMenu && (
-          <div className="fixed inset-0 z-modals bg-black/70 flex items-end justify-center" onClick={() => setShowAccountMenu(false)}>
+          <div className="fixed inset-0 z-[9999] bg-[#121212]/70 flex items-end justify-center" onClick={() => setShowAccountMenu(false)}>
             <div 
-              className="w-full bg-[#111] rounded-t-2xl border-t border-white/10 pb-safe animate-in slide-in-from-bottom duration-300"
+              className="w-full max-w-[480px] bg-[#111] rounded-t-2xl border-t border-white/10 pb-safe"
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Header */}
               <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-white/10">
-                <h3 className="text-white font-bold text-base">Account</h3>
+                <h3 className="text-[#00f2ea] font-bold text-base">Account</h3>
                 <button onClick={() => setShowAccountMenu(false)} title="Close">
-                  <X size={20} className="text-white/50" />
+                  <X size={20} className="text-[#00f2ea]/50" />
                 </button>
               </div>
-
-              {/* Current Account Info */}
               <div className="px-5 py-4 flex items-center gap-3 border-b border-white/5">
                 <img src={displayAvatar} alt="Avatar" className="w-10 h-10 rounded-full object-cover border border-white/10" />
                 <div>
-                  <p className="text-white font-semibold text-sm">{displayName}</p>
-                  <p className="text-white/50 text-xs">{user?.email || '@' + displayUsername}</p>
+                  <p className="text-[#00f2ea] font-semibold text-sm">{displayName}</p>
+                  <p className="text-[#00f2ea]/50 text-xs">{user?.email || '@' + displayUsername}</p>
                 </div>
               </div>
-
-              {/* Menu Items */}
               <div className="py-2">
-                {/* Settings */}
-                <button
-                  onClick={() => { setShowAccountMenu(false); navigate('/settings'); }}
-                  className="w-full flex items-center gap-3 px-5 py-3 hover:bg-white/5 transition-colors"
-                >
-                  <Menu size={20} className="text-white/70" />
-                  <span className="text-white text-sm font-medium">Settings</span>
+                <button onClick={() => { setShowAccountMenu(false); navigate('/settings'); }} className="w-full flex items-center gap-3 px-5 py-3 hover:bg-white/5 transition-colors">
+                  <Menu size={20} className="text-[#00f2ea]/70" />
+                  <span className="text-[#00f2ea] text-sm font-medium">Settings</span>
                 </button>
-
-                {/* Switch Account */}
-                <button
-                  onClick={async () => {
-                    setShowAccountMenu(false);
-                    await signOut();
-                    navigate('/login', { replace: true });
-                  }}
-                  className="w-full flex items-center gap-3 px-5 py-3 hover:bg-white/5 transition-colors"
-                >
-                  <UserPlus size={20} className="text-[#D6A088]" />
-                  <span className="text-[#D6A088] text-sm font-medium">Switch Account</span>
+                <button onClick={async () => { setShowAccountMenu(false); await signOut(); navigate('/login', { replace: true }); }} className="w-full flex items-center gap-3 px-5 py-3 hover:bg-white/5 transition-colors">
+                  <UserPlus size={20} className="text-[#00f2ea]" />
+                  <span className="text-[#00f2ea] text-sm font-medium">Switch Account</span>
                 </button>
-
-                {/* Log Out */}
-                <button
-                  onClick={async () => {
-                    setShowAccountMenu(false);
-                    await signOut();
-                    navigate('/login', { replace: true });
-                  }}
-                  className="w-full flex items-center gap-3 px-5 py-3 hover:bg-white/5 transition-colors"
-                >
+                <button onClick={async () => { setShowAccountMenu(false); await signOut(); navigate('/login', { replace: true }); }} className="w-full flex items-center gap-3 px-5 py-3 hover:bg-white/5 transition-colors">
                   <LogOut size={20} className="text-rose-400" />
                   <span className="text-rose-400 text-sm font-medium">Log Out</span>
                 </button>
               </div>
-
-              {/* Cancel */}
               <div className="px-5 pb-4 pt-1">
-                <button
-                  onClick={() => setShowAccountMenu(false)}
-                  className="w-full py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/60 text-sm font-semibold"
-                >
-                  Cancel
-                </button>
+                <button onClick={() => setShowAccountMenu(false)} className="w-full py-2.5 rounded-xl bg-white/5 border border-white/10 text-[#00f2ea]/60 text-sm font-semibold">Cancel</button>
               </div>
             </div>
           </div>
         )}
 
-        <div className="flex flex-col items-center mb-6">
-            <div className="w-24 h-24 bg-gray-700 rounded-full mb-3 border-2 border-secondary/50 relative p-1 group cursor-pointer" onClick={() => document.getElementById('avatar-upload')?.click()}>
-                 <img src={displayAvatar} alt="Profile" className="w-full h-full rounded-full object-cover" />
-                 <div className="absolute inset-0 bg-black rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Camera size={24} className="text-white" />
-                 </div>
-                 <input 
-                   type="file" 
-                   id="avatar-upload" 
-                   className="hidden" 
-                   accept="image/*"
-                   aria-label="Upload profile photo"
-                   onChange={(e) => handleAvatarFile(e.target.files?.[0])} 
-                 />
-            </div>
-            {isUploadingAvatar && <div className="text-xs text-white/70">Uploading...</div>}
-            {avatarError && <div className="text-xs text-rose-300 mt-1">{avatarError}</div>}
-            <h2 className="text-xl font-extrabold mt-2 text-white/80">@{displayUsername}</h2>
-
-            {/* Creator Login Details (moved here) */}
-            <div className="flex items-center gap-1 mt-1 text-[#00f2ea] cursor-pointer" onClick={() => navigate('/creator/login-details')}>
-                <Sparkles size={12} />
-                <span className="text-xs font-semibold">Creator login details</span>
-            </div>
-            
-            <div className="flex space-x-8 mt-4">
-                <div className="flex flex-col items-center">
-                    <span className="font-bold text-lg">{formatNumber(profileData?.following_count || 0)}</span>
-                    <span className="text-gray-400 text-xs">Following</span>
-                </div>
-                <div className="flex flex-col items-center">
-                    <span className="font-bold text-lg">{formatNumber(profileData?.followers_count || 0)}</span>
-                    <span className="text-gray-400 text-xs">Followers</span>
-                </div>
-                <div className="flex flex-col items-center">
-                    <span className="font-bold text-lg">{formatNumber(profileData?.likes_count || 0)}</span>
-                    <span className="text-gray-400 text-xs">Likes</span>
-                </div>
-            </div>
-
-            <div className="w-full px-4 mt-5">
-              <div className="grid grid-cols-3 gap-2">
-                <div className="bg-transparent5 border border-transparent rounded-xl px-3 py-3 flex items-center justify-center">
-                  <div className="text-xs font-extrabold text-white/80">A1</div>
-                </div>
-                <div className="bg-transparent5 border border-transparent rounded-xl px-3 py-3 flex items-center justify-center">
-                  <div className="text-xs font-extrabold text-white/80">LVL {profileData?.level || 1}</div>
-                </div>
-                <div className="bg-transparent5 border border-transparent rounded-xl px-3 py-3 flex items-center justify-center">
-                  <div className="text-xs font-extrabold text-white/80">
-                    {ranking ? `TOP ${ranking}` : 'NO RANK'}
-                  </div>
-                </div>
+        {/* ═══ AVATAR ═══ */}
+        <div className="flex flex-col items-center mt-2 mb-3">
+          <div className="relative group cursor-pointer" onClick={() => isOwnProfile && document.getElementById('avatar-upload')?.click()}>
+            <div className="w-[96px] h-[96px] rounded-full p-[3px] bg-gradient-to-tr from-[#00f2ea] to-[#00f2ea]">
+              <div className="w-full h-full rounded-full border-[3px] border-[#121212] overflow-hidden">
+                <img src={displayAvatar} alt="Profile" className="w-full h-full rounded-full object-cover" />
               </div>
             </div>
-
-            <div className="flex space-x-2 mt-6">
-                {isOwnProfile ? (
-                  <>
-                    <button 
-                        onClick={() => navigate('/edit-profile')}
-                        className="px-8 py-2 bg-gray-800 rounded text-sm font-semibold"
-                    >
-                        Edit profile
-                    </button>
-                    <button type="button" className="p-2 bg-gray-800 rounded" aria-label="Share profile" title="Share profile">
-                        <Share2 size={20} />
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <button
-                      onClick={toggleFollow}
-                      className={`flex-1 px-8 py-2 rounded text-sm font-semibold transition ${
-                        isFollowing
-                          ? 'bg-transparent10 text-white hover:bg-transparent20'
-                          : 'bg-[#00f2ea] text-black hover:opacity-90'
-                      }`}
-                    >
-                      {isFollowing ? 'Following' : 'Follow'}
-                    </button>
-                    <button
-                      onClick={() => navigate(`/inbox`)}
-                      className="px-6 py-2 bg-gray-800 rounded text-sm font-semibold hover:bg-gray-700 transition"
-                    >
-                      Message
-                    </button>
-                    <button type="button" className="p-2 bg-gray-800 rounded" aria-label="Share profile" title="Share profile">
-                        <Share2 size={20} />
-                    </button>
-                  </>
-                )}
-            </div>
-        </div>
-
-        {/* Bio */}
-        {profileData?.bio && (
-          <div className="px-4 text-center mb-6 text-sm">
-            <p>{profileData.bio}</p>
-          </div>
-        )}
-
-
-
-        {/* Tabs */}
-        <div className="border-b border-gray-800 flex justify-around text-gray-500">
-            <button
-              type="button"
-              onClick={() => setActiveTab('videos')}
-              className={`pb-2 border-b-2 ${
-                activeTab === 'videos' ? 'border-white text-white' : 'border-transparent'
-              } w-1/4 flex justify-center`}
-              aria-label="Videos tab"
-            >
-                <Play size={20} fill={activeTab === 'videos' ? 'currentColor' : 'none'} />
-            </button>
             {isOwnProfile && (
-              <button
-                type="button"
-                onClick={() => setActiveTab('private')}
-                className={`pb-2 border-b-2 ${
-                  activeTab === 'private' ? 'border-white text-white' : 'border-transparent'
-                } w-1/4 flex justify-center`}
-                aria-label="Private tab"
-              >
-                  <Lock size={20} fill={activeTab === 'private' ? 'currentColor' : 'none'} />
-              </button>
+              <div className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-7 h-7 rounded-full bg-[#00f2ea] border-[3px] border-[#121212] flex items-center justify-center">
+                <span className="text-black font-bold text-sm leading-none">+</span>
+              </div>
             )}
-            <button
-              type="button"
-              onClick={() => setActiveTab('liked')}
-              className={`pb-2 border-b-2 ${
-                activeTab === 'liked' ? 'border-white text-white' : 'border-transparent'
-              } w-1/4 flex justify-center`}
-              aria-label="Likes tab"
-            >
-                <Heart size={20} fill={activeTab === 'liked' ? 'currentColor' : 'none'} />
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('battles')}
-              className={`pb-2 border-b-2 ${
-                activeTab === 'battles' ? 'border-white text-white' : 'border-transparent'
-              } w-1/4 flex justify-center`}
-              aria-label="Battles tab"
-            >
-                <Sword size={20} fill={activeTab === 'battles' ? 'currentColor' : 'none'} />
-            </button>
+            {isOwnProfile && (
+              <div className="absolute inset-0 rounded-full bg-[#121212]/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                <Camera size={24} className="text-[#00f2ea]" />
+              </div>
+            )}
+            <input 
+              type="file" 
+              id="avatar-upload" 
+              className="hidden" 
+              accept="image/*"
+              aria-label="Upload profile photo"
+              onChange={(e) => handleAvatarFile(e.target.files?.[0])} 
+            />
+          </div>
+          {isUploadingAvatar && <div className="text-xs text-[#00f2ea]/70 mt-1">Uploading...</div>}
+          {avatarError && <div className="text-xs text-rose-300 mt-1">{avatarError}</div>}
         </div>
 
-        {/* Video Grid */}
-        <div className="grid grid-cols-3 gap-[1px] mt-[1px]">
-             {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-             {videos.map((video: any) => (
-                 <button
-                   key={video.id}
-                   onClick={() => navigate(`/video/${video.id}`)}
-                   className="aspect-[3/4] bg-gray-800 relative group text-left"
-                 >
-                    <img 
-                        src={video.thumbnail_url || '/placeholder-video.png'} 
-                        alt="Video Thumbnail" 
-                        className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition" 
-                    />
-                    {video.is_private && (
-                      <div className="absolute top-2 right-2">
-                        <Lock size={16} className="text-white drop-shadow" />
-                      </div>
-                    )}
-                    <span className="absolute bottom-1 left-1 flex items-center text-xs font-bold text-white drop-shadow-md">
-                        <Play size={10} className="mr-1" fill="white" /> {formatNumber(video.views)}
-                    </span>
-                 </button>
-             ))}
+        {/* ═══ NAME + EDIT ═══ */}
+        <div className="flex items-center justify-center gap-2 px-4">
+          <h1 className="text-[17px] font-extrabold text-[#00f2ea] tracking-tight">{displayName}</h1>
+          {profileData?.is_creator && (
+            <span className="w-4 h-4 rounded-full bg-[#00f2ea] flex items-center justify-center">
+              <Sparkles size={10} className="text-black" />
+            </span>
+          )}
+        </div>
+
+
+        {/* ═══ STATS ROW ═══ */}
+        <div className="flex items-center justify-center gap-6 mt-4 px-4">
+          <div className="flex flex-col items-center min-w-[60px]">
+            <span className="text-[17px] font-extrabold text-[#00f2ea]">{formatNumber(profileData?.following_count || 0)}</span>
+            <span className="text-[11px] text-[#00f2ea]/40 font-medium">Following</span>
+          </div>
+          <div className="flex flex-col items-center min-w-[60px]">
+            <span className="text-[17px] font-extrabold text-[#00f2ea]">{formatNumber(profileData?.followers_count || 0)}</span>
+            <span className="text-[11px] text-[#00f2ea]/40 font-medium">Followers</span>
+          </div>
+          <div className="flex flex-col items-center min-w-[60px]">
+            <span className="text-[17px] font-extrabold text-[#00f2ea]">{formatNumber(profileData?.likes_count || 0)}</span>
+            <span className="text-[11px] text-[#00f2ea]/40 font-medium">Likes</span>
+          </div>
+        </div>
+
+        {/* ═══ BIO ═══ */}
+        {profileData?.bio && (
+          <p className="text-center text-[13px] text-[#00f2ea]/70 mt-3 px-8 leading-relaxed">{profileData.bio}</p>
+        )}
+
+        {/* ═══ FOLLOW / MESSAGE (other user) ═══ */}
+        {!isOwnProfile && (
+          <div className="flex items-center justify-center gap-2 mt-4 px-6">
+            <button
+              onClick={toggleFollow}
+              className={`flex-1 max-w-[160px] py-2.5 rounded-md text-sm font-bold transition ${
+                isFollowing
+                  ? 'bg-white/10 text-[#00f2ea] border border-white/10'
+                  : 'bg-[#00f2ea] text-black'
+              }`}
+            >
+              {isFollowing ? 'Following' : 'Follow'}
+            </button>
+            <button
+              onClick={() => navigate(`/inbox`)}
+              className="flex-1 max-w-[160px] py-2.5 bg-white/10 border border-white/10 rounded-md text-sm font-bold text-[#00f2ea]"
+            >
+              Message
+            </button>
+            <button type="button" className="w-10 h-10 bg-white/10 border border-white/10 rounded-md flex items-center justify-center" title="Share profile">
+              <Share2 size={18} className="text-[#00f2ea]" />
+            </button>
+          </div>
+        )}
+
+        {/* ═══ ACTION BAR (scrollable) — matches TikTok ═══ */}
+        <div className="mt-4 border-b border-white/5">
+          <div className="flex overflow-x-auto no-scrollbar">
+            <button onClick={() => navigate('/creator/login-details')} className="flex items-center gap-2 px-4 py-3 whitespace-nowrap">
+              <Sparkles size={16} className="text-[#ff2d55]" />
+              <span className="text-[13px] font-bold text-[#00f2ea]">Elix Studio</span>
+            </button>
+            <button onClick={() => navigate('/purchase-coins')} className="flex items-center gap-2 px-4 py-3 whitespace-nowrap">
+              <Coins size={16} className="text-[#ff2d55]" />
+              <span className="text-[13px] font-bold text-[#00f2ea]">Your orders</span>
+            </button>
+            <button onClick={() => setActiveTab('shop')} className="flex items-center gap-2 px-4 py-3 whitespace-nowrap">
+              <ShoppingBag size={16} className="text-[#ff2d55]" />
+              <span className="text-[13px] font-bold text-[#00f2ea]">Showcase</span>
+            </button>
+            <button onClick={() => navigate('/edit-profile')} className="flex items-center gap-2 px-4 py-3 whitespace-nowrap">
+              <img src={displayAvatar} alt="" className="w-4 h-4 rounded-full object-cover" />
+              <span className="text-[13px] font-bold text-[#00f2ea]">{displayName.length > 10 ? displayName.slice(0, 10) + '...' : displayName}</span>
+            </button>
+          </div>
+        </div>
+
+        {/* ═══ CONTENT TABS (6 icons) — matches TikTok ═══ */}
+        <div className="border-b border-white/10 flex">
+          <button
+            type="button"
+            onClick={() => setActiveTab('videos')}
+            className={`flex-1 pb-2.5 pt-2.5 flex items-center justify-center gap-0.5 border-b-2 transition-colors ${
+              activeTab === 'videos' ? 'border-white text-[#00f2ea]' : 'border-transparent text-[#00f2ea]/30'
+            }`}
+            aria-label="Videos"
+          >
+            <Grid3X3 size={20} />
+            <ChevronDown size={12} />
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('shop')}
+            className={`flex-1 pb-2.5 pt-2.5 flex justify-center border-b-2 transition-colors ${
+              activeTab === 'shop' ? 'border-white text-[#00f2ea]' : 'border-transparent text-[#00f2ea]/30'
+            }`}
+            aria-label="Shop"
+          >
+            <ShoppingBag size={20} />
+          </button>
+          {isOwnProfile && (
+            <button
+              type="button"
+              onClick={() => setActiveTab('private')}
+              className={`flex-1 pb-2.5 pt-2.5 flex justify-center border-b-2 transition-colors ${
+                activeTab === 'private' ? 'border-white text-[#00f2ea]' : 'border-transparent text-[#00f2ea]/30'
+              }`}
+              aria-label="Private"
+            >
+              <Lock size={20} />
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => setActiveTab('reposts')}
+            className={`flex-1 pb-2.5 pt-2.5 flex justify-center border-b-2 transition-colors ${
+              activeTab === 'reposts' ? 'border-white text-[#00f2ea]' : 'border-transparent text-[#00f2ea]/30'
+            }`}
+            aria-label="Reposts"
+          >
+            <Repeat2 size={20} />
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('saved')}
+            className={`flex-1 pb-2.5 pt-2.5 flex justify-center border-b-2 transition-colors ${
+              activeTab === 'saved' ? 'border-white text-[#00f2ea]' : 'border-transparent text-[#00f2ea]/30'
+            }`}
+            aria-label="Saved"
+          >
+            <Bookmark size={20} />
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('liked')}
+            className={`flex-1 pb-2.5 pt-2.5 flex justify-center border-b-2 transition-colors ${
+              activeTab === 'liked' ? 'border-white text-[#00f2ea]' : 'border-transparent text-[#00f2ea]/30'
+            }`}
+            aria-label="Liked"
+          >
+            <Heart size={20} />
+          </button>
+        </div>
+
+        {/* ═══ VIDEO GRID ═══ */}
+        <div className="grid grid-cols-3 gap-[1px] flex-1">
+          {videos.map((video) => (
+            <button
+              key={video.id}
+              onClick={() => navigate(`/video/${video.id}`)}
+              className="aspect-[3/4] bg-[#1a1a1a] relative group text-left"
+            >
+              <img 
+                src={video.thumbnail_url || '/placeholder-video.png'} 
+                alt="Video" 
+                className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition" 
+              />
+              {video.is_private && (
+                <div className="absolute top-2 right-2">
+                  <Lock size={14} className="text-[#00f2ea] drop-shadow" />
+                </div>
+              )}
+              <span className="absolute bottom-1.5 left-1.5 flex items-center gap-0.5 text-[11px] font-bold text-[#00f2ea] drop-shadow-md">
+                <Play size={10} fill="white" /> {formatNumber(video.views)}
+              </span>
+            </button>
+          ))}
         </div>
         
         {!loading && videos.length === 0 && (
-          <div className="text-center py-12 text-white/40">
+          <div className="flex-1 flex items-center justify-center py-16 text-[#00f2ea]/30 text-sm">
             {activeTab === 'videos' && 'No videos yet'}
+            {activeTab === 'shop' && 'No shop items yet'}
             {activeTab === 'private' && 'No private videos'}
+            {activeTab === 'reposts' && 'No reposts yet'}
+            {activeTab === 'saved' && 'No saved videos'}
             {activeTab === 'liked' && 'No liked videos'}
-            {activeTab === 'battles' && 'No battle history'}
           </div>
         )}
+
+        {/* ═══ CREATOR CENTRE BANNER ═══ */}
+        {isOwnProfile && (
+          <button
+            onClick={() => navigate('/creator/login-details')}
+            className="mx-3 mt-3 flex items-center gap-3 px-4 py-3 bg-white/5 border border-white/8 rounded-xl"
+          >
+            <Store size={20} className="text-[#00f2ea]/50 shrink-0" />
+            <span className="text-[13px] font-bold text-[#00f2ea] flex-1 text-left">Elix Creator Centre</span>
+            <ChevronRight size={18} className="text-[#00f2ea]/30 shrink-0" />
+          </button>
+        )}
+
       </div>
     </div>
   );

@@ -137,19 +137,19 @@ class NotificationService {
   private showInAppNotification(notification: PushNotificationSchema) {
     // Create temporary notification element
     const banner = document.createElement('div');
-    banner.className = 'fixed top-4 left-4 right-4 bg-black/90 backdrop-blur-sm rounded-2xl p-4 shadow-2xl z-50 animate-slide-down';
+    banner.className = 'fixed top-4 left-4 right-4 bg-[#121212]/90 backdrop-blur-sm rounded-2xl p-4 shadow-2xl z-50 animate-slide-down';
     const safeTitle = this.escapeHtml(notification.title || '');
     const safeBody = this.escapeHtml(notification.body || '');
     banner.innerHTML = `
       <div class="flex items-start gap-3">
-        <div class="w-10 h-10 bg-[#E6B36A] rounded-full flex items-center justify-center flex-shrink-0">
+        <div class="w-10 h-10 bg-[#00f2ea] rounded-full flex items-center justify-center flex-shrink-0">
           <svg class="w-5 h-5 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
           </svg>
         </div>
         <div class="flex-1 min-w-0">
-          <p class="font-bold text-white mb-1">${safeTitle}</p>
-          <p class="text-sm text-white/80">${safeBody}</p>
+          <p class="font-bold text-[#00f2ea] mb-1">${safeTitle}</p>
+          <p class="text-sm text-[#00f2ea]/80">${safeBody}</p>
         </div>
       </div>
     `;

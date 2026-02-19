@@ -73,13 +73,13 @@ export default function Support() {
 
   if (submitted) {
     return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center px-4">
+      <div className="min-h-[100dvh] bg-[#121212] text-[#00f2ea] flex items-center justify-center px-4">
         <div className="text-center">
-          <div className="w-20 h-20 bg-green-500 rounded-full mx-auto mb-4 flex items-center justify-center">
-            <Send className="w-10 h-10 text-white" />
+          <div className="w-20 h-20 bg-[#00f2ea] rounded-full mx-auto mb-4 flex items-center justify-center">
+            <Send className="w-10 h-10 text-[#00f2ea]" />
           </div>
           <h2 className="text-2xl font-bold mb-2">Message Sent!</h2>
-          <p className="text-white/60">We'll get back to you within 24 hours.</p>
+          <p className="text-[#00f2ea]/60">We'll get back to you within 24 hours.</p>
         </div>
       </div>
     );
@@ -87,9 +87,10 @@ export default function Support() {
 
   if (showContactForm) {
     return (
-      <div className="min-h-screen bg-black text-white">
+      <div className="min-h-[100dvh] bg-[#121212] text-[#00f2ea] flex justify-center px-2">
+        <div className="w-full max-w-[480px] h-[100dvh] rounded-3xl overflow-hidden bg-[#121212] flex flex-col pt-[var(--safe-top)] pb-[calc(var(--safe-bottom)+12mm)]">
         {/* Header */}
-        <div className="sticky top-0  z-10 px-4 py-4 border-b border-transparent flex items-center justify-between">
+        <div className="sticky top-0 bg-[#121212] z-10 px-4 py-4 border-b border-transparent flex items-center justify-between">
           <button
             onClick={() => setShowContactForm(false)}
             className="p-2 hover:brightness-125 rounded-full transition"
@@ -108,7 +109,7 @@ export default function Support() {
               value={email}
               onChange={e => setEmail(e.target.value)}
               placeholder="your@email.com"
-              className="w-full bg-black rounded-lg px-4 py-3 outline-none text-white placeholder-white/40 border border-transparent focus:border-[#E6B36A] transition"
+              className="w-full bg-[#121212] rounded-lg px-4 py-3 outline-none text-[#00f2ea] placeholder-[#00f2ea]/40 border border-transparent focus:border-[#00f2ea] transition"
             />
           </div>
 
@@ -120,7 +121,7 @@ export default function Support() {
               onChange={e => setSubject(e.target.value)}
               placeholder="Brief description of your issue"
               maxLength={100}
-              className="w-full bg-black rounded-lg px-4 py-3 outline-none text-white placeholder-white/40 border border-transparent focus:border-[#E6B36A] transition"
+              className="w-full bg-[#121212] rounded-lg px-4 py-3 outline-none text-[#00f2ea] placeholder-[#00f2ea]/40 border border-transparent focus:border-[#00f2ea] transition"
             />
           </div>
 
@@ -132,53 +133,55 @@ export default function Support() {
               placeholder="Describe your issue in detail..."
               maxLength={1000}
               rows={6}
-              className="w-full bg-black rounded-lg px-4 py-3 outline-none text-white placeholder-white/40 border border-transparent focus:border-[#E6B36A] transition resize-none"
+              className="w-full bg-[#121212] rounded-lg px-4 py-3 outline-none text-[#00f2ea] placeholder-[#00f2ea]/40 border border-transparent focus:border-[#00f2ea] transition resize-none"
             />
-            <p className="text-xs text-white/40 mt-1 text-right">{message.length}/1000</p>
+            <p className="text-xs text-[#00f2ea]/40 mt-1 text-right">{message.length}/1000</p>
           </div>
 
           <button
             onClick={handleSubmitTicket}
             disabled={loading || !subject.trim() || !message.trim() || !email.trim()}
-            className="w-full py-4 bg-[#E6B36A] text-black rounded-xl font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 transition"
+            className="w-full py-4 bg-[#00f2ea] text-black rounded-xl font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 transition"
           >
             {loading ? 'Sending...' : 'Send Message'}
           </button>
+        </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-[100dvh] bg-[#121212] text-[#00f2ea] flex justify-center px-2">
+      <div className="w-full max-w-[480px] h-[100dvh] rounded-3xl overflow-hidden bg-[#121212] flex flex-col pt-[var(--safe-top)] pb-[calc(var(--safe-bottom)+12mm)]">
       {/* Header */}
-      <div className="sticky top-0  z-10 px-4 py-4 border-b border-transparent flex items-center gap-3">
+      <div className="sticky top-0 bg-[#121212] z-10 px-4 py-4 border-b border-transparent flex items-center gap-3">
         <button onClick={() => navigate(-1)} className="p-2 hover:brightness-125 rounded-full transition">
           <img src="/Icons/power-button.png" alt="Back" className="w-5 h-5" />
         </button>
         <h1 className="text-xl font-bold">Help & Support</h1>
       </div>
 
-      <div className="px-4 py-6">
+      <div className="px-4 py-6 flex-1 overflow-y-auto">
         {/* Quick Links */}
         <Section title="Quick Links">
           <QuickLinkCard
             icon={<MessageCircle className="w-6 h-6" />}
             label="Contact Support"
             onClick={() => setShowContactForm(true)}
-            color="bg-blue-500"
+            color="bg-[#00f2ea]"
           />
           <QuickLinkCard
             icon={<Shield className="w-6 h-6" />}
             label="Safety Center"
             onClick={() => navigate('/settings/safety')}
-            color="bg-purple-500"
+            color="bg-[#00f2ea]"
           />
           <QuickLinkCard
             icon={<Book className="w-6 h-6" />}
             label="Community Guidelines"
             onClick={() => navigate('/guidelines')}
-            color="bg-green-500"
+            color="bg-[#00f2ea]"
           />
         </Section>
 
@@ -200,15 +203,16 @@ export default function Support() {
 
         {/* Contact */}
         <div className="mt-8 p-6  rounded-2xl text-center">
-          <Mail className="w-8 h-8 text-[#E6B36A] mx-auto mb-3" />
-          <p className="text-sm text-white/80 mb-1">Email us directly</p>
+          <Mail className="w-8 h-8 text-[#00f2ea] mx-auto mb-3" />
+          <p className="text-sm text-[#00f2ea]/80 mb-1">Email us directly</p>
           <a
             href="mailto:support@elixstar.live"
-            className="text-[#E6B36A] font-semibold hover:underline"
+            className="text-[#00f2ea] font-semibold hover:underline"
           >
             support@elixstar.live
           </a>
         </div>
+      </div>
       </div>
     </div>
   );
@@ -217,7 +221,7 @@ export default function Support() {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="mb-6">
-      <h2 className="text-sm font-semibold text-white/60 mb-3 px-2">{title}</h2>
+      <h2 className="text-sm font-semibold text-[#00f2ea]/60 mb-3 px-2">{title}</h2>
       {children}
     </div>
   );
@@ -239,7 +243,7 @@ function QuickLinkCard({
       onClick={onClick}
       className="flex items-center gap-4 p-4  rounded-xl hover:brightness-125 transition w-full text-left mb-2"
     >
-      <div className={`w-12 h-12 ${color} rounded-full flex items-center justify-center text-white`}>
+      <div className={`w-12 h-12 ${color} rounded-full flex items-center justify-center text-[#00f2ea]`}>
         {icon}
       </div>
       <span className="font-semibold">{label}</span>
@@ -260,7 +264,7 @@ function FAQItem({ question, answer }: { question: string; answer: string }) {
         <HelpCircle className={`w-5 h-5 flex-shrink-0 transition ${isOpen ? 'rotate-180' : ''}`} />
       </button>
       {isOpen && (
-        <div className="px-4 pb-4 text-sm text-white/70">
+        <div className="px-4 pb-4 text-sm text-[#00f2ea]/70">
           {answer}
         </div>
       )}
@@ -274,7 +278,7 @@ function TextLink({ label, onClick }: { label: string; onClick: () => void }) {
       onClick={onClick}
       className="w-full text-left px-4 py-3 hover: rounded-lg transition"
     >
-      <span className="text-white/80 hover:text-[#E6B36A]">{label}</span>
+      <span className="text-[#00f2ea]/80 hover:text-[#00f2ea]">{label}</span>
     </button>
   );
 }

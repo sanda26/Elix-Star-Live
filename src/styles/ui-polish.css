@@ -29,11 +29,11 @@
 
 /* Clean bottom sheets */
 .bottom-sheet {
-  @apply bg-black/95 rounded-t-2xl max-h-[70dvh] overflow-y-auto no-scrollbar shadow-2xl;
+  @apply bg-[#121212]/95 rounded-t-2xl max-h-[70dvh] overflow-y-auto no-scrollbar shadow-2xl;
 }
 
 .bottom-sheet-small {
-  @apply bg-black/95 rounded-t-2xl max-h-[40dvh] overflow-y-auto no-scrollbar shadow-2xl;
+  @apply bg-[#121212]/95 rounded-t-2xl max-h-[40dvh] overflow-y-auto no-scrollbar shadow-2xl;
 }
 
 /* Remove visual clutter */

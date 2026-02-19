@@ -5,9 +5,9 @@ export function getPosterCandidatesFromVideoSrc(videoSrc: string): string[] {
   if (!match) return [];
   const [, dir, filename] = match;
   return [
-    `${dir}posters/${filename}.webp`,
-    `${dir}${filename}.webp`,
     `${dir}${filename}.png`,
+    `${dir}${filename}.webp`,
+    `${dir}posters/${filename}.webp`,
   ];
 }
 

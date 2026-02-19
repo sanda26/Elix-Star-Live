@@ -123,9 +123,10 @@ export default function EditProfile() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-[100dvh] bg-[#121212] text-[#00f2ea] flex justify-center px-2">
+      <div className="w-full max-w-[480px] h-[100dvh] rounded-3xl overflow-hidden bg-[#121212] flex flex-col pt-[var(--safe-top)] pb-[calc(var(--safe-bottom)+12mm)]">
       {/* Header */}
-      <div className="sticky top-0 z-10 px-4 py-4 flex items-center justify-between">
+      <div className="sticky top-0 z-10 px-4 py-4 flex items-center justify-between bg-[#121212]">
         <button onClick={() => navigate(-1)} className="p-2 hover:brightness-125 rounded-full transition">
           <img src="/Icons/power-button.png" alt="Back" className="w-5 h-5" />
         </button>
@@ -133,25 +134,25 @@ export default function EditProfile() {
         <button
           onClick={handleSave}
           disabled={loading}
-          className="px-4 py-2 bg-[#E6B36A] text-black rounded-full font-semibold disabled:opacity-50"
+          className="px-4 py-2 bg-[#00f2ea] text-black rounded-full font-semibold disabled:opacity-50"
         >
           {loading ? 'Saving...' : 'Save'}
         </button>
       </div>
 
-      <div className="px-4 py-6 space-y-6">
+      <div className="px-4 py-6 space-y-6 flex-1 overflow-y-auto">
         {/* Avatar */}
         <div className="flex flex-col items-center gap-4">
           <div className="relative group cursor-pointer">
             <img
               src={profile.avatar_url || `https://ui-avatars.com/api/?name=${profile.username}`}
               alt="Avatar"
-              className="w-24 h-24 object-cover rounded-full border-2 border-[#E6B36A]"
+              className="w-24 h-24 object-cover rounded-full border-2 border-[#00f2ea]"
               onClick={() => document.getElementById('avatar-upload')?.click()}
             />
             <label
               htmlFor="avatar-upload"
-              className="absolute bottom-0 right-0 w-8 h-8 bg-[#E6B36A] rounded-full flex items-center justify-center cursor-pointer hover:scale-110 transition shadow-lg"
+              className="absolute bottom-0 right-0 w-8 h-8 bg-[#00f2ea] rounded-full flex items-center justify-center cursor-pointer hover:scale-110 transition shadow-lg"
             >
               <Camera className="w-4 h-4 text-black" />
             </label>
@@ -166,12 +167,12 @@ export default function EditProfile() {
           <button 
             type="button"
             onClick={() => document.getElementById('avatar-upload')?.click()}
-            className="text-sm font-semibold text-[#E6B36A] hover:text-[#E6B36A]/80 transition"
+            className="text-sm font-semibold text-[#00f2ea] hover:text-[#00f2ea]/80 transition"
           >
             Change Photo
           </button>
-          {uploading && <p className="text-sm text-white/60">Uploading...</p>}
-          <p className="text-sm text-white/60">@{profile.username}</p>
+          {uploading && <p className="text-sm text-[#00f2ea]/60">Uploading...</p>}
+          <p className="text-sm text-[#00f2ea]/60">@{profile.username}</p>
         </div>
 
         {/* Form Fields */}
@@ -227,6 +228,7 @@ export default function EditProfile() {
           />
         </div>
       </div>
+      </div>
     </div>
   );
 }
@@ -246,14 +248,14 @@ function InputField({
 }) {
   return (
     <div>
-      <label className="block text-sm font-semibold text-white/80 mb-2">{label}</label>
+      <label className="block text-sm font-semibold text-[#00f2ea]/80 mb-2">{label}</label>
       <input
         type="text"
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
         maxLength={maxLength}
-        className="w-full bg-black rounded-lg px-4 py-3 outline-none text-white placeholder-white/40 border border-transparent focus:border-[#E6B36A] transition"
+        className="w-full bg-[#121212] rounded-lg px-4 py-3 outline-none text-[#00f2ea] placeholder-[#00f2ea]/40 border border-transparent focus:border-[#00f2ea] transition"
       />
     </div>
   );
@@ -274,17 +276,17 @@ function TextAreaField({
 }) {
   return (
     <div>
-      <label className="block text-sm font-semibold text-white/80 mb-2">{label}</label>
+      <label className="block text-sm font-semibold text-[#00f2ea]/80 mb-2">{label}</label>
       <textarea
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
         maxLength={maxLength}
         rows={4}
-        className="w-full bg-black rounded-lg px-4 py-3 outline-none text-white placeholder-white/40 border border-transparent focus:border-[#E6B36A] transition resize-none"
+        className="w-full bg-[#121212] rounded-lg px-4 py-3 outline-none text-[#00f2ea] placeholder-[#00f2ea]/40 border border-transparent focus:border-[#00f2ea] transition resize-none"
       />
       {maxLength && (
-        <p className="text-xs text-white/40 mt-1 text-right">
+        <p className="text-xs text-[#00f2ea]/40 mt-1 text-right">
           {value.length}/{maxLength}
         </p>
       )}
@@ -295,9 +297,9 @@ function TextAreaField({
 function Divider({ label }: { label: string }) {
   return (
     <div className="flex items-center gap-3 py-2">
-      <div className="flex-1 h-px bg-black"></div>
-      <span className="text-xs text-white/40 font-semibold">{label}</span>
-      <div className="flex-1 h-px bg-black"></div>
+      <div className="flex-1 h-px bg-[#121212]"></div>
+      <span className="text-xs text-[#00f2ea]/40 font-semibold">{label}</span>
+      <div className="flex-1 h-px bg-[#121212]"></div>
     </div>
   );
 }

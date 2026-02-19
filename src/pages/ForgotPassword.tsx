@@ -33,17 +33,17 @@ export default function ForgotPassword() {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center p-4">
+      <div className="min-h-[100dvh] h-[100dvh] bg-[#121212] text-[#00f2ea] flex items-center justify-center p-4 overflow-y-auto">
         <div className="w-full max-w-[420px] bg-white/5 border border-white/10 rounded-2xl p-6 text-center">
-          <CheckCircle className="w-12 h-12 text-green-400 mx-auto mb-4" />
+          <CheckCircle className="w-12 h-12 text-[#00f2ea] mx-auto mb-4" />
           <h1 className="text-xl font-bold mb-2">Check your email</h1>
-          <p className="text-sm text-white/60 mb-6">
+          <p className="text-sm text-[#00f2ea]/60 mb-6">
             We've sent a password reset link to <strong>{email}</strong>.
             Check your inbox and follow the link to reset your password.
           </p>
           <Link
             to="/login"
-            className="inline-block w-full bg-[#E6B36A] text-black font-bold rounded-xl py-3 text-sm text-center"
+            className="inline-block w-full bg-[#00f2ea] text-black font-bold rounded-xl py-3 text-sm text-center"
           >
             Back to Login
           </Link>
@@ -53,28 +53,28 @@ export default function ForgotPassword() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white flex items-center justify-center p-4">
+    <div className="min-h-[100dvh] h-[100dvh] bg-[#121212] text-[#00f2ea] flex items-center justify-center p-4 overflow-y-auto">
       <div className="w-full max-w-[420px] bg-white/5 border border-white/10 rounded-2xl p-6">
-        <Link to="/login" className="flex items-center gap-2 text-white/60 text-sm mb-4 hover:text-white">
+        <Link to="/login" className="flex items-center gap-2 text-[#00f2ea]/60 text-sm mb-4 hover:text-[#00f2ea]">
           <ArrowLeft className="w-4 h-4" />
           Back to Login
         </Link>
 
         <h1 className="text-2xl font-bold mb-2">Forgot Password</h1>
-        <p className="text-sm text-white/60 mb-6">
+        <p className="text-sm text-[#00f2ea]/60 mb-6">
           Enter your email address and we'll send you a link to reset your password.
         </p>
 
         <form onSubmit={onSubmit} className="space-y-4">
           <div className="space-y-2">
-            <label className="text-sm text-white/70">Email</label>
+            <label className="text-sm text-[#00f2ea]/70">Email</label>
             <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/50" />
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#00f2ea]/50" />
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-white/10 border border-white/10 rounded-xl pl-10 pr-3 py-3 text-sm text-white outline-none focus:border-[#E6B36A]/50 placeholder:text-white/40"
+                className="w-full bg-white/10 border border-white/10 rounded-xl pl-10 pr-3 py-3 text-sm text-[#00f2ea] outline-none focus:border-[#00f2ea]/50 placeholder:text-[#00f2ea]/40"
                 placeholder="you@email.com"
                 autoComplete="email"
                 required
@@ -91,7 +91,7 @@ export default function ForgotPassword() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full bg-[#E6B36A] text-black font-bold rounded-xl py-3 text-sm disabled:opacity-60"
+            className="w-full bg-[#00f2ea] text-black font-bold rounded-xl py-3 text-sm disabled:opacity-60"
           >
             {isSubmitting ? 'Sending...' : 'Send Reset Link'}
           </button>

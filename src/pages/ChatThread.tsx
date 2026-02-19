@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { Send, ArrowLeft } from 'lucide-react';
+import { Send, ArrowLeft, Video } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../store/useAuthStore';
 import { LevelBadge } from '../components/LevelBadge';
+import { initiateCall } from '../lib/callService';
 
 interface Message {
   id: string;
@@ -162,12 +163,12 @@ export default function ChatThread() {
   // Render System/Placeholder Views
   if (isSystemThread) {
      return (
-        <div className="min-h-screen bg-black text-white p-4">
+        <div className="min-h-[100dvh] bg-[#121212] text-[#00f2ea] p-4">
              <header className="flex items-center gap-4 mb-4">
                 <button onClick={() => navigate('/inbox')}><ArrowLeft /></button>
                 <h1 className="font-bold text-lg capitalize">{threadId}</h1>
              </header>
-             <div className="text-center text-white/50 mt-20">
+             <div className="text-center text-[#00f2ea]/50 mt-20">
                  No {threadId} yet.
              </div>
         </div>
@@ -175,16 +176,16 @@ export default function ChatThread() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white flex justify-center">
-      <div className="w-full flex flex-col h-[100dvh]">
+    <div className="min-h-[100dvh] bg-[#121212] text-[#00f2ea] flex justify-center px-2">
+      <div className="w-full max-w-[480px] flex flex-col h-[100dvh] rounded-3xl overflow-hidden bg-[#121212] pt-[var(--safe-top)] pb-[calc(var(--safe-bottom)+12mm)]">
         {/* Header */}
-        <header className="flex items-center gap-3 px-4 py-3 border-b border-white/10 bg-[#111]">
+        <header className="flex items-center gap-3 px-4 py-3 border-b border-white/10 bg-[#121212]">
           <button onClick={() => navigate('/inbox')} className="p-1">
              <img src="/Icons/power-button.png" alt="Back" className="w-5 h-5" />
           </button>
           
           {otherUser ? (
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 flex-1">
                   <div className="flex-shrink-0">
                       <LevelBadge 
                         level={otherUser.level || 1} 
@@ -196,7 +197,22 @@ export default function ChatThread() {
                   <span className="font-bold text-sm">{otherUser.username}</span>
               </div>
           ) : (
-              <span className="font-bold text-lg">Chat</span>
+              <span className="font-bold text-lg flex-1">Chat</span>
+          )}
+          {otherUser && (
+            <button
+              onClick={async () => {
+                const callId = await initiateCall({
+                  id: otherUser.user_id,
+                  username: otherUser.username,
+                  avatar: otherUser.avatar_url || '',
+                });
+                if (callId) navigate('/call');
+              }}
+              className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+            >
+              <Video className="w-5 h-5 text-[#00f2ea]" />
+            </button>
           )}
         </header>
 
@@ -205,10 +221,10 @@ export default function ChatThread() {
             ref={scrollRef}
             className="flex-1 overflow-y-auto p-4 space-y-3 scroll-smooth"
         >
-          {loading && <div className="text-center text-white/40 text-sm">Loading messages...</div>}
+          {loading && <div className="text-center text-[#00f2ea]/40 text-sm">Loading messages...</div>}
           
           {!loading && messages.length === 0 && (
-              <div className="text-center text-white/40 text-sm mt-10">
+              <div className="text-center text-[#00f2ea]/40 text-sm mt-10">
                   Start the conversation!
               </div>
           )}
@@ -221,7 +237,7 @@ export default function ChatThread() {
                     className={`max-w-[80%] rounded-2xl px-4 py-2 text-sm leading-snug break-words ${
                     isMe
                         ? 'bg-[#00f2ea] text-black rounded-tr-none'
-                        : 'bg-[#222] text-white rounded-tl-none'
+                        : 'bg-[#222] text-[#00f2ea] rounded-tl-none'
                     }`}
                 >
                     {m.content}
@@ -232,7 +248,7 @@ export default function ChatThread() {
         </div>
 
         {/* Input Area */}
-        <div className="p-4 bg-black border-t border-white/10 pb-safe">
+        <div className="p-4 bg-[#121212] border-t border-white/10 pb-safe">
             <form
                 className="flex items-center gap-2 bg-[#222] rounded-full px-4 py-2"
                 onSubmit={handleSend}
@@ -240,7 +256,7 @@ export default function ChatThread() {
                 <input
                     value={draft}
                     onChange={(e) => setDraft(e.target.value)}
-                    className="flex-1 bg-transparent outline-none text-sm text-white placeholder-white/40"
+                    className="flex-1 bg-transparent outline-none text-sm text-[#00f2ea] placeholder-[#00f2ea]/40"
                     placeholder="Type a message..."
                 />
                 <button

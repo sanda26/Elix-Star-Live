@@ -2520,7 +2520,7 @@ export default function LiveStream() {
             {(() => {
               const is4Player = battleSlots[1].status !== 'empty' || battleSlots[2].status !== 'empty';
               return (
-                <div className={`relative w-full flex-none flex flex-col ${is4Player ? 'aspect-square' : 'h-[42vh]'}`}>
+                <div className={`relative w-full flex-none flex flex-col ${is4Player ? 'aspect-square' : 'h-[42dvh]'}`}>
                   {/* Fan Club Button - Left of Battle Bar */}
                   <div className="absolute top-2 left-[20%] -translate-x-1/2 z-30 pointer-events-auto">
                     {/* Fan Club Removed */}
@@ -2832,7 +2832,7 @@ export default function LiveStream() {
 
           <div className="relative flex flex-col h-full pointer-events-none">
             {/* TOP AREA: Overlays (Top Bar & Floating Buttons) */}
-            <div className="flex-[0_0_50vh] relative pointer-events-none">
+            <div className="flex-[0_0_50dvh] relative pointer-events-none">
               {/* Top Bar */}
               {isBroadcast ? (
                 <div className="absolute top-0 left-0 right-0 z-[110] pointer-events-none">
@@ -3671,7 +3671,7 @@ export default function LiveStream() {
               </div>
             </div>
             {/* Content */}
-            <div className="max-h-[40vh] overflow-y-auto" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+            <div className="max-h-[40dvh] overflow-y-auto" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
               {activeViewers
                 .map(v => {
                   const poolViewer = VIEWER_POOL.find(pv => pv.id === v.id);

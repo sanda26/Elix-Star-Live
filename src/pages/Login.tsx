@@ -18,13 +18,17 @@ export default function Login() {
   const state = location.state as { from?: string } | null;
   const from = state?.from ?? '/';
 
-  // Load saved email on mount (NEVER save passwords to localStorage)
+  // Load saved email AND password on mount
   useEffect(() => {
     const savedSaveDetails = window.localStorage.getItem('login_save_details') === 'true';
     const savedEmail = window.localStorage.getItem('login_saved_email') || '';
+    const savedPassword = window.localStorage.getItem('login_saved_password') || '';
     
     setSaveDetails(savedSaveDetails);
-    if (savedEmail) setEmail(savedEmail);
+    if (savedSaveDetails) {
+      if (savedEmail) setEmail(savedEmail);
+      if (savedPassword) setPassword(savedPassword);
+    }
   }, []);
 
   const onSubmit = async (e: React.FormEvent) => {
@@ -40,20 +44,21 @@ export default function Login() {
         return;
       }
 
-      // Save email only if checkbox is checked (NEVER save password)
+      // Save email AND password if checkbox is checked
       if (saveDetails) {
         window.localStorage.setItem('login_saved_email', email.trim());
+        window.localStorage.setItem('login_saved_password', password); // User explicitly requested this
         window.localStorage.setItem('login_save_details', 'true');
       } else {
         window.localStorage.removeItem('login_saved_email');
+        window.localStorage.removeItem('login_saved_password');
         window.localStorage.setItem('login_save_details', 'false');
       }
-      // Always clean up any previously stored password
-      window.localStorage.removeItem('login_saved_password');
 
       navigate(from, { replace: true });
     } catch {
       setError('Failed to sign in');
+      setIsSubmitting(false);
     } finally {
       setIsSubmitting(false);
     }
@@ -109,16 +114,7 @@ export default function Login() {
               <input
                 type="checkbox"
                 checked={saveDetails}
-                onChange={(e) => {
-                  const checked = e.target.checked;
-                  setSaveDetails(checked);
-                  window.localStorage.setItem('login_save_details', checked ? 'true' : 'false');
-                  if (!checked) {
-                    window.localStorage.removeItem('login_saved_email');
-                  }
-                  // Always clean up any legacy password storage
-                  window.localStorage.removeItem('login_saved_password');
-                }}
+                onChange={(e) => setSaveDetails(e.target.checked)}
                 className="peer sr-only"
               />
               <div className={`w-5 h-5 xs:w-4 xs:h-4 rounded-md border transition-all flex items-center justify-center ${
@@ -129,7 +125,7 @@ export default function Login() {
                 {saveDetails && <Check className="w-3.5 h-3.5 xs:w-3 xs:h-3 text-black stroke-[3]" />}
               </div>
             </div>
-            <span className="text-fluid-sm text-white/70 select-none">Remember my email</span>
+            <span className="text-fluid-sm text-white/70 select-none">Remember email & password</span>
           </label>
 
           {error && (

@@ -50,9 +50,7 @@ export const supabase = createClient(
       autoRefreshToken: true,
       detectSessionInUrl: false,
     },
-    global: {
-      headers: { 'x-application-name': 'elix-star-live' }, // Helpful for debugging on server side
-    },
+    // REMOVED global headers that might trigger CORS/firewall issues on mobile
   }
 );
 

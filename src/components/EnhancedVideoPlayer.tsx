@@ -460,6 +460,17 @@ export default function EnhancedVideoPlayer({
                 </div>
               </div>
             )}
+            {!video.isFollowing && (
+               <div 
+                 className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-[#FE2C55] rounded-full p-0.5 cursor-pointer shadow-md transform scale-75 hover:scale-90 transition-transform"
+                 onClick={(e) => {
+                    e.stopPropagation();
+                    handleFollow();
+                 }}
+               >
+                 <UserPlus size={16} className="text-white" />
+               </div>
+            )}
           </div>
         </div>
 

@@ -149,6 +149,13 @@ export default function VideoFeed() {
     }
   }, [location.pathname, fetchVideos]);
 
+  // Force re-fetch on mount if empty
+  useEffect(() => {
+    if (videos.length === 0) {
+        fetchVideos();
+    }
+  }, []);
+
   useEffect(() => {
     startRealtimeSync();
     return () => stopRealtimeSync();

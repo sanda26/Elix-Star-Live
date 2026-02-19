@@ -211,10 +211,15 @@ export default function Profile() {
     }
   };
 
+  const isProfileLoading = loading || !profileData;
+
+  if (loading) {
+     return <div className="min-h-screen bg-black text-white flex items-center justify-center">Loading...</div>;
+  }
 
   return (
     <div className="min-h-screen bg-black text-white pb-24 pt-4 flex justify-center">
-      <div className="w-full">
+      <div className="w-full max-w-md">
         <header className="flex justify-between items-center px-4 mb-6">
             <button onClick={() => navigate('/feed')} className="p-1 hover:brightness-125 transition" title="Back to For You">
               <img src="/Icons/power-button.png" alt="Back" className="w-5 h-5" />

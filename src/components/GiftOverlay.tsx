@@ -25,7 +25,7 @@ export function GiftOverlay({ videoSrc, onEnded, isBattleMode: _isBattleMode }: 
   const isVideo = videoSrc.endsWith('.webm') || videoSrc.endsWith('.mp4');
 
   return (
-    <div className="absolute left-0 right-0 bottom-0 pointer-events-none overflow-hidden" style={{ height: '55%', zIndex: 30, WebkitMaskImage: 'linear-gradient(to top, black 0%, black 60%, transparent 100%)', maskImage: 'linear-gradient(to top, black 0%, black 60%, transparent 100%)' }}>
+    <div className="absolute left-0 right-0 bottom-0 pointer-events-none overflow-hidden" style={{ height: '60%', zIndex: 30, WebkitMaskImage: 'linear-gradient(to top, black 0%, black 60%, transparent 100%)', maskImage: 'linear-gradient(to top, black 0%, black 60%, transparent 100%)' }}>
       {isVideo ? (
         <video ref={videoRef} key={videoSrc} src={videoSrc} className="absolute inset-0 w-full h-full object-cover drop-shadow-2xl" playsInline autoPlay muted preload="auto"
           onLoadedData={() => { if (videoRef.current && !muteAllSounds) videoRef.current.muted = false; }}

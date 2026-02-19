@@ -3,6 +3,9 @@ import { createClient } from '@supabase/supabase-js';
 const runtimeEnv = (globalThis as any).__ENV as Record<string, string> | undefined;
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || runtimeEnv?.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || runtimeEnv?.VITE_SUPABASE_ANON_KEY;
+const disableSupabase =
+  import.meta.env.VITE_DISABLE_SUPABASE === 'true' ||
+  runtimeEnv?.VITE_DISABLE_SUPABASE === 'true';
 
 const isValidSupabaseConfig = (url?: string, key?: string) => {
   if (!url || !key) return false;
@@ -12,10 +15,11 @@ const isValidSupabaseConfig = (url?: string, key?: string) => {
   return true;
 };
 
-if (!supabaseUrl || !supabaseAnonKey) {
+if (disableSupabase) {
+  console.warn('Supabase is disabled via VITE_DISABLE_SUPABASE=true');
+} else if (!supabaseUrl || !supabaseAnonKey) {
   console.warn('Missing Supabase URL or Anon Key. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env file.');
 } else {
-  // Safe logging of config for production debugging
   console.log('Supabase Config Loaded:', {
     url: supabaseUrl,
     keyLength: supabaseAnonKey?.length,
@@ -47,24 +51,83 @@ const storage = {
   },
 };
 
-export const supabase = createClient(
-  supabaseUrl || 'https://placeholder.supabase.co',
-  supabaseAnonKey || 'placeholder',
-  {
-    auth: {
-      storage,
-      persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: false,
+type DisabledResult = { data: null; error: { message: string } };
+
+function createDisabledQuery(message: string) {
+  const base: any = {
+    then: (resolve: (v: any) => void) => resolve({ data: null, error: { message } } satisfies DisabledResult),
+  };
+  return new Proxy(base, {
+    get: (_t, prop) => {
+      if (prop === 'then') return base.then;
+      return () => createDisabledQuery(message);
     },
-    // REMOVED global headers that might trigger CORS/firewall issues on mobile
-  }
-);
+  });
+}
+
+function createDisabledSupabase(message: string) {
+  return {
+    auth: {
+      async getSession() {
+        return { data: { session: null }, error: null };
+      },
+      async getUser() {
+        return { data: { user: null }, error: null };
+      },
+      async signInWithPassword() {
+        return { data: { user: null, session: null }, error: { message } };
+      },
+      async signUp() {
+        return { data: { user: null, session: null }, error: { message } };
+      },
+      async resend() {
+        return { data: null, error: { message } };
+      },
+      async signOut() {
+        return { error: null };
+      },
+      onAuthStateChange() {
+        return { data: { subscription: { unsubscribe: () => {} } } };
+      },
+    },
+    from() {
+      return createDisabledQuery(message);
+    },
+    storage: {
+      from() {
+        return createDisabledQuery(message);
+      },
+      async listBuckets() {
+        return { data: null, error: { message } };
+      },
+    },
+    rpc() {
+      return createDisabledQuery(message);
+    },
+    channel() {
+      return createDisabledQuery(message);
+    },
+    removeAllChannels() {},
+  } as any;
+}
+
+const canUseSupabase = !disableSupabase && isValidSupabaseConfig(supabaseUrl, supabaseAnonKey);
+
+export const supabase = canUseSupabase
+  ? createClient(supabaseUrl as string, supabaseAnonKey as string, {
+      auth: {
+        storage,
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: false,
+      },
+    })
+  : createDisabledSupabase('Supabase is not configured.');
 
 export const supabaseConfig = {
   url: supabaseUrl,
   anonKey: supabaseAnonKey,
-  hasValidConfig: isValidSupabaseConfig(supabaseUrl, supabaseAnonKey),
+  hasValidConfig: canUseSupabase,
 };
 
 /**

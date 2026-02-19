@@ -19,18 +19,24 @@ if (!supabaseUrl || !supabaseAnonKey) {
 // Prefer localStorage so app works in browser; Capacitor apps can switch to Preferences if needed
 const storage = {
   getItem: (key: string) => {
-    if (typeof localStorage === 'undefined') return null;
-    return localStorage.getItem(key);
+    try {
+      if (typeof localStorage === 'undefined') return null;
+      return localStorage.getItem(key);
+    } catch { return null; }
   },
   setItem: (key: string, value: string) => {
-    if (typeof localStorage !== 'undefined') {
-      localStorage.setItem(key, value);
-    }
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(key, value);
+      }
+    } catch {}
   },
   removeItem: (key: string) => {
-    if (typeof localStorage !== 'undefined') {
-      localStorage.removeItem(key);
-    }
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem(key);
+      }
+    } catch {}
   },
 };
 

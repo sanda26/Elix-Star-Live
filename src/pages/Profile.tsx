@@ -377,6 +377,10 @@ export default function Profile() {
         {/* ═══ ACTION BAR (scrollable) — matches TikTok ═══ */}
         <div className="mt-4 border-b border-white/5">
           <div className="flex overflow-x-auto no-scrollbar">
+            <button onClick={() => navigate('/ai-studio')} className="flex items-center gap-2 px-4 py-3 whitespace-nowrap">
+              <Sparkles size={16} className="text-[#C9A96E]" />
+              <span className="text-[13px] font-bold text-white">AI Studio</span>
+            </button>
             <button onClick={() => navigate('/creator/login-details')} className="flex items-center gap-2 px-4 py-3 whitespace-nowrap">
               <Sparkles size={16} className="text-[#ff2d55]" />
               <span className="text-[13px] font-bold text-white">Elix Studio</span>

@@ -59,6 +59,7 @@ const Report = lazy(() => import('./pages/Report'));
 const Support = lazy(() => import('./pages/Support'));
 const Guidelines = lazy(() => import('./pages/Guidelines'));
 const VideoCall = lazy(() => import('./pages/VideoCall'));
+const AIStudio = lazy(() => import('./pages/AIStudio'));
 
 // Loading fallback for lazy-loaded routes
 function PageLoader() {
@@ -134,7 +135,8 @@ function App() {
     location.pathname.startsWith('/inbox/') ||
     location.pathname === '/profile' ||
     location.pathname.startsWith('/profile/') ||
-    location.pathname === '/call';
+    location.pathname === '/call' ||
+    location.pathname === '/ai-studio';
   const showBottomNav = isAuthenticated && !isBottomNavHidden;
 
   // Public routes that don't require authentication
@@ -229,6 +231,7 @@ function App() {
             <Route path="/settings/safety" element={<SafetyCenter />} />
             <Route path="/purchase-coins" element={<PurchaseCoins />} />
             <Route path="/call" element={<VideoCall />} />
+            <Route path="/ai-studio" element={<AIStudio />} />
             <Route element={<RequireAdmin />}>
               <Route path="/admin" element={<AdminDashboard />} />
               <Route path="/admin/users" element={<AdminUsers />} />

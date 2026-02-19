@@ -1,13 +1,14 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { setCachedCameraStream } from '../lib/cameraStream';
-import { RefreshCw, Zap, Clock, Music, Check, Play, Square, RotateCcw, ZoomIn, ZoomOut } from 'lucide-react';
+import { RefreshCw, Zap, Clock, Music, Check, Play, Square, RotateCcw, ZoomIn, ZoomOut, Wand2 } from 'lucide-react';
 import { useVideoStore } from '../store/useVideoStore';
 import { type SoundTrack, fetchSoundTracksFromDatabase } from '../lib/soundLibrary';
 import { trackEvent } from '../lib/analytics';
 import { useSettingsStore } from '../store/useSettingsStore';
 import { videoUploadService } from '../lib/videoUpload';
 import { supabase } from '../lib/supabase';
+import AIToolsPanel from '../components/AIToolsPanel';
 
 export default function Upload() {
   const navigate = useNavigate();
@@ -36,6 +37,9 @@ export default function Upload() {
   const [customTracks, setCustomTracks] = useState<SoundTrack[]>([]);
   const [builtInTracks, setBuiltInTracks] = useState<SoundTrack[]>([]);
   const [zoomLevel, setZoomLevel] = useState(1);
+  const [showAITools, setShowAITools] = useState(false);
+  const [activeFilter, setActiveFilter] = useState('none');
+  const [activeEnhance, setActiveEnhance] = useState('none');
 
   useEffect(() => {
     fetchSoundTracksFromDatabase().then(setBuiltInTracks);
@@ -501,13 +505,15 @@ export default function Upload() {
        {recordedVideoUrl ? (
          <>
            <div className="relative z-10 w-full mx-auto h-[100dvh] bg-[#13151A] flex flex-col items-center justify-center">
-               <video 
-                   src={recordedVideoUrl} 
-                   className="w-full h-full object-cover z-0" 
-                   controls={false}
-                   autoPlay 
-                   loop 
-               />
+              <video
+                  ref={videoRef}
+                  src={recordedVideoUrl} 
+                  className="w-full h-full object-cover z-0" 
+                  controls={false}
+                  autoPlay 
+                  loop
+                  style={{ filter: activeFilter !== 'none' || activeEnhance !== 'none' ? [activeFilter !== 'none' ? activeFilter : '', activeEnhance !== 'none' ? activeEnhance : ''].filter(Boolean).join(' ') : undefined }}
+              />
                
                {/* Overlay Image in Preview too */}
                <div className="absolute inset-0 z-10 w-full h-full pointer-events-none">
@@ -593,11 +599,23 @@ export default function Upload() {
                  </div>
                </div>
 
-                   {/* 10. Upload (Inside Post - Restored) */}
-                   <button 
-                       onClick={handleFileUpload}
-                       className="absolute bottom-[10%] left-[5%] flex flex-col items-center gap-1 group z-30 pointer-events-auto"
-                       title="Upload"
+                  {/* AI Studio Button */}
+                  <button
+                      onClick={() => setShowAITools(true)}
+                      className="absolute bottom-[10%] right-[5%] flex flex-col items-center gap-1 group z-30 pointer-events-auto"
+                      title="AI Studio"
+                  >
+                      <div className="w-10 h-10 bg-gradient-to-br from-[#C9A96E] to-[#B8943F] rounded-full flex items-center justify-center text-black border-2 border-white shadow-lg shadow-[#C9A96E]/30 group-hover:scale-110 transition-transform">
+                          <Wand2 size={18} />
+                      </div>
+                      <span className="text-white font-bold text-[10px] shadow-black drop-shadow-md">AI Studio</span>
+                  </button>
+
+                  {/* 10. Upload (Inside Post - Restored) */}
+                  <button 
+                      onClick={handleFileUpload}
+                      className="absolute bottom-[10%] left-[5%] flex flex-col items-center gap-1 group z-30 pointer-events-auto"
+                      title="Upload"
                    >
                        <div className="w-10 h-10 bg-gray-800/80 rounded-full flex items-center justify-center text-white border-2 border-white group-hover:bg-gray-700">
                            {/* Simple Upload Icon */}
@@ -634,6 +652,27 @@ export default function Upload() {
                        </button>
                    </div>
                </div>
+
+              {/* AI Tools Panel */}
+              <AIToolsPanel
+                isOpen={showAITools}
+                onClose={() => setShowAITools(false)}
+                videoUrl={recordedVideoUrl}
+                videoRef={videoRef}
+                onFilterChange={(css) => setActiveFilter(css)}
+                onEnhanceChange={(css) => setActiveEnhance(css)}
+                onCaptionSelect={(cap, tags) => {
+                  if (cap) setCaption(prev => prev ? prev + '\n' + cap : cap);
+                  if (tags.length) setHashtagsText(prev => {
+                    const existing = prev.split(/[\s,]+/).filter(Boolean);
+                    const merged = [...new Set([...existing, ...tags])];
+                    return merged.map(t => t.startsWith('#') ? t : `#${t}`).join(' ');
+                  });
+                  setShowAITools(false);
+                }}
+                onThumbnailSelect={() => {}}
+                onVoiceEffectChange={() => {}}
+              />
          </>
        ) : (
         /* CAMERA MODE */
@@ -774,12 +813,12 @@ export default function Upload() {
 
                   {/* --- Bottom Controls --- */}
 
-                  {/* 8. Effects */}
+                  {/* 8. AI Effects */}
                   <button 
-                    className="absolute bottom-[15%] left-[15%] w-10 h-10 bg-[#C9A96E]/50 rounded-lg"
-                    onClick={() => showToast('Effects')}
+                    className="absolute bottom-[15%] left-[15%] w-10 h-10 bg-gradient-to-br from-[#C9A96E] to-[#B8943F] rounded-lg flex items-center justify-center"
+                    onClick={() => showToast('Record a video first to use AI Studio')}
                   >
-                    Ef
+                    <Wand2 size={16} className="text-black" />
                   </button>
 
                   {/* 9. Record Button (Play / Stop Logic) */}

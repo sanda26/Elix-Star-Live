@@ -47,6 +47,7 @@ import ReportModal from '../components/ReportModal';
 import { RankingPanel } from '../components/RankingPanel';
 import { stripePaymentService } from '../lib/stripePaymentService';
 import { STRIPE_CONFIG } from '../config/stripe';
+import LiveAIFilters from '../components/LiveAIFilters';
 
 
 type LiveMessage = {
@@ -705,6 +706,7 @@ export default function LiveStream() {
 
   // Battle Mode State
   const [isBattleMode, setIsBattleMode] = useState(false);
+  const [liveFilterCss, setLiveFilterCss] = useState('none');
   const [battleTime, setBattleTime] = useState(300); // 5 minutes
   const [myScore, setMyScore] = useState(0);
   const [opponentScore, setOpponentScore] = useState(0);
@@ -2297,6 +2299,7 @@ export default function LiveStream() {
         {!isBattleMode && (
           <div
             className="relative w-full h-full"
+            style={{ filter: liveFilterCss !== 'none' ? liveFilterCss : undefined }}
             onPointerDown={(e) => {
               if (isBattleMode && isBroadcast) return;
               if (e.target instanceof Element) {
@@ -3191,6 +3194,7 @@ export default function LiveStream() {
                 <button type="button" onClick={() => setShowGiftPanel(true)} className="w-9 h-9 rounded-full bg-[#C9A96E]/20 backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform">
                   <Gift size={16} className="text-white" />
                 </button>
+                <LiveAIFilters currentFilter={liveFilterCss} onFilterChange={setLiveFilterCss} />
                 <button type="button" onPointerDown={(e) => { handleLikeTap(e); }} className="w-9 h-9 rounded-full bg-[#FF2D55]/20 backdrop-blur-md border border-[#FF2D55]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform">
                   <Heart size={16} fill="#FF2D55" className="text-[#FF2D55]" />
                 </button>

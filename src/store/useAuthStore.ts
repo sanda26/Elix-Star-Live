@@ -36,7 +36,7 @@ interface AuthStore {
   signOut: () => Promise<void>;
   updateUser: (updates: Partial<User>) => void;
   getCurrentUser: () => User | null;
-  checkUser: () => void;
+  checkUser: () => Promise<void>;
 }
 
 let authUnsubscribe: (() => void) | null = null;
@@ -195,18 +195,38 @@ export const useAuthStore = create<AuthStore>()(
 
     getCurrentUser: () => get().user,
 
-    checkUser: () => {
+    checkUser: async () => {
       if (!supabaseConfig.hasValidConfig) {
         set({ supabaseUser: null, session: null, user: null, isAuthenticated: false, isLoading: false, authMode: 'supabase' });
         return;
       }
+      
+      // Attempt to get the session first to avoid "flash of unauthenticated"
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          set({ supabaseUser: session.user, session, user: mapUserToUser(session.user), isAuthenticated: true, isLoading: false, authMode: 'supabase' });
+        } else {
+           // Even if no session found via getSession, we wait for onAuthStateChange to confirm
+           // or we can set loading false here if we want to be aggressive.
+           // But let's let the subscription handle the "not authenticated" state to be sure.
+        }
+      } catch (error) {
+        console.error('getSession error:', error);
+      }
+
       if (!authUnsubscribe) {
         const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+          console.log('Auth state change:', event, session?.user?.id);
           const user = session?.user;
           if (user) {
             set({ supabaseUser: user, session, user: mapUserToUser(user), isAuthenticated: true, isLoading: false, authMode: 'supabase' });
             return;
           }
+          
+          // Only set to unauthenticated if we are sure (e.g. SIGNED_OUT or INITIAL_SESSION with null)
+          // If we are just starting up, getSession above might have already handled the "true" case.
+          // If event is INITIAL_SESSION and session is null, then user is definitely not logged in.
           set({ supabaseUser: null, session: null, user: null, isAuthenticated: false, isLoading: false, authMode: 'supabase' });
         });
         authUnsubscribe = subscription.unsubscribe;

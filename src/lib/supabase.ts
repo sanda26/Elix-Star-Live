@@ -50,6 +50,14 @@ export const supabase = createClient(
       autoRefreshToken: true,
       detectSessionInUrl: false,
     },
+    global: {
+      fetch: (url, options) => {
+        return fetch(url, {
+          ...options,
+          referrerPolicy: 'no-referrer', // Fixes some CORS/security blocking issues
+        });
+      },
+    },
   }
 );
 

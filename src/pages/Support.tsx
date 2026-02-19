@@ -39,20 +39,18 @@ export default function Support() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [toast, setToast] = useState('');
+  const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 2500); };
 
   const handleSubmitTicket = async () => {
     if (!subject.trim() || !message.trim() || !email.trim()) {
-      alert('Please fill in all fields');
+      showToast('Please fill in all fields');
       return;
     }
 
     setLoading(true);
     try {
       const { data: userData } = await supabase.auth.getUser();
-
-      // In a real app, this would send to a support ticket system
-      // For now, we'll log it and track the event
-      console.log('Support ticket:', { subject, message, email, userId: userData.user?.id });
 
       trackEvent('support_ticket_submit', {
         subject,
@@ -63,9 +61,8 @@ export default function Support() {
       setTimeout(() => {
         navigate(-1);
       }, 2000);
-    } catch (error) {
-      console.error('Failed to submit ticket:', error);
-      alert('Failed to submit. Please try again.');
+    } catch {
+      showToast('Failed to submit. Please try again.');
     } finally {
       setLoading(false);
     }

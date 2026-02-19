@@ -59,11 +59,9 @@ export default function AdminUsers() {
         ban_type: 'permanent',
       });
 
-      alert('User banned successfully');
       loadUsers();
-    } catch (error) {
-      console.error('Failed to ban user:', error);
-      alert('Failed to ban user');
+    } catch {
+      // Ban failed
     }
   };
 

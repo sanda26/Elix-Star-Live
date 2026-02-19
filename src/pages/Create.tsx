@@ -600,7 +600,7 @@ export default function Create() {
       }
 
       keepStreamOnUnmountRef.current = true;
-      navigate('/live/broadcast');
+      navigate('/live/start');
     } catch {
       setCameraError('Camera access denied');
     }

@@ -130,15 +130,15 @@ export default function ShareModal({ isOpen, onClose, video }: ShareModalProps) 
           break;
           
         case 'instagram':
-          // Instagram doesn't allow direct sharing via URL, copy to clipboard instead
           await navigator.clipboard.writeText(shareText + ' ' + videoUrl);
-          alert('Caption copied to clipboard! You can now paste it in your Instagram story or post.');
+          setCopiedLink(true);
+          setTimeout(() => setCopiedLink(false), 2000);
           break;
           
         case 'youtube':
-          // YouTube doesn't allow direct sharing, copy to clipboard instead
           await navigator.clipboard.writeText(shareText + ' ' + videoUrl);
-          alert('Video link copied to clipboard!');
+          setCopiedLink(true);
+          setTimeout(() => setCopiedLink(false), 2000);
           break;
           
         default:
@@ -176,7 +176,8 @@ export default function ShareModal({ isOpen, onClose, video }: ShareModalProps) 
   const generateEmbedCode = () => {
     const embedCode = `<iframe src="${videoUrl}" width="560" height="315" frameborder="0" allowfullscreen></iframe>`;
     navigator.clipboard.writeText(embedCode);
-    alert('Embed code copied to clipboard!');
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 2000);
   };
 
   const handleDownload = async () => {
@@ -188,9 +189,8 @@ export default function ShareModal({ isOpen, onClose, video }: ShareModalProps) 
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-    } catch (error) {
-      console.error('Error downloading video:', error);
-      alert('Download failed. Please try again.');
+    } catch {
+      // Download failed
     }
   };
 

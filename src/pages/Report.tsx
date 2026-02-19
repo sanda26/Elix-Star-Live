@@ -43,9 +43,12 @@ export default function Report() {
 
   const reasons = REPORT_REASONS[contentType] || REPORT_REASONS.video;
 
+  const [toast, setToast] = useState('');
+  const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 2500); };
+
   const handleSubmit = async () => {
     if (!selectedReason) {
-      alert('Please select a reason');
+      showToast('Please select a reason');
       return;
     }
 
@@ -74,9 +77,8 @@ export default function Report() {
       setTimeout(() => {
         navigate(-1);
       }, 2000);
-    } catch (error) {
-      console.error('Failed to submit report:', error);
-      alert('Failed to submit report. Please try again.');
+    } catch {
+      showToast('Failed to submit report. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -98,6 +100,7 @@ export default function Report() {
 
   return (
     <div className="min-h-[100dvh] bg-[#13151A] text-white flex justify-center px-2">
+      {toast && <div className="fixed top-16 left-1/2 -translate-x-1/2 bg-white/10 backdrop-blur-md text-white text-sm px-4 py-2 rounded-xl z-[9999] animate-pulse">{toast}</div>}
       <div className="w-full max-w-[480px] h-[100dvh] rounded-3xl overflow-hidden bg-[#13151A] flex flex-col pt-[var(--safe-top)] pb-[calc(var(--safe-bottom)+12mm)]">
       {/* Header */}
       <div className="sticky top-0 bg-[#13151A] z-10 px-4 py-4 border-b border-transparent flex items-center justify-between">

@@ -51,11 +51,9 @@ export default function AdminEconomy() {
         .eq('id', giftId);
 
       if (error) throw error;
-      alert('Price updated');
       loadData();
-    } catch (error) {
-      console.error('Failed to update price:', error);
-      alert('Failed to update price');
+    } catch {
+      // Failed to update
     }
   };
 

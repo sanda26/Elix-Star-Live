@@ -106,12 +106,7 @@ export default function ReportModal({ isOpen, onClose, videoId, contentType, con
   if (!isOpen) return null;
 
   const handleSubmit = async () => {
-    if (!selectedReason) {
-      alert('Please select a reason for reporting');
-      return;
-    }
-    if (!authToken) {
-      alert('Please sign in to submit a report.');
+    if (!selectedReason || !authToken) {
       return;
     }
 
@@ -148,18 +143,16 @@ export default function ReportModal({ isOpen, onClose, videoId, contentType, con
         setSelectedReason('');
         setAdditionalDetails('');
       }, 2000);
-    } catch (error) {
-      console.error('Error submitting report:', error);
-      alert('Failed to submit report. Please try again.');
+    } catch {
+      // Submission failed — user can retry
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const resolvedOwnerId = videoOwnerIdFromDb ?? videoOwnerId;
-  const canDeleteDemo = contentType === 'video' && !!authUserId && videoId.startsWith('mock-');
   const canDeleteOwned = contentType === 'video' && !!authUserId && !!resolvedOwnerId && authUserId === resolvedOwnerId;
-  const canDelete = canDeleteDemo || canDeleteOwned;
+  const canDelete = canDeleteOwned;
 
   const handleDelete = async () => {
     if (!canDelete) return;
@@ -172,9 +165,8 @@ export default function ReportModal({ isOpen, onClose, videoId, contentType, con
       onClose();
       setSelectedReason('');
       setAdditionalDetails('');
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to delete video.';
-      alert(message);
+    } catch {
+      // Delete failed
     } finally {
       setIsDeletingVideo(false);
     }

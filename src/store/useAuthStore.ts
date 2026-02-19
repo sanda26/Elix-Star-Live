@@ -155,6 +155,12 @@ export const useAuthStore = create<AuthStore>()(
         if (msg.includes('fetch')) {
            return { error: 'Network error. Please check your connection.' };
         }
+        // Handle AbortError specifically
+        if (err.name === 'AbortError' || msg.includes('aborted')) {
+           console.warn('Login request aborted');
+           // Return a specific error code or message that UI can ignore or handle gracefully
+           return { error: 'aborted' }; 
+        }
         return { error: msg };
       }
     },

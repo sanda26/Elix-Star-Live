@@ -330,6 +330,7 @@ export default function UserProfileModal({ isOpen, onClose, user, onFollow }: Us
       });
     } else {
       navigator.clipboard.writeText(profileUrl);
+      alert('Profile link copied to clipboard!');
     }
   }
 }

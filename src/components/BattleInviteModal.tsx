@@ -99,9 +99,11 @@ export default function BattleInviteModal({
         target_user_id: selectedStream.user_id,
       });
 
+      alert('Battle invitation sent!');
       onClose();
-    } catch {
-      // Failed to send — modal closes silently
+    } catch (error) {
+      console.error('Failed to send invite:', error);
+      alert('Failed to send battle invitation');
     } finally {
       setLoading(false);
     }

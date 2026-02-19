@@ -15,8 +15,6 @@ export default function PurchaseCoins() {
   const [selectedPackage, setSelectedPackage] = useState<CoinPackage | null>(null);
   const [loading, setLoading] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [toast, setToast] = React.useState('');
-  const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 2500); };
 
   useEffect(() => {
     loadPackages();
@@ -32,14 +30,14 @@ export default function PurchaseCoins() {
     try {
       const packages = await stripePaymentService.getCoinPackages();
       setPackages(packages);
-    } catch {
-      // Failed to load packages
+    } catch (error) {
+      console.error('Failed to load packages:', error);
     }
   };
 
   const handlePurchase = async (pkg: CoinPackage) => {
     if (!currentUserId) {
-      showToast('Please log in to purchase coins');
+      alert('Please log in to purchase coins');
       navigate('/login');
       return;
     }
@@ -64,18 +62,19 @@ export default function PurchaseCoins() {
           throw new Error(result.error || 'IAP purchase failed');
         }
         // Coins are credited server-side via receipt validation
-        showToast('Purchase successful! Coins have been added.');
+        alert('Purchase successful! Coins have been added to your account.');
         setLoading(false);
         setSelectedPackage(null);
         return;
       }
 
       if (paymentMethod === 'google-play' && pkg.stripe_price_id) {
+        // Android — use Google Play Billing
         const result = await purchaseProduct(pkg.stripe_price_id as IAPProductId);
         if (!result.success) {
           throw new Error(result.error || 'Play Store purchase failed');
         }
-        showToast('Purchase successful! Coins have been added.');
+        alert('Purchase successful! Coins have been added to your account.');
         setLoading(false);
         setSelectedPackage(null);
         return;
@@ -98,7 +97,8 @@ export default function PurchaseCoins() {
       // Payment will redirect to Stripe, so we don't need to continue here
       return;
           } catch (error) {
-      showToast(error instanceof Error ? error.message : 'Purchase failed. Please try again.');
+      console.error('Purchase failed:', error);
+      alert(error instanceof Error ? error.message : 'Purchase failed. Please try again.');
       setLoading(false);
       setSelectedPackage(null);
     }
@@ -106,7 +106,6 @@ export default function PurchaseCoins() {
 
   return (
     <div className="min-h-[100dvh] bg-[#13151A] text-white flex justify-center px-2">
-      {toast && <div className="fixed top-16 left-1/2 -translate-x-1/2 bg-white/10 backdrop-blur-md text-white text-sm px-4 py-2 rounded-xl z-[9999] animate-pulse">{toast}</div>}
       <div className="w-full max-w-[480px] h-[100dvh] rounded-3xl overflow-hidden bg-[#13151A] flex flex-col pt-[var(--safe-top)] pb-[calc(var(--safe-bottom)+12mm)]">
       {/* Header */}
       <div className="sticky top-0 bg-[#13151A] z-10 px-4 py-4 border-b border-transparent flex items-center justify-between">

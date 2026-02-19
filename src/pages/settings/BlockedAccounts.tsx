@@ -60,8 +60,9 @@ export default function BlockedAccounts() {
       if (error) throw error;
 
       setBlockedUsers(prev => prev.filter(b => b.id !== blockId));
-    } catch {
-      // Failed to unblock
+    } catch (error) {
+      console.error('Failed to unblock user:', error);
+      alert('Failed to unblock user');
     }
   };
 

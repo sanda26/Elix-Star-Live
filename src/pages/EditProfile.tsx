@@ -31,8 +31,6 @@ export default function EditProfile() {
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [toast, setToast] = useState('');
-  const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 2500); };
 
   useEffect(() => {
     loadProfile();
@@ -64,8 +62,8 @@ export default function EditProfile() {
           tiktok_handle: data.tiktok_handle || '',
         });
       }
-    } catch {
-      showToast('Failed to load profile');
+    } catch (error) {
+      console.error('Failed to load profile:', error);
     }
   };
 
@@ -80,12 +78,15 @@ export default function EditProfile() {
       if (result.success && result.publicUrl) {
         setProfile(prev => ({ ...prev, avatar_url: result.publicUrl }));
         trackEvent('profile_avatar_change', {});
+        
+        // Optional: Force a refresh of the user metadata if needed by other components
         await supabase.auth.refreshSession();
       } else {
-        showToast(result.error || 'Failed to upload avatar');
+        alert(result.error || 'Failed to upload avatar');
       }
-    } catch {
-      showToast('Failed to upload avatar');
+    } catch (error) {
+      console.error('Failed to upload avatar:', error);
+      alert('Failed to upload avatar');
     } finally {
       setUploading(false);
     }
@@ -113,8 +114,9 @@ export default function EditProfile() {
 
       trackEvent('profile_update', {});
       navigate(-1); // Go back
-    } catch {
-      showToast('Failed to save profile');
+    } catch (error) {
+      console.error('Failed to save profile:', error);
+      alert('Failed to save profile');
     } finally {
       setLoading(false);
     }
@@ -122,7 +124,6 @@ export default function EditProfile() {
 
   return (
     <div className="min-h-[100dvh] bg-[#13151A] text-white flex justify-center px-2">
-      {toast && <div className="fixed top-16 left-1/2 -translate-x-1/2 bg-white/10 backdrop-blur-md text-white text-sm px-4 py-2 rounded-xl z-[9999] animate-pulse">{toast}</div>}
       <div className="w-full max-w-[480px] h-[100dvh] rounded-3xl overflow-hidden bg-[#13151A] flex flex-col pt-[var(--safe-top)] pb-[calc(var(--safe-bottom)+12mm)]">
       {/* Header */}
       <div className="sticky top-0 z-10 px-4 py-4 flex items-center justify-between bg-[#13151A]">

@@ -61,9 +61,11 @@ export default function AdminReports() {
 
       if (error) throw error;
 
+      alert('Report resolved');
       loadReports();
-    } catch {
-      // Failed to resolve
+    } catch (error) {
+      console.error('Failed to resolve report:', error);
+      alert('Failed to resolve report');
     }
   };
 

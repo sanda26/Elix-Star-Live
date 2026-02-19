@@ -52,7 +52,7 @@ export default function Settings() {
           await supabase.auth.signOut();
           navigate('/login');
         } else {
-          showToast('Failed to delete account. Please contact support.');
+          alert('Failed to delete account. Please contact support.');
         }
       }
     }
@@ -171,7 +171,7 @@ export default function Settings() {
         </div>
 
         {/* Version */}
-        <div className="text-center text-xs text-white/40 pt-6">Version 1.0.1</div>
+        <div className="text-center text-xs text-white/40 pt-6">Version 1.0.0</div>
       </div>
       </div>
     </div>

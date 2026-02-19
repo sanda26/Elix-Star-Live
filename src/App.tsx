@@ -214,7 +214,6 @@ function App() {
             <Route path="/live" element={<LiveDiscover />} />
             <Route path="/live/:streamId" element={<LiveStream />} />
             <Route path="/live/start" element={<Navigate to="/live" replace />} />
-            <Route path="/live/broadcast" element={<LiveStream />} />
             <Route path="/live/watch/:streamId" element={<LiveStream />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/profile/:userId" element={<Profile />} />

@@ -149,8 +149,10 @@ export default function Upload() {
                previewAudioRef.current.volume = 1.0;
                previewAudioRef.current.currentTime = start;
                previewAudioRef.current.play()
-                   .catch(() => {
-                       // Audio autoplay may be blocked by browser
+                   .then(() => console.log("Audio playing:", track.title))
+                   .catch(e => {
+                       console.error("Audio play failed", e);
+                       alert("Could not play audio. Check console for details.");
                    });
                setPlayingTrackId(track.id);
                

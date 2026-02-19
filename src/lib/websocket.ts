@@ -50,7 +50,7 @@ class WebSocketService {
 
     this.roomId = roomId;
     this.token = token;
-    const wsUrl = import.meta.env.VITE_WS_URL || `wss://${window.location.host}`;
+    const wsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:3001';
     this.ws = new WebSocket(`${wsUrl}/live/${roomId}?token=${encodeURIComponent(token)}`);
 
     this.ws.onopen = () => {

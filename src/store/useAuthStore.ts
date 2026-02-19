@@ -100,23 +100,61 @@ export const useAuthStore = create<AuthStore>()(
     authMode: 'supabase',
 
     signInWithPassword: async (email, password) => {
-      if (!supabaseConfig.hasValidConfig) {
-        return { error: 'Authentication is not configured. Missing Supabase credentials.' };
+      // 1. Basic validation
+      if (!email || !password) {
+        return { error: 'Please enter both email and password.' };
       }
+
+      if (!supabaseConfig.hasValidConfig) {
+        return { error: 'System error: Authentication not configured.' };
+      }
+
       try {
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        console.log('Attempting login for:', email);
+        const { data, error } = await supabase.auth.signInWithPassword({ 
+          email: email.trim(), 
+          password 
+        });
+
         if (error) {
+          console.error('Supabase Login Error:', error);
+          // 2. Map common Supabase errors to user-friendly messages
+          if (error.message.includes('Invalid login credentials')) {
+             return { error: 'Incorrect email or password.' };
+          }
+          if (error.message.includes('Email not confirmed')) {
+             return { error: 'Please verify your email address before logging in.' };
+          }
+          if (error.message.includes('Failed to fetch')) {
+             return { error: 'Connection failed. Please check your internet or try again later.' };
+          }
           return { error: error.message };
         }
-        const user = data.user;
-        const session = data.session;
-        if (!user) {
-          return { error: 'No user returned from Supabase.' };
+
+        if (!data.user || !data.session) {
+          console.error('Login succeeded but no session returned', data);
+          return { error: 'Login failed unexpectedly. Please try again.' };
         }
-        set({ supabaseUser: user, session, user: mapUserToUser(user), isAuthenticated: true, isLoading: false, authMode: 'supabase' });
+
+        console.log('Login successful, setting user:', data.user.id);
+        
+        // 3. Force state update immediately
+        set({ 
+          supabaseUser: data.user, 
+          session: data.session, 
+          user: mapUserToUser(data.user), 
+          isAuthenticated: true, 
+          isLoading: false, 
+          authMode: 'supabase' 
+        });
+        
         return { error: null };
-      } catch (error) {
-        const msg = getAuthErrorMessage(error);
+      } catch (err: any) {
+        console.error('Unexpected Login Exception:', err);
+        const msg = err?.message || 'Unknown error occurred';
+        if (msg.includes('fetch')) {
+           return { error: 'Network error. Please check your connection.' };
+        }
         return { error: msg };
       }
     },

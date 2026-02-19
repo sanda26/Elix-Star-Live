@@ -157,6 +157,8 @@ export const useVideoStore = create<VideoStore>()(
 
           // 1. Try fetching all public videos sorted by creation time (newest first)
           try {
+            // Remove AbortSignal.timeout here as it causes "AbortError" crashes on slow networks
+            // Supabase client handles timeouts internally
             let res = await supabase
               .from('videos')
               .select(`
@@ -165,8 +167,7 @@ export const useVideoStore = create<VideoStore>()(
                 likes:likes ( count )
               `)
               .eq('is_public', true)
-              .order('created_at', { ascending: false })
-              .abortSignal(AbortSignal.timeout(10000)); // Add timeout to prevent indefinite hangs
+              .order('created_at', { ascending: false });
 
             // 2. Fallback for profile relation if different join syntax needed
             if (res.error) {
@@ -179,12 +180,17 @@ export const useVideoStore = create<VideoStore>()(
                     user:profiles!user_id ( id, username, display_name, avatar_url )
                   `)
                   .eq('is_public', true)
-                  .order('created_at', { ascending: false })
-                  .abortSignal(AbortSignal.timeout(10000));
+                  .order('created_at', { ascending: false });
             }
             data = res.data || [];
             err = res.error;
-          } catch (fetchError) {
+          } catch (fetchError: any) {
+             // Catch abort errors specifically to avoid crashing
+             if (fetchError.name === 'AbortError') {
+                console.warn('Video fetch aborted (likely slow network or unmount)');
+                set({ loading: false });
+                return;
+             }
              console.error('Supabase fetch failed:', fetchError);
              err = fetchError;
           }

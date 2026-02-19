@@ -25,67 +25,6 @@ interface Conversation {
   lastMessage?: string;
 }
 
-const DEMO_NOTIFICATIONS: Notification[] = [
-  {
-    id: 'demo-notif-3',
-    type: 'system',
-    actor_id: 'demo-system',
-    actor: undefined,
-    title: 'System notifications',
-    body: 'LIVE: Your viewers want to see more...',
-    image_url: null,
-    action_url: null,
-    is_read: true,
-    created_at: new Date(Date.now() - 1000 * 60 * 60 * 21).toISOString(),
-  },
-  {
-    id: 'demo-notif-4',
-    type: 'shop',
-    actor_id: 'demo-shop',
-    actor: undefined,
-    title: 'TikTok Shop',
-    body: "Shop updates: Andrei Ionut B..., you've...",
-    image_url: null,
-    action_url: null,
-    is_read: true,
-    created_at: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
-  }
-];
-
-const DEMO_CONVERSATIONS: Conversation[] = [
-  {
-    id: 'demo-conv-1',
-    participant_1: 'demo',
-    participant_2: 'demo',
-    last_message_at: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
-    otherUser: { username: 'ðŸ’—ðŸŒ¸sandraa.monicaaðŸŒ¸ðŸ’—', avatar_url: 'https://ui-avatars.com/api/?name=Sandra&background=121212&color=C9A96E' },
-    lastMessage: 'Posted a video',
-  },
-  {
-    id: 'demo-conv-2',
-    participant_1: 'demo',
-    participant_2: 'demo',
-    last_message_at: new Date(Date.now() - 1000 * 60 * 60 * 17).toISOString(),
-    otherUser: { username: 'albertgashi.81', avatar_url: 'https://ui-avatars.com/api/?name=Albert&background=121212&color=C9A96E' },
-    lastMessage: '[28 messages] shared a LIVE Â· 17h',
-  },
-  {
-    id: 'demo-conv-3',
-    participant_1: 'demo',
-    participant_2: 'demo',
-    last_message_at: new Date(Date.now() - 1000 * 60 * 60 * 18).toISOString(),
-    otherUser: { username: 'ðŸ†VÄƒduva. neagrÄƒ.30ðŸ† 4foryouâœ…', avatar_url: 'https://ui-avatars.com/api/?name=Vaduva&background=121212&color=C9A96E' },
-    lastMessage: '[24 messages] shared a LIVE Â· 18h',
-  },
-];
-
-const STORY_USERS = [
-  { id: 'u1', username: 'narcisa', avatar_url: 'https://ui-avatars.com/api/?name=Narcisa&background=121212&color=C9A96E', hasStory: false },
-  { id: 'u2', username: 'ðŸ’ŽHaicu...', avatar_url: 'https://ui-avatars.com/api/?name=Haiducu&background=121212&color=C9A96E', hasStory: true },
-  { id: 'u3', username: 'Raluca Be...', avatar_url: 'https://ui-avatars.com/api/?name=Raluca&background=121212&color=C9A96E', hasStory: true },
-  { id: 'u4', username: 'Eu Si Atat', avatar_url: 'https://ui-avatars.com/api/?name=Eu&background=121212&color=C9A96E', hasStory: true },
-];
-
 export default function Inbox() {
   const navigate = useNavigate();
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -112,7 +51,7 @@ export default function Inbox() {
           .eq('user_id', currentUserId)
           .order('created_at', { ascending: false })
           .limit(50);
-        if (data && data.length > 0) setNotifications(data.map((n: any) => ({
+        if (data) setNotifications(data.map((n: any) => ({
           id: n.id,
           type: n.type || 'system',
           actor_id: n.actor_id || '',
@@ -123,8 +62,7 @@ export default function Inbox() {
           is_read: n.is_read ?? false,
           created_at: n.created_at,
         })));
-        else setNotifications(DEMO_NOTIFICATIONS);
-      } catch { setNotifications(DEMO_NOTIFICATIONS); }
+      } catch { /* silent */ }
     };
     const fetchConversations = async () => {
       try {
@@ -151,11 +89,9 @@ export default function Inbox() {
               lastMessage: t.last_message_preview || '',
             };
           }));
-          setConversations(mapped.length > 0 ? mapped : DEMO_CONVERSATIONS);
-        } else {
-          setConversations(DEMO_CONVERSATIONS);
+          setConversations(mapped);
         }
-      } catch { setConversations(DEMO_CONVERSATIONS); }
+      } catch { /* silent */ }
     };
     fetchNotifications();
     fetchConversations();
@@ -291,7 +227,6 @@ export default function Inbox() {
                         <h3 className="font-bold text-sm">{notif.title}</h3>
                         <p className="text-white/60 text-xs truncate">{notif.body}</p>
                     </div>
-                    <span className="text-[10px] text-white/40">21h</span>
                 </button>
             ))}
 
@@ -305,9 +240,15 @@ export default function Inbox() {
                         <h3 className="font-bold text-sm">{notif.title}</h3>
                         <p className="text-white/60 text-xs truncate">{notif.body}</p>
                     </div>
-                    <span className="text-[10px] text-white/40">1d</span>
                 </button>
             ))}
+
+            {notifications.length === 0 && conversations.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-10 gap-2 text-white/30">
+                <Bell size={32} />
+                <p className="text-sm">No messages yet</p>
+              </div>
+            )}
              
         </div>
       </div>

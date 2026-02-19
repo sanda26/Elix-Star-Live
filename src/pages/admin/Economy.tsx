@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { DollarSign, Gift, Zap, Package } from 'lucide-react';
+import { showToast } from '../../lib/toast';
 
 interface GiftCatalogItem {
   id: string;
@@ -51,11 +52,11 @@ export default function AdminEconomy() {
         .eq('id', giftId);
 
       if (error) throw error;
-      alert('Price updated');
+      showToast('Price updated');
       loadData();
     } catch (error) {
       console.error('Failed to update price:', error);
-      alert('Failed to update price');
+      showToast('Failed to update price');
     }
   };
 

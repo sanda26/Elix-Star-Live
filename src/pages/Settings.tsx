@@ -16,6 +16,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { showToast } from '../lib/toast';
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -52,7 +53,7 @@ export default function Settings() {
           await supabase.auth.signOut();
           navigate('/login');
         } else {
-          alert('Failed to delete account. Please contact support.');
+          showToast('Failed to delete account. Please contact support.');
         }
       }
     }

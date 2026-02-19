@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Flag, CheckCircle, XCircle, Eye } from 'lucide-react';
+import { showToast } from '../../lib/toast';
 
 interface Report {
   id: string;
@@ -61,11 +62,11 @@ export default function AdminReports() {
 
       if (error) throw error;
 
-      alert('Report resolved');
+      showToast('Report resolved');
       loadReports();
     } catch (error) {
       console.error('Failed to resolve report:', error);
-      alert('Failed to resolve report');
+      showToast('Failed to resolve report');
     }
   };
 

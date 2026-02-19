@@ -23,36 +23,14 @@ export function RankingPanel({ onClose }: RankingPanelProps) {
     loadRanking();
   }, []);
 
-  const DEMO_RANKINGS: CreatorRanking[] = [
-    { rank: 1, user_id: 'd1', username: 'emma_rose22', display_name: 'Emma Rose', avatar_url: 'https://i.pravatar.cc/150?img=1', total_diamonds: 284500 },
-    { rank: 2, user_id: 'd2', username: 'alex.madrid', display_name: 'Alex Madrid', avatar_url: 'https://i.pravatar.cc/150?img=3', total_diamonds: 198200 },
-    { rank: 3, user_id: 'd3', username: 'sofiab_', display_name: 'Sofia Bianchi', avatar_url: 'https://i.pravatar.cc/150?img=5', total_diamonds: 156800 },
-    { rank: 4, user_id: 'd4', username: 'lucassilva7', display_name: 'Lucas Silva', avatar_url: 'https://i.pravatar.cc/150?img=7', total_diamonds: 134100 },
-    { rank: 5, user_id: 'd5', username: 'mia.chen_', display_name: 'Mia Chen', avatar_url: 'https://i.pravatar.cc/150?img=9', total_diamonds: 112400 },
-    { rank: 6, user_id: 'd6', username: 'david_k99', display_name: 'David Kim', avatar_url: 'https://i.pravatar.cc/150?img=11', total_diamonds: 98700 },
-    { rank: 7, user_id: 'd7', username: 'anya.pet', display_name: 'Anya Petrova', avatar_url: 'https://i.pravatar.cc/150?img=13', total_diamonds: 87300 },
-    { rank: 8, user_id: 'd8', username: 'marcosantos_', display_name: 'Marco Santos', avatar_url: 'https://i.pravatar.cc/150?img=14', total_diamonds: 76500 },
-    { rank: 9, user_id: 'd9', username: 'chloe.dpt', display_name: 'Chloé Dupont', avatar_url: 'https://i.pravatar.cc/150?img=16', total_diamonds: 64200 },
-    { rank: 10, user_id: 'd10', username: 'jamesww_', display_name: 'James Wilson', avatar_url: 'https://i.pravatar.cc/150?img=17', total_diamonds: 51800 },
-    { rank: 11, user_id: 'd11', username: 'yuki.tnk', display_name: 'Yuki Tanaka', avatar_url: 'https://i.pravatar.cc/150?img=19', total_diamonds: 43600 },
-    { rank: 12, user_id: 'd12', username: 'isa_reyes', display_name: 'Isabella Reyes', avatar_url: 'https://i.pravatar.cc/150?img=20', total_diamonds: 38900 },
-    { rank: 13, user_id: 'd13', username: 'noah.mllr', display_name: 'Noah Müller', avatar_url: 'https://i.pravatar.cc/150?img=22', total_diamonds: 31200 },
-    { rank: 14, user_id: 'd14', username: 'lara_h', display_name: 'Lara Al-Hassan', avatar_url: 'https://i.pravatar.cc/150?img=24', total_diamonds: 27400 },
-    { rank: 15, user_id: 'd15', username: 'olibrown', display_name: 'Oliver Brown', avatar_url: 'https://i.pravatar.cc/150?img=25', total_diamonds: 22100 },
-  ];
-
   const loadRanking = async () => {
-    setRankings(DEMO_RANKINGS);
-    setLoading(false);
-
     try {
       const { data, error } = await supabase.rpc('get_weekly_creator_ranking');
-      if (!error && data && data.length > 0) {
+      if (!error && data) {
         setRankings(data);
       }
-    } catch {
-      // keep demo
-    }
+    } catch { /* silent */ }
+    setLoading(false);
   };
 
   const formatNumber = (num: number): string => {

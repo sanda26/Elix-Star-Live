@@ -287,8 +287,8 @@ export default function UserProfileModal({ isOpen, onClose, user, onFollow }: Us
                 {userVideos.map((video) => (
                   <div key={video.id} className="aspect-[3/4] bg-gray-900 relative">
                     <img 
-                      src={video.thumbnail || video.thumbnail_url} 
-                      alt="" 
+                      src={video.thumbnail || video.url} 
+                      alt={video.description} 
                       className="w-full h-full object-cover"
                     />
                     <div className="absolute bottom-1 left-1 text-xs font-bold text-white drop-shadow-md flex items-center gap-1">

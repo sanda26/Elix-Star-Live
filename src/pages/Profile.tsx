@@ -222,57 +222,57 @@ export default function Profile() {
   };
 
   if (loading) {
-     return <div className="min-h-[100dvh] bg-[#121212] text-[#00f2ea] flex items-center justify-center">Loading...</div>;
+     return <div className="min-h-[100dvh] bg-[#13151A] text-white flex items-center justify-center">Loading...</div>;
   }
 
   return (
-    <div className="min-h-[100dvh] bg-[#121212] text-[#00f2ea] flex justify-center px-2">
-      <div className="w-full max-w-[480px] h-[100dvh] flex flex-col bg-[#121212] rounded-3xl overflow-hidden overflow-y-auto pt-[var(--safe-top)] pb-[calc(var(--safe-bottom)+12mm)]">
+    <div className="min-h-[100dvh] bg-[#13151A] text-white flex justify-center px-2">
+      <div className="w-full max-w-[480px] h-[100dvh] flex flex-col bg-[#13151A] rounded-3xl overflow-hidden overflow-y-auto pt-[var(--safe-top)] pb-[calc(var(--safe-bottom)+12mm)]">
 
         {/* ═══ TOP BAR ═══ */}
         <header className="flex items-center justify-between pl-[calc(16px+3mm)] pr-4 pt-2 pb-2">
           <button onClick={() => navigate('/feed')} title="Add friends" className="p-1">
-            <UserPlus size={22} className="text-[#00f2ea]" />
+            <UserPlus size={22} className="text-white" />
           </button>
           <div className="flex-1" />
           <div className="flex items-center gap-4">
             <button onClick={() => { if (navigator.share) navigator.share({ title: displayName, url: window.location.href }); else navigator.clipboard.writeText(window.location.href); }} title="Share profile" className="p-1">
-              <Share2 size={22} className="text-[#00f2ea]" />
+              <Share2 size={22} className="text-white" />
             </button>
             <button type="button" onClick={() => setShowAccountMenu(true)} title="Menu" className="p-1">
-              <Menu size={22} className="text-[#00f2ea]" />
+              <Menu size={22} className="text-white" />
             </button>
           </div>
         </header>
 
         {/* ═══ Account Menu Modal ═══ */}
         {showAccountMenu && (
-          <div className="fixed inset-0 z-[9999] bg-[#121212]/70 flex items-end justify-center" onClick={() => setShowAccountMenu(false)}>
+          <div className="fixed inset-0 z-[9999] bg-[#13151A]/70 flex items-end justify-center" onClick={() => setShowAccountMenu(false)}>
             <div 
               className="w-full max-w-[480px] bg-[#111] rounded-t-2xl border-t border-white/10 pb-safe"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-white/10">
-                <h3 className="text-[#00f2ea] font-bold text-base">Account</h3>
+                <h3 className="text-white font-bold text-base">Account</h3>
                 <button onClick={() => setShowAccountMenu(false)} title="Close">
-                  <X size={20} className="text-[#00f2ea]/50" />
+                  <X size={20} className="text-white/50" />
                 </button>
               </div>
               <div className="px-5 py-4 flex items-center gap-3 border-b border-white/5">
                 <img src={displayAvatar} alt="Avatar" className="w-10 h-10 rounded-full object-cover border border-white/10" />
                 <div>
-                  <p className="text-[#00f2ea] font-semibold text-sm">{displayName}</p>
-                  <p className="text-[#00f2ea]/50 text-xs">{user?.email || '@' + displayUsername}</p>
+                  <p className="text-white font-semibold text-sm">{displayName}</p>
+                  <p className="text-white/50 text-xs">{user?.email || '@' + displayUsername}</p>
                 </div>
               </div>
               <div className="py-2">
                 <button onClick={() => { setShowAccountMenu(false); navigate('/settings'); }} className="w-full flex items-center gap-3 px-5 py-3 hover:bg-white/5 transition-colors">
-                  <Menu size={20} className="text-[#00f2ea]/70" />
-                  <span className="text-[#00f2ea] text-sm font-medium">Settings</span>
+                  <Menu size={20} className="text-white/70" />
+                  <span className="text-white text-sm font-medium">Settings</span>
                 </button>
                 <button onClick={async () => { setShowAccountMenu(false); await signOut(); navigate('/login', { replace: true }); }} className="w-full flex items-center gap-3 px-5 py-3 hover:bg-white/5 transition-colors">
-                  <UserPlus size={20} className="text-[#00f2ea]" />
-                  <span className="text-[#00f2ea] text-sm font-medium">Switch Account</span>
+                  <UserPlus size={20} className="text-white" />
+                  <span className="text-white text-sm font-medium">Switch Account</span>
                 </button>
                 <button onClick={async () => { setShowAccountMenu(false); await signOut(); navigate('/login', { replace: true }); }} className="w-full flex items-center gap-3 px-5 py-3 hover:bg-white/5 transition-colors">
                   <LogOut size={20} className="text-rose-400" />
@@ -280,7 +280,7 @@ export default function Profile() {
                 </button>
               </div>
               <div className="px-5 pb-4 pt-1">
-                <button onClick={() => setShowAccountMenu(false)} className="w-full py-2.5 rounded-xl bg-white/5 border border-white/10 text-[#00f2ea]/60 text-sm font-semibold">Cancel</button>
+                <button onClick={() => setShowAccountMenu(false)} className="w-full py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/60 text-sm font-semibold">Cancel</button>
               </div>
             </div>
           </div>
@@ -289,19 +289,19 @@ export default function Profile() {
         {/* ═══ AVATAR ═══ */}
         <div className="flex flex-col items-center mt-2 mb-3">
           <div className="relative group cursor-pointer" onClick={() => isOwnProfile && document.getElementById('avatar-upload')?.click()}>
-            <div className="w-[96px] h-[96px] rounded-full p-[3px] bg-gradient-to-tr from-[#00f2ea] to-[#00f2ea]">
-              <div className="w-full h-full rounded-full border-[3px] border-[#121212] overflow-hidden">
+            <div className="w-[96px] h-[96px] rounded-full p-[3px] bg-gradient-to-tr from-[#C9A96E] to-[#C9A96E]">
+              <div className="w-full h-full rounded-full border-[3px] border-[#13151A] overflow-hidden">
                 <img src={displayAvatar} alt="Profile" className="w-full h-full rounded-full object-cover" />
               </div>
             </div>
             {isOwnProfile && (
-              <div className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-7 h-7 rounded-full bg-[#00f2ea] border-[3px] border-[#121212] flex items-center justify-center">
+              <div className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-7 h-7 rounded-full bg-[#C9A96E] border-[3px] border-[#13151A] flex items-center justify-center">
                 <span className="text-black font-bold text-sm leading-none">+</span>
               </div>
             )}
             {isOwnProfile && (
-              <div className="absolute inset-0 rounded-full bg-[#121212]/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                <Camera size={24} className="text-[#00f2ea]" />
+              <div className="absolute inset-0 rounded-full bg-[#13151A]/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                <Camera size={24} className="text-white" />
               </div>
             )}
             <input 
@@ -313,15 +313,15 @@ export default function Profile() {
               onChange={(e) => handleAvatarFile(e.target.files?.[0])} 
             />
           </div>
-          {isUploadingAvatar && <div className="text-xs text-[#00f2ea]/70 mt-1">Uploading...</div>}
+          {isUploadingAvatar && <div className="text-xs text-white/70 mt-1">Uploading...</div>}
           {avatarError && <div className="text-xs text-rose-300 mt-1">{avatarError}</div>}
         </div>
 
         {/* ═══ NAME + EDIT ═══ */}
         <div className="flex items-center justify-center gap-2 px-4">
-          <h1 className="text-[17px] font-extrabold text-[#00f2ea] tracking-tight">{displayName}</h1>
+          <h1 className="text-[17px] font-extrabold text-white tracking-tight">{displayName}</h1>
           {profileData?.is_creator && (
-            <span className="w-4 h-4 rounded-full bg-[#00f2ea] flex items-center justify-center">
+            <span className="w-4 h-4 rounded-full bg-[#C9A96E] flex items-center justify-center">
               <Sparkles size={10} className="text-black" />
             </span>
           )}
@@ -331,22 +331,22 @@ export default function Profile() {
         {/* ═══ STATS ROW ═══ */}
         <div className="flex items-center justify-center gap-6 mt-4 px-4">
           <div className="flex flex-col items-center min-w-[60px]">
-            <span className="text-[17px] font-extrabold text-[#00f2ea]">{formatNumber(profileData?.following_count || 0)}</span>
-            <span className="text-[11px] text-[#00f2ea]/40 font-medium">Following</span>
+            <span className="text-[17px] font-extrabold text-white">{formatNumber(profileData?.following_count || 0)}</span>
+            <span className="text-[11px] text-white/40 font-medium">Following</span>
           </div>
           <div className="flex flex-col items-center min-w-[60px]">
-            <span className="text-[17px] font-extrabold text-[#00f2ea]">{formatNumber(profileData?.followers_count || 0)}</span>
-            <span className="text-[11px] text-[#00f2ea]/40 font-medium">Followers</span>
+            <span className="text-[17px] font-extrabold text-white">{formatNumber(profileData?.followers_count || 0)}</span>
+            <span className="text-[11px] text-white/40 font-medium">Followers</span>
           </div>
           <div className="flex flex-col items-center min-w-[60px]">
-            <span className="text-[17px] font-extrabold text-[#00f2ea]">{formatNumber(profileData?.likes_count || 0)}</span>
-            <span className="text-[11px] text-[#00f2ea]/40 font-medium">Likes</span>
+            <span className="text-[17px] font-extrabold text-white">{formatNumber(profileData?.likes_count || 0)}</span>
+            <span className="text-[11px] text-white/40 font-medium">Likes</span>
           </div>
         </div>
 
         {/* ═══ BIO ═══ */}
         {profileData?.bio && (
-          <p className="text-center text-[13px] text-[#00f2ea]/70 mt-3 px-8 leading-relaxed">{profileData.bio}</p>
+          <p className="text-center text-[13px] text-white/70 mt-3 px-8 leading-relaxed">{profileData.bio}</p>
         )}
 
         {/* ═══ FOLLOW / MESSAGE (other user) ═══ */}
@@ -356,20 +356,20 @@ export default function Profile() {
               onClick={toggleFollow}
               className={`flex-1 max-w-[160px] py-2.5 rounded-md text-sm font-bold transition ${
                 isFollowing
-                  ? 'bg-white/10 text-[#00f2ea] border border-white/10'
-                  : 'bg-[#00f2ea] text-black'
+                  ? 'bg-white/10 text-white border border-white/10'
+                  : 'bg-[#C9A96E] text-black'
               }`}
             >
               {isFollowing ? 'Following' : 'Follow'}
             </button>
             <button
               onClick={() => navigate(`/inbox`)}
-              className="flex-1 max-w-[160px] py-2.5 bg-white/10 border border-white/10 rounded-md text-sm font-bold text-[#00f2ea]"
+              className="flex-1 max-w-[160px] py-2.5 bg-white/10 border border-white/10 rounded-md text-sm font-bold text-white"
             >
               Message
             </button>
             <button type="button" onClick={() => { if (navigator.share) navigator.share({ title: displayName, url: window.location.href }); else navigator.clipboard.writeText(window.location.href); }} className="w-10 h-10 bg-white/10 border border-white/10 rounded-md flex items-center justify-center" title="Share profile">
-              <Share2 size={18} className="text-[#00f2ea]" />
+              <Share2 size={18} className="text-white" />
             </button>
           </div>
         )}
@@ -379,19 +379,19 @@ export default function Profile() {
           <div className="flex overflow-x-auto no-scrollbar">
             <button onClick={() => navigate('/creator/login-details')} className="flex items-center gap-2 px-4 py-3 whitespace-nowrap">
               <Sparkles size={16} className="text-[#ff2d55]" />
-              <span className="text-[13px] font-bold text-[#00f2ea]">Elix Studio</span>
+              <span className="text-[13px] font-bold text-white">Elix Studio</span>
             </button>
             <button onClick={() => navigate('/purchase-coins')} className="flex items-center gap-2 px-4 py-3 whitespace-nowrap">
               <Coins size={16} className="text-[#ff2d55]" />
-              <span className="text-[13px] font-bold text-[#00f2ea]">Your orders</span>
+              <span className="text-[13px] font-bold text-white">Your orders</span>
             </button>
             <button onClick={() => setActiveTab('shop')} className="flex items-center gap-2 px-4 py-3 whitespace-nowrap">
               <ShoppingBag size={16} className="text-[#ff2d55]" />
-              <span className="text-[13px] font-bold text-[#00f2ea]">Showcase</span>
+              <span className="text-[13px] font-bold text-white">Showcase</span>
             </button>
             <button onClick={() => navigate('/edit-profile')} className="flex items-center gap-2 px-4 py-3 whitespace-nowrap">
               <img src={displayAvatar} alt="" className="w-4 h-4 rounded-full object-cover" />
-              <span className="text-[13px] font-bold text-[#00f2ea]">{displayName.length > 10 ? displayName.slice(0, 10) + '...' : displayName}</span>
+              <span className="text-[13px] font-bold text-white">{displayName.length > 10 ? displayName.slice(0, 10) + '...' : displayName}</span>
             </button>
           </div>
         </div>
@@ -402,7 +402,7 @@ export default function Profile() {
             type="button"
             onClick={() => setActiveTab('videos')}
             className={`flex-1 pb-2.5 pt-2.5 flex items-center justify-center gap-0.5 border-b-2 transition-colors ${
-              activeTab === 'videos' ? 'border-white text-[#00f2ea]' : 'border-transparent text-[#00f2ea]/30'
+              activeTab === 'videos' ? 'border-white text-white' : 'border-transparent text-white/30'
             }`}
             aria-label="Videos"
           >
@@ -413,7 +413,7 @@ export default function Profile() {
             type="button"
             onClick={() => setActiveTab('shop')}
             className={`flex-1 pb-2.5 pt-2.5 flex justify-center border-b-2 transition-colors ${
-              activeTab === 'shop' ? 'border-white text-[#00f2ea]' : 'border-transparent text-[#00f2ea]/30'
+              activeTab === 'shop' ? 'border-white text-white' : 'border-transparent text-white/30'
             }`}
             aria-label="Shop"
           >
@@ -424,7 +424,7 @@ export default function Profile() {
               type="button"
               onClick={() => setActiveTab('private')}
               className={`flex-1 pb-2.5 pt-2.5 flex justify-center border-b-2 transition-colors ${
-                activeTab === 'private' ? 'border-white text-[#00f2ea]' : 'border-transparent text-[#00f2ea]/30'
+                activeTab === 'private' ? 'border-white text-white' : 'border-transparent text-white/30'
               }`}
               aria-label="Private"
             >
@@ -435,7 +435,7 @@ export default function Profile() {
             type="button"
             onClick={() => setActiveTab('reposts')}
             className={`flex-1 pb-2.5 pt-2.5 flex justify-center border-b-2 transition-colors ${
-              activeTab === 'reposts' ? 'border-white text-[#00f2ea]' : 'border-transparent text-[#00f2ea]/30'
+              activeTab === 'reposts' ? 'border-white text-white' : 'border-transparent text-white/30'
             }`}
             aria-label="Reposts"
           >
@@ -445,7 +445,7 @@ export default function Profile() {
             type="button"
             onClick={() => setActiveTab('saved')}
             className={`flex-1 pb-2.5 pt-2.5 flex justify-center border-b-2 transition-colors ${
-              activeTab === 'saved' ? 'border-white text-[#00f2ea]' : 'border-transparent text-[#00f2ea]/30'
+              activeTab === 'saved' ? 'border-white text-white' : 'border-transparent text-white/30'
             }`}
             aria-label="Saved"
           >
@@ -455,7 +455,7 @@ export default function Profile() {
             type="button"
             onClick={() => setActiveTab('liked')}
             className={`flex-1 pb-2.5 pt-2.5 flex justify-center border-b-2 transition-colors ${
-              activeTab === 'liked' ? 'border-white text-[#00f2ea]' : 'border-transparent text-[#00f2ea]/30'
+              activeTab === 'liked' ? 'border-white text-white' : 'border-transparent text-white/30'
             }`}
             aria-label="Liked"
           >
@@ -469,7 +469,7 @@ export default function Profile() {
             <button
               key={video.id}
               onClick={() => navigate(`/video/${video.id}`)}
-              className="aspect-[3/4] bg-[#1a1a1a] relative group text-left"
+              className="aspect-[3/4] bg-[#1C1E24] relative group text-left"
             >
               <img 
                 src={video.thumbnail_url || '/placeholder-video.png'} 
@@ -478,10 +478,10 @@ export default function Profile() {
               />
               {video.is_private && (
                 <div className="absolute top-2 right-2">
-                  <Lock size={14} className="text-[#00f2ea] drop-shadow" />
+                  <Lock size={14} className="text-white drop-shadow" />
                 </div>
               )}
-              <span className="absolute bottom-1.5 left-1.5 flex items-center gap-0.5 text-[11px] font-bold text-[#00f2ea] drop-shadow-md">
+              <span className="absolute bottom-1.5 left-1.5 flex items-center gap-0.5 text-[11px] font-bold text-white drop-shadow-md">
                 <Play size={10} fill="white" /> {formatNumber(video.views)}
               </span>
             </button>
@@ -489,7 +489,7 @@ export default function Profile() {
         </div>
         
         {!loading && videos.length === 0 && (
-          <div className="flex-1 flex items-center justify-center py-16 text-[#00f2ea]/30 text-sm">
+          <div className="flex-1 flex items-center justify-center py-16 text-white/30 text-sm">
             {activeTab === 'videos' && 'No videos yet'}
             {activeTab === 'shop' && 'No shop items yet'}
             {activeTab === 'private' && 'No private videos'}
@@ -505,9 +505,9 @@ export default function Profile() {
             onClick={() => navigate('/creator/login-details')}
             className="mx-3 mt-3 flex items-center gap-3 px-4 py-3 bg-white/5 border border-white/8 rounded-xl"
           >
-            <Store size={20} className="text-[#00f2ea]/50 shrink-0" />
-            <span className="text-[13px] font-bold text-[#00f2ea] flex-1 text-left">Elix Creator Centre</span>
-            <ChevronRight size={18} className="text-[#00f2ea]/30 shrink-0" />
+            <Store size={20} className="text-white/50 shrink-0" />
+            <span className="text-[13px] font-bold text-white flex-1 text-left">Elix Creator Centre</span>
+            <ChevronRight size={18} className="text-white/30 shrink-0" />
           </button>
         )}
 

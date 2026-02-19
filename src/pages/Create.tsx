@@ -91,18 +91,18 @@ function SoundPickerModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[500] bg-[#121212] flex items-end justify-center">
-      <div className="w-full bg-[#121212] border-t border-[#00f2ea]/30 rounded-t-2xl overflow-hidden">
+    <div className="fixed inset-0 z-[500] bg-[#13151A] flex items-end justify-center">
+      <div className="w-full bg-[#13151A] border-t border-[#C9A96E]/30 rounded-t-2xl overflow-hidden">
         <audio
           ref={audioRef}
           preload="auto"
           onEnded={() => setPlayingId(null)}
           className="hidden"
         />
-        <div className="flex items-center justify-between px-4 py-3 border-b border-[#00f2ea]/20">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-[#C9A96E]/20">
           <div className="flex items-center gap-2">
-            <Music className="w-4 h-4 text-[#00f2ea]" strokeWidth={2} />
-            <p className="text-[#00f2ea] font-semibold">Add sound</p>
+            <Music className="w-4 h-4 text-white" strokeWidth={2} />
+            <p className="text-white font-semibold">Add sound</p>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -123,7 +123,7 @@ function SoundPickerModal({
                 };
                 setCustomSounds((prev) => [next, ...prev]);
               }}
-              className="px-3 py-1.5 rounded-full border border-[#00f2ea]/35 text-[#00f2ea] text-xs font-semibold"
+              className="px-3 py-1.5 rounded-full border border-[#C9A96E]/35 text-white text-xs font-semibold"
             >
               Add URL
             </button>
@@ -140,19 +140,19 @@ function SoundPickerModal({
               className="w-full px-3 py-2 flex items-center justify-between hover:brightness-125 transition-colors"
             >
               <div className="text-left flex-1 min-w-0 mr-2">
-                <p className="text-[#00f2ea] text-sm font-medium leading-4 truncate">{s.title}</p>
-                <p className="text-[#00f2ea]/50 text-xs leading-4 truncate">{s.artist} • {formatClip(s.clipStartSeconds, s.clipEndSeconds)}</p>
+                <p className="text-white text-sm font-medium leading-4 truncate">{s.title}</p>
+                <p className="text-white/50 text-xs leading-4 truncate">{s.artist} • {formatClip(s.clipStartSeconds, s.clipEndSeconds)}</p>
               </div>
               <div className="flex items-center gap-1.5 flex-shrink-0">
                 <button
                   type="button"
                   onClick={() => togglePreview(s)}
-                  className="w-8 h-8 rounded-full border border-[#00f2ea]/25 bg-[#121212] flex items-center justify-center"
+                  className="w-8 h-8 rounded-full border border-[#C9A96E]/25 bg-[#13151A] flex items-center justify-center"
                 >
                   {playingId === String(s.id) ? (
-                    <Pause className="w-3.5 h-3.5 text-[#00f2ea]" strokeWidth={2} />
+                    <Pause className="w-3.5 h-3.5 text-white" strokeWidth={2} />
                   ) : (
-                    <Play className="w-3.5 h-3.5 text-[#00f2ea]" strokeWidth={2} />
+                    <Play className="w-3.5 h-3.5 text-white" strokeWidth={2} />
                   )}
                 </button>
                 <button
@@ -161,7 +161,7 @@ function SoundPickerModal({
                     onPick(s);
                     onClose();
                   }}
-                  className="px-2.5 py-1 rounded-full border border-[#00f2ea]/35 text-[#00f2ea] text-[10px] font-semibold"
+                  className="px-2.5 py-1 rounded-full border border-[#C9A96E]/35 text-white text-[10px] font-semibold"
                 >
                   Use
                 </button>
@@ -607,7 +607,7 @@ export default function Create() {
   };
 
   return (
-    <div className="min-h-[100dvh] bg-[#121212] text-[#00f2ea] flex justify-center">
+    <div className="min-h-[100dvh] bg-[#13151A] text-white flex justify-center">
       <div className="relative w-full min-h-[100dvh] overflow-hidden">
         
         <input
@@ -644,7 +644,7 @@ export default function Create() {
             />
           ) : (
             <div
-              className="w-full h-full bg-[#121212] relative flex items-center justify-center"
+              className="w-full h-full bg-[#13151A] relative flex items-center justify-center"
               onTouchStart={handleTouchStart}
               onTouchMove={handleTouchMove}
               onTouchEnd={handleTouchEnd}
@@ -666,17 +666,17 @@ export default function Create() {
               />
 
               {cameraError && (
-                <div className="absolute inset-0 flex items-center justify-center bg-[#121212] z-[100]">
+                <div className="absolute inset-0 flex items-center justify-center bg-[#13151A] z-[100]">
                   <div className="text-center p-5 max-w-[280px]">
-                    <CameraOff className="w-12 h-12 text-[#00f2ea]/70 mx-auto mb-4" strokeWidth={1.5} />
-                    <p className="text-[#00f2ea] text-sm font-semibold mb-2">Camera Access Needed</p>
-                    <p className="text-[#00f2ea]/60 text-xs mb-5 leading-relaxed">{cameraError}</p>
+                    <CameraOff className="w-12 h-12 text-white/70 mx-auto mb-4" strokeWidth={1.5} />
+                    <p className="text-white text-sm font-semibold mb-2">Camera Access Needed</p>
+                    <p className="text-white/60 text-xs mb-5 leading-relaxed">{cameraError}</p>
                     <button
                       onClick={() => {
                         setCameraError(null);
                         setRetryCamera((c) => c + 1);
                       }}
-                      className="px-6 py-2.5 rounded-full bg-[#00f2ea] text-black text-sm font-semibold active:scale-95 transition-transform"
+                      className="px-6 py-2.5 rounded-full bg-[#C9A96E] text-black text-sm font-semibold active:scale-95 transition-transform"
                     >
                       Try Again
                     </button>
@@ -693,28 +693,28 @@ export default function Create() {
           <div className="absolute right-4 bottom-[132px] z-[25]">
             <button
               onClick={togglePreviewPlayback}
-              className="w-11 h-11 rounded-full border border-[#00f2ea]/35 bg-[#121212] flex items-center justify-center"
+              className="w-11 h-11 rounded-full border border-[#C9A96E]/35 bg-[#13151A] flex items-center justify-center"
             >
               {isPreviewPlaying ? (
-                <Square className="w-5 h-5 text-[#00f2ea]" strokeWidth={2} />
+                <Square className="w-5 h-5 text-white" strokeWidth={2} />
               ) : (
-                <Play className="w-5 h-5 text-[#00f2ea]" strokeWidth={2} />
+                <Play className="w-5 h-5 text-white" strokeWidth={2} />
               )}
             </button>
           </div>
         )}
 
         {countdownSeconds !== null && (
-          <div className="absolute inset-0 z-[80] flex items-center justify-center bg-[#121212]">
-            <div className="w-24 h-24 rounded-full bg-[#121212] border border-[#00f2ea]/35 flex items-center justify-center">
-              <div className="text-4xl font-black text-[#00f2ea]">{countdownSeconds}</div>
+          <div className="absolute inset-0 z-[80] flex items-center justify-center bg-[#13151A]">
+            <div className="w-24 h-24 rounded-full bg-[#13151A] border border-[#C9A96E]/35 flex items-center justify-center">
+              <div className="text-4xl font-black text-white">{countdownSeconds}</div>
             </div>
           </div>
         )}
 
         {toast && (
           <div className="absolute left-0 right-0 top-20 z-[90] flex justify-center px-4">
-            <div className="px-4 py-2 rounded-full bg-[#121212] border border-transparent text-sm text-[#00f2ea]/80">
+            <div className="px-4 py-2 rounded-full bg-[#13151A] border border-transparent text-sm text-white/80">
               {toast}
             </div>
           </div>

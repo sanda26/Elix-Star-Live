@@ -90,13 +90,13 @@ export default function UserProfileModal({ isOpen, onClose, user, onFollow }: Us
 
   if (isBlocked) {
     return (
-      <div className="fixed inset-0 z-modals bg-[#121212] flex items-center justify-center p-4">
-        <div className="bg-[#121212] rounded-2xl p-6 max-w-sm w-full text-center">
+      <div className="fixed inset-0 z-modals bg-[#13151A] flex items-center justify-center p-4">
+        <div className="bg-[#13151A] rounded-2xl p-6 max-w-sm w-full text-center">
           <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
             <Ban className="w-8 h-8 text-red-500" />
           </div>
-          <h3 className="text-[#00f2ea] font-semibold mb-2">User Blocked</h3>
-          <p className="text-[#00f2ea]/60 text-sm mb-4">
+          <h3 className="text-white font-semibold mb-2">User Blocked</h3>
+          <p className="text-white/60 text-sm mb-4">
             You have blocked @{user.username}. You will no longer see their content.
           </p>
           <button
@@ -114,7 +114,7 @@ export default function UserProfileModal({ isOpen, onClose, user, onFollow }: Us
               }
               unblockUser(user.id);
             }}
-            className="px-4 py-2 bg-white text-[#00f2ea] rounded-lg hover:bg-white transition-colors"
+            className="px-4 py-2 bg-white text-white rounded-lg hover:bg-white transition-colors"
           >
             Unblock User
           </button>
@@ -124,25 +124,25 @@ export default function UserProfileModal({ isOpen, onClose, user, onFollow }: Us
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-[#121212]/95 flex items-end justify-center animate-in fade-in duration-200" onClick={onClose}>
+    <div className="fixed inset-0 z-50 bg-[#13151A]/95 flex items-end justify-center animate-in fade-in duration-200" onClick={onClose}>
       <div 
-        className="w-full h-[90vh] bg-[#121212] rounded-t-3xl overflow-y-auto animate-in slide-in-from-bottom duration-300 relative"
+        className="w-full h-[90vh] bg-[#13151A] rounded-t-3xl overflow-y-auto animate-in slide-in-from-bottom duration-300 relative"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-3 bg-[#121212]/95 backdrop-blur-sm border-b border-white/5">
-          <h3 className="text-[#00f2ea] font-bold text-lg">{user.username}</h3>
+        <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-3 bg-[#13151A]/95 backdrop-blur-sm border-b border-white/5">
+          <h3 className="text-white font-bold text-lg">{user.username}</h3>
           <div className="flex items-center gap-1">
             <button
               onClick={handleShareProfile}
-              className="p-2 text-[#00f2ea]/70 hover:text-[#00f2ea] transition-colors"
+              className="p-2 text-white/70 hover:text-white transition-colors"
               aria-label="Share profile"
             >
               <Share2 size={24} />
             </button>
             <button 
               onClick={onClose} 
-              className="p-2 -mr-2 text-[#00f2ea]/70 hover:text-[#00f2ea] transition-colors"
+              className="p-2 -mr-2 text-white/70 hover:text-white transition-colors"
               aria-label="Close profile"
             >
               <X size={24} />
@@ -153,8 +153,8 @@ export default function UserProfileModal({ isOpen, onClose, user, onFollow }: Us
         <div className="p-4 pb-safe">
           {/* Profile Header */}
           <div className="flex flex-col items-center mb-6">
-            <div className="w-24 h-24 rounded-full mb-3 p-[2px] bg-gradient-to-tr from-[#00f2ea] to-[#00f2ea]">
-              <div className="w-full h-full rounded-full border-2 border-[#121212] overflow-hidden bg-gray-800">
+            <div className="w-24 h-24 rounded-full mb-3 p-[2px] bg-gradient-to-tr from-[#C9A96E] to-[#C9A96E]">
+              <div className="w-full h-full rounded-full border-2 border-[#13151A] overflow-hidden bg-gray-800">
                 <img 
                   src={user.avatar} 
                   alt={user.name} 
@@ -163,19 +163,19 @@ export default function UserProfileModal({ isOpen, onClose, user, onFollow }: Us
               </div>
             </div>
             
-            <h2 className="text-xl font-bold text-[#00f2ea] flex items-center gap-1">
+            <h2 className="text-xl font-bold text-white flex items-center gap-1">
               @{user.username}
               {user.isVerified && (
-                <div className="bg-[#00f2ea] rounded-full p-[2px]">
+                <div className="bg-[#C9A96E] rounded-full p-[2px]">
                    <div className="w-2 h-2 bg-white rounded-full"></div> 
                 </div>
               )}
             </h2>
             
             <div className="mt-1 flex items-center gap-2">
-              <span className="text-sm text-[#00f2ea]/90 font-medium">{user.name}</span>
+              <span className="text-sm text-white/90 font-medium">{user.name}</span>
               {user.level && (
-                <span className="px-1.5 py-0.5 rounded bg-white/10 text-[10px] font-bold text-[#00f2ea] border border-[#00f2ea]/30">
+                <span className="px-1.5 py-0.5 rounded bg-white/10 text-[10px] font-bold text-white border border-[#C9A96E]/30">
                   LV {user.level}
                 </span>
               )}
@@ -184,16 +184,16 @@ export default function UserProfileModal({ isOpen, onClose, user, onFollow }: Us
             {/* Stats */}
             <div className="flex items-center gap-8 mt-6 w-full justify-center border-b border-white/5 pb-6">
               <div className="flex flex-col items-center">
-                <span className="font-bold text-lg text-[#00f2ea]">{formatNumber(user.following)}</span>
-                <span className="text-xs text-[#00f2ea]/50">Following</span>
+                <span className="font-bold text-lg text-white">{formatNumber(user.following)}</span>
+                <span className="text-xs text-white/50">Following</span>
               </div>
               <div className="flex flex-col items-center">
-                <span className="font-bold text-lg text-[#00f2ea]">{formatNumber(user.followers)}</span>
-                <span className="text-xs text-[#00f2ea]/50">Followers</span>
+                <span className="font-bold text-lg text-white">{formatNumber(user.followers)}</span>
+                <span className="text-xs text-white/50">Followers</span>
               </div>
               <div className="flex flex-col items-center">
-                <span className="font-bold text-lg text-[#00f2ea]">{userVideos.length}</span>
-                <span className="text-xs text-[#00f2ea]/50">Videos</span>
+                <span className="font-bold text-lg text-white">{userVideos.length}</span>
+                <span className="text-xs text-white/50">Videos</span>
               </div>
             </div>
 
@@ -204,14 +204,14 @@ export default function UserProfileModal({ isOpen, onClose, user, onFollow }: Us
                   {user.isFollowing ? (
                      <button
                        onClick={onFollow}
-                       className="flex-1 h-9 flex items-center justify-center bg-white/10 text-[#00f2ea] rounded-lg font-semibold text-sm hover:bg-white/20 transition-colors"
+                       className="flex-1 h-9 flex items-center justify-center bg-white/10 text-white rounded-lg font-semibold text-sm hover:bg-white/20 transition-colors"
                      >
                        Following
                      </button>
                   ) : (
                     <button
                       onClick={onFollow}
-                      className="flex-1 h-9 flex items-center justify-center bg-[#00f2ea] text-black rounded-lg font-semibold text-sm hover:bg-[#00f2ea]/90 transition-colors"
+                      className="flex-1 h-9 flex items-center justify-center bg-[#C9A96E] text-black rounded-lg font-semibold text-sm hover:bg-[#C9A96E]/90 transition-colors"
                     >
                       Follow
                     </button>
@@ -219,14 +219,14 @@ export default function UserProfileModal({ isOpen, onClose, user, onFollow }: Us
                   
                   <button
                     onClick={handleMessage}
-                    className="flex-1 h-9 flex items-center justify-center bg-white/10 text-[#00f2ea] rounded-lg font-semibold text-sm hover:bg-white/20 transition-colors"
+                    className="flex-1 h-9 flex items-center justify-center bg-white/10 text-white rounded-lg font-semibold text-sm hover:bg-white/20 transition-colors"
                   >
                     Message
                   </button>
 
                   <button
                     onClick={() => setShowMoreOptions(!showMoreOptions)}
-                    className="w-9 h-9 flex items-center justify-center bg-white/10 text-[#00f2ea] rounded-lg hover:bg-white/20 transition-colors relative"
+                    className="w-9 h-9 flex items-center justify-center bg-white/10 text-white rounded-lg hover:bg-white/20 transition-colors relative"
                   >
                     <MoreHorizontal size={20} />
                     
@@ -234,7 +234,7 @@ export default function UserProfileModal({ isOpen, onClose, user, onFollow }: Us
                       <div className="absolute top-full right-0 mt-2 w-48 bg-[#252525] rounded-xl shadow-xl border border-white/10 z-50 overflow-hidden">
                         <button
                           onClick={handleReportUser}
-                          className="w-full px-4 py-3 text-left text-sm text-[#00f2ea] hover:bg-white/5 flex items-center gap-2"
+                          className="w-full px-4 py-3 text-left text-sm text-white hover:bg-white/5 flex items-center gap-2"
                         >
                           <Flag size={16} /> Report
                         </button>
@@ -253,13 +253,13 @@ export default function UserProfileModal({ isOpen, onClose, user, onFollow }: Us
 
             {/* Bio */}
             {user.bio && (
-              <p className="mt-6 text-sm text-[#00f2ea]/80 text-center px-4 leading-relaxed max-w-md">
+              <p className="mt-6 text-sm text-white/80 text-center px-4 leading-relaxed max-w-md">
                 {user.bio}
               </p>
             )}
             
             {(user.location || user.website || user.joinedDate) && (
-               <div className="flex flex-wrap justify-center gap-4 mt-4 text-xs text-[#00f2ea]/50">
+               <div className="flex flex-wrap justify-center gap-4 mt-4 text-xs text-white/50">
                   {user.location && <span>📍 {user.location}</span>}
                   {user.joinedDate && <span>📅 Joined {formatDate(user.joinedDate)}</span>}
                   {user.website && (
@@ -267,7 +267,7 @@ export default function UserProfileModal({ isOpen, onClose, user, onFollow }: Us
                       href={user.website}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-[#00f2ea] text-sm hover:underline"
+                      className="text-white text-sm hover:underline"
                     >
                       {user.website}
                     </a>
@@ -279,8 +279,8 @@ export default function UserProfileModal({ isOpen, onClose, user, onFollow }: Us
           {/* Video Grid */}
           <div className="mt-2 border-t border-white/10">
             <div className="flex items-center justify-center py-3 border-b border-white/10">
-               <div className="flex items-center gap-2 text-[#00f2ea] font-semibold">
-                 <div className="w-0.5 h-4 bg-[#00f2ea]"></div>
+               <div className="flex items-center gap-2 text-white font-semibold">
+                 <div className="w-0.5 h-4 bg-[#C9A96E]"></div>
                  <span>Videos</span>
                </div>
             </div>
@@ -294,7 +294,7 @@ export default function UserProfileModal({ isOpen, onClose, user, onFollow }: Us
                       alt={video.description} 
                       className="w-full h-full object-cover"
                     />
-                    <div className="absolute bottom-1 left-1 text-xs font-bold text-[#00f2ea] drop-shadow-md flex items-center gap-1">
+                    <div className="absolute bottom-1 left-1 text-xs font-bold text-white drop-shadow-md flex items-center gap-1">
                       <Play size={10} fill="white" />
                       {formatNumber(video.stats?.views || 0)}
                     </div>
@@ -302,7 +302,7 @@ export default function UserProfileModal({ isOpen, onClose, user, onFollow }: Us
                 ))}
               </div>
             ) : (
-              <div className="py-12 text-center text-[#00f2ea]/40 text-sm">
+              <div className="py-12 text-center text-white/40 text-sm">
                 No videos yet
               </div>
             )}

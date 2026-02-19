@@ -26,7 +26,7 @@ export function IncomingCallModal() {
   };
 
   return (
-    <div className="fixed inset-0 z-[100] bg-[#121212]/70 backdrop-blur-md flex items-center justify-center">
+    <div className="fixed inset-0 z-[100] bg-[#13151A]/70 backdrop-blur-md flex items-center justify-center">
       <div className="bg-gray-900 rounded-3xl p-8 max-w-sm w-full mx-4 text-center shadow-2xl">
         {remoteUser.avatar ? (
           <img
@@ -35,15 +35,15 @@ export function IncomingCallModal() {
             className="w-24 h-24 rounded-full object-cover mx-auto mb-4 border-2 border-white/20"
           />
         ) : (
-          <div className="w-24 h-24 rounded-full bg-white/10 mx-auto mb-4 flex items-center justify-center text-3xl text-[#00f2ea]">
+          <div className="w-24 h-24 rounded-full bg-white/10 mx-auto mb-4 flex items-center justify-center text-3xl text-white">
             {remoteUser.username[0]?.toUpperCase()}
           </div>
         )}
 
-        <h2 className="text-[#00f2ea] text-xl font-bold mb-1">
+        <h2 className="text-white text-xl font-bold mb-1">
           {remoteUser.username}
         </h2>
-        <p className="text-[#00f2ea]/60 text-sm mb-8">Incoming video call...</p>
+        <p className="text-white/60 text-sm mb-8">Incoming video call...</p>
 
         <div className="flex items-center justify-center gap-12">
           <button
@@ -51,7 +51,7 @@ export function IncomingCallModal() {
             title="Decline call"
             className="w-16 h-16 rounded-full bg-red-500 flex items-center justify-center shadow-lg active:scale-95 transition-transform"
           >
-            <PhoneOff className="w-7 h-7 text-[#00f2ea]" />
+            <PhoneOff className="w-7 h-7 text-white" />
           </button>
 
           <button
@@ -59,7 +59,7 @@ export function IncomingCallModal() {
             title="Accept call"
             className="w-16 h-16 rounded-full bg-green-500 flex items-center justify-center shadow-lg active:scale-95 transition-transform animate-pulse"
           >
-            <Phone className="w-7 h-7 text-[#00f2ea]" />
+            <Phone className="w-7 h-7 text-white" />
           </button>
         </div>
       </div>

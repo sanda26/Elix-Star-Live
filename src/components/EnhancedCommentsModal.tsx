@@ -340,8 +340,8 @@ export default function CommentsModal({ isOpen, onClose, videoId }: CommentsModa
         
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1 flex-wrap">
-            <span className="font-semibold text-[#00f2ea] truncate max-w-[150px]">{comment.username}</span>
-            <span className="text-[#00f2ea]/60 text-sm">{formatTime(comment.created_at)}</span>
+            <span className="font-semibold text-white truncate max-w-[150px]">{comment.username}</span>
+            <span className="text-white/60 text-sm">{formatTime(comment.created_at)}</span>
           </div>
           
           {editingComment === comment.id ? (
@@ -350,12 +350,12 @@ export default function CommentsModal({ isOpen, onClose, videoId }: CommentsModa
                 type="text"
                 value={editText}
                 onChange={(e) => setEditText(e.target.value)}
-                className="flex-1 bg-white/10 text-[#00f2ea] px-3 py-1 rounded-lg border border-white/20 focus:border-[#00f2ea] outline-none"
+                className="flex-1 bg-white/10 text-white px-3 py-1 rounded-lg border border-white/20 focus:border-[#C9A96E] outline-none"
                 placeholder="Edit comment..."
               />
               <button
                 onClick={() => handleEditComment(comment.id)}
-                className="text-[#00f2ea] hover:text-[#00c4bd]"
+                className="text-white hover:text-white/80"
               >
                 Save
               </button>
@@ -364,21 +364,21 @@ export default function CommentsModal({ isOpen, onClose, videoId }: CommentsModa
                   setEditingComment(null);
                   setEditText('');
                 }}
-                className="text-[#00f2ea]/60 hover:text-[#00f2ea]"
+                className="text-white/60 hover:text-white"
               >
                 Cancel
               </button>
             </div>
           ) : (
-            <p className="text-[#00f2ea]/90 mb-2 break-words">{comment.text}</p>
+            <p className="text-white/90 mb-2 break-words">{comment.text}</p>
           )}
           
           <div className="flex items-center gap-4">
             <button
               onClick={() => handleLikeComment(comment.id, isReply)}
               className={`flex items-center gap-1 text-sm ${
-                comment.is_liked ? 'text-red-500' : 'text-[#00f2ea]/60'
-              } hover:text-[#00f2ea] transition`}
+                comment.is_liked ? 'text-red-500' : 'text-white/60'
+              } hover:text-white transition`}
             >
               <Heart className={`w-4 h-4 ${comment.is_liked ? 'fill-current' : ''}`} />
               {comment.likes}
@@ -387,7 +387,7 @@ export default function CommentsModal({ isOpen, onClose, videoId }: CommentsModa
             {!isReply && (
               <button
                 onClick={() => setReplyingTo(comment)}
-                className="flex items-center gap-1 text-sm text-[#00f2ea]/60 hover:text-[#00f2ea] transition"
+                className="flex items-center gap-1 text-sm text-white/60 hover:text-white transition"
               >
                 <Reply className="w-4 h-4" />
                 Reply
@@ -401,13 +401,13 @@ export default function CommentsModal({ isOpen, onClose, videoId }: CommentsModa
                     setEditingComment(comment.id);
                     setEditText(comment.text);
                   }}
-                  className="text-sm text-[#00f2ea]/60 hover:text-[#00f2ea] transition"
+                  className="text-sm text-white/60 hover:text-white transition"
                 >
                   <Edit3 className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => handleDeleteComment(comment.id, isReply, comment.parent_id)}
-                  className="text-sm text-[#00f2ea]/60 hover:text-red-500 transition"
+                  className="text-sm text-white/60 hover:text-red-500 transition"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
@@ -421,7 +421,7 @@ export default function CommentsModal({ isOpen, onClose, videoId }: CommentsModa
               {comment.reply_count! > 0 && (
                 <button
                   onClick={() => toggleReplies(comment.id)}
-                  className="text-sm text-[#00f2ea] hover:text-[#00c4bd] mb-2"
+                  className="text-sm text-white hover:text-white/80 mb-2"
                 >
                   {showReplies.has(comment.id) ? 'Hide' : 'View'} {comment.reply_count} {comment.reply_count === 1 ? 'reply' : 'replies'}
                 </button>
@@ -443,18 +443,18 @@ export default function CommentsModal({ isOpen, onClose, videoId }: CommentsModa
                 value={newComment}
                 onChange={(e) => setNewComment(e.target.value)}
                 placeholder={`Reply to ${comment.username}...`}
-                className="flex-1 bg-white/10 text-[#00f2ea] px-3 py-2 rounded-lg border border-white/20 focus:border-[#00f2ea] outline-none"
+                className="flex-1 bg-white/10 text-white px-3 py-2 rounded-lg border border-white/20 focus:border-[#C9A96E] outline-none"
                 autoFocus
               />
               <button
                 onClick={() => handleAddComment(comment)}
-                className="text-[#00f2ea] hover:text-[#00c4bd]"
+                className="text-white hover:text-white/80"
               >
                 <Send className="w-5 h-5" />
               </button>
               <button
                 onClick={() => setReplyingTo(null)}
-                className="text-[#00f2ea]/60 hover:text-[#00f2ea] text-sm font-semibold"
+                className="text-white/60 hover:text-white text-sm font-semibold"
               >
                 Cancel
               </button>
@@ -469,15 +469,15 @@ export default function CommentsModal({ isOpen, onClose, videoId }: CommentsModa
 
   return (
     <div
-      className="fixed inset-0 bg-[#121212]/80 backdrop-blur-sm z-modals flex items-end justify-center"
+      className="fixed inset-0 bg-[#13151A]/80 backdrop-blur-sm z-modals flex items-end justify-center"
       onClick={onClose}
     >
       <div
-        className="bg-[#1a1a1a]/95 rounded-t-2xl p-3 pb-safe max-h-[70dvh] w-full shadow-2xl flex flex-col"
+        className="bg-[#1C1E24]/95 rounded-t-2xl p-3 pb-safe max-h-[70dvh] w-full shadow-2xl flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-2">
-          <h2 className="text-[#00f2ea] font-semibold text-sm flex items-center gap-2">
+          <h2 className="text-white font-semibold text-sm flex items-center gap-2">
             <MessageSquare className="text-secondary" size={16} />
             Comments
           </h2>
@@ -487,7 +487,7 @@ export default function CommentsModal({ isOpen, onClose, videoId }: CommentsModa
                 key={sort}
                 onClick={() => setSortBy(sort)}
                 className={`text-[11px] font-semibold capitalize ${
-                  sortBy === sort ? 'text-secondary' : 'text-[#00f2ea]/60 hover:text-[#00f2ea]'
+                  sortBy === sort ? 'text-secondary' : 'text-white/60 hover:text-white'
                 } transition-colors`}
               >
                 {sort === 'mostLiked' ? 'Most Liked' : sort}
@@ -498,9 +498,9 @@ export default function CommentsModal({ isOpen, onClose, videoId }: CommentsModa
 
         <div className="flex-1 overflow-y-auto no-scrollbar pr-1">
           {loading ? (
-            <div className="text-center text-[#00f2ea]/60 py-6 text-sm">Loading comments...</div>
+            <div className="text-center text-white/60 py-6 text-sm">Loading comments...</div>
           ) : comments.length === 0 ? (
-            <div className="text-center text-[#00f2ea]/60 py-6 text-sm">No comments yet.</div>
+            <div className="text-center text-white/60 py-6 text-sm">No comments yet.</div>
           ) : (
             <div className="space-y-4">
               {comments.map(comment => renderComment(comment))}
@@ -526,7 +526,7 @@ export default function CommentsModal({ isOpen, onClose, videoId }: CommentsModa
                 value={newComment}
                 onChange={(e) => setNewComment(e.target.value)}
                 placeholder="Add a comment..."
-                className="flex-1 bg-[#121212] text-[#00f2ea] px-3 py-2 rounded-lg border border-white/10 focus:border-secondary outline-none text-sm"
+                className="flex-1 bg-[#13151A] text-white px-3 py-2 rounded-lg border border-white/10 focus:border-secondary outline-none text-sm"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();

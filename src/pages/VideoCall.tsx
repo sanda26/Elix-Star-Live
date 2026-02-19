@@ -93,7 +93,7 @@ export default function VideoCall() {
 
   if (!callId || !remoteUser) {
     return (
-      <div className="min-h-[100dvh] h-[100dvh] bg-[#121212] flex items-center justify-center text-[#00f2ea] overflow-hidden">
+      <div className="min-h-[100dvh] h-[100dvh] bg-[#13151A] flex items-center justify-center text-white overflow-hidden">
         <p>No active call</p>
       </div>
     );
@@ -118,7 +118,7 @@ export default function VideoCall() {
               : formatDuration(elapsed);
 
   return (
-    <div className="fixed inset-0 bg-[#121212] z-50 flex flex-col">
+    <div className="fixed inset-0 bg-[#13151A] z-50 flex flex-col">
       {/* Remote video (full screen) */}
       <div className="flex-1 relative">
         {remoteStream && status === 'connected' ? (
@@ -137,14 +137,14 @@ export default function VideoCall() {
                 className="w-24 h-24 rounded-full object-cover border-2 border-white/20"
               />
             ) : (
-              <div className="w-24 h-24 rounded-full bg-white/10 flex items-center justify-center text-3xl text-[#00f2ea]">
+              <div className="w-24 h-24 rounded-full bg-white/10 flex items-center justify-center text-3xl text-white">
                 {remoteUser.username[0]?.toUpperCase()}
               </div>
             )}
-            <p className="text-[#00f2ea] text-lg font-semibold">
+            <p className="text-white text-lg font-semibold">
               {remoteUser.username}
             </p>
-            <p className="text-[#00f2ea]/60 text-sm">{statusLabel}</p>
+            <p className="text-white/60 text-sm">{statusLabel}</p>
           </div>
         )}
 
@@ -152,21 +152,21 @@ export default function VideoCall() {
         <button
           onClick={() => navigate(-1)}
           title="Go back"
-          className="absolute top-12 left-4 w-10 h-10 rounded-full bg-[#121212]/40 flex items-center justify-center"
+          className="absolute top-12 left-4 w-10 h-10 rounded-full bg-[#13151A]/40 flex items-center justify-center"
         >
-          <ArrowLeft className="w-5 h-5 text-[#00f2ea]" />
+          <ArrowLeft className="w-5 h-5 text-white" />
         </button>
 
         {/* Timer / Status */}
         {status === 'connected' && (
-          <div className="absolute top-12 left-1/2 -translate-x-1/2 bg-[#121212]/50 px-4 py-1 rounded-full">
-            <p className="text-[#00f2ea] text-sm font-mono">{statusLabel}</p>
+          <div className="absolute top-12 left-1/2 -translate-x-1/2 bg-[#13151A]/50 px-4 py-1 rounded-full">
+            <p className="text-white text-sm font-mono">{statusLabel}</p>
           </div>
         )}
 
         {/* Local video PiP */}
         {localStream && (
-          <div className="absolute top-20 right-4 w-28 h-40 rounded-2xl overflow-hidden border-2 border-white/20 bg-[#121212] shadow-lg">
+          <div className="absolute top-20 right-4 w-28 h-40 rounded-2xl overflow-hidden border-2 border-white/20 bg-[#13151A] shadow-lg">
             <video
               ref={localVideoRef}
               autoPlay
@@ -176,7 +176,7 @@ export default function VideoCall() {
             />
             {isVideoOff && (
               <div className="w-full h-full flex items-center justify-center bg-gray-800">
-                <VideoOff className="w-6 h-6 text-[#00f2ea]/50" />
+                <VideoOff className="w-6 h-6 text-white/50" />
               </div>
             )}
           </div>
@@ -184,7 +184,7 @@ export default function VideoCall() {
       </div>
 
       {/* Controls */}
-      <div className="bg-[#121212]/80 backdrop-blur-sm pb-10 pt-6 px-6">
+      <div className="bg-[#13151A]/80 backdrop-blur-sm pb-10 pt-6 px-6">
         <div className="flex items-center justify-center gap-6">
           <button
             onClick={toggleAudio}
@@ -193,9 +193,9 @@ export default function VideoCall() {
             }`}
           >
             {isAudioMuted ? (
-              <MicOff className="w-6 h-6 text-[#00f2ea]" />
+              <MicOff className="w-6 h-6 text-white" />
             ) : (
-              <Mic className="w-6 h-6 text-[#00f2ea]" />
+              <Mic className="w-6 h-6 text-white" />
             )}
           </button>
 
@@ -206,9 +206,9 @@ export default function VideoCall() {
             }`}
           >
             {isVideoOff ? (
-              <VideoOff className="w-6 h-6 text-[#00f2ea]" />
+              <VideoOff className="w-6 h-6 text-white" />
             ) : (
-              <Video className="w-6 h-6 text-[#00f2ea]" />
+              <Video className="w-6 h-6 text-white" />
             )}
           </button>
 
@@ -217,7 +217,7 @@ export default function VideoCall() {
             title="Switch camera"
             className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center"
           >
-            <SwitchCamera className="w-6 h-6 text-[#00f2ea]" />
+            <SwitchCamera className="w-6 h-6 text-white" />
           </button>
 
           <button
@@ -225,7 +225,7 @@ export default function VideoCall() {
             title="End call"
             className="w-16 h-16 rounded-full bg-red-500 flex items-center justify-center shadow-lg"
           >
-            <PhoneOff className="w-7 h-7 text-[#00f2ea]" />
+            <PhoneOff className="w-7 h-7 text-white" />
           </button>
         </div>
       </div>

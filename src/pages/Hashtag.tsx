@@ -58,24 +58,24 @@ export default function Hashtag() {
   };
 
   return (
-    <div className="min-h-[100dvh] bg-[#121212] text-[#00f2ea] flex justify-center px-2">
-      <div className="w-full max-w-[480px] h-[100dvh] rounded-3xl overflow-hidden bg-[#121212] flex flex-col pt-[var(--safe-top)] pb-[calc(var(--safe-bottom)+12mm)]">
+    <div className="min-h-[100dvh] bg-[#13151A] text-white flex justify-center px-2">
+      <div className="w-full max-w-[480px] h-[100dvh] rounded-3xl overflow-hidden bg-[#13151A] flex flex-col pt-[var(--safe-top)] pb-[calc(var(--safe-bottom)+12mm)]">
       {/* Header */}
-      <div className="sticky top-0 z-10 px-4 py-6 bg-[#121212]">
+      <div className="sticky top-0 z-10 px-4 py-6 bg-[#13151A]">
         <div className="flex items-center gap-3 mb-4">
           <button onClick={() => navigate('/feed')} className="p-1 hover:brightness-125 transition" title="Back to For You">
             <img src="/Icons/power-button.png" alt="Back" className="w-5 h-5" />
           </button>
-          <div className="w-16 h-16 bg-gradient-to-br from-[#00f2ea] to-[#00c4bd] rounded-full flex items-center justify-center">
+          <div className="w-16 h-16 bg-gradient-to-br from-[#C9A96E] to-[#B8943F] rounded-full flex items-center justify-center">
             <Hash className="w-8 h-8 text-black" />
           </div>
           <div className="flex-1">
             <h1 className="text-2xl font-bold">#{tag}</h1>
             {hashtagInfo && (
               <div className="flex items-center gap-3 mt-1">
-                <span className="text-sm text-[#00f2ea]/60">{formatNumber(hashtagInfo.use_count)} videos</span>
+                <span className="text-sm text-white/60">{formatNumber(hashtagInfo.use_count)} videos</span>
                 {hashtagInfo.trending_score > 50 && (
-                  <div className="flex items-center gap-1 text-xs text-[#00f2ea]">
+                  <div className="flex items-center gap-1 text-xs text-white">
                     <TrendingUp className="w-3 h-3" />
                     Trending
                   </div>
@@ -89,7 +89,7 @@ export default function Hashtag() {
       {/* Videos Grid */}
       <div className="px-4 py-4">
         {loading ? (
-          <div className="text-center py-12 text-[#00f2ea]/40">Loading...</div>
+          <div className="text-center py-12 text-white/40">Loading...</div>
         ) : (
           <div className="grid grid-cols-3 gap-1">
             {videos.map(video => (
@@ -103,7 +103,7 @@ export default function Hashtag() {
                   alt="Video"
                   className="w-full h-full object-cover"
                 />
-                <div className="absolute bottom-2 left-2 text-[#00f2ea] text-xs font-semibold">
+                <div className="absolute bottom-2 left-2 text-white text-xs font-semibold">
                   {formatNumber(video.views_count)} views
                 </div>
               </a>
@@ -112,7 +112,7 @@ export default function Hashtag() {
         )}
 
         {!loading && videos.length === 0 && (
-          <div className="text-center py-12 text-[#00f2ea]/40">No videos found for this hashtag</div>
+          <div className="text-center py-12 text-white/40">No videos found for this hashtag</div>
         )}
       </div>
       </div>

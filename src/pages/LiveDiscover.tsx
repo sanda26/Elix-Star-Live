@@ -70,9 +70,9 @@ export default function LiveDiscover() {
   }, []);
 
   return (
-    <div className="min-h-[100dvh] bg-[#121212] flex justify-center px-2">
-      <div className="relative w-full max-w-[480px] h-[100dvh] bg-[#121212] overflow-hidden rounded-3xl pt-[var(--safe-top)] pb-[calc(var(--safe-bottom)+12mm)]">
-        <div className="absolute inset-0 bg-[#121212]" />
+    <div className="min-h-[100dvh] bg-[#13151A] flex justify-center px-2">
+      <div className="relative w-full max-w-[480px] h-[100dvh] bg-[#13151A] overflow-hidden rounded-3xl pt-[var(--safe-top)] pb-[calc(var(--safe-bottom)+12mm)]">
+        <div className="absolute inset-0 bg-[#13151A]" />
 
         <div className="relative z-10 px-4 pt-3">
           <div className="flex items-center justify-between">
@@ -81,13 +81,13 @@ export default function LiveDiscover() {
                 <img src="/Icons/power-button.png" alt="Back" className="w-5 h-5" />
               </button>
               <div>
-                <p className="text-[#00f2ea] font-extrabold text-xl">Live</p>
-                <p className="text-[#00f2ea]/60 text-xs font-semibold">Cine e live acum</p>
+                <p className="text-white font-extrabold text-xl">Live</p>
+                <p className="text-white/60 text-xs font-semibold">Cine e live acum</p>
               </div>
             </div>
             <button 
               onClick={fetchLiveStreams}
-              className="p-2 text-[#00f2ea] hover:brightness-125 rounded-full"
+              className="p-2 text-white hover:brightness-125 rounded-full"
             >
               <RefreshCw size={20} className={loading ? 'animate-spin' : ''} />
             </button>
@@ -95,7 +95,7 @@ export default function LiveDiscover() {
 
           <div className="mt-4 space-y-3">
             {loading && creators.length === 0 ? (
-               <div className="text-[#00f2ea]/50 text-center py-10 text-sm">Loading streams...</div>
+               <div className="text-white/50 text-center py-10 text-sm">Loading streams...</div>
             ) : creators.length > 0 ? (
               creators.map((c) => (
                 <button
@@ -105,21 +105,21 @@ export default function LiveDiscover() {
                   className="w-full flex items-center justify-between gap-3 p-3 rounded-2xl active:scale-[0.99] transition-transform"
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-12 h-12 rounded-full flex items-center justify-center text-[#00f2ea] font-extrabold text-lg">
+                    <div className="w-12 h-12 rounded-full flex items-center justify-center text-white font-extrabold text-lg">
                       {c.name.slice(0, 1).toUpperCase()}
                     </div>
                     <div className="min-w-0 text-left">
                       <div className="flex items-center gap-2">
-                        <p className="text-[#00f2ea] font-extrabold truncate max-w-[150px]">{c.name}</p>
-                        <span className="px-2 py-0.5 rounded-full bg-red-600 text-[#00f2ea] text-[10px] font-extrabold animate-pulse">LIVE</span>
+                        <p className="text-white font-extrabold truncate max-w-[150px]">{c.name}</p>
+                        <span className="px-2 py-0.5 rounded-full bg-red-600 text-white text-[10px] font-extrabold animate-pulse">LIVE</span>
                       </div>
-                      <div className="flex items-center gap-1.5 text-[#00f2ea]/70 text-xs font-semibold">
+                      <div className="flex items-center gap-1.5 text-white/70 text-xs font-semibold">
                         <User className="w-4 h-4" strokeWidth={2} />
                         {c.viewers.toLocaleString()} viewers
                       </div>
                     </div>
                   </div>
-                  <div className="text-[#00f2ea] text-xs font-extrabold px-3 py-1.5 rounded-full">
+                  <div className="text-white text-xs font-extrabold px-3 py-1.5 rounded-full">
                     Watch
                   </div>
                 </button>
@@ -127,15 +127,15 @@ export default function LiveDiscover() {
             ) : (
               <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
                 <div className="w-16 h-16 rounded-full flex items-center justify-center">
-                  <User className="w-8 h-8 text-[#00f2ea]/20" />
+                  <User className="w-8 h-8 text-white/20" />
                 </div>
                 <div>
-                  <p className="text-[#00f2ea] font-bold">No one is live</p>
-                  <p className="text-[#00f2ea]/50 text-xs mt-1">Go live to be the first!</p>
+                  <p className="text-white font-bold">No one is live</p>
+                  <p className="text-white/50 text-xs mt-1">Go live to be the first!</p>
                 </div>
                 <button
                   onClick={() => navigate('/create')}
-                  className="px-6 py-2 rounded-full bg-[#00f2ea] text-black font-bold text-sm"
+                  className="px-6 py-2 rounded-full bg-[#C9A96E] text-black font-bold text-sm"
                 >
                   Go Live
                 </button>

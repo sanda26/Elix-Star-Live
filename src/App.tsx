@@ -63,9 +63,9 @@ const VideoCall = lazy(() => import('./pages/VideoCall'));
 // Loading fallback for lazy-loaded routes
 function PageLoader() {
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center text-[#00f2ea] p-4">
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center text-white p-4">
       <div className="w-16 h-16 border-4 border-secondary border-t-transparent rounded-full animate-spin mb-4" />
-      <p className="text-[#00f2ea]/70">Loading...</p>
+      <p className="text-white/70">Loading...</p>
     </div>
   );
 }
@@ -156,7 +156,7 @@ function App() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="w-10 h-10 border-2 border-[#00f2ea] border-t-transparent rounded-full animate-spin" />
+        <div className="w-10 h-10 border-2 border-[#C9A96E] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }

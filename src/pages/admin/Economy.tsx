@@ -60,21 +60,21 @@ export default function AdminEconomy() {
   };
 
   if (loading) {
-    return <div className="min-h-screen bg-gray-900 flex items-center justify-center text-[#00f2ea]">Loading...</div>;
+    return <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">Loading...</div>;
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-[#00f2ea] p-6">
+    <div className="min-h-screen bg-gray-900 text-white p-6">
       <div className="max-w-7xl mx-auto">
         <h1 className="text-3xl font-bold mb-8 flex items-center gap-3">
-          <DollarSign className="w-8 h-8 text-[#00f2ea]" />
+          <DollarSign className="w-8 h-8 text-white" />
           Economy Controls
         </h1>
 
         {/* Coin Packages */}
         <div className="mb-8">
           <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
-            <Package className="w-6 h-6 text-[#00f2ea]" />
+            <Package className="w-6 h-6 text-white" />
             Coin Packages
           </h2>
           <div className="bg-gray-800 rounded-lg p-6">
@@ -104,13 +104,13 @@ export default function AdminEconomy() {
                   <tr key={gift.id} className="hover:bg-gray-700/50">
                     <td className="px-4 py-3 font-semibold">{gift.name}</td>
                     <td className="px-4 py-3">
-                      <span className="px-2 py-1 bg-[#00f2ea] rounded text-xs">{gift.rarity}</span>
+                      <span className="px-2 py-1 bg-[#C9A96E] rounded text-xs">{gift.rarity}</span>
                     </td>
-                    <td className="px-4 py-3 text-[#00f2ea] font-bold">{gift.coin_cost}</td>
+                    <td className="px-4 py-3 text-white font-bold">{gift.coin_cost}</td>
                     <td className="px-4 py-3">
                       <span
                         className={`px-2 py-1 rounded text-xs ${
-                          gift.is_active ? 'bg-[#00f2ea]' : 'bg-gray-600'
+                          gift.is_active ? 'bg-[#C9A96E]' : 'bg-gray-600'
                         }`}
                       >
                         {gift.is_active ? 'Active' : 'Inactive'}
@@ -122,7 +122,7 @@ export default function AdminEconomy() {
                           const newPrice = prompt(`New price for ${gift.name}:`, String(gift.coin_cost));
                           if (newPrice) updateGiftPrice(gift.id, parseInt(newPrice));
                         }}
-                        className="px-3 py-1 bg-[#00f2ea] text-black rounded hover:bg-[#00f2ea]/90 text-sm"
+                        className="px-3 py-1 bg-[#C9A96E] text-black rounded hover:bg-[#C9A96E]/90 text-sm"
                       >
                         Edit Price
                       </button>
@@ -137,7 +137,7 @@ export default function AdminEconomy() {
         {/* Boosters Catalog */}
         <div>
           <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
-            <Zap className="w-6 h-6 text-[#00f2ea]" />
+            <Zap className="w-6 h-6 text-white" />
             Boosters Catalog ({boosters.length})
           </h2>
           <div className="bg-gray-800 rounded-lg overflow-hidden">
@@ -155,11 +155,11 @@ export default function AdminEconomy() {
                   <tr key={booster.id} className="hover:bg-gray-700/50">
                     <td className="px-4 py-3 font-semibold">{booster.name}</td>
                     <td className="px-4 py-3 text-gray-400">{booster.effect_type}</td>
-                    <td className="px-4 py-3 text-[#00f2ea] font-bold">{booster.coin_cost}</td>
+                    <td className="px-4 py-3 text-white font-bold">{booster.coin_cost}</td>
                     <td className="px-4 py-3">
                       <span
                         className={`px-2 py-1 rounded text-xs ${
-                          booster.is_active ? 'bg-[#00f2ea]' : 'bg-gray-600'
+                          booster.is_active ? 'bg-[#C9A96E]' : 'bg-gray-600'
                         }`}
                       >
                         {booster.is_active ? 'Active' : 'Inactive'}

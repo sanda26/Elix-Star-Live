@@ -56,16 +56,16 @@ export default function AdminDashboard() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-[#00f2ea]">Loading...</div>
+        <div className="text-white">Loading...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-[#00f2ea] p-6">
+    <div className="min-h-screen bg-gray-900 text-white p-6">
       <div className="max-w-7xl mx-auto">
         <h1 className="text-3xl font-bold mb-8 flex items-center gap-3">
-          <BarChart3 className="w-8 h-8 text-[#00f2ea]" />
+          <BarChart3 className="w-8 h-8 text-white" />
           Admin Dashboard
         </h1>
 
@@ -137,10 +137,10 @@ function StatCard({ icon, title, value, color }: { icon: React.ReactNode; title:
   return (
     <div className={`bg-gradient-to-br ${colorClasses[color as keyof typeof colorClasses]} rounded-lg p-6`}>
       <div className="flex items-center justify-between mb-3">
-        <div className="text-[#00f2ea]/80">{icon}</div>
+        <div className="text-white/80">{icon}</div>
       </div>
       <div className="text-3xl font-bold mb-1">{value}</div>
-      <div className="text-sm text-[#00f2ea]/60">{title}</div>
+      <div className="text-sm text-white/60">{title}</div>
     </div>
   );
 }
@@ -149,7 +149,7 @@ function ActionButton({ href, label }: { href: string; label: string }) {
   return (
     <a
       href={href}
-      className="px-4 py-3 bg-[#00f2ea] text-black rounded-lg font-semibold hover:bg-[#00f2ea]/90 transition text-center"
+      className="px-4 py-3 bg-[#C9A96E] text-black rounded-lg font-semibold hover:bg-[#C9A96E]/90 transition text-center"
     >
       {label}
     </a>

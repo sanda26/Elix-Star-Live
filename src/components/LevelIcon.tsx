@@ -32,7 +32,7 @@ export const LevelIcon: React.FC<LevelIconProps> = ({
     return 'linear-gradient(180deg, #22c55e 0%, #14532d 55%, #22c55e 100%)';
   };
 
-  const ringGlow = 'rgba(0, 242, 234, 0.35)';
+  const ringGlow = 'rgba(201, 169, 110, 0.35)';
   const ringMetal =
     'conic-gradient(from 210deg, rgba(255,255,255,0.08), rgba(0,0,0,0.55), rgba(255,255,255,0.18), rgba(0,0,0,0.55), rgba(255,255,255,0.08))';
 

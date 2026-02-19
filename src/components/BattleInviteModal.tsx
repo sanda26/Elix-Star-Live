@@ -112,15 +112,15 @@ export default function BattleInviteModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-[#121212] z-modals flex items-end" onClick={onClose}>
+    <div className="fixed inset-0 bg-[#13151A] z-modals flex items-end" onClick={onClose}>
       <div
-        className="bg-[#1a1a1a] w-full max-h-[80vh] rounded-t-3xl flex flex-col"
+        className="bg-[#1C1E24] w-full max-h-[80vh] rounded-t-3xl flex flex-col"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-4 border-b border-white/10">
           <div className="flex items-center gap-2">
-            <Sword className="w-6 h-6 text-[#00f2ea]" />
+            <Sword className="w-6 h-6 text-white" />
             <h2 className="text-lg font-bold">Challenge to Battle</h2>
           </div>
           <button onClick={onClose} className="p-2 hover:brightness-125 rounded-full transition">
@@ -134,16 +134,16 @@ export default function BattleInviteModal({
         <div className="flex-1 overflow-y-auto px-4 py-4">
           <div className="flex items-center gap-2 mb-3 justify-between">
             <div className="flex items-center gap-2">
-              <Users className="w-5 h-5 text-[#00f2ea]/60" />
+              <Users className="w-5 h-5 text-white/60" />
               <span className="text-sm font-semibold">Select Opponent</span>
             </div>
-            <button onClick={loadLiveStreams} className="text-xs text-[#00f2ea] hover:underline">
+            <button onClick={loadLiveStreams} className="text-xs text-white hover:underline">
               Refresh
             </button>
           </div>
 
           {liveStreams.length === 0 && (
-            <div className="text-center py-12 text-[#00f2ea]/40">No live streams available</div>
+            <div className="text-center py-12 text-white/40">No live streams available</div>
           )}
 
           <div className="space-y-2">
@@ -153,7 +153,7 @@ export default function BattleInviteModal({
                 onClick={() => setSelectedStream(stream)}
                 className={`w-full flex items-center gap-3 p-3 rounded-lg transition ${
                   selectedStream?.id === stream.id
-                    ? 'bg-[#00f2ea]/20 border-2 border-[#00f2ea]'
+                    ? 'bg-[#C9A96E]/20 border-2 border-[#C9A96E]'
                     : 'bg-transparent border-2 border-transparent hover:brightness-125'
                 }`}
               >
@@ -164,8 +164,8 @@ export default function BattleInviteModal({
                 />
                 <div className="flex-1 text-left">
                   <p className="font-semibold mb-1">{stream.creator?.username || 'Unknown'}</p>
-                  <p className="text-sm text-[#00f2ea]/60 truncate">{stream.title}</p>
-                  <div className="flex items-center gap-1 text-xs text-[#00f2ea]/40 mt-1">
+                  <p className="text-sm text-white/60 truncate">{stream.title}</p>
+                  <div className="flex items-center gap-1 text-xs text-white/40 mt-1">
                     <Users className="w-3 h-3" />
                     {stream.viewer_count} watching
                   </div>
@@ -180,7 +180,7 @@ export default function BattleInviteModal({
           <button
             onClick={sendInvite}
             disabled={!selectedStream || loading}
-            className="w-full py-4 bg-[#00f2ea] text-black rounded-xl font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 transition"
+            className="w-full py-4 bg-[#C9A96E] text-black rounded-xl font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 transition"
           >
             {loading ? 'Sending...' : 'Send Battle Invitation'}
           </button>

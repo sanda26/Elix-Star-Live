@@ -57,10 +57,10 @@ export default function AuthCallback() {
   }, [navigate]);
 
   return (
-    <div className="min-h-[100dvh] bg-[#121212] text-[#00f2ea] p-4 flex justify-center">
+    <div className="min-h-[100dvh] bg-[#13151A] text-white p-4 flex justify-center">
       <div className="w-full">
         <h1 className="font-bold text-lg mb-3">Auth Callback</h1>
-        <div className="text-sm text-[#00f2ea]/70">
+        <div className="text-sm text-white/70">
           {status === 'working' ? 'Working...' : 'Something went wrong.'}
         </div>
         <div className="mt-4 p-4 bg-transparent border border-transparent rounded-xl text-sm break-words">

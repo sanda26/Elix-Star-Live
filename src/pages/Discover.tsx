@@ -152,24 +152,24 @@ export default function Discover() {
   };
 
   return (
-    <div className="min-h-[100dvh] bg-[#121212] text-[#00f2ea] flex justify-center px-2">
-      <div className="w-full max-w-[480px] h-[100dvh] rounded-3xl overflow-hidden bg-[#121212] flex flex-col pt-[var(--safe-top)] pb-[calc(var(--safe-bottom)+12mm)]">
+    <div className="min-h-[100dvh] bg-[#13151A] text-white flex justify-center px-2">
+      <div className="w-full max-w-[480px] h-[100dvh] rounded-3xl overflow-hidden bg-[#13151A] flex flex-col pt-[var(--safe-top)] pb-[calc(var(--safe-bottom)+12mm)]">
 
         {/* ═══ HEADER ═══ */}
-        <div className="shrink-0 px-4 pt-3 pb-2 bg-[#121212] relative">
+        <div className="shrink-0 px-4 pt-3 pb-2 bg-[#13151A] relative">
           <div className="flex items-center gap-3 mb-3">
             <button onClick={() => navigate('/feed')} className="p-1.5 rounded-full hover:bg-white/5 transition" title="Back">
               <img src="/Icons/power-button.png" alt="Back" className="w-5 h-5" />
             </button>
             <h1 className="text-[18px] font-extrabold tracking-tight flex-1">Discover</h1>
             <button onClick={() => document.getElementById('discover-search')?.focus()} className="p-1.5 rounded-full hover:bg-white/5 transition" title="Search">
-              <Search className="w-5 h-5 text-[#00f2ea]" />
+              <Search className="w-5 h-5 text-white" />
             </button>
           </div>
 
           {/* Search Bar */}
           <div className="flex items-center gap-2.5 bg-white/8 rounded-xl px-3.5 py-2.5">
-            <Search className="w-4 h-4 text-[#00f2ea]/40 shrink-0" />
+            <Search className="w-4 h-4 text-white/40 shrink-0" />
             <input
               id="discover-search"
               type="text"
@@ -179,11 +179,11 @@ export default function Discover() {
                 setSearchQuery(e.target.value);
                 if (e.target.value.length >= 2) setActiveTab('search');
               }}
-              className="flex-1 bg-transparent outline-none text-[13px] text-[#00f2ea] placeholder-[#00f2ea]/30"
+              className="flex-1 bg-transparent outline-none text-[13px] text-white placeholder-white/40/30"
             />
             {searchQuery && (
               <button onClick={() => setSearchQuery('')} className="p-0.5 rounded-full bg-white/10" title="Clear">
-                <span className="text-[#00f2ea]/50 text-xs leading-none px-1">✕</span>
+                <span className="text-white/50 text-xs leading-none px-1">✕</span>
               </button>
             )}
           </div>
@@ -210,8 +210,8 @@ export default function Discover() {
           {/* Loading */}
           {loading && (
             <div className="flex flex-col items-center justify-center py-20 gap-3">
-              <div className="w-7 h-7 border-2 border-[#00f2ea]/20 border-t-[#00f2ea] rounded-full animate-spin" />
-              <p className="text-[#00f2ea]/30 text-xs">Loading...</p>
+              <div className="w-7 h-7 border-2 border-[#C9A96E]/20 border-t-[#C9A96E] rounded-full animate-spin" />
+              <p className="text-white/30 text-xs">Loading...</p>
             </div>
           )}
 
@@ -219,7 +219,7 @@ export default function Discover() {
           {!loading && activeTab === 'trending' && (
             <div className="px-3 pt-3">
               <div className="flex items-center gap-2 mb-3 px-1">
-                <TrendingUp className="w-4 h-4 text-[#00f2ea]" />
+                <TrendingUp className="w-4 h-4 text-white" />
                 <h2 className="text-[14px] font-bold">Trending Now</h2>
               </div>
               {trendingVideos.length > 0 ? (
@@ -240,7 +240,7 @@ export default function Discover() {
               {searchResults.users.length > 0 && (
                 <div className="mb-5">
                   <div className="flex items-center gap-2 mb-2 px-1">
-                    <Users className="w-4 h-4 text-[#00f2ea]" />
+                    <Users className="w-4 h-4 text-white" />
                     <h2 className="text-[14px] font-bold">Users</h2>
                   </div>
                   <div className="space-y-1">
@@ -254,7 +254,7 @@ export default function Discover() {
               {searchResults.videos.length > 0 && (
                 <div>
                   <div className="flex items-center gap-2 mb-2 px-1">
-                    <VideoIcon className="w-4 h-4 text-[#00f2ea]" />
+                    <VideoIcon className="w-4 h-4 text-white" />
                     <h2 className="text-[14px] font-bold">Videos</h2>
                   </div>
                   <div className="grid grid-cols-3 gap-[3px]">
@@ -290,14 +290,14 @@ export default function Discover() {
           {!loading && activeTab === 'ranking' && (
             <div className="px-3 pt-3">
               {/* Banner */}
-              <div className="bg-gradient-to-br from-[#00f2ea]/10 to-[#00c4bd]/5 p-4 rounded-2xl mb-3">
+              <div className="bg-gradient-to-br from-[#C9A96E]/10 to-[#B8943F]/5 p-4 rounded-2xl mb-3">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-10 h-10 rounded-xl bg-[#00f2ea]/20 flex items-center justify-center">
-                    <Trophy className="w-5 h-5 text-[#00f2ea]" />
+                  <div className="w-10 h-10 rounded-xl bg-[#C9A96E]/20 flex items-center justify-center">
+                    <Trophy className="w-5 h-5 text-white" />
                   </div>
                   <div>
-                    <h2 className="text-[15px] font-extrabold text-[#00f2ea]">Weekly Ranking</h2>
-                    <p className="text-[11px] text-[#00f2ea]/40">Top creators by diamonds this week</p>
+                    <h2 className="text-[15px] font-extrabold text-white">Weekly Ranking</h2>
+                    <p className="text-[11px] text-white/40">Top creators by diamonds this week</p>
                   </div>
                 </div>
               </div>
@@ -316,10 +316,10 @@ export default function Discover() {
                     >
                       {/* Rank */}
                       <div className={`w-7 text-center font-extrabold text-[14px] shrink-0 ${
-                        creator.rank === 1 ? 'text-[#00f2ea]' :
-                        creator.rank === 2 ? 'text-[#00f2ea]' :
-                        creator.rank === 3 ? 'text-[#00f2ea]' :
-                        'text-[#00f2ea]/25'
+                        creator.rank === 1 ? 'text-white' :
+                        creator.rank === 2 ? 'text-white' :
+                        creator.rank === 3 ? 'text-white' :
+                        'text-white/25'
                       }`}>
                         {creator.rank}
                       </div>
@@ -327,12 +327,12 @@ export default function Discover() {
                       {/* Avatar */}
                       <div className="relative shrink-0">
                         <img 
-                          src={creator.avatar_url || `https://ui-avatars.com/api/?name=${creator.username}&background=222&color=00f2ea`} 
+                          src={creator.avatar_url || `https://ui-avatars.com/api/?name=${creator.username}&background=222&color=C9A96E`} 
                           alt={creator.username}
                           className={`w-10 h-10 rounded-full object-cover ${
-                            creator.rank === 1 ? 'ring-2 ring-[#00f2ea]/40' :
+                            creator.rank === 1 ? 'ring-2 ring-[#C9A96E]/40' :
                             creator.rank === 2 ? 'ring-2 ring-gray-300/30' :
-                            creator.rank === 3 ? 'ring-2 ring-[#00f2ea]/30' :
+                            creator.rank === 3 ? 'ring-2 ring-[#C9A96E]/30' :
                             ''
                           }`}
                         />
@@ -343,16 +343,16 @@ export default function Discover() {
 
                       {/* Info */}
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-bold text-[13px] truncate text-[#00f2ea]">
+                        <h3 className="font-bold text-[13px] truncate text-white">
                           {creator.display_name || creator.username}
                         </h3>
-                        <p className="text-[11px] text-[#00f2ea]/35 truncate">@{creator.username}</p>
+                        <p className="text-[11px] text-white/35 truncate">@{creator.username}</p>
                       </div>
 
                       {/* Diamonds */}
                       <div className="flex items-center gap-1 bg-white/5 px-2.5 py-1 rounded-lg shrink-0">
                         <span className="text-[11px]">💎</span>
-                        <span className="font-bold text-[12px] text-[#00f2ea]/80">{formatNumber(creator.total_diamonds)}</span>
+                        <span className="font-bold text-[12px] text-white/80">{formatNumber(creator.total_diamonds)}</span>
                       </div>
                     </button>
                   ))}
@@ -376,8 +376,8 @@ function TabButton({ active, onClick, icon, label }: { active: boolean; onClick:
       onClick={onClick}
       className={`flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[11px] font-bold whitespace-nowrap transition-all ${
         active
-          ? 'bg-[#00f2ea]/15 text-[#00f2ea]'
-          : 'text-[#00f2ea]/40 hover:text-[#00f2ea]/60'
+          ? 'bg-[#C9A96E]/15 text-white'
+          : 'text-white/40 hover:text-white/60'
       }`}
     >
       {icon}
@@ -389,14 +389,14 @@ function TabButton({ active, onClick, icon, label }: { active: boolean; onClick:
 function VideoThumbnail({ video }: { video: Video }) {
   const navigate = useNavigate();
   return (
-    <button onClick={() => navigate(`/video/${video.id}`)} className="relative aspect-[3/4] bg-[#1a1a1a] rounded-lg overflow-hidden w-full group">
+    <button onClick={() => navigate(`/video/${video.id}`)} className="relative aspect-[3/4] bg-[#1C1E24] rounded-lg overflow-hidden w-full group">
       <img
         src={video.thumbnail_url || '/placeholder-video.png'}
         alt="Video"
         className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition"
       />
       <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-black/70 to-transparent" />
-      <div className="absolute bottom-1.5 left-1.5 flex items-center gap-1 text-[#00f2ea] text-[11px] font-bold drop-shadow-md">
+      <div className="absolute bottom-1.5 left-1.5 flex items-center gap-1 text-white text-[11px] font-bold drop-shadow-md">
         <HeartIcon className="w-3 h-3" />
         {formatNumber(video.views_count)}
       </div>
@@ -412,15 +412,15 @@ function UserSearchResult({ user }: { user: User }) {
       className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-white/5 transition text-left"
     >
       <img
-        src={user.avatar_url || `https://ui-avatars.com/api/?name=${user.username}&background=222&color=00f2ea`}
+        src={user.avatar_url || `https://ui-avatars.com/api/?name=${user.username}&background=222&color=C9A96E`}
         alt={user.username}
         className="w-11 h-11 object-cover rounded-full"
       />
       <div className="flex-1 min-w-0">
         <p className="font-bold text-[13px] truncate">{user.username}</p>
-        <p className="text-[11px] text-[#00f2ea]/40">{formatNumber(user.followers_count || 0)} followers</p>
+        <p className="text-[11px] text-white/40">{formatNumber(user.followers_count || 0)} followers</p>
       </div>
-      <span className="px-3.5 py-1.5 bg-[#00f2ea] text-black rounded-lg font-bold text-[11px]">
+      <span className="px-3.5 py-1.5 bg-[#C9A96E] text-black rounded-lg font-bold text-[11px]">
         Follow
       </span>
     </button>
@@ -434,14 +434,14 @@ function HashtagItem({ hashtag, index }: { hashtag: Hashtag; index: number }) {
       onClick={() => { trackEvent('hashtag_click', { hashtag: hashtag.tag }); navigate(`/hashtag/${hashtag.tag}`); }}
       className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 transition text-left"
     >
-      <div className="w-9 h-9 bg-[#00f2ea]/10 rounded-xl flex items-center justify-center shrink-0">
-        <Hash className="w-4 h-4 text-[#00f2ea]" />
+      <div className="w-9 h-9 bg-[#C9A96E]/10 rounded-xl flex items-center justify-center shrink-0">
+        <Hash className="w-4 h-4 text-white" />
       </div>
       <div className="flex-1 min-w-0">
         <p className="font-bold text-[13px] truncate">#{hashtag.tag}</p>
-        <p className="text-[11px] text-[#00f2ea]/35">{formatNumber(hashtag.use_count)} videos</p>
+        <p className="text-[11px] text-white/35">{formatNumber(hashtag.use_count)} videos</p>
       </div>
-      <div className="flex items-center gap-1 text-[#00f2ea]">
+      <div className="flex items-center gap-1 text-white">
         <TrendingUp className="w-3.5 h-3.5" />
         <span className="text-[10px] font-bold">#{index + 1}</span>
       </div>
@@ -452,9 +452,9 @@ function HashtagItem({ hashtag, index }: { hashtag: Hashtag; index: number }) {
 function EmptyState({ icon, text, sub }: { icon: React.ReactNode; text: string; sub?: string }) {
   return (
     <div className="flex flex-col items-center justify-center py-16 gap-3">
-      <div className="text-[#00f2ea]/10">{icon}</div>
-      <p className="text-[#00f2ea]/30 text-[13px] font-medium">{text}</p>
-      {sub && <p className="text-[#00f2ea]/20 text-[11px]">{sub}</p>}
+      <div className="text-white/10">{icon}</div>
+      <p className="text-white/30 text-[13px] font-medium">{text}</p>
+      {sub && <p className="text-white/20 text-[11px]">{sub}</p>}
     </div>
   );
 }

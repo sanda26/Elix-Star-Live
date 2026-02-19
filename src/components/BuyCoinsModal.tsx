@@ -44,18 +44,18 @@ export const BuyCoinsModal: React.FC<BuyCoinsModalProps> = ({ isOpen, onClose, o
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[430px] z-[950]" onPointerDown={(e) => e.stopPropagation()}>
         <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 rounded-full bg-[#00f2ea]/20 flex items-center justify-center">
-            <Coins className="text-[#00f2ea]" size={20} />
+          <div className="w-10 h-10 rounded-full bg-[#C9A96E]/20 flex items-center justify-center">
+            <Coins className="text-white" size={20} />
           </div>
           <div>
-            <h2 className="text-[#00f2ea] font-bold text-lg">Recharge Coins</h2>
-            <p className="text-[#00f2ea]/60 text-xs">Secure Payment</p>
+            <h2 className="text-white font-bold text-lg">Recharge Coins</h2>
+            <p className="text-white/60 text-xs">Secure Payment</p>
           </div>
         </div>
 
         {IS_STORE_BUILD ? (
           <div className="space-y-4">
-            <div className="text-center text-sm text-[#00f2ea]/60">
+            <div className="text-center text-sm text-white/60">
               Purchases are handled through the App Store / Play Store in the native app build.
             </div>
             <Button className="w-full" onClick={onClose}>
@@ -64,7 +64,7 @@ export const BuyCoinsModal: React.FC<BuyCoinsModalProps> = ({ isOpen, onClose, o
           </div>
         ) : !showPaymentElement ? (
           <div className="space-y-4">
-            <div className="text-center text-sm text-[#00f2ea]/60 mb-4">
+            <div className="text-center text-sm text-white/60 mb-4">
               Choose a coin package to continue
             </div>
             
@@ -73,9 +73,9 @@ export const BuyCoinsModal: React.FC<BuyCoinsModalProps> = ({ isOpen, onClose, o
                 <Button
                   key={coinPackage.id}
                   variant={selectedPackage.id === coinPackage.id ? 'default' : 'outline'}
-                  className={`w-full justify-between h-auto py-3 relative border-white/10 hover:border-[#00f2ea]/50 transition-colors ${
+                  className={`w-full justify-between h-auto py-3 relative border-white/10 hover:border-[#C9A96E]/50 transition-colors ${
                     selectedPackage.id === coinPackage.id 
-                      ? 'bg-[#00f2ea]/10 border-[#00f2ea] text-[#00f2ea] hover:bg-[#00f2ea]/20' 
+                      ? 'bg-[#C9A96E]/10 border-[#C9A96E] text-white hover:bg-[#C9A96E]/20' 
                       : 'bg-white/5 hover:bg-white/10'
                   }`}
                   onClick={() => handlePackageSelect(coinPackage)}
@@ -83,7 +83,7 @@ export const BuyCoinsModal: React.FC<BuyCoinsModalProps> = ({ isOpen, onClose, o
                 >
                   <div className="flex items-center gap-3">
                     <div className="text-left">
-                      <div className={`font-semibold ${selectedPackage.id === coinPackage.id ? 'text-[#00f2ea]' : 'text-[#00f2ea]'}`}>
+                      <div className={`font-semibold ${selectedPackage.id === coinPackage.id ? 'text-white' : 'text-white'}`}>
                         {coinPackage.label}
                       </div>
                       <div className="text-sm opacity-75">${coinPackage.price}</div>
@@ -91,7 +91,7 @@ export const BuyCoinsModal: React.FC<BuyCoinsModalProps> = ({ isOpen, onClose, o
                   </div>
                   <Badge 
                     variant="secondary" 
-                    className={`ml-2 ${selectedPackage.id === coinPackage.id ? 'bg-[#00f2ea] text-black' : 'bg-white/10 text-[#00f2ea]'}`}
+                    className={`ml-2 ${selectedPackage.id === coinPackage.id ? 'bg-[#C9A96E] text-black' : 'bg-white/10 text-white'}`}
                   >
                     {coinPackage.coins} coins
                   </Badge>
@@ -99,12 +99,12 @@ export const BuyCoinsModal: React.FC<BuyCoinsModalProps> = ({ isOpen, onClose, o
               ))}
             </div>
 
-            <div className="flex items-center justify-center gap-2 text-sm text-[#00f2ea]/60 mt-4">
+            <div className="flex items-center justify-center gap-2 text-sm text-white/60 mt-4">
               <CreditCard className="h-4 w-4" />
               <span>Secure payment powered by Stripe</span>
             </div>
 
-            <div className="flex items-center justify-center gap-2 text-xs text-[#00f2ea]/50">
+            <div className="flex items-center justify-center gap-2 text-xs text-white/50">
               <Smartphone className="h-3 w-3" />
               <span>Apple Pay & Google Pay supported</span>
             </div>
@@ -116,7 +116,7 @@ export const BuyCoinsModal: React.FC<BuyCoinsModalProps> = ({ isOpen, onClose, o
                 variant="ghost"
                 size="sm"
                 onClick={handleBackToPackages}
-                className="text-[#00f2ea] hover:text-[#00f2ea]/80 hover:bg-[#00f2ea]/10"
+                className="text-white hover:text-white/80 hover:bg-[#C9A96E]/10"
               >
                 ← Back to packages
               </Button>

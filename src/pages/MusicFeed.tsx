@@ -38,8 +38,8 @@ export default function MusicFeed() {
   }, [songId]);
 
   return (
-    <div className="min-h-[100dvh] bg-[#121212] text-[#00f2ea] flex justify-center px-2">
-      <div className="w-full max-w-[480px] h-[100dvh] rounded-3xl overflow-hidden bg-[#121212] flex flex-col pt-[var(--safe-top)] pb-[calc(var(--safe-bottom)+12mm)] overflow-y-auto">
+    <div className="min-h-[100dvh] bg-[#13151A] text-white flex justify-center px-2">
+      <div className="w-full max-w-[480px] h-[100dvh] rounded-3xl overflow-hidden bg-[#13151A] flex flex-col pt-[var(--safe-top)] pb-[calc(var(--safe-bottom)+12mm)] overflow-y-auto">
         {/* Header Info */}
         <div className="p-4 pt-6 bg-gradient-to-b from-gray-900 to-black">
          <button onClick={() => navigate('/feed')} className="p-2 mb-4" title="Back to For You">
@@ -47,12 +47,12 @@ export default function MusicFeed() {
          </button>
          <div className="flex gap-4">
          <div className="w-24 h-24 bg-gray-800 rounded-md flex items-center justify-center shrink-0">
-            <Music size={40} className="text-[#00f2ea]/50" />
+            <Music size={40} className="text-white/50" />
          </div>
          <div className="flex-1">
             <h1 className="text-xl font-bold mb-1">Original Sound{songId ? ` #${songId}` : ''}</h1>
-            <p className="text-[#00f2ea]/60 text-sm mb-4">Trending</p>
-            <button className="bg-[#00f2ea] text-black px-6 py-1.5 rounded-sm font-semibold flex items-center gap-2 text-sm w-fit">
+            <p className="text-white/60 text-sm mb-4">Trending</p>
+            <button className="bg-[#C9A96E] text-black px-6 py-1.5 rounded-sm font-semibold flex items-center gap-2 text-sm w-fit">
                <Play size={14} fill="black" /> Use this sound
             </button>
          </div>
@@ -63,7 +63,7 @@ export default function MusicFeed() {
       <div className="grid grid-cols-3 gap-0.5 p-0.5">
         {loading ? (
           <div className="col-span-3 flex items-center justify-center h-[40vh]">
-            <div className="w-8 h-8 border-2 border-[#00f2ea] border-t-transparent rounded-full animate-spin" />
+            <div className="w-8 h-8 border-2 border-[#C9A96E] border-t-transparent rounded-full animate-spin" />
           </div>
         ) : videos.length === 0 ? (
           <div className="col-span-3 flex flex-col items-center justify-center h-[40vh] text-center opacity-60">

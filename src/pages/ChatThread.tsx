@@ -163,12 +163,12 @@ export default function ChatThread() {
   // Render System/Placeholder Views
   if (isSystemThread) {
      return (
-        <div className="min-h-[100dvh] bg-[#121212] text-[#00f2ea] p-4">
+        <div className="min-h-[100dvh] bg-[#13151A] text-white p-4">
              <header className="flex items-center gap-4 mb-4">
                 <button onClick={() => navigate('/inbox')}><ArrowLeft /></button>
                 <h1 className="font-bold text-lg capitalize">{threadId}</h1>
              </header>
-             <div className="text-center text-[#00f2ea]/50 mt-20">
+             <div className="text-center text-white/50 mt-20">
                  No {threadId} yet.
              </div>
         </div>
@@ -176,10 +176,10 @@ export default function ChatThread() {
   }
 
   return (
-    <div className="min-h-[100dvh] bg-[#121212] text-[#00f2ea] flex justify-center px-2">
-      <div className="w-full max-w-[480px] flex flex-col h-[100dvh] rounded-3xl overflow-hidden bg-[#121212] pt-[var(--safe-top)] pb-[calc(var(--safe-bottom)+12mm)]">
+    <div className="min-h-[100dvh] bg-[#13151A] text-white flex justify-center px-2">
+      <div className="w-full max-w-[480px] flex flex-col h-[100dvh] rounded-3xl overflow-hidden bg-[#13151A] pt-[var(--safe-top)] pb-[calc(var(--safe-bottom)+12mm)]">
         {/* Header */}
-        <header className="flex items-center gap-3 px-4 py-3 border-b border-white/10 bg-[#121212]">
+        <header className="flex items-center gap-3 px-4 py-3 border-b border-white/10 bg-[#13151A]">
           <button onClick={() => navigate('/inbox')} className="p-1">
              <img src="/Icons/power-button.png" alt="Back" className="w-5 h-5" />
           </button>
@@ -211,7 +211,7 @@ export default function ChatThread() {
               }}
               className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
             >
-              <Video className="w-5 h-5 text-[#00f2ea]" />
+              <Video className="w-5 h-5 text-white" />
             </button>
           )}
         </header>
@@ -221,10 +221,10 @@ export default function ChatThread() {
             ref={scrollRef}
             className="flex-1 overflow-y-auto p-4 space-y-3 scroll-smooth"
         >
-          {loading && <div className="text-center text-[#00f2ea]/40 text-sm">Loading messages...</div>}
+          {loading && <div className="text-center text-white/40 text-sm">Loading messages...</div>}
           
           {!loading && messages.length === 0 && (
-              <div className="text-center text-[#00f2ea]/40 text-sm mt-10">
+              <div className="text-center text-white/40 text-sm mt-10">
                   Start the conversation!
               </div>
           )}
@@ -236,8 +236,8 @@ export default function ChatThread() {
                 <div
                     className={`max-w-[80%] rounded-2xl px-4 py-2 text-sm leading-snug break-words ${
                     isMe
-                        ? 'bg-[#00f2ea] text-black rounded-tr-none'
-                        : 'bg-[#222] text-[#00f2ea] rounded-tl-none'
+                        ? 'bg-[#C9A96E] text-black rounded-tr-none'
+                        : 'bg-[#222] text-white rounded-tl-none'
                     }`}
                 >
                     {m.content}
@@ -248,7 +248,7 @@ export default function ChatThread() {
         </div>
 
         {/* Input Area */}
-        <div className="p-4 bg-[#121212] border-t border-white/10 pb-safe">
+        <div className="p-4 bg-[#13151A] border-t border-white/10 pb-safe">
             <form
                 className="flex items-center gap-2 bg-[#222] rounded-full px-4 py-2"
                 onSubmit={handleSend}
@@ -256,13 +256,13 @@ export default function ChatThread() {
                 <input
                     value={draft}
                     onChange={(e) => setDraft(e.target.value)}
-                    className="flex-1 bg-transparent outline-none text-sm text-[#00f2ea] placeholder-[#00f2ea]/40"
+                    className="flex-1 bg-transparent outline-none text-sm text-white placeholder-white/40/40"
                     placeholder="Type a message..."
                 />
                 <button
                     type="submit"
                     disabled={!draft.trim()}
-                    className="p-2 bg-[#00f2ea] rounded-full text-black disabled:opacity-50 disabled:bg-gray-600"
+                    className="p-2 bg-[#C9A96E] rounded-full text-black disabled:opacity-50 disabled:bg-gray-600"
                 >
                     <Send size={16} />
                 </button>

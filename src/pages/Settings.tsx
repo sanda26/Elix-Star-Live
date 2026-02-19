@@ -59,11 +59,11 @@ export default function Settings() {
   };
 
   return (
-    <div className="min-h-[100dvh] bg-[#121212] text-[#00f2ea] flex justify-center px-2">
+    <div className="min-h-[100dvh] bg-[#13151A] text-white flex justify-center px-2">
       {toast && <div className="fixed top-16 left-1/2 -translate-x-1/2 bg-white/10 backdrop-blur-md text-white text-sm px-4 py-2 rounded-xl z-[9999] animate-pulse">{toast}</div>}
-      <div className="w-full max-w-[480px] h-[100dvh] rounded-3xl overflow-hidden bg-[#121212] flex flex-col pt-[var(--safe-top)] pb-[calc(var(--safe-bottom)+12mm)]">
+      <div className="w-full max-w-[480px] h-[100dvh] rounded-3xl overflow-hidden bg-[#13151A] flex flex-col pt-[var(--safe-top)] pb-[calc(var(--safe-bottom)+12mm)]">
       {/* Header */}
-      <div className="sticky top-0 z-10 px-4 py-4 flex items-center gap-3 bg-[#121212]">
+      <div className="sticky top-0 z-10 px-4 py-4 flex items-center gap-3 bg-[#13151A]">
         <button onClick={() => navigate('/feed')} className="p-1 hover:brightness-125 transition" title="Back to For You">
           <img src="/Icons/power-button.png" alt="Back" className="w-5 h-5" />
         </button>
@@ -171,7 +171,7 @@ export default function Settings() {
         </div>
 
         {/* Version */}
-        <div className="text-center text-xs text-[#00f2ea]/40 pt-6">Version 1.0.0</div>
+        <div className="text-center text-xs text-white/40 pt-6">Version 1.0.0</div>
       </div>
       </div>
     </div>
@@ -181,7 +181,7 @@ export default function Settings() {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div>
-      <h2 className="text-sm font-semibold text-[#00f2ea]/60 mb-3 px-2">{title}</h2>
+      <h2 className="text-sm font-semibold text-white/60 mb-3 px-2">{title}</h2>
       <div className="rounded-xl overflow-hidden">
         {children}
       </div>
@@ -205,10 +205,10 @@ function SettingItem({
       onClick={onClick}
       className="w-full flex items-center gap-3 px-4 py-4 hover:brightness-125 transition text-left"
     >
-      {icon && <div className="text-[#00f2ea]/60">{icon}</div>}
+      {icon && <div className="text-white/60">{icon}</div>}
       <span className="flex-1">{label}</span>
-      {value && <span className="text-[#00f2ea]/40 text-sm">{value}</span>}
-      <ChevronRight className="w-5 h-5 text-[#00f2ea]/40" />
+      {value && <span className="text-white/40 text-sm">{value}</span>}
+      <ChevronRight className="w-5 h-5 text-white/40" />
     </button>
   );
 }

@@ -63,18 +63,18 @@ export function RankingPanel({ onClose }: RankingPanelProps) {
 
   return (
         <div 
-          className="bg-[#1a1a1a]/95 rounded-t-2xl p-4 pb-safe h-[50dvh] flex flex-col shadow-2xl w-full border-t border-[#00f2ea]/20" 
+          className="bg-[#1C1E24]/95 rounded-t-2xl p-4 pb-safe h-[50dvh] flex flex-col shadow-2xl w-full border-t border-[#C9A96E]/20" 
           onClick={(e) => e.stopPropagation()}
         >
         {/* Header */}
         <div className="flex justify-between items-center mb-4 flex-shrink-0">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#00f2ea] to-[#00c4bd] flex items-center justify-center shadow-lg shadow-[#00f2ea]/20">
-              <Trophy className="w-4 h-4 text-[#00f2ea]" fill="currentColor" />
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#C9A96E] to-[#B8943F] flex items-center justify-center shadow-lg shadow-[#C9A96E]/20">
+              <Trophy className="w-4 h-4 text-white" fill="currentColor" />
             </div>
             <div>
-              <h3 className="text-[#00f2ea] font-bold text-lg leading-none">Weekly Ranking</h3>
-              <p className="text-[#00f2ea]/50 text-[10px] font-medium">Top Creators This Week</p>
+              <h3 className="text-white font-bold text-lg leading-none">Weekly Ranking</h3>
+              <p className="text-white/50 text-[10px] font-medium">Top Creators This Week</p>
             </div>
           </div>
         </div>
@@ -83,13 +83,13 @@ export function RankingPanel({ onClose }: RankingPanelProps) {
         <div className="flex-1 overflow-y-auto -mx-2 px-2 no-scrollbar">
           {loading ? (
             <div className="flex flex-col items-center justify-center py-10 gap-3">
-              <div className="w-8 h-8 border-2 border-[#00f2ea]/30 border-t-[#00f2ea] rounded-full animate-spin" />
-              <p className="text-[#00f2ea]/30 text-xs">Loading rankings...</p>
+              <div className="w-8 h-8 border-2 border-[#C9A96E]/30 border-t-[#C9A96E] rounded-full animate-spin" />
+              <p className="text-white/30 text-xs">Loading rankings...</p>
             </div>
           ) : rankings.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-10 gap-2">
-              <Trophy className="w-12 h-12 text-[#00f2ea]/10" />
-              <p className="text-[#00f2ea]/30 text-sm">No rankings yet this week</p>
+              <Trophy className="w-12 h-12 text-white/10" />
+              <p className="text-white/30 text-sm">No rankings yet this week</p>
             </div>
           ) : (
             <div className="flex flex-col pb-4">
@@ -109,8 +109,8 @@ export function RankingPanel({ onClose }: RankingPanelProps) {
                       </div>
                     </div>
                     <div className="text-center w-full mt-1">
-                      <h4 className="text-[#00f2ea] font-bold text-xs truncate w-full">{rankings[1].display_name}</h4>
-                      <p className="text-[#00f2ea] font-bold text-[10px]">{formatNumber(rankings[1].total_diamonds)}</p>
+                      <h4 className="text-white font-bold text-xs truncate w-full">{rankings[1].display_name}</h4>
+                      <p className="text-white font-bold text-[10px]">{formatNumber(rankings[1].total_diamonds)}</p>
                     </div>
                   </div>
                 )}
@@ -120,20 +120,20 @@ export function RankingPanel({ onClose }: RankingPanelProps) {
                   <div className="flex flex-col items-center gap-1 w-1/3 order-2 -mt-4 z-10">
                     <div className="relative">
                       <div className="absolute -top-5 left-1/2 -translate-x-1/2 animate-bounce-slow">
-                        <Trophy className="w-6 h-6 text-[#00f2ea] drop-shadow-[0_0_10px_rgba(0,242,234,0.5)]" fill="currentColor" />
+                        <Trophy className="w-6 h-6 text-white drop-shadow-[0_0_10px_rgba(201,169,110,0.5)]" fill="currentColor" />
                       </div>
                       <img 
                         src={rankings[0].avatar_url || ''} 
                         alt={rankings[0].display_name}
-                        className="w-16 h-16 rounded-full object-cover border-2 border-[#00f2ea] shadow-[0_0_15px_rgba(0,242,234,0.4)] ring-2 ring-[#00f2ea]/20"
+                        className="w-16 h-16 rounded-full object-cover border-2 border-[#C9A96E] shadow-[0_0_15px_rgba(201,169,110,0.4)] ring-2 ring-[#C9A96E]/20"
                       />
-                      <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-[#00f2ea] text-black text-xs font-black px-2 py-0.5 rounded-full border border-white">
+                      <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-[#C9A96E] text-black text-xs font-black px-2 py-0.5 rounded-full border border-white">
                         1
                       </div>
                     </div>
                     <div className="text-center w-full mt-2">
-                      <h4 className="text-[#00f2ea] font-bold text-sm truncate w-full">{rankings[0].display_name}</h4>
-                      <p className="text-[#00f2ea] font-bold text-xs">{formatNumber(rankings[0].total_diamonds)}</p>
+                      <h4 className="text-white font-bold text-sm truncate w-full">{rankings[0].display_name}</h4>
+                      <p className="text-white font-bold text-xs">{formatNumber(rankings[0].total_diamonds)}</p>
                     </div>
                   </div>
                 )}
@@ -145,15 +145,15 @@ export function RankingPanel({ onClose }: RankingPanelProps) {
                       <img 
                         src={rankings[2].avatar_url || ''} 
                         alt={rankings[2].display_name}
-                        className="w-12 h-12 rounded-full object-cover border-2 border-[#00f2ea] shadow-[0_0_10px_rgba(0,242,234,0.3)]"
+                        className="w-12 h-12 rounded-full object-cover border-2 border-[#C9A96E] shadow-[0_0_10px_rgba(201,169,110,0.3)]"
                       />
-                      <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-[#00f2ea] text-[#00f2ea] text-[10px] font-black px-1.5 rounded-full border border-white/20">
+                      <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-[#C9A96E] text-white text-[10px] font-black px-1.5 rounded-full border border-white/20">
                         3
                       </div>
                     </div>
                     <div className="text-center w-full mt-1">
-                      <h4 className="text-[#00f2ea] font-bold text-xs truncate w-full">{rankings[2].display_name}</h4>
-                      <p className="text-[#00f2ea] font-bold text-[10px]">{formatNumber(rankings[2].total_diamonds)}</p>
+                      <h4 className="text-white font-bold text-xs truncate w-full">{rankings[2].display_name}</h4>
+                      <p className="text-white font-bold text-[10px]">{formatNumber(rankings[2].total_diamonds)}</p>
                     </div>
                   </div>
                 )}
@@ -167,7 +167,7 @@ export function RankingPanel({ onClose }: RankingPanelProps) {
                     className="flex items-center gap-3 p-2 rounded-xl hover:bg-white/5 transition-colors"
                   >
                     {/* Rank Number */}
-                    <div className="w-8 text-center font-bold text-sm text-[#00f2ea]/50 italic">
+                    <div className="w-8 text-center font-bold text-sm text-white/50 italic">
                       {creator.rank}
                     </div>
 
@@ -182,17 +182,17 @@ export function RankingPanel({ onClose }: RankingPanelProps) {
 
                     {/* Info */}
                     <div className="flex-1 min-w-0">
-                      <h4 className="text-[#00f2ea] font-bold text-sm truncate">
+                      <h4 className="text-white font-bold text-sm truncate">
                         {creator.display_name || creator.username}
                       </h4>
-                      <p className="text-[#00f2ea]/40 text-[10px] truncate">
+                      <p className="text-white/40 text-[10px] truncate">
                         @{creator.username}
                       </p>
                     </div>
 
                     {/* Points */}
                     <div className="flex flex-col items-end">
-                      <span className="text-[#00f2ea]/90 font-bold text-xs tabular-nums">
+                      <span className="text-white/90 font-bold text-xs tabular-nums">
                         {formatNumber(creator.total_diamonds)}
                       </span>
                     </div>

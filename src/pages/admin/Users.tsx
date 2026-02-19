@@ -74,23 +74,23 @@ export default function AdminUsers() {
   );
 
   if (loading) {
-    return <div className="min-h-screen bg-gray-900 flex items-center justify-center text-[#00f2ea]">Loading...</div>;
+    return <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">Loading...</div>;
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-[#00f2ea] p-6">
+    <div className="min-h-screen bg-gray-900 text-white p-6">
       <div className="max-w-7xl mx-auto">
         <h1 className="text-3xl font-bold mb-6">User Management</h1>
 
         {/* Search */}
         <div className="mb-6 flex items-center gap-4 bg-gray-800 rounded-lg px-4 py-3">
-          <Search className="w-5 h-5 text-[#00f2ea]" />
+          <Search className="w-5 h-5 text-white" />
           <input
             type="text"
             placeholder="Search users..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            className="flex-1 bg-transparent outline-none text-[#00f2ea]"
+            className="flex-1 bg-transparent outline-none text-white"
           />
         </div>
 
@@ -124,7 +124,7 @@ export default function AdminUsers() {
                     <div className="flex items-center justify-end gap-2">
                       <button
                         onClick={() => window.open(`/profile/${user.username}`, '_blank')}
-                        className="px-3 py-1 bg-[#00f2ea] rounded hover:bg-[#00c4bd] text-sm"
+                        className="px-3 py-1 bg-[#C9A96E] rounded hover:bg-[#B8943F] text-sm"
                       >
                         View
                       </button>

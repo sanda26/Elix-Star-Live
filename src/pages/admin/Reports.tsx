@@ -70,11 +70,11 @@ export default function AdminReports() {
   };
 
   if (loading) {
-    return <div className="min-h-screen bg-gray-900 flex items-center justify-center text-[#00f2ea]">Loading...</div>;
+    return <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">Loading...</div>;
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-[#00f2ea] p-6">
+    <div className="min-h-screen bg-gray-900 text-white p-6">
       <div className="max-w-7xl mx-auto">
         <h1 className="text-3xl font-bold mb-6 flex items-center gap-3">
           <Flag className="w-8 h-8 text-red-500" />
@@ -86,7 +86,7 @@ export default function AdminReports() {
           <button
             onClick={() => setFilter('pending')}
             className={`px-4 py-2 rounded-lg font-semibold ${
-              filter === 'pending' ? 'bg-[#00f2ea] text-black' : 'bg-gray-700 text-[#00f2ea]'
+              filter === 'pending' ? 'bg-[#C9A96E] text-black' : 'bg-gray-700 text-white'
             }`}
           >
             Pending ({reports.filter(r => r.status === 'pending').length})
@@ -94,7 +94,7 @@ export default function AdminReports() {
           <button
             onClick={() => setFilter('all')}
             className={`px-4 py-2 rounded-lg font-semibold ${
-              filter === 'all' ? 'bg-[#00f2ea] text-black' : 'bg-gray-700 text-[#00f2ea]'
+              filter === 'all' ? 'bg-[#C9A96E] text-black' : 'bg-gray-700 text-white'
             }`}
           >
             All
@@ -122,9 +122,9 @@ export default function AdminReports() {
                 <span
                   className={`px-3 py-1 rounded-full text-xs font-bold ${
                     report.status === 'pending'
-                      ? 'bg-[#00f2ea]'
+                      ? 'bg-[#C9A96E]'
                       : report.status === 'resolved'
-                      ? 'bg-[#00f2ea]'
+                      ? 'bg-[#C9A96E]'
                       : 'bg-gray-600'
                   }`}
                 >
@@ -143,7 +143,7 @@ export default function AdminReports() {
                   </button>
                   <button
                     onClick={() => handleResolve(report.id, 'warned')}
-                    className="px-4 py-2 bg-[#00f2ea] rounded hover:bg-[#00c4bd] flex items-center gap-2"
+                    className="px-4 py-2 bg-[#C9A96E] rounded hover:bg-[#B8943F] flex items-center gap-2"
                   >
                     <Flag className="w-4 h-4" />
                     Warn User
@@ -157,7 +157,7 @@ export default function AdminReports() {
                   </button>
                   <button
                     onClick={() => window.open(`/${report.target_type}/${report.target_id}`, '_blank')}
-                    className="px-4 py-2 bg-[#00f2ea] rounded hover:bg-[#00c4bd] flex items-center gap-2"
+                    className="px-4 py-2 bg-[#C9A96E] rounded hover:bg-[#B8943F] flex items-center gap-2"
                   >
                     <Eye className="w-4 h-4" />
                     View

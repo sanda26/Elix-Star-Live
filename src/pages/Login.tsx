@@ -31,41 +31,76 @@ export default function Login() {
     }
   }, []);
 
+  const isMounted = React.useRef(true);
+
+  useEffect(() => {
+    isMounted.current = true;
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
+
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Prevent double-submit
+    if (isSubmitting) return;
+    
     setError(null);
     setIsSubmitting(true);
 
     try {
       const res = await signInWithPassword(email.trim(), password);
+      
+      // If component unmounted during await, stop here
+      if (!isMounted.current) return;
+
       if (res.error) {
-        // Handle AbortError specifically in UI if needed, though store handles it
-        if (res.error.includes('aborted')) {
+        // Handle AbortError specifically
+        if (res.error === 'aborted' || res.error.includes('aborted')) {
            console.warn('Login aborted by user or timeout');
-           setIsSubmitting(false);
+           if (isMounted.current) setIsSubmitting(false);
            return;
         }
-        setError(res.error);
-        setIsSubmitting(false);
+        
+        if (isMounted.current) {
+          setError(res.error);
+          setIsSubmitting(false);
+        }
         return;
       }
 
       // Save email AND password if checkbox is checked
       if (saveDetails) {
-        window.localStorage.setItem('login_saved_email', email.trim());
-        window.localStorage.setItem('login_saved_password', password); 
-        window.localStorage.setItem('login_save_details', 'true');
+        try {
+          window.localStorage.setItem('login_saved_email', email.trim());
+          window.localStorage.setItem('login_saved_password', password); 
+          window.localStorage.setItem('login_save_details', 'true');
+        } catch (e) { /* ignore storage errors */ }
       } else {
-        window.localStorage.removeItem('login_saved_email');
-        window.localStorage.removeItem('login_saved_password');
-        window.localStorage.setItem('login_save_details', 'false');
+        try {
+          window.localStorage.removeItem('login_saved_email');
+          window.localStorage.removeItem('login_saved_password');
+          window.localStorage.setItem('login_save_details', 'false');
+        } catch (e) { /* ignore storage errors */ }
       }
 
-      navigate(from, { replace: true });
-    } catch (err) {
+      if (isMounted.current) {
+        navigate(from, { replace: true });
+      }
+    } catch (err: any) {
       console.error('Login submit error:', err);
-      setError('An unexpected error occurred. Please try again.');
-      setIsSubmitting(false);
+      
+      // Check for AbortError in catch block too
+      if (err.name === 'AbortError' || err.message?.includes('aborted')) {
+        if (isMounted.current) setIsSubmitting(false);
+        return;
+      }
+
+      if (isMounted.current) {
+        setError('An unexpected error occurred. Please try again.');
+        setIsSubmitting(false);
+      }
     }
   };
 

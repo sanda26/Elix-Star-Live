@@ -26,7 +26,7 @@ export function GiftOverlay({ videoSrc, onEnded, isBattleMode: _isBattleMode }: 
 
   return (
     <div className="absolute inset-0 pointer-events-none flex items-end justify-center overflow-hidden" style={{ zIndex: 30 }}>
-      <div className="w-full flex items-end justify-center" style={{ height: '55%', WebkitMaskImage: 'linear-gradient(to top, black 0%, black 60%, transparent 100%)', maskImage: 'linear-gradient(to top, black 0%, black 60%, transparent 100%)' }}>
+      <div className="w-full flex items-end justify-center" style={{ height: '50%', WebkitMaskImage: 'linear-gradient(to top, black 0%, black 60%, transparent 100%)', maskImage: 'linear-gradient(to top, black 0%, black 60%, transparent 100%)' }}>
         {isVideo ? (
           <video ref={videoRef} key={videoSrc} src={videoSrc} className="max-w-[85%] max-h-full object-contain drop-shadow-2xl" playsInline autoPlay muted preload="auto"
             onLoadedData={() => { if (videoRef.current && !muteAllSounds) videoRef.current.muted = false; }}

@@ -128,7 +128,14 @@ export const useVideoStore = create<VideoStore>()(
       fetchVideos: async () => {
         set({ loading: true });
         try {
-          const feedResult = await fetchForYouFeed(1, 50);
+          // Attempt to fetch For You Feed with safe error handling
+          let feedResult;
+          try {
+            feedResult = await fetchForYouFeed(1, 50);
+          } catch (e) {
+            console.error('fetchForYouFeed failed, falling back to basic fetch:', e);
+            feedResult = { videos: [] };
+          }
 
           if (feedResult.videos && feedResult.videos.length > 0) {
             const mappedVideos: Video[] = feedResult.videos;
@@ -147,43 +154,46 @@ export const useVideoStore = create<VideoStore>()(
           let data: any[] = [];
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           let err: any = null;
-          const baseSelect = `*, user:users ( id, username, display_name, avatar_url, is_creator )`;
-          const profileSelect = `*, user:profiles!user_id ( user_id, username, display_name, avatar_url, is_creator )`;
 
           // 1. Try fetching all public videos sorted by creation time (newest first)
-          let res = await supabase
-            .from('videos')
-            .select(`
-              *,
-              user:users ( id, username, display_name, avatar_url ),
-              likes:likes ( count )
-            `)
-            .eq('is_public', true)
-            .order('created_at', { ascending: false });
+          try {
+            let res = await supabase
+              .from('videos')
+              .select(`
+                *,
+                user:users ( id, username, display_name, avatar_url ),
+                likes:likes ( count )
+              `)
+              .eq('is_public', true)
+              .order('created_at', { ascending: false })
+              .abortSignal(AbortSignal.timeout(10000)); // Add timeout to prevent indefinite hangs
 
-          // 2. Fallback for profile relation if different join syntax needed
-          if (res.error) {
-             console.log('Trying alternate query for videos...');
-             res = await supabase
-                .from('videos')
-                .select(`
-                  id, url, thumbnail_url, description, created_at, is_public,
-                  user_id,
-                  user:profiles!user_id ( id, username, display_name, avatar_url )
-                `)
-                .eq('is_public', true)
-                .order('created_at', { ascending: false });
+            // 2. Fallback for profile relation if different join syntax needed
+            if (res.error) {
+               console.log('Trying alternate query for videos...');
+               res = await supabase
+                  .from('videos')
+                  .select(`
+                    id, url, thumbnail_url, description, created_at, is_public,
+                    user_id,
+                    user:profiles!user_id ( id, username, display_name, avatar_url )
+                  `)
+                  .eq('is_public', true)
+                  .order('created_at', { ascending: false })
+                  .abortSignal(AbortSignal.timeout(10000));
+            }
+            data = res.data || [];
+            err = res.error;
+          } catch (fetchError) {
+             console.error('Supabase fetch failed:', fetchError);
+             err = fetchError;
           }
-
-          data = res.data || [];
 
           if (data.length === 0) {
             // No videos found in production DB
             set({ videos: [], likedVideos: [], loading: false });
             return;
           }
-
-          err = res.error;
 
           if (err && data.length === 0) throw err;
 

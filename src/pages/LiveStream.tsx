@@ -3109,7 +3109,7 @@ export default function LiveStream() {
 
             {/* MIDDLE ZONE: CHAT (Scrollable) */}
             <div 
-              className="chat-zone absolute left-0 right-0 bottom-[calc(50px+env(safe-area-inset-bottom))] h-[25dvh] max-h-[25dvh] overflow-y-auto pointer-events-auto z-[20] bg-transparent"
+              className="chat-zone fixed left-0 right-0 bottom-[calc(50px+max(12px,env(safe-area-inset-bottom)))] h-[25dvh] max-h-[25dvh] overflow-y-auto pointer-events-auto z-[20] bg-transparent"
               onPointerDown={(e) => {
                 e.stopPropagation();
                 if (e.target instanceof Element) {
@@ -3132,7 +3132,7 @@ export default function LiveStream() {
           </div>
 
       {/* BOTTOM ZONE: INPUT (Fixed) - Moved out to ensure top z-index */}
-      <div className="bottom-zone flex-none pointer-events-auto bg-transparent px-3 pb-[calc(12px+env(safe-area-inset-bottom))] pt-2 min-h-[50px] flex items-center absolute bottom-0 left-0 right-0 z-[50]">
+      <div className="bottom-zone flex-none pointer-events-auto bg-transparent px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-2 min-h-[50px] flex items-center fixed bottom-0 left-0 right-0 z-[50]">
         <div className="w-full mx-auto">
           {/* Spectator Input & Actions */}
           {!isBroadcast && (

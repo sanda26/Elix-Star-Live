@@ -26,4 +26,4 @@ ENV PORT=${PORT}
 ENV NODE_ENV=production
 EXPOSE ${PORT}
 
-CMD ["npx", "tsx", "server/index-simple.ts"]
+CMD ["npx", "tsx", "server/index.ts"]

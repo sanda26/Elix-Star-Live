@@ -39,11 +39,6 @@ app.use('/api/stripe-webhook', express.raw({ type: 'application/json' }), handle
 // Other routes use JSON
 app.use(express.json());
 
-// Add a simple root endpoint for testing
-app.get('/', (_req, res) => {
-  res.status(200).send('Server is running!');
-});
-
 // Health check endpoint (must be before static files)
 app.get('/health', (_req, res) => {
   try {
@@ -76,6 +71,19 @@ app.post('/api/feed/track-view', handleTrackView);
 app.post('/api/feed/track-interaction', handleTrackInteraction);
 app.get('/api/feed/score/:videoId', handleGetVideoScore);
 
+// Runtime env.js endpoint for VITE_ variables
+app.get('/env.js', (_req, res) => {
+  const env: Record<string, string> = {};
+  for (const [k, v] of Object.entries(process.env)) {
+    if (!k.startsWith('VITE_')) continue;
+    if (typeof v !== 'string') continue;
+    env[k] = v;
+  }
+  res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-store');
+  res.status(200).send('window.__ENV = Object.assign({}, window.__ENV || {}, ' + JSON.stringify(env) + ');');
+});
+
 // Serve static files from dist
 const distPath = join(__dirname, '..', 'dist');
 const indexPath = join(distPath, 'index.html');
@@ -93,12 +101,6 @@ if (!fs.existsSync(indexPath)) {
 }
 
 app.use(express.static(distPath));
-
-// Explicit root handler to ensure index.html is served
-app.get('/', (_req, res) => {
-    console.log('Serving root index.html');
-    res.sendFile(indexPath);
-});
 
 // Fallback for SPA - all non-API routes serve index.html
 app.get(/.*/, (req, res) => {

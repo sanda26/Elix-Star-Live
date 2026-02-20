@@ -40,7 +40,7 @@
     --space-xl: clamp(16px, 4vw, 32px);
 
     /* Bottom nav height (responsive) */
-    --nav-height: clamp(56px, 14vw, 80px);
+    --nav-height: 110px;
     /* Top bar height (responsive) */
     --topbar-height: clamp(40px, 10vw, 56px);
 

@@ -120,23 +120,8 @@ function App() {
     location.pathname === '/upload' ||
     location.pathname === '/create' ||
     location.pathname.startsWith('/create/') ||
-    location.pathname === '/live' ||
-    location.pathname.startsWith('/live/') ||
-    location.pathname === '/purchase-coins' ||
-    location.pathname === '/music' ||
-    location.pathname.startsWith('/music/') ||
-    location.pathname === '/search' ||
-    location.pathname === '/following' ||
-    location.pathname === '/discover' ||
     location.pathname === '/login' ||
-    location.pathname === '/register' ||
-    location.pathname === '/friends' ||
-    location.pathname === '/inbox' ||
-    location.pathname.startsWith('/inbox/') ||
-    location.pathname === '/profile' ||
-    location.pathname.startsWith('/profile/') ||
-    location.pathname === '/call' ||
-    location.pathname === '/ai-studio';
+    location.pathname === '/register';
   const showBottomNav = isAuthenticated && !isBottomNavHidden;
 
   // Public routes that don't require authentication

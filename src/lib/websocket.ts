@@ -12,6 +12,7 @@ export type WebSocketEvent =
   | 'chat_deleted'
   // Gift events
   | 'gift_sent'
+  | 'gift_ack'
   | 'big_gift_queue_update'
   | 'leaderboard_update'
   // Battle events
@@ -25,7 +26,12 @@ export type WebSocketEvent =
   // Moderation events
   | 'user_muted'
   | 'user_kicked'
-  | 'user_banned';
+  | 'user_banned'
+  // WebRTC signaling (P2P fallback)
+  | 'webrtc_offer'
+  | 'webrtc_answer'
+  | 'webrtc_ice'
+  | 'webrtc_request_offer';
 
 export interface WebSocketMessage {
   event: WebSocketEvent;

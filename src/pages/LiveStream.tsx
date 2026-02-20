@@ -49,6 +49,7 @@ import { stripePaymentService } from '../lib/stripePaymentService';
 import { STRIPE_CONFIG } from '../config/stripe';
 import LiveAIFilters from '../components/LiveAIFilters';
 import { showToast } from '../lib/toast';
+import { useLiveRoom } from '../hooks/useLiveRoom';
 
 
 type LiveMessage = {
@@ -362,6 +363,24 @@ export default function LiveStream() {
     user?.avatar || `https://i.pravatar.cc/150?u=${encodeURIComponent(viewerName)}`;
   const universeGiftLabel = 'Universe';
 
+  // ═══ WebRTC Live Room Hook ═══
+  const liveRoom = useLiveRoom({
+    isBroadcast,
+    streamId: effectiveStreamId,
+    onViewerCount: (count) => setViewerCount(count),
+    onChatMessage: (data) => {
+      if (data?.text) {
+        setMessages(prev => [...prev.slice(-99), {
+          id: `ws-${Date.now()}-${Math.random()}`,
+          username: data.username || 'Viewer',
+          text: data.text,
+        }]);
+      }
+    },
+  });
+  const liveRoomRef = useRef(liveRoom);
+  liveRoomRef.current = liveRoom;
+
   // FaceAR State
   const faceARCanvasRef = useRef<HTMLCanvasElement>(null);
   const [_faceARVideoEl, setFaceARVideoEl] = useState<HTMLVideoElement | null>(null);
@@ -567,10 +586,8 @@ export default function LiveStream() {
   const inviteTimersRef = useRef<NodeJS.Timeout[]>([]);
 
   const inviteCreatorToSlot = (creatorName: string) => {
-    // Find first empty slot
     const slotIndex = battleSlots.findIndex(s => s.status === 'empty');
-    if (slotIndex === -1) return; // All slots full
-    // Check if already invited
+    if (slotIndex === -1) return;
     if (battleSlots.some(s => s.name === creatorName && s.status !== 'empty')) return;
 
     const avatar = `https://i.pravatar.cc/150?u=${encodeURIComponent(creatorName)}`;
@@ -580,18 +597,20 @@ export default function LiveStream() {
       return next;
     });
 
-    // Simulate acceptance after 2-4 seconds
-    const delay = 2000 + Math.random() * 2000;
+    // Send real battle invite via WebSocket
+    if (liveRoomRef.current.connected) {
+      liveRoomRef.current.sendChat(`Battle invite sent to ${creatorName}`);
+    }
+
+    // Wait for real acceptance via WebSocket; timeout after 30s
     const timer = setTimeout(() => {
       setBattleSlots(prev => {
         const next = [...prev];
         const idx = next.findIndex(s => s.name === creatorName && s.status === 'invited');
-        if (idx !== -1) {
-          next[idx] = { ...next[idx], status: 'accepted' };
-        }
+        if (idx !== -1) next[idx] = { name: '', status: 'empty', avatar: '' };
         return next;
       });
-    }, delay);
+    }, 30000);
     inviteTimersRef.current.push(timer);
   };
 
@@ -644,25 +663,15 @@ export default function LiveStream() {
     };
     setCoHosts(prev => [...prev, newHost]);
 
-    const delay = 1500 + Math.random() * 3000;
+    // Send real invite via WebSocket
+    if (liveRoomRef.current.connected) {
+      liveRoomRef.current.sendChat(`Co-host invite sent to ${creator.name}`);
+    }
+
+    // Timeout after 30s if no acceptance
     const timer = setTimeout(() => {
-      setCoHosts(prev => prev.map(h =>
-        h.id === newHost.id ? { ...h, status: 'accepted' } : h
-      ));
-      const goLiveDelay = 800 + Math.random() * 1200;
-      const timer2 = setTimeout(() => {
-        setCoHosts(prev => prev.map(h =>
-          h.id === newHost.id ? { ...h, status: 'live' } : h
-        ));
-        setMessages(prev => [...prev, {
-          id: Date.now().toString(),
-          username: 'System',
-          text: `${creator.name} joined as co-host!`,
-          isSystem: true,
-        }]);
-      }, goLiveDelay);
-      coHostTimersRef.current.push(timer2);
-    }, delay);
+      setCoHosts(prev => prev.filter(h => h.id !== newHost.id || h.status !== 'invited'));
+    }, 30000);
     coHostTimersRef.current.push(timer);
   };
 
@@ -731,6 +740,19 @@ export default function LiveStream() {
   const _battleKeyboardLikeArmedRef = useRef(true);
   const [liveLikes, setLiveLikes] = useState(0);
   const [battleReadiness, setBattleReadiness] = useState(0);
+
+  // Wire remote streams to battle video elements
+  useEffect(() => {
+    if (!isBattleMode || liveRoom.remoteStreams.length === 0) return;
+    const streams = liveRoom.remoteStreams;
+    const refs = [opponentVideoRef, player3VideoRef, player4VideoRef];
+    streams.forEach((rs, i) => {
+      if (refs[i]?.current) {
+        refs[i].current!.srcObject = rs.stream;
+        refs[i].current!.play().catch(() => {});
+      }
+    });
+  }, [isBattleMode, liveRoom.remoteStreams]);
 
   // Speed Challenge State
   // SPEED CHALLENGE
@@ -1350,38 +1372,27 @@ export default function LiveStream() {
   }, [location.search, isBattleMode, toggleBattle]);
 
   useEffect(() => {
-    const sampleLeft = 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4';
-    const sampleRight = 'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4';
-    const sample3 = 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4';
-    const sample4 = 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4';
-
+    // Battle mode: remote streams are wired via liveRoom.remoteStreams
     if (isBattleMode) {
-      if (videoRef.current && !isBroadcast) {
-        if (videoRef.current.src !== sampleLeft) videoRef.current.src = sampleLeft;
-        videoRef.current.muted = true;
-        videoRef.current.play().catch(() => {});
-      }
-
-      if (opponentVideoRef.current) {
-        if (opponentVideoRef.current.src !== sampleRight) opponentVideoRef.current.src = sampleRight;
-        opponentVideoRef.current.muted = true;
-        opponentVideoRef.current.play().catch(() => {});
-      }
-
-      if (player3VideoRef.current) {
-        if (player3VideoRef.current.src !== sample3) player3VideoRef.current.src = sample3;
-        player3VideoRef.current.muted = true;
-        player3VideoRef.current.play().catch(() => {});
-      }
-
-      if (player4VideoRef.current) {
-        if (player4VideoRef.current.src !== sample4) player4VideoRef.current.src = sample4;
-        player4VideoRef.current.muted = true;
-        player4VideoRef.current.play().catch(() => {});
-      }
+      // Opponent & player video refs will be wired via remoteStreams effect below
     }
 
-    if (!isBroadcast) return;
+    if (!isBroadcast) {
+      // Viewer mode: join the live room and subscribe to the host's stream
+      const room = effectiveStreamId;
+      if (room && room !== 'broadcast') {
+        let viewerCleanup = false;
+        liveRoomRef.current.joinAsViewer(room).then((stream) => {
+          if (!viewerCleanup && stream && videoRef.current) {
+            videoRef.current.srcObject = stream;
+            videoRef.current.muted = false;
+            videoRef.current.play().catch(() => {});
+          }
+        });
+        return () => { viewerCleanup = true; liveRoomRef.current.disconnect(); };
+      }
+      return;
+    }
 
     let cancelled = false;
 
@@ -1459,6 +1470,13 @@ export default function LiveStream() {
           videoRef.current.srcObject = stream;
           videoRef.current.play().catch(() => {});
         }
+
+        // Publish camera to WebRTC live room
+        if (!cancelled) {
+          liveRoomRef.current.startBroadcast(stream, creatorName).then((roomId) => {
+            if (roomId) console.log('[LiveStream] Broadcasting to room:', roomId);
+          }).catch((e) => console.error('[LiveStream] Broadcast start failed:', e));
+        }
       } catch {
         setCameraError('Camera access denied');
       }
@@ -1469,6 +1487,7 @@ export default function LiveStream() {
     return () => {
       cancelled = true;
       if (!keepStreamAliveOnCleanup) stop();
+      liveRoomRef.current.disconnect();
     };
   }, [isBattleMode, isBroadcast, cameraFacing]);
 
@@ -2167,6 +2186,7 @@ export default function LiveStream() {
   };
 
   const stopBroadcast = () => {
+      liveRoomRef.current.disconnect();
       if (cameraStreamRef.current) {
         cameraStreamRef.current.getTracks().forEach((track) => track.stop());
         cameraStreamRef.current = null;

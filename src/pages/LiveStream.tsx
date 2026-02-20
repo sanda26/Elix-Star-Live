@@ -392,7 +392,7 @@ export default function LiveStream() {
   const [hasJoinedToday, setHasJoinedToday] = useState(false);
   const [myHeartCount, setMyHeartCount] = useState(0);
   const [creatorQuery, setCreatorQuery] = useState('');
-  const [creators, setCreators] = useState<{ id: string; name: string; followers: string; avatar: string; isLive: boolean }[]>([]);
+  const [creators, setCreators] = useState<{ id: string; name: string; username: string; followers: string; avatar: string; isLive: boolean }[]>([]);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -413,13 +413,16 @@ export default function LiveStream() {
         const liveUserIds = new Set((liveRes.data || []).map((l: any) => l.user_id));
         if (profilesRes.data) {
           const fmt = (n: number) => n >= 1000000 ? `${(n / 1000000).toFixed(1)}M` : n >= 1000 ? `${(n / 1000).toFixed(1)}K` : `${n}`;
-          const mapped = profilesRes.data.map((p: any) => ({
-            id: p.user_id,
-            name: p.display_name || p.username || 'User',
-            followers: fmt(p.followers_count ?? 0),
-            avatar: p.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.username || 'U')}&background=121212&color=C9A96E`,
-            isLive: liveUserIds.has(p.user_id),
-          }));
+          const mapped = profilesRes.data
+            .filter((p: any) => p.username)
+            .map((p: any) => ({
+              id: p.user_id,
+              name: p.display_name || p.username || 'User',
+              username: p.username || 'user',
+              followers: fmt(p.followers_count ?? 0),
+              avatar: p.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.username || 'U')}&background=121212&color=C9A96E`,
+              isLive: liveUserIds.has(p.user_id),
+            }));
           mapped.sort((a: any, b: any) => (b.isLive ? 1 : 0) - (a.isLive ? 1 : 0));
           setCreators(mapped);
         }
@@ -427,29 +430,145 @@ export default function LiveStream() {
     })();
   }, [user?.id]);
 
-  const filteredCreators = creators.filter((c) => c.name.toLowerCase().includes(creatorQuery.trim().toLowerCase()));
+  const filteredCreators = creators.filter((c) => {
+    const q = creatorQuery.trim().toLowerCase();
+    if (!q) return true;
+    return c.username.toLowerCase().includes(q) || c.name.toLowerCase().includes(q);
+  });
 
   // Battle Player Slots (P1 = creator, P2-P4 = invited players)
-  type BattleSlot = { name: string; status: 'empty' | 'invited' | 'accepted'; avatar: string };
+  type BattleSlot = { userId: string; name: string; status: 'empty' | 'invited' | 'accepted'; avatar: string };
   const [battleSlots, setBattleSlots] = useState<BattleSlot[]>([
-    { name: '', status: 'empty', avatar: '' },
-    { name: '', status: 'empty', avatar: '' },
-    { name: '', status: 'empty', avatar: '' },
+    { userId: '', name: '', status: 'empty', avatar: '' },
+    { userId: '', name: '', status: 'empty', avatar: '' },
+    { userId: '', name: '', status: 'empty', avatar: '' },
   ]);
   const inviteTimersRef = useRef<NodeJS.Timeout[]>([]);
 
-  const inviteCreatorToSlot = (creatorName: string) => {
+  const inviteCreatorToSlot = async (creatorId: string) => {
     const slotIndex = battleSlots.findIndex(s => s.status === 'empty');
     if (slotIndex === -1) return;
-    if (battleSlots.some(s => s.name === creatorName && s.status !== 'empty')) return;
+    if (battleSlots.some(s => s.userId === creatorId && s.status !== 'empty')) return;
 
-    const creator = creators.find(c => c.name === creatorName);
-    const avatar = creator?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(creatorName)}&background=121212&color=C9A96E`;
+    const creator = creators.find(c => c.id === creatorId);
+    if (!creator) return;
+    const avatar = creator.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(creator.username)}&background=121212&color=C9A96E`;
     setBattleSlots(prev => {
       const next = [...prev];
-      next[slotIndex] = { name: creatorName, status: 'invited', avatar };
+      next[slotIndex] = { userId: creatorId, name: creator.username, status: 'invited', avatar };
       return next;
     });
+
+    if (!user?.id) return;
+    try {
+      await supabase.from('notifications').insert({
+        user_id: creatorId,
+        type: 'battle_invite',
+        title: 'Battle Invite',
+        body: `@${myCreatorName} invited you to a battle!`,
+        data: {
+          actor_id: user.id,
+          host_name: myCreatorName,
+          host_avatar: myAvatar,
+          stream_key: effectiveStreamId,
+          slot_index: slotIndex,
+        },
+      });
+      showToast(`Invite sent to @${creator.username}!`);
+    } catch {
+      showToast('Failed to send invite');
+    }
+  };
+
+  // ─── INCOMING INVITE (for viewers / other broadcasters) ─────
+  type PendingInvite = {
+    notifId: string;
+    hostName: string;
+    hostAvatar: string;
+    streamKey: string;
+    hostUserId: string;
+  };
+  const [pendingInvite, setPendingInvite] = useState<PendingInvite | null>(null);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const chan = supabase
+      .channel(`battle_invite_${user.id}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
+        (payload: any) => {
+          const row = payload.new;
+          if (row?.type === 'battle_invite') {
+            setPendingInvite({
+              notifId: row.id,
+              hostName: row.data?.host_name || 'Someone',
+              hostAvatar: row.data?.host_avatar || '',
+              streamKey: row.data?.stream_key || '',
+              hostUserId: row.data?.actor_id || '',
+            });
+          }
+          if (row?.type === 'battle_accepted' && isBroadcast) {
+            const acceptedUserId = row.data?.actor_id || '';
+            const acceptedName = row.data?.accepted_name || '';
+            const acceptedAvatar = row.data?.accepted_avatar || '';
+            setBattleSlots(prev => {
+              const next = [...prev];
+              const idx = next.findIndex(s => s.status === 'invited' && s.userId === acceptedUserId);
+              if (idx !== -1) {
+                next[idx] = { userId: acceptedUserId, name: acceptedName || next[idx].name, status: 'accepted', avatar: acceptedAvatar || next[idx].avatar };
+              } else {
+                const nameIdx = next.findIndex(s => s.status === 'invited' && s.name === acceptedName);
+                if (nameIdx !== -1) {
+                  next[nameIdx] = { userId: acceptedUserId, name: acceptedName, status: 'accepted', avatar: acceptedAvatar || next[nameIdx].avatar };
+                } else {
+                  const emptyIdx = next.findIndex(s => s.status === 'empty');
+                  if (emptyIdx !== -1) {
+                    next[emptyIdx] = { userId: acceptedUserId, name: acceptedName, status: 'accepted', avatar: acceptedAvatar };
+                  }
+                }
+              }
+              return next;
+            });
+            showToast(`@${acceptedName} joined the battle!`);
+          }
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(chan); };
+  }, [user?.id, isBroadcast]);
+
+  const acceptBattleInvite = async () => {
+    if (!pendingInvite || !user?.id) return;
+    try {
+      await supabase.from('notifications').update({ is_read: true }).eq('id', pendingInvite.notifId);
+      const myUsername = user?.username || user?.name || viewerName;
+      await supabase.from('notifications').insert({
+        user_id: pendingInvite.hostUserId,
+        type: 'battle_accepted',
+        title: 'Battle Accepted',
+        body: `@${myUsername} accepted your battle invite!`,
+        data: {
+          actor_id: user.id,
+          accepted_name: myUsername,
+          accepted_avatar: viewerAvatar,
+          stream_key: pendingInvite.streamKey,
+        },
+      });
+      const streamKey = pendingInvite.streamKey;
+      setPendingInvite(null);
+      navigate(`/live/${streamKey}`);
+    } catch {
+      showToast('Failed to accept invite');
+    }
+  };
+
+  const declineBattleInvite = async () => {
+    if (!pendingInvite) return;
+    try {
+      await supabase.from('notifications').update({ is_read: true }).eq('id', pendingInvite.notifId);
+    } catch { /* ignore */ }
+    setPendingInvite(null);
   };
 
   // Mute state per player pane
@@ -461,7 +580,7 @@ export default function LiveStream() {
   const removePlayerFromSlot = (slotIndex: number) => {
     setBattleSlots(prev => {
       const next = [...prev];
-      next[slotIndex] = { name: '', status: 'empty', avatar: '' };
+      next[slotIndex] = { userId: '', name: '', status: 'empty', avatar: '' };
       return next;
     });
   };
@@ -713,9 +832,9 @@ export default function LiveStream() {
       setSpeedMultiplier(1);
       // Reset invite slots
       setBattleSlots([
-        { name: '', status: 'empty', avatar: '' },
-        { name: '', status: 'empty', avatar: '' },
-        { name: '', status: 'empty', avatar: '' },
+        { userId: '', name: '', status: 'empty', avatar: '' },
+        { userId: '', name: '', status: 'empty', avatar: '' },
+        { userId: '', name: '', status: 'empty', avatar: '' },
       ]);
       inviteTimersRef.current.forEach(t => clearTimeout(t));
       inviteTimersRef.current = [];
@@ -764,9 +883,8 @@ export default function LiveStream() {
     return () => window.clearInterval(tick);
   }, [isBattleMode, battleCountdown]);
 
-  const _startBattleWithCreator = (creatorName: string) => {
+  const _startBattleWithCreator = (creatorId: string, creatorName: string) => {
     setOpponentCreatorName(creatorName);
-    // If not in battle mode yet, enter it first
     if (!isBattleMode) {
       setIsBattleMode(true);
       setBattleTime(0);
@@ -783,8 +901,7 @@ export default function LiveStream() {
       params.set('battle', '1');
       navigate({ pathname: location.pathname, search: `?${params.toString()}` }, { replace: true });
     }
-    // Invite the creator to a slot
-    inviteCreatorToSlot(creatorName);
+    inviteCreatorToSlot(creatorId);
   };
 
   useEffect(() => {
@@ -2769,6 +2886,50 @@ export default function LiveStream() {
         </>
       )}
 
+      {/* ─── INCOMING BATTLE INVITE BANNER ─── */}
+      {pendingInvite && (
+        <div className="absolute top-[calc(env(safe-area-inset-top,0px)+60px)] left-3 right-3 z-[99998] animate-in slide-in-from-top">
+          <div className="bg-[#1C1E24]/95 backdrop-blur-md rounded-2xl border border-[#C9A96E]/30 shadow-2xl shadow-black/50 p-4">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-12 h-12 rounded-full border-2 border-[#C9A96E]/50 overflow-hidden bg-[#13151A] flex-shrink-0">
+                {pendingInvite.hostAvatar ? (
+                  <img src={pendingInvite.hostAvatar} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-[#C9A96E] font-bold text-lg">
+                    {pendingInvite.hostName.slice(0, 1).toUpperCase()}
+                  </div>
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-white font-bold text-sm">Battle Invite</p>
+                <p className="text-white/60 text-xs truncate">
+                  <span className="text-[#C9A96E]">@{pendingInvite.hostName}</span> wants to battle you!
+                </p>
+              </div>
+              <div className="w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center flex-shrink-0">
+                <Sword className="w-4 h-4 text-red-400" />
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={declineBattleInvite}
+                className="flex-1 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/70 text-xs font-bold active:scale-95 transition-all"
+              >
+                Decline
+              </button>
+              <button
+                type="button"
+                onClick={acceptBattleInvite}
+                className="flex-1 py-2.5 rounded-xl bg-[#C9A96E] text-black text-xs font-bold active:scale-95 transition-all shadow-lg shadow-[#C9A96E]/20"
+              >
+                Accept & Join
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* MODALS & OVERLAYS */}
       {isFindCreatorsOpen && (
         <div className="absolute inset-0 z-[99999] flex flex-col justify-end">
@@ -2833,7 +2994,7 @@ export default function LiveStream() {
                           </div>
                         )}
                         <span className="text-white/60 text-[9px] font-bold truncate max-w-[50px]">
-                          {slot.status === 'empty' ? `Slot ${i + 1}` : slot.name}
+                          {slot.status === 'empty' ? `Slot ${i + 1}` : `@${slot.name}`}
                         </span>
                       </div>
                     ))}
@@ -2846,7 +3007,7 @@ export default function LiveStream() {
             <div className="flex-1 overflow-y-auto px-2" style={{ scrollbarWidth: 'none' }}>
               <div className="space-y-1 pb-4">
                 {filteredCreators.map((c) => {
-                  const slotStatus = battleSlots.find(s => s.name === c.name)?.status;
+                  const slotStatus = battleSlots.find(s => s.userId === c.id)?.status;
                   const isInvited = slotStatus === 'invited';
                   const isAccepted = slotStatus === 'accepted';
                   const allFull = battleSlots.every(s => s.status !== 'empty');
@@ -2858,13 +3019,16 @@ export default function LiveStream() {
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         <div className="relative">
-                          <AvatarRing src={c.avatar} alt={c.name} size={40} />
+                          <AvatarRing src={c.avatar} alt={c.username} size={40} />
                           {c.isLive && (
                             <div className="absolute -bottom-0.5 -right-0.5 px-1 py-0.5 bg-red-500 rounded text-[7px] font-black text-white leading-none">LIVE</div>
                           )}
                         </div>
                         <div className="min-w-0">
-                          <p className="text-white text-sm font-bold truncate">{c.name}</p>
+                          <p className="text-white text-sm font-bold truncate">@{c.username}</p>
+                          {c.name !== c.username && (
+                            <p className="text-white/40 text-[10px] font-medium truncate">{c.name}</p>
+                          )}
                           <p className="text-white/50 text-[10px] font-medium">{c.followers} followers</p>
                         </div>
                       </div>
@@ -2881,7 +3045,7 @@ export default function LiveStream() {
                       ) : (
                         <button
                           type="button"
-                          onClick={() => inviteCreatorToSlot(c.name)}
+                          onClick={() => inviteCreatorToSlot(c.id)}
                           disabled={allFull}
                           className={`px-4 py-1.5 text-[11px] font-bold rounded-full transition-all active:scale-95 ${
                             allFull 

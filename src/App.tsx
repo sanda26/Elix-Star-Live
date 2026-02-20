@@ -10,6 +10,7 @@ import { notificationService } from './lib/notifications';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { OfflineBanner } from './components/OfflineBanner';
 import { IncomingCallModal } from './components/IncomingCallModal';
+import { BattleInviteBanner } from './components/BattleInviteBanner';
 import { subscribeToIncomingCalls } from './lib/callService';
 
 
@@ -163,6 +164,7 @@ function App() {
 
       <OfflineBanner />
       <IncomingCallModal />
+      <BattleInviteBanner />
       <main className={cn("min-h-screen mx-auto max-w-[480px]", showBottomNav && !isFullScreen && "pt-topbar pb-nav")}>
         <ErrorBoundary>
         <Suspense fallback={<PageLoader />}>

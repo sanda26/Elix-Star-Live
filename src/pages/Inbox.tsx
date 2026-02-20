@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { Heart, UserPlus, Search, Camera, ShoppingBag, Archive, MicOff, Plus } from 'lucide-react';
+import { Heart, UserPlus, Search, Camera, ShoppingBag, Archive, MicOff, Plus, Sword } from 'lucide-react';
 import { AvatarRing } from '../components/AvatarRing';
+import { showToast } from '../lib/toast';
 
 interface Notification {
   id: string;
@@ -15,6 +16,7 @@ interface Notification {
   action_url: string | null;
   is_read: boolean;
   created_at: string;
+  rawData?: any;
 }
 
 interface Conversation {
@@ -70,10 +72,11 @@ export default function Inbox() {
           actor_id: n.data?.actor_id || '',
           title: n.title || 'Notification',
           body: n.body,
-          image_url: n.data?.image_url || null,
+          image_url: n.data?.image_url || n.data?.host_avatar || null,
           action_url: n.data?.action_url || null,
           is_read: n.is_read ?? false,
           created_at: n.created_at,
+          rawData: n.data || {},
         })));
       } catch { /* ignore */ }
     };
@@ -223,6 +226,67 @@ export default function Inbox() {
                     </p>
                 </div>
             </button>
+
+            {/* Battle Invites */}
+            {notifications.filter(n => n.type === 'battle_invite' && !n.is_read).map(notif => (
+                <div key={notif.id} className="flex items-center gap-3 w-full">
+                    <div className="w-12 h-12 rounded-full bg-red-500/20 border border-red-500/30 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                        {(notif.rawData?.host_avatar || notif.image_url) ? (
+                            <img src={notif.rawData?.host_avatar || notif.image_url} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                            <Sword className="w-5 h-5 text-red-400" />
+                        )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <h3 className="font-bold text-sm text-gold-metallic">Battle Invite</h3>
+                        <p className="text-white text-xs truncate">{notif.body || 'Someone invited you to battle!'}</p>
+                        <div className="flex gap-2 mt-1.5">
+                            <button
+                                onClick={async () => {
+                                    try {
+                                        await supabase.from('notifications').update({ is_read: true }).eq('id', notif.id);
+                                        setNotifications(prev => prev.filter(n => n.id !== notif.id));
+                                    } catch { /* ignore */ }
+                                }}
+                                className="px-3 py-1 rounded-lg bg-white/5 border border-white/10 text-white/60 text-[10px] font-bold active:scale-95 transition-all"
+                            >
+                                Decline
+                            </button>
+                            <button
+                                onClick={async () => {
+                                    try {
+                                        await supabase.from('notifications').update({ is_read: true }).eq('id', notif.id);
+                                        const hostUserId = notif.rawData?.actor_id || notif.actor_id;
+                                        const streamKey = notif.rawData?.stream_key;
+                                        if (currentUserId) {
+                                            const { data: myProfile } = await supabase.from('profiles').select('username, avatar_url').eq('user_id', currentUserId).single();
+                                            await supabase.from('notifications').insert({
+                                                user_id: hostUserId,
+                                                type: 'battle_accepted',
+                                                title: 'Battle Accepted',
+                                                body: `@${myProfile?.username || 'User'} accepted your battle invite!`,
+                                                data: {
+                                                    actor_id: currentUserId,
+                                                    accepted_name: myProfile?.username || 'User',
+                                                    accepted_avatar: myProfile?.avatar_url || '',
+                                                    stream_key: streamKey,
+                                                },
+                                            });
+                                        }
+                                        setNotifications(prev => prev.filter(n => n.id !== notif.id));
+                                        if (streamKey) navigate(`/live/${streamKey}`);
+                                    } catch {
+                                        showToast('Failed to accept');
+                                    }
+                                }}
+                                className="px-3 py-1 rounded-lg bg-[#C9A96E] text-black text-[10px] font-bold active:scale-95 transition-all"
+                            >
+                                Accept & Join
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            ))}
 
             {/* Message Items (Mixed) */}
             {conversations.map((conv, i) => (

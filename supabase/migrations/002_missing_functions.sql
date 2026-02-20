@@ -1,6 +1,5 @@
 -- ============================================================
--- RUN THIS IN SUPABASE SQL EDITOR
--- Missing functions and tables for full app connectivity
+-- FULL SQL - Safe to run even if parts already exist
 -- ============================================================
 
 -- 1. Gift transactions table
@@ -13,8 +12,14 @@ CREATE TABLE IF NOT EXISTS gift_transactions (
   created_at timestamptz DEFAULT now()
 );
 ALTER TABLE gift_transactions ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Users can view own gifts" ON gift_transactions FOR SELECT USING (auth.uid() = sender_id);
-CREATE POLICY "Users can insert own gifts" ON gift_transactions FOR INSERT WITH CHECK (auth.uid() = sender_id);
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'gift_transactions' AND policyname = 'Users can view own gifts') THEN
+    CREATE POLICY "Users can view own gifts" ON gift_transactions FOR SELECT USING (auth.uid() = sender_id);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'gift_transactions' AND policyname = 'Users can insert own gifts') THEN
+    CREATE POLICY "Users can insert own gifts" ON gift_transactions FOR INSERT WITH CHECK (auth.uid() = sender_id);
+  END IF;
+END $$;
 
 -- 2. send_stream_gift RPC function
 CREATE OR REPLACE FUNCTION send_stream_gift(p_stream_key text, p_gift_id text)
@@ -33,7 +38,6 @@ DECLARE
   v_new_level integer;
   v_xp_needed integer;
 BEGIN
-  -- Map gift_id to cost
   v_gift_cost := CASE p_gift_id
     WHEN 'rose' THEN 1
     WHEN 'heart' THEN 5
@@ -49,7 +53,6 @@ BEGIN
     ELSE 1
   END;
 
-  -- Get current balance
   SELECT coins, xp, level INTO v_current_coins, v_current_xp, v_current_level
   FROM profiles WHERE user_id = v_user_id;
 
@@ -61,10 +64,7 @@ BEGIN
     RAISE EXCEPTION 'insufficient_funds';
   END IF;
 
-  -- Deduct coins
   v_new_balance := v_current_coins - v_gift_cost;
-  
-  -- Calculate XP and level
   v_new_xp := COALESCE(v_current_xp, 0) + v_gift_cost;
   v_new_level := COALESCE(v_current_level, 1);
   
@@ -75,12 +75,10 @@ BEGIN
     v_new_xp := v_new_xp - v_xp_needed;
   END LOOP;
 
-  -- Update profile
   UPDATE profiles 
   SET coins = v_new_balance, xp = v_new_xp, level = v_new_level
   WHERE user_id = v_user_id;
 
-  -- Record transaction
   INSERT INTO gift_transactions (sender_id, stream_key, gift_id, coins_spent)
   VALUES (v_user_id, p_stream_key, p_gift_id, v_gift_cost);
 
@@ -118,7 +116,9 @@ BEGIN
 END;
 $$;
 
--- 5. Weekly creator ranking function (if not exists)
+-- 5. Drop old ranking function then recreate
+DROP FUNCTION IF EXISTS get_weekly_creator_ranking(integer);
+DROP FUNCTION IF EXISTS get_weekly_creator_ranking();
 CREATE OR REPLACE FUNCTION get_weekly_creator_ranking(p_limit integer DEFAULT 50)
 RETURNS TABLE(user_id uuid, username text, display_name text, avatar_url text, total_coins bigint, rank bigint)
 LANGUAGE plpgsql
@@ -153,10 +153,15 @@ BEGIN
   END IF;
 END $$;
 
--- 7. Enable realtime on live_streams
-ALTER PUBLICATION supabase_realtime ADD TABLE live_streams;
+-- 7. Enable realtime on live_streams (ignore if already added)
+DO $$
+BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE live_streams;
+EXCEPTION WHEN duplicate_object THEN
+  NULL;
+END $$;
 
--- 8. Add is_read column to notifications if using is_read instead of read
+-- 8. Fix notifications column
 DO $$
 BEGIN
   IF NOT EXISTS (

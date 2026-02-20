@@ -1,16 +1,19 @@
 /* ═══ ROSE GOLD GRADIENT ICONS ═══ */
-svg[stroke="currentColor"] > line,
-svg[stroke="currentColor"] > path,
-svg[stroke="currentColor"] > circle,
-svg[stroke="currentColor"] > rect,
-svg[stroke="currentColor"] > polyline,
-svg[stroke="currentColor"] > polygon,
-svg[stroke="currentColor"] > ellipse {
-  stroke: url(#rg) !important;
+svg[stroke="currentColor"][fill="none"] {
+  background: linear-gradient(145deg, #E7B8A6 0%, #C68678 35%, #B8736A 60%, #8A4A44 100%);
+  border-radius: 50%;
+  padding: 5px;
+  box-sizing: content-box;
 }
 
-svg[stroke="currentColor"][fill="none"] {
-  color: #C68678;
+svg[stroke="currentColor"][fill="none"] > line,
+svg[stroke="currentColor"][fill="none"] > path,
+svg[stroke="currentColor"][fill="none"] > circle,
+svg[stroke="currentColor"][fill="none"] > rect,
+svg[stroke="currentColor"][fill="none"] > polyline,
+svg[stroke="currentColor"][fill="none"] > polygon,
+svg[stroke="currentColor"][fill="none"] > ellipse {
+  stroke: #1a1a1a !important;
 }
 
 /* UI POLISH IMPROVEMENTS - TikTok Style Clean & Consistent */

@@ -147,6 +147,10 @@ interface Client {
   userId: string;
   roomId: string;
   username: string;
+  displayName: string;
+  avatarUrl: string;
+  level: number;
+  country: string;
   connectedAt: Date;
 }
 
@@ -201,14 +205,36 @@ wss.on('connection', async (ws: WebSocket, req) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const userObj = (userData as any)?.user ?? userData;
 
-    // Get username
-    const username = userObj?.user_metadata?.username || 'Anonymous';
+    // Get username, avatar, display_name, level, country from profile
+    let username = userObj?.user_metadata?.username || 'Anonymous';
+    let displayName = '';
+    let avatarUrl = '';
+    let level = 1;
+    let country = '';
+    if (supabaseAdmin) {
+      try {
+        const { data: profile } = await supabaseAdmin
+          .from('profiles')
+          .select('username, display_name, avatar_url, level, country')
+          .eq('user_id', userObj?.id ?? userId)
+          .single();
+        if (profile?.username) username = profile.username;
+        if (profile?.display_name) displayName = profile.display_name;
+        if (profile?.avatar_url) avatarUrl = profile.avatar_url;
+        if (profile?.level) level = profile.level;
+        if (profile?.country) country = profile.country || '';
+      } catch { /* ignore */ }
+    }
 
     client = {
       ws,
       userId: userObj?.id ?? userId,
       roomId,
       username,
+      displayName: displayName || username,
+      avatarUrl,
+      level,
+      country,
       connectedAt: new Date(),
     };
 
@@ -220,16 +246,34 @@ wss.on('connection', async (ws: WebSocket, req) => {
     }
     rooms.get(roomId)!.add(client);
 
-    // Send welcome message
+    // Send welcome + full room state with all current viewers
+    const roomClients = rooms.get(roomId)!;
+    const viewers = Array.from(roomClients).map(c => ({
+      user_id: c.userId,
+      username: c.username,
+      display_name: c.displayName,
+      avatar_url: c.avatarUrl,
+      level: c.level,
+      country: c.country,
+    }));
+
     sendToClient(client, 'connected', {
       room_id: roomId,
-      user_count: rooms.get(roomId)!.size,
+      user_count: roomClients.size,
+    });
+
+    sendToClient(client, 'room_state', {
+      viewers,
     });
 
     // Broadcast user joined
     broadcastToRoom(roomId, 'user_joined', {
       user_id: client.userId,
       username: client.username,
+      display_name: client.displayName,
+      avatar_url: client.avatarUrl,
+      level: client.level,
+      country: client.country,
     }, client);
 
     // Update viewer count
@@ -313,6 +357,7 @@ wss.on('connection', async (ws: WebSocket, req) => {
       broadcastToRoom(client.roomId, 'user_left', {
         user_id: client.userId,
         username: client.username,
+        avatar_url: client.avatarUrl,
       });
 
       // Update viewer count

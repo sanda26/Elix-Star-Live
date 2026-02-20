@@ -47,6 +47,7 @@ import { supabase } from '../lib/supabase';
 import { LevelBadge } from '../components/LevelBadge';
 import ReportModal from '../components/ReportModal';
 import { RankingPanel } from '../components/RankingPanel';
+import { websocket } from '../lib/websocket';
 import LiveAIFilters from '../components/LiveAIFilters';
 
 
@@ -1377,6 +1378,81 @@ export default function LiveStream() {
   useEffect(() => { activeViewersRef.current = activeViewers; }, [activeViewers]);
   useEffect(() => { speedChallengeTapsRef.current = speedChallengeTaps; }, [speedChallengeTaps]);
 
+  // WebSocket: connect to room and track viewers
+  useEffect(() => {
+    if (!effectiveStreamId || !user?.id) return;
+
+    const getToken = async () => {
+      const { data } = await supabase.auth.getSession();
+      return data.session?.access_token || '';
+    };
+
+    let mounted = true;
+
+    const connect = async () => {
+      const token = await getToken();
+      if (!token || !mounted) return;
+      websocket.connect(effectiveStreamId, token);
+    };
+
+    const handleRoomState = (data: any) => {
+      if (!mounted) return;
+      const viewers: LiveViewer[] = (data.viewers || []).map((v: any) => ({
+        id: v.user_id,
+        username: v.username || 'User',
+        displayName: v.display_name || v.username || 'User',
+        level: v.level || 1,
+        avatar: v.avatar_url || '',
+        country: v.country || '',
+        joinedAt: Date.now(),
+        isActive: true,
+        chatFrequency: 0,
+        supportDays: 0,
+        lastVisitDaysAgo: 0,
+      }));
+      setActiveViewers(viewers);
+    };
+
+    const handleUserJoined = (data: any) => {
+      if (!mounted) return;
+      if (data.user_id === user?.id) return;
+      setActiveViewers(prev => {
+        if (prev.some(v => v.id === data.user_id)) return prev;
+        return [...prev, {
+          id: data.user_id,
+          username: data.username || 'User',
+          displayName: data.display_name || data.username || 'User',
+          level: data.level || 1,
+          avatar: data.avatar_url || '',
+          country: data.country || '',
+          joinedAt: Date.now(),
+          isActive: true,
+          chatFrequency: 0,
+          supportDays: 0,
+          lastVisitDaysAgo: 0,
+        }];
+      });
+    };
+
+    const handleUserLeft = (data: any) => {
+      if (!mounted) return;
+      setActiveViewers(prev => prev.filter(v => v.id !== data.user_id));
+    };
+
+    websocket.on('room_state', handleRoomState);
+    websocket.on('user_joined', handleUserJoined);
+    websocket.on('user_left', handleUserLeft);
+
+    connect();
+
+    return () => {
+      mounted = false;
+      websocket.off('room_state', handleRoomState);
+      websocket.off('user_joined', handleUserJoined);
+      websocket.off('user_left', handleUserLeft);
+      websocket.disconnect();
+    };
+  }, [effectiveStreamId, user?.id]);
 
   const [giftQueue, setGiftQueue] = useState<string[]>([]);
   const [isPlayingGift, setIsPlayingGift] = useState(false);

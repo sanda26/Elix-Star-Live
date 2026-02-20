@@ -405,27 +405,29 @@ export default function LiveStream() {
             .from('profiles')
             .select('user_id, username, display_name, avatar_url, followers_count')
             .neq('user_id', user.id)
-            .order('followers_count', { ascending: false })
-            .limit(100),
+            .limit(200),
           supabase
             .from('live_streams')
             .select('user_id')
             .eq('is_live', true),
         ]);
         const liveUserIds = new Set((liveRes.data || []).map((l: any) => l.user_id));
-        if (profilesRes.data) {
+        if (profilesRes.data && profilesRes.data.length > 0) {
           const fmt = (n: number) => n >= 1000000 ? `${(n / 1000000).toFixed(1)}M` : n >= 1000 ? `${(n / 1000).toFixed(1)}K` : `${n}`;
           const mapped = profilesRes.data
-            .filter((p: any) => p.username)
+            .filter((p: any) => p.user_id)
             .map((p: any) => ({
               id: p.user_id,
               name: p.display_name || p.username || 'User',
-              username: p.username || 'user',
+              username: p.username || p.display_name || 'user',
               followers: fmt(p.followers_count ?? 0),
-              avatar: p.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.username || 'U')}&background=121212&color=C9A96E`,
+              avatar: p.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.username || p.display_name || 'U')}&background=121212&color=C9A96E`,
               isLive: liveUserIds.has(p.user_id),
             }));
-          mapped.sort((a: any, b: any) => (b.isLive ? 1 : 0) - (a.isLive ? 1 : 0));
+          mapped.sort((a: any, b: any) => {
+            if (a.isLive !== b.isLive) return b.isLive ? 1 : -1;
+            return (parseInt(b.followers) || 0) - (parseInt(a.followers) || 0);
+          });
           setCreators(mapped);
         }
       } catch { /* ignore */ }
@@ -1417,12 +1419,13 @@ export default function LiveStream() {
     const handleUserJoined = (data: any) => {
       if (!mounted) return;
       if (data.user_id === user?.id) return;
+      const joinName = data.username || 'User';
       setActiveViewers(prev => {
         if (prev.some(v => v.id === data.user_id)) return prev;
         return [...prev, {
           id: data.user_id,
-          username: data.username || 'User',
-          displayName: data.display_name || data.username || 'User',
+          username: joinName,
+          displayName: data.display_name || joinName,
           level: data.level || 1,
           avatar: data.avatar_url || '',
           country: data.country || '',
@@ -1433,16 +1436,58 @@ export default function LiveStream() {
           lastVisitDaysAgo: 0,
         }];
       });
+      setMessages(prev => [...prev, {
+        id: `join-${Date.now()}`,
+        username: joinName,
+        text: 'joined the stream',
+        isSystem: true,
+        level: data.level || 1,
+        avatar: data.avatar_url || '',
+      }]);
+      setViewerCount(prev => prev + 1);
     };
 
     const handleUserLeft = (data: any) => {
       if (!mounted) return;
       setActiveViewers(prev => prev.filter(v => v.id !== data.user_id));
+      setViewerCount(prev => Math.max(0, prev - 1));
+    };
+
+    const handleChatMessage = (data: any) => {
+      if (!mounted) return;
+      if (data.user_id === user?.id) return;
+      const msg: LiveMessage = {
+        id: `ws-${Date.now()}-${Math.random()}`,
+        username: data.username || 'User',
+        text: data.text || '',
+        level: data.level || 1,
+        avatar: data.avatar || '',
+      };
+      setMessages(prev => [...prev, msg]);
+    };
+
+    const handleGiftSent = (data: any) => {
+      if (!mounted) return;
+      if (data.user_id === user?.id) return;
+      const giftDef = GIFTS.find(g => g.id === data.giftId);
+      if (giftDef) {
+        const msg: LiveMessage = {
+          id: `gift-ws-${Date.now()}-${Math.random()}`,
+          username: data.username || 'User',
+          text: `sent ${giftDef.name}`,
+          level: data.level || 1,
+          avatar: data.avatar || '',
+          isGift: true,
+        };
+        setMessages(prev => [...prev, msg]);
+      }
     };
 
     websocket.on('room_state', handleRoomState);
     websocket.on('user_joined', handleUserJoined);
     websocket.on('user_left', handleUserLeft);
+    websocket.on('chat_message', handleChatMessage);
+    websocket.on('gift_sent', handleGiftSent);
 
     connect();
 
@@ -1451,6 +1496,8 @@ export default function LiveStream() {
       websocket.off('room_state', handleRoomState);
       websocket.off('user_joined', handleUserJoined);
       websocket.off('user_left', handleUserLeft);
+      websocket.off('chat_message', handleChatMessage);
+      websocket.off('gift_sent', handleGiftSent);
       websocket.disconnect();
     };
   }, [effectiveStreamId, user?.id]);
@@ -1598,16 +1645,24 @@ export default function LiveStream() {
       }
       
       // Add to chat
-      const giftMsg = {
+      const giftMsg: LiveMessage = {
           id: Date.now().toString(),
-          username: viewerName,
+          username: isBroadcast ? creatorName : viewerName,
           text: `Sent a ${gift.name}`,
           isGift: true,
           level: newLevel,
-          avatar: viewerAvatar,
+          avatar: isBroadcast ? myAvatar : viewerAvatar,
       };
       setMessages(prev => [...prev, giftMsg]);
 
+      websocket.send('gift_sent', {
+        giftId: gift.id,
+        giftName: gift.name,
+        level: newLevel,
+        avatar: giftMsg.avatar,
+        video: gift.video || null,
+        transactionId: `${user?.id || 'anon'}-${Date.now()}`,
+      });
 
       // Handle Combo Logic
       setLastSentGift(gift);
@@ -1728,14 +1783,21 @@ export default function LiveStream() {
       e.preventDefault();
       if (!inputValue.trim()) return;
       
-      const newMsg = {
+      const newMsg: LiveMessage = {
           id: Date.now().toString(),
-          username: viewerName,
+          username: isBroadcast ? creatorName : viewerName,
           text: inputValue,
           level: userLevel,
-          avatar: viewerAvatar,
+          avatar: isBroadcast ? myAvatar : viewerAvatar,
       };
       setMessages(prev => [...prev, newMsg]);
+
+      websocket.send('chat_message', {
+        text: inputValue,
+        level: userLevel,
+        avatar: newMsg.avatar,
+      });
+
       setInputValue('');
   };
 
@@ -3140,9 +3202,15 @@ export default function LiveStream() {
                 {filteredCreators.length === 0 && (
                   <div className="py-8 text-center">
                     <div className="w-12 h-12 rounded-full bg-[#13151A] border border-[#C9A96E]/40 flex items-center justify-center mx-auto mb-3">
-                      <Search className="w-5 h-5 text-[#C9A96E]/40" />
+                      {creators.length === 0 ? (
+                        <div className="w-5 h-5 border-2 border-[#C9A96E]/40 border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <Search className="w-5 h-5 text-[#C9A96E]/40" />
+                      )}
                     </div>
-                    <p className="text-white/40 text-xs font-medium">No creators found</p>
+                    <p className="text-white/40 text-xs font-medium">
+                      {creators.length === 0 ? 'Loading creators...' : 'No creators match your search'}
+                    </p>
                   </div>
                 )}
               </div>

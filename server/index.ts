@@ -215,14 +215,13 @@ wss.on('connection', async (ws: WebSocket, req) => {
       try {
         const { data: profile } = await supabaseAdmin
           .from('profiles')
-          .select('username, display_name, avatar_url, level, country')
+          .select('username, display_name, avatar_url, level')
           .eq('user_id', userObj?.id ?? userId)
           .single();
         if (profile?.username) username = profile.username;
         if (profile?.display_name) displayName = profile.display_name;
         if (profile?.avatar_url) avatarUrl = profile.avatar_url;
         if (profile?.level) level = profile.level;
-        if (profile?.country) country = profile.country || '';
       } catch { /* ignore */ }
     }
 
@@ -307,6 +306,10 @@ wss.on('connection', async (ws: WebSocket, req) => {
           userId,
           roomId,
           username,
+          displayName: username,
+          avatarUrl: '',
+          level: 1,
+          country: '',
           connectedAt: new Date(),
         };
         

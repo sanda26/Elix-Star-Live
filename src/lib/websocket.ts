@@ -44,8 +44,9 @@ class WebSocketService {
   private token: string | null = null;
 
   connect(roomId: string, token: string) {
-    if (this.ws?.readyState === WebSocket.OPEN) {
-      return; // Already connected
+    if (this.ws?.readyState === WebSocket.OPEN || this.ws?.readyState === WebSocket.CONNECTING) {
+      if (this.roomId === roomId) return;
+      this.disconnect();
     }
 
     this.roomId = roomId;

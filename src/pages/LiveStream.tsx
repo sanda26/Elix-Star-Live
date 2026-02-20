@@ -2555,8 +2555,8 @@ export default function LiveStream() {
                 <button type="button" onClick={() => setIsReportModalOpen(true)} className="w-9 h-9 rounded-full bg-[#13151A]/40 backdrop-blur-md border border-white/20 flex items-center justify-center shadow-lg active:scale-95 transition-transform">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
                 </button>
-                <button type="button" onClick={handleShare} className="w-9 h-9 rounded-full bg-[#13151A]/40 backdrop-blur-md border border-white/20 flex items-center justify-center shadow-lg active:scale-95 transition-transform">
-                  <Share2 size={16} className="text-white" />
+                <button type="button" onClick={handleShare} className="w-9 h-9 rounded-full bg-[#13151A]/40 backdrop-blur-md border border-[#C9A96E]/30 flex items-center justify-center shadow-lg active:scale-95 transition-transform">
+                  <img src="/Icons/share-gold.png" alt="Share" className="w-5 h-5 object-contain" draggable={false} />
                 </button>
                 <button type="button" onClick={() => setShowGiftPanel(true)} className="w-9 h-9 rounded-full bg-[#C9A96E]/20 backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform">
                   <Gift size={16} className="text-white" />
@@ -2628,8 +2628,8 @@ export default function LiveStream() {
               <button type="button" onClick={() => { setGiftTarget('me'); setShowGiftPanel(true); }} className="w-10 h-10 rounded-full bg-[#C9A96E]/20 backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg">
                 <Gift size={20} className="text-white" />
               </button>
-              <button type="button" onClick={() => setShowSharePanel(true)} className="w-10 h-10 rounded-full bg-[#13151A]/40 backdrop-blur-md border border-white/20 flex items-center justify-center shadow-lg">
-                <Share2 size={20} className="text-white" />
+              <button type="button" onClick={() => setShowSharePanel(true)} className="w-10 h-10 rounded-full bg-[#13151A]/40 backdrop-blur-md border border-[#C9A96E]/30 flex items-center justify-center shadow-lg">
+                <img src="/Icons/share-gold.png" alt="Share" className="w-6 h-6 object-contain" draggable={false} />
               </button>
               <button type="button" onClick={() => setIsMoreMenuOpen(true)} className="w-10 h-10 rounded-full bg-[#13151A]/40 backdrop-blur-md border border-white/20 flex items-center justify-center shadow-lg">
                 <MoreVertical size={20} className="text-white" />

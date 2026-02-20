@@ -80,7 +80,7 @@ export default function LiveDiscover() {
 
   return (
     <div className="min-h-[100dvh] bg-[#13151A] flex justify-center px-2">
-      <div className="relative w-full max-w-[480px] h-[100dvh] bg-[#13151A] overflow-hidden rounded-3xl pt-[calc(var(--safe-top)+14mm)] pb-[calc(var(--safe-bottom)+18mm)]">
+      <div className="relative w-full max-w-[480px] h-[100dvh] bg-[#13151A] overflow-hidden rounded-3xl pt-[calc(var(--safe-top)+46px)] pb-[calc(var(--safe-bottom)+70px)]">
         <div className="absolute inset-0 bg-[#13151A]" />
 
         <div className="relative z-10 px-4 pt-3">

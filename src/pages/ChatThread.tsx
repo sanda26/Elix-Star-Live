@@ -177,7 +177,7 @@ export default function ChatThread() {
 
   return (
     <div className="min-h-[100dvh] bg-[#13151A] text-white flex justify-center px-2">
-      <div className="w-full max-w-[480px] flex flex-col h-[100dvh] rounded-3xl overflow-hidden bg-[#13151A] pt-[calc(var(--safe-top)+14mm)] pb-[calc(var(--safe-bottom)+18mm)]">
+      <div className="w-full max-w-[480px] flex flex-col h-[100dvh] rounded-3xl overflow-hidden bg-[#13151A] pt-[calc(var(--safe-top)+46px)] pb-[calc(var(--safe-bottom)+70px)]">
         {/* Header */}
         <header className="flex items-center gap-3 px-4 py-3 border-b border-white/10 bg-[#13151A]">
           <button onClick={() => navigate('/inbox')} className="p-1">

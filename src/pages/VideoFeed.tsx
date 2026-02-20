@@ -34,10 +34,9 @@ function LiveStreamCard({ stream, onOpen }: { stream: LiveStreamData; onOpen: ()
     <button
       type="button"
       onClick={onOpen}
-      className="w-full h-full relative bg-[#13151A]"
-      style={{paddingTop:'calc(var(--safe-top) + 16mm)', paddingBottom:'calc(var(--safe-bottom) + 20mm)'}}
+      className="w-full h-full relative bg-[#13151A] rounded-2xl overflow-hidden"
     >
-      <div className="absolute left-4 z-0 flex items-center gap-2" style={{top:'calc(var(--safe-top) + 18mm)'}}>
+      <div className="absolute left-4 top-4 z-0 flex items-center gap-2">
         <div className="px-2.5 py-1 rounded-full bg-red-600 text-white text-[11px] font-black tracking-widest animate-pulse">
           LIVE
         </div>
@@ -50,14 +49,14 @@ function LiveStreamCard({ stream, onOpen }: { stream: LiveStreamData; onOpen: ()
         </div>
       </div>
 
-      <div className="absolute left-4 z-0 text-left" style={{bottom:'calc(var(--safe-bottom) + 36mm)'}}>
+      <div className="absolute left-4 bottom-16 z-0 text-left">
         <p className="text-white text-xl font-black">
           {stream.title || 'Live Stream'}
         </p>
         <p className="text-white/70 text-sm font-semibold">@{stream.username || 'creator'}</p>
       </div>
 
-      <div className="absolute left-4 z-0" style={{bottom:'calc(var(--safe-bottom) + 22mm)'}}>
+      <div className="absolute left-4 bottom-4 z-0">
         <div className="px-5 py-2 rounded-full bg-[#C9A96E] text-black text-sm font-black">
           Watch Live
         </div>
@@ -74,8 +73,7 @@ function PromoCard({ promo, onOpen }: { promo: LivePromo; onOpen: () => void }) 
     <button
       type="button"
       onClick={onOpen}
-      className="w-full h-full relative bg-[#13151A]"
-      style={{paddingTop:'calc(var(--safe-top) + 16mm)', paddingBottom:'calc(var(--safe-bottom) + 20mm)'}}
+      className="w-full h-full relative bg-[#13151A] rounded-2xl overflow-hidden"
     >
       {promo.type === 'battle' ? (
         <div className="absolute inset-0 flex">
@@ -90,7 +88,7 @@ function PromoCard({ promo, onOpen }: { promo: LivePromo; onOpen: () => void }) 
         </div>
       )}
 
-      <div className="absolute left-4 z-10 flex items-center gap-2" style={{top:'calc(var(--safe-top) + 18mm)'}}>
+      <div className="absolute left-4 top-4 z-10 flex items-center gap-2">
         <div className="px-2.5 py-1 rounded-full bg-[#C9A96E] text-black text-[11px] font-black tracking-widest">
           LIVE
         </div>
@@ -99,14 +97,14 @@ function PromoCard({ promo, onOpen }: { promo: LivePromo; onOpen: () => void }) 
         </div>
       </div>
 
-      <div className="absolute left-4 z-10 text-left" style={{bottom:'calc(var(--safe-bottom) + 36mm)'}}>
+      <div className="absolute left-4 bottom-16 z-10 text-left">
         <p className="text-white text-xl font-black">
           {promo.type === 'battle' ? 'Live Battle' : 'Live Stream'}
         </p>
         <p className="text-white text-sm font-bold">{promo.likes.toLocaleString()} likes</p>
       </div>
 
-      <div className="absolute left-4 z-10" style={{bottom:'calc(var(--safe-bottom) + 22mm)'}}>
+      <div className="absolute left-4 bottom-4 z-10">
         <div className="px-5 py-2 rounded-full bg-[#C9A96E] text-black text-sm font-black">Watch now</div>
       </div>
     </button>
@@ -440,11 +438,11 @@ export default function VideoFeed() {
                 scrollSnapStop: 'always'
               }}
             >
-              <div className="w-full max-w-[480px] h-full relative">
+              <div className="w-full max-w-[480px] absolute left-1/2 -translate-x-1/2" style={{top:'calc(var(--safe-top) + 14mm)', bottom:'calc(var(--safe-bottom) + 18mm)'}}>
                 <PromoCard
                   promo={item.promo}
                   onOpen={() =>
-                    navigate(`/live/${item.promo.streamId}${item.promo.type === 'battle' ? '?battle=1' : ''}`)
+                    navigate(`/live/${item.promo.streamId}${item.promo.type === 'battle' ? '?battle=1' : ''}`, { replace: true })
                   }
                 />
               </div>
@@ -464,10 +462,10 @@ export default function VideoFeed() {
                 scrollSnapStop: 'always'
               }}
             >
-              <div className="w-full max-w-[480px] h-full relative">
+              <div className="w-full max-w-[480px] absolute left-1/2 -translate-x-1/2" style={{top:'calc(var(--safe-top) + 14mm)', bottom:'calc(var(--safe-bottom) + 18mm)'}}>
                 <LiveStreamCard
                   stream={item.stream}
-                  onOpen={() => navigate(`/live/${item.stream.stream_key}`)}
+                  onOpen={() => navigate(`/live/${item.stream.stream_key}`, { replace: true })}
                 />
               </div>
             </div>

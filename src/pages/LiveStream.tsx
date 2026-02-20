@@ -2562,7 +2562,7 @@ export default function LiveStream() {
                         <stop offset="0%" stopColor="#FFE08A"/><stop offset="30%" stopColor="#D4A017"/><stop offset="50%" stopColor="#C9A96E"/><stop offset="70%" stopColor="#D4A017"/><stop offset="100%" stopColor="#FFE08A"/>
                       </linearGradient>
                       <linearGradient id="sFill1" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" stopColor="#1a1a1a"/><stop offset="50%" stopColor="#2a2520"/><stop offset="100%" stopColor="#1a1a1a"/>
+                        <stop offset="0%" stopColor="#0a0a0a"/><stop offset="30%" stopColor="#1a1a1a"/><stop offset="50%" stopColor="#2a2a2a"/><stop offset="70%" stopColor="#1a1a1a"/><stop offset="100%" stopColor="#0a0a0a"/>
                       </linearGradient>
                     </defs>
                     <path d="M18 6l8 8-8 8v-5.5C11 16.5 6.5 19 4 24c0-9 5-14 14-15.5V6z" fill="url(#sFill1)" stroke="url(#sGold1)" strokeWidth="2" strokeLinejoin="round"/>
@@ -2645,7 +2645,7 @@ export default function LiveStream() {
                       <stop offset="0%" stopColor="#FFE08A"/><stop offset="30%" stopColor="#D4A017"/><stop offset="50%" stopColor="#C9A96E"/><stop offset="70%" stopColor="#D4A017"/><stop offset="100%" stopColor="#FFE08A"/>
                     </linearGradient>
                     <linearGradient id="sFill2" x1="0%" y1="0%" x2="100%" y2="100%">
-                      <stop offset="0%" stopColor="#1a1a1a"/><stop offset="50%" stopColor="#2a2520"/><stop offset="100%" stopColor="#1a1a1a"/>
+                      <stop offset="0%" stopColor="#0a0a0a"/><stop offset="30%" stopColor="#1a1a1a"/><stop offset="50%" stopColor="#2a2a2a"/><stop offset="70%" stopColor="#1a1a1a"/><stop offset="100%" stopColor="#0a0a0a"/>
                     </linearGradient>
                   </defs>
                   <path d="M18 6l8 8-8 8v-5.5C11 16.5 6.5 19 4 24c0-9 5-14 14-15.5V6z" fill="url(#sFill2)" stroke="url(#sGold2)" strokeWidth="2" strokeLinejoin="round"/>

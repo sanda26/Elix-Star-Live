@@ -210,10 +210,10 @@ export default function ReportModal({ isOpen, onClose, videoId, contentType, con
   }
 
   return (
-    <div className="fixed inset-0 z-modals flex flex-col justify-end">
-      <div className="absolute inset-0 bg-[#13151A] pointer-events-auto" onClick={onClose} />
+    <div className="fixed inset-0 z-modals flex items-end justify-center">
+      <div className="absolute inset-0 bg-black/60 pointer-events-auto" onClick={onClose} />
 
-      <div className="relative w-full z-10 bg-[#1C1E24] rounded-t-2xl p-4 pb-safe flex flex-col gap-1 shadow-2xl border-t border-white/10 pointer-events-auto h-[40dvh] max-h-[40dvh] overflow-y-auto no-scrollbar">
+      <div className="relative w-full max-w-[480px] z-10 bg-[#1C1E24] rounded-t-2xl p-4 pb-safe flex flex-col gap-1 shadow-2xl border-2 border-b-0 border-[#C9A96E] pointer-events-auto h-[40dvh] max-h-[40dvh] overflow-y-auto no-scrollbar" style={{ marginBottom: '90px', boxShadow: '0 -4px 30px rgba(201,169,110,0.25)' }}>
         <div className="flex justify-center mb-2">
           <div className="w-10 h-1 bg-white/20 rounded-full" />
         </div>
@@ -269,7 +269,7 @@ export default function ReportModal({ isOpen, onClose, videoId, contentType, con
                 className={`w-full px-4 py-3 flex items-center justify-between border rounded-xl transition-colors ${selected ? 'border-[#C9A96E]/60 bg-white/5' : 'border-white/10 hover:bg-white/5'}`}
               >
                 <div className="flex items-start gap-3 min-w-0">
-                  <div className={`w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center flex-shrink-0 ${reason.color}`}>
+                  <div className={`w-9 h-9 rounded-full bg-[#13151A] border border-[#C9A96E]/40 flex items-center justify-center flex-shrink-0 ${reason.color}`}>
                     <IconComponent className="w-4 h-4" />
                   </div>
                   <div className="min-w-0 text-left">

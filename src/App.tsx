@@ -56,6 +56,7 @@ const Hashtag = lazy(() => import('./pages/Hashtag'));
 const BlockedAccounts = lazy(() => import('./pages/settings/BlockedAccounts'));
 const SafetyCenter = lazy(() => import('./pages/settings/SafetyCenter'));
 const PurchaseCoins = lazy(() => import('./pages/PurchaseCoins'));
+const Shop = lazy(() => import('./pages/Shop'));
 const Report = lazy(() => import('./pages/Report'));
 const Support = lazy(() => import('./pages/Support'));
 const Guidelines = lazy(() => import('./pages/Guidelines'));
@@ -162,7 +163,7 @@ function App() {
 
       <OfflineBanner />
       <IncomingCallModal />
-      <main className={cn("min-h-screen", showBottomNav && !isFullScreen && "pt-topbar pb-nav")}>
+      <main className={cn("min-h-screen mx-auto max-w-[480px]", showBottomNav && !isFullScreen && "pt-topbar pb-nav")}>
         <ErrorBoundary>
         <Suspense fallback={<PageLoader />}>
         <Routes>
@@ -215,6 +216,8 @@ function App() {
             <Route path="/settings/blocked" element={<BlockedAccounts />} />
             <Route path="/settings/safety" element={<SafetyCenter />} />
             <Route path="/purchase-coins" element={<PurchaseCoins />} />
+            <Route path="/shop" element={<Shop />} />
+            <Route path="/shop/:itemId" element={<Shop />} />
             <Route path="/call" element={<VideoCall />} />
             <Route path="/ai-studio" element={<AIStudio />} />
             <Route element={<RequireAdmin />}>
@@ -229,7 +232,6 @@ function App() {
         </Suspense>
         </ErrorBoundary>
       </main>
-      {showBottomNav && <TopNav />}
       {showBottomNav && <BottomNav />}
     </div>
   );

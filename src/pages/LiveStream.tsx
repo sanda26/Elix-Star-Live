@@ -45,7 +45,6 @@ import { useAuthStore } from '../store/useAuthStore';
 import { clearCachedCameraStream, getCachedCameraStream } from '../lib/cameraStream';
 import { supabase } from '../lib/supabase';
 import { LevelBadge } from '../components/LevelBadge';
-import { AvatarRing } from '../components/AvatarRing';
 import ReportModal from '../components/ReportModal';
 import { RankingPanel } from '../components/RankingPanel';
 import LiveAIFilters from '../components/LiveAIFilters';
@@ -318,11 +317,13 @@ export default function LiveStream() {
           .then(() => {});
       };
     } else {
-      supabase.rpc('increment_viewer_count', { p_stream_key: key }).then(() => {});
+      // Viewer joining: increment count via SECURITY DEFINER RPC
+      supabase.rpc('increment_viewer_count', { p_stream_key: key }).catch(() => {});
 
+      // Fetch initial stream data (viewer count + host info)
       supabase
         .from('live_streams')
-        .select('viewer_count')
+        .select('viewer_count, user_id, title')
         .eq('stream_key', key)
         .maybeSingle()
         .then(({ data: streamData }) => {
@@ -331,18 +332,23 @@ export default function LiveStream() {
           }
         });
 
+      // Subscribe to realtime updates for this stream
       const channel = supabase
         .channel(`live_viewers_${key}`)
         .on('postgres_changes', { event: '*', schema: 'public', table: 'live_streams', filter: `stream_key=eq.${key}` }, (payload: any) => {
           if (payload.new?.viewer_count != null) {
             setViewerCount(Number(payload.new.viewer_count));
           }
+          if (payload.new?.is_live === false) {
+            showToast('Stream ended');
+            navigate('/live', { replace: true });
+          }
         })
         .subscribe();
 
       return () => {
         supabase.removeChannel(channel);
-        supabase.rpc('decrement_viewer_count', { p_stream_key: key }).then(() => {});
+        supabase.rpc('decrement_viewer_count', { p_stream_key: key }).catch(() => {});
       };
     }
   }, [creatorName, effectiveStreamId, isBroadcast, user?.id]);
@@ -614,12 +620,12 @@ export default function LiveStream() {
       if (res.ok) {
         const { url } = await res.json();
         if (url) window.location.href = url;
-        else navigate('/purchase-coins');
+        else navigate('/shop');
       } else {
-        navigate('/purchase-coins');
+        navigate('/shop');
       }
     } catch {
-      navigate('/purchase-coins');
+      navigate('/shop');
     } finally {
       setIsSubscribing(false);
     }
@@ -1695,7 +1701,7 @@ export default function LiveStream() {
               }
             }}
           >
-            {/* Main broadcaster camera — always full screen behind everything */}
+            {/* Main broadcaster camera / Viewer placeholder */}
             {isBroadcast ? (
               <video
                 ref={videoRef}
@@ -1705,13 +1711,21 @@ export default function LiveStream() {
                 muted
               />
             ) : (
-              <video
-                ref={videoRef}
-                className="w-full h-full object-cover bg-[#13151A]"
-                autoPlay
-                playsInline
-                muted
-              />
+              <div className="w-full h-full bg-[#13151A] flex flex-col items-center justify-center relative">
+                {myAvatar ? (
+                  <img src={myAvatar} alt="" className="w-28 h-28 rounded-full object-cover border-2 border-[#C9A96E]/40 mb-4 opacity-80" />
+                ) : (
+                  <div className="w-28 h-28 rounded-full bg-[#1C1E24] border-2 border-[#C9A96E]/30 flex items-center justify-center mb-4">
+                    <span className="text-4xl font-black text-[#C9A96E]/60">{creatorName.charAt(0).toUpperCase()}</span>
+                  </div>
+                )}
+                <p className="text-white font-bold text-lg">{creatorName}</p>
+                <div className="flex items-center gap-1.5 mt-1">
+                  <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                  <span className="text-white/50 text-xs font-semibold">LIVE</span>
+                </div>
+                <div className="absolute inset-0 pointer-events-none" style={{background: 'radial-gradient(circle at center 40%, rgba(201,169,110,0.06) 0%, transparent 60%)'}} />
+              </div>
             )}
 
             {isBroadcast && activeFaceARGift && (
@@ -2016,7 +2030,7 @@ export default function LiveStream() {
                         onClick={(e) => { e.stopPropagation(); openMiniProfile(battleSlots[0].name); }}
                       >
                         {lastGifts.opponent && (
-                          <div className="w-5 h-5 rounded-full bg-[#13151A]/40 border border-white/20 overflow-hidden flex items-center justify-center drop-shadow-md z-10 relative">
+                          <div className="w-5 h-5 rounded-full bg-[#13151A] border border-[#C9A96E]/40 overflow-hidden flex items-center justify-center drop-shadow-md z-10 relative">
                             <img src={lastGifts.opponent} alt="gift" className="w-full h-full object-cover" />
                           </div>
                         )}
@@ -2078,7 +2092,7 @@ export default function LiveStream() {
                         onClick={(e) => { e.stopPropagation(); openMiniProfile(battleSlots[1].name); }}
                       >
                         {lastGifts.player3 && (
-                          <div className="w-5 h-5 rounded-full bg-[#13151A]/40 border border-white/20 overflow-hidden flex items-center justify-center drop-shadow-md z-10 relative">
+                          <div className="w-5 h-5 rounded-full bg-[#13151A] border border-[#C9A96E]/40 overflow-hidden flex items-center justify-center drop-shadow-md z-10 relative">
                             <img src={lastGifts.player3} alt="gift" className="w-full h-full object-cover" />
                           </div>
                         )}
@@ -2136,7 +2150,7 @@ export default function LiveStream() {
                         onClick={(e) => { e.stopPropagation(); openMiniProfile(battleSlots[2].name); }}
                       >
                         {lastGifts.player4 && (
-                          <div className="w-5 h-5 rounded-full bg-[#13151A]/40 border border-white/20 overflow-hidden flex items-center justify-center drop-shadow-md z-10 relative">
+                          <div className="w-5 h-5 rounded-full bg-[#13151A] border border-[#C9A96E]/40 overflow-hidden flex items-center justify-center drop-shadow-md z-10 relative">
                             <img src={lastGifts.player4} alt="gift" className="w-full h-full object-cover" />
                           </div>
                         )}
@@ -2226,7 +2240,7 @@ export default function LiveStream() {
                             >
                               <AvatarRing src={myAvatar} alt={myCreatorName} size={56} />
                             </div>
-                            <div className="flex flex-col justify-center -ml-4 pl-6 pr-16 h-9 rounded-full border border-white/60 bg-[#13151A]/50 min-w-[140px] relative" style={{ borderTopLeftRadius: 0, borderBottomLeftRadius: 0 }}>
+                            <div className="flex flex-col justify-center -ml-4 pl-6 pr-16 h-9 rounded-full border border-[#C9A96E]/60 bg-[#13151A]/80 min-w-[140px] relative" style={{ borderTopLeftRadius: 0, borderBottomLeftRadius: 0, boxShadow: '0 0 8px rgba(201,169,110,0.25)' }}>
                               <span className="text-white text-[10px] font-bold truncate max-w-[160px] leading-tight">{myCreatorName}</span>
                               <button
                   type="button"
@@ -2247,7 +2261,7 @@ export default function LiveStream() {
                                     {/* Membership / Join Button (Bottom) */}
                                     <button
                                       type="button"
-                                      className={`col-start-1 row-start-1 flex items-center justify-center gap-1 ${hasJoinedToday ? 'bg-[#C9A96E] border-[#C9A96E]' : 'bg-white border-white/20'} rounded-full px-1.5 py-0.5 shadow-sm border w-[58px] h-7 z-0 transition-colors duration-200`}
+                                      className={`col-start-1 row-start-1 flex items-center justify-center gap-1 ${hasJoinedToday ? 'bg-[#C9A96E] border-[#C9A96E]' : 'bg-[#13151A] border-[#C9A96E]/40'} rounded-full px-1.5 py-0.5 shadow-sm border w-[58px] h-7 z-0 transition-colors duration-200`}
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         if (!hasJoinedToday && user?.id && effectiveStreamId) {
@@ -2317,32 +2331,36 @@ export default function LiveStream() {
                               })()}
                             </div>
                           </div>
-                          <div className="flex items-center gap-2 mt-1 ml-9 pointer-events-auto relative z-20">
+                          <div className="flex items-center gap-2 mt-0.5 ml-9 pointer-events-auto relative z-20 flex-wrap">
                             <div 
-                              className="flex items-center gap-1 bg-gradient-to-r from-[#C9A96E] to-[#D4B87A] rounded-full px-2 py-0.5 border border-white/10 shadow-sm cursor-pointer w-fit" 
+                              className="flex items-center gap-1 bg-[#13151A] rounded-full px-2 py-0.5 border border-[#C9A96E]/40 shadow-sm cursor-pointer" 
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setShowRankingPanel(true);
                               }}
                             >
-                              <Trophy className="w-2.5 h-2.5 text-white" />
-                              <span className="text-white text-[9px] font-bold whitespace-nowrap">Weekly Ranking &gt;</span>
+                              <Trophy className="w-2.5 h-2.5 text-[#C9A96E]" />
+                              <span className="text-[#C9A96E] text-[9px] font-bold whitespace-nowrap">Weekly Ranking &gt;</span>
                             </div>
                             <div 
-                              className="flex items-center gap-1 bg-[#FF2D55] rounded-full px-2 py-0.5 border border-white/10 shadow-sm cursor-pointer w-fit ml-4" 
+                              className="flex items-center gap-1 bg-[#13151A] rounded-full px-2 py-0.5 border border-[#C9A96E]/40 shadow-sm cursor-pointer" 
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setShowFanClub(true);
                               }}
                             >
                               <img src="/icons/Membership.png" alt="Membership" className="w-3.5 h-3.5 object-contain" onError={(e) => {
-                                // Fallback if image not found
                                 e.currentTarget.style.display = 'none';
                                 e.currentTarget.nextElementSibling?.classList.remove('hidden');
                               }} />
-                              <Heart className="w-2.5 h-2.5 text-white fill-white hidden" />
-                              <span className="text-white text-[9px] font-bold whitespace-nowrap">Membership</span>
+                              <Heart className="w-2.5 h-2.5 text-[#C9A96E] fill-[#C9A96E] hidden" />
+                              <span className="text-[#C9A96E] text-[9px] font-bold whitespace-nowrap">Membership</span>
                             </div>
+                            {currentUniverse && (
+                              <div className="flex items-center gap-1 bg-[#13151A] rounded-full px-2 py-0.5 border border-[#C9A96E]/40 shadow-sm">
+                                <span className="text-[#C9A96E] text-[9px] font-bold whitespace-nowrap truncate max-w-[140px]">✨ {universeText} ✨</span>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -2367,18 +2385,11 @@ export default function LiveStream() {
                             <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round"><polyline points="6 9 12 15 18 9"/></svg>
                           </button>
                         </div>
-                        <button type="button" onClick={stopBroadcast} className="w-8 h-8 rounded-full bg-[#FF4D6A]/20 border border-[#FF4D6A]/40 flex items-center justify-center" title="End broadcast">
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FF4D6A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
+                        <button type="button" onClick={stopBroadcast} className="w-7 h-7 rounded-full flex items-center justify-center active:scale-95 transition-transform" title="End broadcast">
+                          <img src="/Icons/Gold power buton.png" alt="Close" className="w-5 h-5 object-contain" />
                         </button>
                       </div>
                     </div>
-                    {currentUniverse && (
-                      <div className="mt-0 pointer-events-auto px-2">
-                        <div className="h-5 rounded-md bg-gradient-to-r from-red-700 via-red-600 to-red-700 border border-red-400/50 flex items-center justify-center px-2 gap-1">
-                          <span className="text-black text-[12px] font-extrabold tracking-wide truncate">✨ {universeText} ✨</span>
-                        </div>
-                      </div>
-                    )}
                   </div>
                 </div>
               ) : (
@@ -2403,21 +2414,26 @@ export default function LiveStream() {
                               </button>
                             </div>
                               
-                              <div className="flex items-center gap-2 mt-0.5 pointer-events-auto">
-                                <div className="flex items-center gap-1 bg-gradient-to-r from-[#C9A96E] to-[#D4B87A] rounded-full px-2 py-0.5 border border-white/10 shadow-sm cursor-pointer" onClick={(e) => {
+                              <div className="flex items-center gap-2 mt-0.5 pointer-events-auto flex-wrap">
+                                <div className="flex items-center gap-1 bg-[#13151A] rounded-full px-2 py-0.5 border border-[#C9A96E]/40 shadow-sm cursor-pointer" onClick={(e) => {
                                    e.stopPropagation();
                                    setShowRankingPanel(true);
                                 }}>
-                                  <Trophy className="w-2.5 h-2.5 text-white" />
-                                  <span className="text-white text-[9px] font-bold whitespace-nowrap">52 Weekly Ranking &gt;</span>
+                                  <Trophy className="w-2.5 h-2.5 text-[#C9A96E]" />
+                                  <span className="text-[#C9A96E] text-[9px] font-bold whitespace-nowrap">52 Weekly Ranking &gt;</span>
                                 </div>
-                                <div className="flex items-center gap-1 bg-[#FF2D55] rounded-full px-2 py-0.5 border border-white/10 shadow-sm cursor-pointer pointer-events-auto" onClick={(e) => {
+                                <div className="flex items-center gap-1 bg-[#13151A] rounded-full px-2 py-0.5 border border-[#C9A96E]/40 shadow-sm cursor-pointer pointer-events-auto" onClick={(e) => {
                                    e.stopPropagation();
                                    setShowFanClub(true);
                                 }}>
-                                  <Heart className="w-2.5 h-2.5 text-white fill-white" />
-                                  <span className="text-white text-[9px] font-bold whitespace-nowrap">Join Super Fan</span>
+                                  <Heart className="w-2.5 h-2.5 text-[#C9A96E] fill-[#C9A96E]" />
+                                  <span className="text-[#C9A96E] text-[9px] font-bold whitespace-nowrap">Join Super Fan</span>
                                 </div>
+                                {currentUniverse && (
+                                  <div className="flex items-center gap-1 bg-[#13151A] rounded-full px-2 py-0.5 border border-[#C9A96E]/40 shadow-sm">
+                                    <span className="text-[#C9A96E] text-[9px] font-bold whitespace-nowrap truncate max-w-[140px]">✨ {universeText} ✨</span>
+                                  </div>
+                                )}
                               </div>
                             </div>
                         </button>
@@ -2453,19 +2469,12 @@ export default function LiveStream() {
                             </div>
                             <span className="text-white text-[9px] font-bold tabular-nums">{formatCountShort(viewerCount)}</span>
                           </button>
-                          <button type="button" onClick={() => navigate('/feed', { replace: true })} className="w-10 h-10 text-white flex items-center justify-center hover:scale-110 active:scale-95 transition-all">
-                            <LogOut size={20} strokeWidth={2.5} />
+                          <button type="button" onClick={() => navigate('/feed', { replace: true })} className="w-7 h-7 flex items-center justify-center active:scale-95 transition-transform" title="Leave">
+                            <img src="/Icons/Gold power buton.png" alt="Close" className="w-5 h-5 object-contain" />
                           </button>
                         </div>
                       </div>
                     </div>
-                    {currentUniverse && (
-                      <div className="mt-1 pointer-events-auto px-2">
-                        <div className="h-9 rounded-xl bg-gradient-to-r from-red-700 via-red-600 to-red-700 border border-red-400/50 flex items-center justify-center px-4 gap-2">
-                          <span className="text-white text-[14px] font-extrabold tracking-wide truncate drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">✨ {universeText} ✨</span>
-                        </div>
-                      </div>
-                    )}
                   </div>
                 </div>
               )}
@@ -2503,8 +2512,8 @@ export default function LiveStream() {
           </div>
 
       {/* BOTTOM ZONE: INPUT (Fixed) - Moved out to ensure top z-index */}
-      <div className="bottom-zone flex-none pointer-events-auto bg-transparent px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-2 min-h-[50px] flex items-center fixed bottom-0 left-0 right-0 z-[50]">
-        <div className="w-full mx-auto">
+      <div className="bottom-zone flex-none pointer-events-auto bg-transparent px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-2 min-h-[50px] flex items-center fixed bottom-0 left-0 right-0 z-[50] justify-center">
+        <div className="w-full max-w-[480px] mx-auto">
           {/* Spectator Input & Actions */}
           {!isBroadcast && (
             <div className="flex items-center gap-2 w-full relative">
@@ -2556,27 +2565,17 @@ export default function LiveStream() {
               </form>
               
               <div className="flex items-center gap-2 flex-shrink-0 pointer-events-auto">
-                <button type="button" onClick={() => setIsReportModalOpen(true)} className="w-9 h-9 rounded-full bg-[#13151A]/40 backdrop-blur-md border border-white/20 flex items-center justify-center shadow-lg active:scale-95 transition-transform">
+                <button type="button" onClick={() => setIsReportModalOpen(true)} className="w-9 h-9 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
                 </button>
-                <button type="button" onClick={handleShare} className="w-9 h-9 rounded-full bg-[#13151A]/60 backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform" style={{boxShadow:'0 0 8px rgba(201,169,110,0.3), inset 0 1px 0 rgba(255,224,138,0.1)'}}>
-                  <svg width="20" height="20" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" style={{filter:'drop-shadow(0 0 3px rgba(212,160,23,0.6)) drop-shadow(0 0 6px rgba(201,169,110,0.3))'}}>
-                    <defs>
-                      <linearGradient id="sGold1" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" stopColor="#FFE08A"/><stop offset="30%" stopColor="#D4A017"/><stop offset="50%" stopColor="#C9A96E"/><stop offset="70%" stopColor="#D4A017"/><stop offset="100%" stopColor="#FFE08A"/>
-                      </linearGradient>
-                      <linearGradient id="sFill1" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" stopColor="#0a0a0a"/><stop offset="30%" stopColor="#1a1a1a"/><stop offset="50%" stopColor="#2a2a2a"/><stop offset="70%" stopColor="#1a1a1a"/><stop offset="100%" stopColor="#0a0a0a"/>
-                      </linearGradient>
-                    </defs>
-                    <path d="M18 6l8 8-8 8v-5.5C11 16.5 6.5 19 4 24c0-9 5-14 14-15.5V6z" fill="url(#sFill1)" stroke="url(#sGold1)" strokeWidth="2" strokeLinejoin="round"/>
-                  </svg>
+                <button type="button" onClick={handleShare} className="w-9 h-9 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform">
+                  <Share2 size={16} className="text-[#C9A96E]" />
                 </button>
-                <button type="button" onClick={() => setShowGiftPanel(true)} className="w-9 h-9 rounded-full bg-[#C9A96E]/20 backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform">
-                  <Gift size={16} className="text-white" />
+                <button type="button" onClick={() => setShowGiftPanel(true)} className="w-9 h-9 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform">
+                  <Gift size={16} className="text-[#C9A96E]" />
                 </button>
                 <LiveAIFilters currentFilter={liveFilterCss} onFilterChange={setLiveFilterCss} />
-                <button type="button" onPointerDown={(e) => { handleLikeTap(e); }} className="w-9 h-9 rounded-full bg-[#FF2D55]/20 backdrop-blur-md border border-[#FF2D55]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform">
+                <button type="button" onPointerDown={(e) => { handleLikeTap(e); }} className="w-9 h-9 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform">
                   <Heart size={16} fill="#FF2D55" className="text-[#FF2D55]" />
                 </button>
               </div>
@@ -2620,15 +2619,15 @@ export default function LiveStream() {
                     setBattleCountdown(3);
                     reachedThresholdsRef.current.clear();
                   }} 
-                  className="px-4 h-10 rounded-full bg-[#C9A96E]/20 backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform"
+                  className="px-4 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform"
                 >
-                  <RefreshCw size={20} className="text-white mr-2" />
-                  <span className="text-white text-xs font-bold">Rematch</span>
+                  <RefreshCw size={20} className="text-[#C9A96E] mr-2" />
+                  <span className="text-[#C9A96E] text-xs font-bold">Rematch</span>
                 </button>
               )}
               {!isBattleMode && (
-                <button type="button" onClick={() => setIsInviteHostOpen(true)} className="w-10 h-10 rounded-full bg-[#C9A96E]/20 backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg relative">
-                  <UserPlus size={20} className="text-white" />
+                <button type="button" onClick={() => setIsInviteHostOpen(true)} className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg relative">
+                  <UserPlus size={20} className="text-[#C9A96E]" />
                   {coHosts.length > 0 && (
                     <div className="absolute -top-1 -right-1 w-5 h-5 bg-[#C9A96E] rounded-full flex items-center justify-center">
                       <span className="text-black text-[10px] font-black">{coHosts.length}</span>
@@ -2636,27 +2635,17 @@ export default function LiveStream() {
                   )}
                 </button>
               )}
-              <button type="button" onClick={() => { if (!isBattleMode) toggleBattle(); else setIsFindCreatorsOpen(true); }} className="w-10 h-10 rounded-full bg-[#C9A96E]/20 backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg">
+              <button type="button" onClick={() => { if (!isBattleMode) toggleBattle(); else setIsFindCreatorsOpen(true); }} className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg">
                 <Users size={20} className="text-[#C9A96E]" />
               </button>
-              <button type="button" onClick={() => { setGiftTarget('me'); setShowGiftPanel(true); }} className="w-10 h-10 rounded-full bg-[#C9A96E]/20 backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg">
-                <Gift size={20} className="text-white" />
+              <button type="button" onClick={() => { setGiftTarget('me'); setShowGiftPanel(true); }} className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg">
+                <Gift size={20} className="text-[#C9A96E]" />
               </button>
-              <button type="button" onClick={() => setShowSharePanel(true)} className="w-10 h-10 rounded-full bg-[#13151A]/60 backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform" style={{boxShadow:'0 0 10px rgba(201,169,110,0.35), inset 0 1px 0 rgba(255,224,138,0.1)'}}>
-                <svg width="24" height="24" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" style={{filter:'drop-shadow(0 0 4px rgba(212,160,23,0.7)) drop-shadow(0 0 8px rgba(201,169,110,0.35))'}}>
-                  <defs>
-                    <linearGradient id="sGold2" x1="0%" y1="0%" x2="100%" y2="100%">
-                      <stop offset="0%" stopColor="#FFE08A"/><stop offset="30%" stopColor="#D4A017"/><stop offset="50%" stopColor="#C9A96E"/><stop offset="70%" stopColor="#D4A017"/><stop offset="100%" stopColor="#FFE08A"/>
-                    </linearGradient>
-                    <linearGradient id="sFill2" x1="0%" y1="0%" x2="100%" y2="100%">
-                      <stop offset="0%" stopColor="#0a0a0a"/><stop offset="30%" stopColor="#1a1a1a"/><stop offset="50%" stopColor="#2a2a2a"/><stop offset="70%" stopColor="#1a1a1a"/><stop offset="100%" stopColor="#0a0a0a"/>
-                    </linearGradient>
-                  </defs>
-                  <path d="M18 6l8 8-8 8v-5.5C11 16.5 6.5 19 4 24c0-9 5-14 14-15.5V6z" fill="url(#sFill2)" stroke="url(#sGold2)" strokeWidth="2" strokeLinejoin="round"/>
-                </svg>
+              <button type="button" onClick={() => setShowSharePanel(true)} className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform">
+                <Share2 size={20} className="text-[#C9A96E]" />
               </button>
-              <button type="button" onClick={() => setIsMoreMenuOpen(true)} className="w-10 h-10 rounded-full bg-[#13151A]/40 backdrop-blur-md border border-white/20 flex items-center justify-center shadow-lg">
-                <MoreVertical size={20} className="text-white" />
+              <button type="button" onClick={() => setIsMoreMenuOpen(true)} className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg">
+                <MoreVertical size={20} className="text-[#C9A96E]" />
               </button>
               </div>
             </div>
@@ -2679,8 +2668,8 @@ export default function LiveStream() {
                 <span className="text-white font-bold text-sm">Invite Co-Hosts</span>
                 <span className="text-white/40 text-xs">({coHosts.length}/{MAX_CO_HOSTS})</span>
               </div>
-              <button onClick={() => { setIsInviteHostOpen(false); setHostSearchQuery(''); }} className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
-                <X size={16} className="text-white" />
+              <button onClick={() => { setIsInviteHostOpen(false); setHostSearchQuery(''); }} className="w-8 h-8 rounded-full bg-[#13151A] border border-[#C9A96E]/40 flex items-center justify-center">
+                <X size={16} className="text-[#C9A96E]" />
               </button>
             </div>
 
@@ -2768,12 +2757,16 @@ export default function LiveStream() {
 
       {/* Weekly Ranking Panel */}
       {showRankingPanel && (
-        <div className="absolute inset-0 z-[99999] flex items-end justify-center pointer-events-auto" onClick={() => setShowRankingPanel(false)}>
-          <div className="absolute inset-0 bg-black/50" />
-          <div className="relative z-10 w-full max-h-[70dvh] overflow-hidden rounded-t-2xl" onClick={(e) => e.stopPropagation()}>
+        <>
+          <div 
+            className="absolute inset-0 bg-black/40 pointer-events-auto" 
+            style={{ zIndex: 99998 }}
+            onClick={() => setShowRankingPanel(false)}
+          />
+          <div className="absolute bottom-0 left-0 right-0 z-[99999] pointer-events-auto">
             <RankingPanel onClose={() => setShowRankingPanel(false)} />
           </div>
-        </div>
+        </>
       )}
 
       {/* MODALS & OVERLAYS */}
@@ -2821,7 +2814,7 @@ export default function LiveStream() {
                     {battleSlots.map((slot, i) => (
                       <div key={i} className="flex flex-col items-center gap-1">
                         {slot.status === 'empty' ? (
-                          <div className="w-10 h-10 rounded-full border border-dashed border-white/20 flex items-center justify-center bg-white/5">
+                          <div className="w-10 h-10 rounded-full border border-dashed border-[#C9A96E]/30 flex items-center justify-center bg-[#13151A]">
                             <span className="text-white/30 text-lg">+</span>
                           </div>
                         ) : (
@@ -2905,8 +2898,8 @@ export default function LiveStream() {
 
                 {filteredCreators.length === 0 && (
                   <div className="py-8 text-center">
-                    <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-3">
-                      <Search className="w-5 h-5 text-white/20" />
+                    <div className="w-12 h-12 rounded-full bg-[#13151A] border border-[#C9A96E]/40 flex items-center justify-center mx-auto mb-3">
+                      <Search className="w-5 h-5 text-[#C9A96E]/40" />
                     </div>
                     <p className="text-white/40 text-xs font-medium">No creators found</p>
                   </div>
@@ -3008,7 +3001,7 @@ export default function LiveStream() {
                 <button type="button" onClick={async () => {
                   if (!user?.id || !miniProfile) return;
                   try {
-                    await supabase.from('follows').upsert({ follower_id: user.id, following_id: miniProfile.id }, { onConflict: 'follower_id,following_id' });
+                    await supabase.from('followers').upsert({ follower_id: user.id, following_id: miniProfile.id }, { onConflict: 'follower_id,following_id' });
                     setIsFollowing(true);
                     closeMiniProfile();
                   } catch {}
@@ -3135,74 +3128,78 @@ export default function LiveStream() {
 
       {/* ═══ TEAM STATUS PANEL (Heart Icon) ═══ */}
       {showTeamStatus && (
-        <div className="absolute inset-0 z-[9999] flex flex-col justify-end">
+        <>
           <div 
-            className="absolute inset-0 pointer-events-auto" 
+            className="absolute inset-0 bg-black/40 pointer-events-auto" 
+            style={{ zIndex: 99998 }}
             onClick={() => setShowTeamStatus(false)}
           />
-          
+          <div className="absolute bottom-0 left-0 right-0 z-[99999] pointer-events-auto">
           <div
-            className="relative w-full z-10 bg-[#1C1E24] rounded-t-2xl max-h-[40dvh] flex flex-col animate-in slide-in-from-bottom duration-300 shadow-2xl border-t border-white/10 pointer-events-auto"
+            className="bg-[#1C1E24]/95 rounded-t-2xl p-3 pb-safe max-h-[40dvh] overflow-y-auto no-scrollbar shadow-2xl w-full"
             onClick={(e) => e.stopPropagation()}
           >
+            {/* Drag handle */}
+            <div className="flex justify-center pt-3 pb-1">
+              <div className="w-10 h-1 bg-white/20 rounded-full" />
+            </div>
+
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
-              <div className="flex items-center gap-2">
-                <Heart className="w-4 h-4 text-[#FF2D55]" strokeWidth={2} fill="#FF2D55" />
-                <span className="text-white font-bold text-sm">Your Team Status</span>
+            <div className="flex items-center justify-between px-4 pb-2">
+              <div className="flex items-center gap-1.5">
+                <Heart className="w-3 h-3 text-[#C9A96E]" strokeWidth={2} fill="#C9A96E" />
+                <span className="text-gold-metallic font-bold text-sm">Your Team Status</span>
               </div>
             </div>
             
             {/* Content */}
-            <div className="max-h-[40vh] overflow-y-auto px-4 py-4" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+            <div className="flex-1 overflow-y-auto px-4 pb-4 no-scrollbar">
                {/* Team Status Card */}
-               <div className="bg-white/5 rounded-xl p-4 border border-white/10 relative overflow-hidden">
-                 <div className="absolute top-0 right-0 w-20 h-20 bg-[#FF2D55]/20 rounded-full -mr-6 -mt-6 blur-xl" />
-                 <div className="flex items-center gap-4 relative z-10">
+               <div className="bg-white/5 rounded-xl p-3 border border-[#C9A96E]/20 relative overflow-hidden">
+                 <div className="flex items-center gap-3 relative z-10">
                    <div 
-                     className="w-12 h-12 rounded-full bg-gradient-to-br from-[#FF2D55] to-[#FF6B00] flex items-center justify-center border-2 border-white/10 shadow-lg cursor-pointer active:scale-95 transition-transform"
+                     className="w-10 h-10 rounded-full bg-gradient-to-br from-[#C9A96E] to-[#E8D5A3] flex items-center justify-center border-2 border-[#C9A96E]/30 shadow-lg cursor-pointer active:scale-95 transition-transform"
                      onClick={(e) => {
                        e.stopPropagation();
                        setShowJoinAnimation(true);
                        setTimeout(() => setShowJoinAnimation(false), 2000);
                      }}
                    >
-                     <Heart className="w-6 h-6 text-white fill-white" />
+                     <Heart className="w-4 h-4 text-black fill-black" />
                    </div>
                    <div>
-                     <div className="text-white/50 text-[10px] font-bold uppercase tracking-wider">Current Status</div>
-                     <div className="text-white font-bold text-base">
+                     <div className="text-[#C9A96E]/60 text-[9px] font-bold uppercase tracking-wider">Current Status</div>
+                     <div className="text-gold-metallic font-bold text-sm">
                       {myHeartCount === 0 ? 'New Viewer' : myHeartCount < 5 ? 'Rising Fan' : myHeartCount < 20 ? 'Loyal Member' : 'Super Fan'}
                     </div>
-                    <div className="text-white text-[10px] font-bold mt-0.5">
+                    <div className="text-white/50 text-[9px] font-bold mt-0.5">
                       {myHeartCount} Hearts Sent • {myHeartCount} Days Supported
                     </div>
                    </div>
                  </div>
                </div>
                
-               <p className="text-white/40 text-xs text-center mt-4 px-4">
+               <p className="text-white/30 text-[10px] text-center mt-3 px-4">
                  Join not tap tap one single heart
                </p>
 
                {/* Recent Supporters List */}
-               <div className="mt-6">
-                 <h4 className="text-white/60 text-[10px] font-bold uppercase tracking-wider mb-3 px-1">Recent Supporters</h4>
+               <div className="mt-3">
+                 <h4 className="text-[#C9A96E]/60 text-[9px] font-bold uppercase tracking-wider mb-2 px-1">Recent Supporters</h4>
                  <div className="space-y-1">
-                   {/* Show current user first if they joined */}
                    {hasJoinedToday && (
-                     <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-white/10 border border-white/20">
+                     <div className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-[#C9A96E]/5 border border-[#C9A96E]/15">
                         <div className="relative">
-                          <img src={'/Icons/elix-logo.png'} alt="You" className="w-8 h-8 rounded-full object-cover border border-white/10" />
-                          <div className="absolute -bottom-1 -right-1 bg-[#FF2D55] w-3.5 h-3.5 rounded-full flex items-center justify-center border border-[#1a1a1a]">
-                            <Heart size={8} className="text-white fill-white" />
+                          <img src={'/Icons/elix-logo.png'} alt="You" className="w-7 h-7 rounded-full object-cover border border-[#C9A96E]/20" />
+                          <div className="absolute -bottom-0.5 -right-0.5 bg-[#C9A96E] w-3 h-3 rounded-full flex items-center justify-center border border-[#1C1E24]">
+                            <Heart size={6} className="text-black fill-black" />
                           </div>
                         </div>
                         <div className="flex-1">
-                        <div className="text-xs font-bold text-white">You</div>
-                        <div className="text-[10px] text-white">Just joined the team!</div>
+                        <div className="text-[10px] font-bold text-white">You</div>
+                        <div className="text-[9px] text-white/50">Just joined the team!</div>
                       </div>
-                        <div className="text-white/40 text-[9px]">Now</div>
+                        <div className="text-[#C9A96E]/50 text-[8px]">Now</div>
                      </div>
                    )}
                    
@@ -3210,61 +3207,65 @@ export default function LiveStream() {
                </div>
             </div>
           </div>
-        </div>
+          </div>
+        </>
       )}
 
       {/* ═══ SUPER FAN GOAL PANEL (Membership) ═══ */}
       {showFanClub && (
-        <div className="absolute inset-0 z-[9999] flex flex-col justify-end">
-          {/* Backdrop - tap to close */}
+        <>
           <div 
-            className="absolute inset-0 pointer-events-auto" 
+            className="absolute inset-0 bg-black/40 pointer-events-auto" 
+            style={{ zIndex: 99998 }}
             onClick={() => setShowFanClub(false)}
           />
-          
+          <div className="absolute bottom-0 left-0 right-0 z-[99999] pointer-events-auto">
           <div
-            className="relative w-full z-10 bg-[#1C1E24] rounded-t-2xl max-h-[40dvh] flex flex-col animate-in slide-in-from-bottom duration-300 shadow-2xl border-t border-white/10 pointer-events-auto"
+            className="bg-[#1C1E24]/95 rounded-t-2xl p-3 pb-safe max-h-[40dvh] overflow-y-auto no-scrollbar shadow-2xl w-full"
             onClick={(e) => e.stopPropagation()}
           >
+            {/* Drag handle */}
+            <div className="flex justify-center pt-3 pb-1">
+              <div className="w-10 h-1 bg-white/20 rounded-full" />
+            </div>
+
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
-              <div className="flex items-center gap-2">
-                <Heart className="w-4 h-4 text-[#FF2D55]" strokeWidth={2} fill="#FF2D55" />
-                <span className="text-white font-bold text-sm">Super Fan Goal</span>
+            <div className="flex items-center justify-between px-4 pb-2">
+              <div className="flex items-center gap-1.5">
+                <Heart className="w-3 h-3 text-[#C9A96E]" strokeWidth={2} fill="#C9A96E" />
+                <span className="text-gold-metallic font-bold text-sm">Super Fan Goal</span>
               </div>
             </div>
             
             {/* Content */}
-            <div className="max-h-[40vh] overflow-y-auto px-4 py-4" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-              <div className="flex flex-col gap-4">
+            <div className="flex-1 overflow-y-auto px-4 pb-4 no-scrollbar">
+              <div className="flex flex-col gap-3">
                 {/* Subscription Banner */}
-                <div className="bg-gradient-to-r from-[#C9A96E] to-[#B8943F] rounded-xl p-4 shadow-lg border border-white/20 relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-10 -mt-10 blur-2xl" />
-                  
+                <div className="bg-gradient-to-r from-[#C9A96E]/10 to-[#B8943F]/5 rounded-xl p-3 border border-[#C9A96E]/20 relative overflow-hidden">
                   <div className="relative z-10">
-                    <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center justify-between mb-2">
                       <div>
-                        <h3 className="text-white font-bold text-lg">Membership</h3>
-                        <p className="text-white/80 text-xs">Unlock photo stickers & exclusive perks</p>
+                        <h3 className="text-gold-metallic font-bold text-xs">Membership</h3>
+                        <p className="text-white/50 text-[9px]">Unlock photo stickers & exclusive perks</p>
                       </div>
-                      <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm shadow-inner">
-                        <Heart className="w-5 h-5 text-white fill-white animate-pulse" />
+                      <div className="w-6 h-6 bg-[#C9A96E]/20 rounded-full flex items-center justify-center border border-[#C9A96E]/30">
+                        <Heart className="w-2.5 h-2.5 text-[#C9A96E] fill-[#C9A96E] animate-pulse" />
                       </div>
                     </div>
                     
-                    <div className="flex items-end gap-1 mb-4">
-                      <span className="text-3xl font-black text-white">£3.00</span>
-                      <span className="text-white/70 text-sm font-medium mb-1">/ month</span>
+                    <div className="flex items-end gap-1 mb-2">
+                      <span className="text-lg font-black text-gold-metallic">£3.00</span>
+                      <span className="text-white/40 text-[10px] font-medium mb-0.5">/ month</span>
                     </div>
 
                     <button
                       onClick={handleSubscribe}
                       disabled={isSubscribing}
-                      className="w-full py-3 bg-white text-[#FF2D55] font-black text-sm uppercase tracking-wide rounded-xl hover:bg-gray-50 active:scale-[0.98] transition-all shadow-lg disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                      className="w-full py-2 bg-gradient-to-r from-[#C9A96E] to-[#E8D5A3] text-black font-bold text-[10px] uppercase tracking-wide rounded-xl active:scale-[0.98] transition-all shadow-lg disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
                     >
                       {isSubscribing ? (
                         <>
-                          <div className="w-4 h-4 border-2 border-[#FF2D55]/30 border-t-[#FF2D55] rounded-full animate-spin" />
+                          <div className="w-3 h-3 border-2 border-black/30 border-t-black rounded-full animate-spin" />
                           <span>Processing...</span>
                         </>
                       ) : (
@@ -3275,22 +3276,22 @@ export default function LiveStream() {
                 </div>
 
                 {/* Photo Stickers - Only for Subscribers */}
-                <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-white font-bold text-sm flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#C9A96E] to-[#B8943F] flex items-center justify-center">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                <div className="bg-white/5 rounded-xl p-3 border border-[#C9A96E]/20">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-gold-metallic font-bold text-[10px] flex items-center gap-1">
+                      <div className="w-4 h-4 rounded-full bg-[#13151A] flex items-center justify-center border border-[#C9A96E]/40">
+                        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="#C9A96E" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
                       </div>
                       Photo Stickers
                     </h3>
-                    <span className="bg-[#C9A96E]/20 text-white text-[9px] font-bold px-2 py-0.5 rounded-full border border-[#C9A96E]/30">SUBSCRIBER ONLY</span>
+                    <span className="bg-[#C9A96E]/10 text-[#C9A96E] text-[7px] font-bold px-1.5 py-0.5 rounded-full border border-[#C9A96E]/20">SUBSCRIBER ONLY</span>
                   </div>
 
-                  <div className="grid grid-cols-4 gap-2">
+                  <div className="grid grid-cols-4 gap-1">
                     {['🔥', '💎', '👑', '🚀', '💯', '🎉', '💖', '👀'].map((emoji, i) => (
                       <button
                         key={i}
-                        className="aspect-square rounded-lg bg-white/5 hover:bg-white/10 active:scale-95 transition-all flex items-center justify-center text-2xl border border-white/5 relative overflow-hidden group"
+                        className="aspect-square rounded-lg bg-white/5 hover:bg-white/10 active:scale-95 transition-all flex items-center justify-center text-sm border border-[#C9A96E]/10 relative overflow-hidden group"
                         onClick={() => {
                           // Simulate sending a sticker
                           const newMessage: LiveMessage = {
@@ -3306,21 +3307,19 @@ export default function LiveStream() {
                           setShowFanClub(false); // Close panel after sending
                         }}
                       >
-                        <span className="group-hover:scale-125 transition-transform duration-200">{emoji}</span>
-                        {/* Lock overlay if not subscribed (simulated check - assume not subscribed for demo if isSubscribing is false) */}
-                        {!isSubscribing && ( // In real app, check actual subscription status
+                        <span className="group-hover:scale-110 transition-transform duration-200">{emoji}</span>
+                        {!isSubscribing && (
                           <div className="absolute inset-0 bg-[#13151A]/60 backdrop-blur-[1px] flex items-center justify-center">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-70"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#C9A96E" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-80"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                           </div>
                         )}
                       </button>
                     ))}
                     {/* Add Custom Sticker Upload Button */}
                     <button
-                      className="aspect-square rounded-lg bg-white/5 hover:bg-white/10 active:scale-95 transition-all flex items-center justify-center border border-white/5 relative overflow-hidden group"
+                      className="aspect-square rounded-lg bg-white/5 hover:bg-white/10 active:scale-95 transition-all flex items-center justify-center border border-[#C9A96E]/10 relative overflow-hidden group"
                       onClick={() => {
                         if (!isSubscribing) return;
-                        // Trigger file input
                         const input = document.createElement('input');
                         input.type = 'file';
                         input.accept = 'image/*';
@@ -3332,7 +3331,7 @@ export default function LiveStream() {
                               const newMessage: LiveMessage = {
                                 id: Date.now().toString(),
                                 username: 'You',
-                                text: ev.target?.result as string, // Data URL
+                                text: ev.target?.result as string,
                                 level: userLevel,
                                 isGift: false, 
                                 avatar: '/Icons/elix-logo.png',
@@ -3347,24 +3346,24 @@ export default function LiveStream() {
                         input.click();
                       }}
                     >
-                      <div className="flex flex-col items-center gap-1">
-                        <PlusCircle size={20} className="text-white/50 group-hover:text-white transition-colors" />
-                        <span className="text-[8px] text-white/50 font-bold uppercase">Upload</span>
+                      <div className="flex flex-col items-center gap-0.5">
+                        <PlusCircle size={12} className="text-[#C9A96E]/50 group-hover:text-[#C9A96E] transition-colors" />
+                        <span className="text-[6px] text-[#C9A96E]/50 font-bold uppercase">Upload</span>
                       </div>
-                       {/* Lock overlay if not subscribed */}
                        {!isSubscribing && (
                           <div className="absolute inset-0 bg-[#13151A]/60 backdrop-blur-[1px] flex items-center justify-center">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-70"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#C9A96E" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-80"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                           </div>
                         )}
                     </button>
                   </div>
-                  <p className="text-white/40 text-[10px] text-center mt-3">Subscribe to unlock photo stickers and send them in chat!</p>
+                  <p className="text-white/30 text-[8px] text-center mt-1.5">Subscribe to unlock photo stickers and send them in chat!</p>
                 </div>
               </div>
             </div>
           </div>
-        </div>
+          </div>
+        </>
       )}
 
 
@@ -3372,25 +3371,44 @@ export default function LiveStream() {
 
 
       {isMoreMenuOpen && (
-        <div className="absolute inset-0 z-[99999] flex flex-col justify-end">
+        <>
           <div 
-            className="absolute inset-0 pointer-events-auto" 
+            className="absolute inset-0 bg-black/40 pointer-events-auto" 
+            style={{ zIndex: 99998 }}
             onClick={() => setIsMoreMenuOpen(false)}
           />
           <div
-            className="bg-[#1C1E24]/95 rounded-t-2xl h-[40dvh] max-h-[40dvh] flex flex-col shadow-2xl border-t border-white/10 pointer-events-auto w-full relative z-10 overflow-y-auto no-scrollbar pb-safe"
+            className="absolute bottom-0 left-0 right-0 z-[99999] pointer-events-auto"
+          >
+          <div
+            className="bg-[#1C1E24]/95 rounded-t-2xl p-3 pb-safe max-h-[40dvh] overflow-y-auto no-scrollbar shadow-2xl w-full"
             onClick={(e) => e.stopPropagation()}
           >
+            {/* Drag handle */}
+            <div className="flex justify-center mb-2">
+              <div className="w-10 h-1 bg-white/20 rounded-full" />
+            </div>
+
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
-              <div className="flex items-center gap-2">
-                <Settings2 className="w-4 h-4 text-white" />
-                <span className="text-white font-bold text-sm">More Options</span>
-              </div>
+            <div className="flex items-center gap-2 mb-2">
+              <Settings2 className="w-4 h-4 text-[#C9A96E]" />
+              <span className="text-white font-bold text-sm">More Options</span>
             </div>
 
             {/* Content */}
-            <div className="p-2 overflow-y-auto">
+            <div className="flex flex-col gap-0.5">
+              {/* Share Button - always visible */}
+              <button
+                type="button"
+                onClick={() => { setShowSharePanel(true); setIsMoreMenuOpen(false); }}
+                className="w-full px-4 py-3 flex items-center gap-3 text-white hover:bg-[#C9A96E]/10 rounded-xl transition-colors"
+              >
+                <div className="w-8 h-8 rounded-full bg-[#13151A] flex items-center justify-center border border-[#C9A96E]/40">
+                  <Share2 className="w-4 h-4 text-[#C9A96E]" strokeWidth={2} />
+                </div>
+                <span className="text-sm font-bold">Share</span>
+              </button>
+
               {isBattleMode && battleWinner && isBroadcast && (
                 <button
                   type="button"
@@ -3405,9 +3423,11 @@ export default function LiveStream() {
                     reachedThresholdsRef.current.clear();
                     setIsMoreMenuOpen(false);
                   }}
-                  className="w-full px-4 py-3 flex items-center gap-3 text-white hover:bg-white/5 rounded-xl"
+                  className="w-full px-4 py-3 flex items-center gap-3 text-white hover:bg-[#C9A96E]/10 rounded-xl transition-colors"
                 >
-                  <RefreshCw className="w-5 h-5" strokeWidth={2} />
+                  <div className="w-8 h-8 rounded-full bg-[#13151A] flex items-center justify-center border border-[#C9A96E]/40">
+                    <RefreshCw className="w-4 h-4 text-[#C9A96E]" strokeWidth={2} />
+                  </div>
                   <span className="text-sm font-bold">Rematch</span>
                 </button>
               )}
@@ -3416,10 +3436,12 @@ export default function LiveStream() {
                 <button
                   type="button"
                   onClick={() => { startSpeedChallenge(); setIsMoreMenuOpen(false); }}
-                  className="w-full px-4 py-3 flex items-center gap-3 text-white hover:bg-white/5 rounded-xl"
+                  className="w-full px-4 py-3 flex items-center gap-3 text-white hover:bg-[#C9A96E]/10 rounded-xl transition-colors"
                 >
-                  <Zap className="w-5 h-5" strokeWidth={2} />
-                  <span className="text-sm font-bold text-white">Start Speed Challenge</span>
+                  <div className="w-8 h-8 rounded-full bg-[#13151A] flex items-center justify-center border border-[#C9A96E]/40">
+                    <Zap className="w-4 h-4 text-[#C9A96E]" strokeWidth={2} />
+                  </div>
+                  <span className="text-sm font-bold">Start Speed Challenge</span>
                 </button>
               )}
 
@@ -3427,9 +3449,11 @@ export default function LiveStream() {
                 type="button"
                 disabled={!isBroadcast}
                 onClick={() => { flipCamera(); setIsMoreMenuOpen(false); }}
-                className="w-full px-4 py-3 flex items-center gap-3 text-white disabled:opacity-50 hover:bg-white/5 rounded-xl"
+                className="w-full px-4 py-3 flex items-center gap-3 text-white disabled:opacity-50 hover:bg-[#C9A96E]/10 rounded-xl transition-colors"
               >
-                <RefreshCw className="w-5 h-5" strokeWidth={2} />
+                <div className="w-8 h-8 rounded-full bg-[#13151A] flex items-center justify-center border border-[#C9A96E]/40">
+                  <RefreshCw className="w-4 h-4 text-[#C9A96E]" strokeWidth={2} />
+                </div>
                 <span className="text-sm font-bold">Flip camera</span>
               </button>
 
@@ -3437,33 +3461,40 @@ export default function LiveStream() {
                 type="button"
                 disabled={!isBroadcast}
                 onClick={() => { toggleMic(); setIsMoreMenuOpen(false); }}
-                className="w-full px-4 py-3 flex items-center gap-3 text-white disabled:opacity-50 hover:bg-white/5 rounded-xl"
+                className="w-full px-4 py-3 flex items-center gap-3 text-white disabled:opacity-50 hover:bg-[#C9A96E]/10 rounded-xl transition-colors"
               >
-                {isMicMuted ? <MicOff className="w-5 h-5" strokeWidth={2} /> : <Mic className="w-5 h-5" strokeWidth={2} />}
+                <div className="w-8 h-8 rounded-full bg-[#13151A] flex items-center justify-center border border-[#C9A96E]/40">
+                  {isMicMuted ? <MicOff className="w-4 h-4 text-[#C9A96E]" strokeWidth={2} /> : <Mic className="w-4 h-4 text-[#C9A96E]" strokeWidth={2} />}
+                </div>
                 <span className="text-sm font-bold">{isMicMuted ? 'Unmute mic' : 'Mute mic'}</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => { setIsLiveSettingsOpen(true); setIsMoreMenuOpen(false); }}
-                className="w-full px-4 py-3 flex items-center gap-3 text-white hover:bg-white/5 rounded-xl"
+                className="w-full px-4 py-3 flex items-center gap-3 text-white hover:bg-[#C9A96E]/10 rounded-xl transition-colors"
               >
-                <Settings2 className="w-5 h-5" strokeWidth={2} />
+                <div className="w-8 h-8 rounded-full bg-[#13151A] flex items-center justify-center border border-[#C9A96E]/40">
+                  <Settings2 className="w-4 h-4 text-[#C9A96E]" strokeWidth={2} />
+                </div>
                 <span className="text-sm font-bold">Live settings</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => { setIsChatVisible((v) => !v); setIsMoreMenuOpen(false); }}
-                className="w-full px-4 py-3 flex items-center gap-3 text-white hover:bg-white/5 rounded-xl"
+                className="w-full px-4 py-3 flex items-center gap-3 text-white hover:bg-[#C9A96E]/10 rounded-xl transition-colors"
               >
-                <MessageCircle className="w-5 h-5" strokeWidth={2} />
+                <div className="w-8 h-8 rounded-full bg-[#13151A] flex items-center justify-center border border-[#C9A96E]/40">
+                  <MessageCircle className="w-4 h-4 text-[#C9A96E]" strokeWidth={2} />
+                </div>
                 <span className="text-sm font-bold">{isChatVisible ? 'Hide chat' : 'Show chat'}</span>
               </button>
 
             </div>
           </div>
-        </div>
+          </div>
+        </>
       )}
 
 
@@ -3570,15 +3601,15 @@ export default function LiveStream() {
       />
       
       {/* ═══ SHARE PANEL ═══ */}
-
-      {/* ═══ SHARE PANEL ═══ */}
       {showSharePanel && (
-        <div className="absolute inset-0 z-[99999] flex flex-col justify-end">
+        <>
           <div 
-            className="absolute inset-0 pointer-events-auto" 
+            className="absolute inset-0 bg-black/40 pointer-events-auto" 
+            style={{ zIndex: 99998 }}
             onClick={() => setShowSharePanel(false)}
           />
-          <div className="relative w-full z-10 bg-[#1C1E24] rounded-t-2xl p-4 pb-safe flex flex-col gap-1 shadow-2xl border-t border-white/10 pointer-events-auto max-h-[40dvh] overflow-y-auto no-scrollbar">
+          <div className="absolute bottom-0 left-0 right-0 z-[99999] pointer-events-auto">
+          <div className="bg-[#1C1E24]/95 rounded-t-2xl p-4 pb-safe flex flex-col gap-1 shadow-2xl w-full max-h-[40dvh] overflow-y-auto no-scrollbar">
             <div className="flex justify-center mb-2">
               <div className="w-10 h-1 bg-white/20 rounded-full" />
             </div>
@@ -3668,7 +3699,7 @@ export default function LiveStream() {
                   }}
                   className="flex flex-col items-center gap-1 min-w-[60px]"
                 >
-                  <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center border border-white/10">
+                  <div className="w-12 h-12 rounded-full bg-[#13151A] flex items-center justify-center border border-[#C9A96E]/40">
                     {item.icon}
                   </div>
                   <span className="text-white/70 text-[10px]">{item.name}</span>
@@ -3676,7 +3707,8 @@ export default function LiveStream() {
               ))}
             </div>
           </div>
-        </div>
+          </div>
+        </>
       )}
 
       {/* Report Modal */}

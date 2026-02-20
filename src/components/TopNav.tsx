@@ -31,7 +31,7 @@ export const TopNav = () => {
   return (
     <div className="fixed left-0 right-0 z-[9999] flex justify-center pointer-events-none"
          style={{ top: 'calc(var(--safe-top) + 0.5mm)' }}>
-      <div className="w-full max-w-[500px] relative px-2">
+      <div className="w-full max-w-[480px] relative px-2">
         <div className="relative w-full" style={{ transform: 'scaleY(0.80)', transformOrigin: 'top' }}>
           <img 
             src="/Icons/topbar.png" 
@@ -89,7 +89,7 @@ export const TopNav = () => {
               title="Following"
             />
             <button
-              onClick={() => navigate('/purchase-coins')}
+              onClick={() => navigate('/shop')}
               onMouseEnter={() => setHoveredTopTabIndex(4)}
               onMouseLeave={() => setHoveredTopTabIndex(null)}
               className="h-full bg-transparent focus:outline-none active:bg-transparent appearance-none border-0 p-0 m-0"

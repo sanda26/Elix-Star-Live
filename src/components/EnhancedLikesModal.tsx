@@ -42,7 +42,7 @@ export default function EnhancedLikesModal({ isOpen, onClose, videoId, likes }: 
         const userIds = data.map((l: any) => l.user_id);
         const { data: profiles } = await supabase
           .from('profiles')
-          .select('user_id, username, display_name, avatar_url, bio, follower_count, following_count, is_verified')
+          .select('user_id, username, display_name, avatar_url, bio, followers_count, following_count')
           .in('user_id', userIds);
         if (profiles) {
           let followSet = new Set<string>();
@@ -61,8 +61,8 @@ export default function EnhancedLikesModal({ isOpen, onClose, videoId, likes }: 
             name: p.display_name || p.username || 'User',
             avatar: p.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.username || 'U')}&background=121212&color=C9A96E`,
             isFollowing: followSet.has(p.user_id),
-            isVerified: p.is_verified ?? false,
-            followers: p.follower_count ?? 0,
+            isVerified: false,
+            followers: p.followers_count ?? 0,
             following: p.following_count ?? 0,
             bio: p.bio || '',
           })));

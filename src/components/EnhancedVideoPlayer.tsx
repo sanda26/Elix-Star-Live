@@ -441,14 +441,14 @@ export default function EnhancedVideoPlayer({
         <div className="relative mb-1">
           <div 
             className="cursor-pointer hover:scale-105 transition-transform relative"
-            style={{width:'42px',height:'42px'}}
+            style={{width:'48px',height:'48px'}}
             onClick={handleProfileClick}
           >
             <img 
               src={video.user.avatar} 
               alt={video.user.username} 
               className="absolute rounded-full object-cover"
-              style={{width:'28px',height:'28px',top:'50%',left:'50%',transform:'translate(-50%,-55%)'}}
+              style={{width:'32px',height:'32px',top:'50%',left:'50%',transform:'translate(-50%,-55%)'}}
             />
             <img 
               src="/Icons/Profile icon.png" 
@@ -461,16 +461,15 @@ export default function EnhancedVideoPlayer({
         {/* Like Button */}
         <button 
           onClick={handleLike}
-          className="relative hover:scale-105 active:scale-95 transition-transform"
-          style={{width:'42px',height:'42px'}}
+          className="hover:scale-105 active:scale-95 transition-transform"
+          style={{width:'48px',height:'48px'}}
           title="Like"
         >
-          <div className="absolute inset-[3px] rounded-full bg-[#1a1a1a]" />
           <img 
             src="/Icons/Like Icon.png" 
             alt="Like" 
-            className="relative z-10 w-full h-full object-contain transition-all duration-300"
-            style={video.isLiked ? {filter:'brightness(0.85) sepia(1) hue-rotate(-15deg) saturate(6)'} : {}}
+            className="w-full h-full object-contain transition-all duration-300"
+            style={video.isLiked ? {filter:'brightness(0.5) sepia(1) hue-rotate(-30deg) saturate(10)'} : {}}
           />
         </button>
         <span className={`text-[10px] font-semibold -mt-1 ${video.isLiked ? 'text-red-500' : 'text-white'}`}>{formatNumber(video.stats.likes)}</span>
@@ -478,27 +477,25 @@ export default function EnhancedVideoPlayer({
         {/* Comment Button */}
         <button 
           onClick={handleComment}
-          className="relative hover:scale-105 active:scale-95 transition-transform"
-          style={{width:'42px',height:'42px'}}
+          className="hover:scale-105 active:scale-95 transition-transform"
+          style={{width:'48px',height:'48px'}}
           title="Comments"
         >
-          <div className="absolute inset-[3px] rounded-full bg-[#1a1a1a]" />
-          <img src="/Icons/Coment Icon.png" alt="Comments" className="relative z-10 w-full h-full object-contain" />
+          <img src="/Icons/Coment Icon.png" alt="Comments" className="w-full h-full object-contain" />
         </button>
         <span className="text-white text-[10px] font-semibold -mt-1">{formatNumber(video.stats.comments)}</span>
 
         {/* Save Button */}
         <button 
           onClick={handleSave}
-          className="relative hover:scale-105 active:scale-95 transition-transform"
-          style={{width:'42px',height:'42px'}}
+          className="hover:scale-105 active:scale-95 transition-transform"
+          style={{width:'48px',height:'48px'}}
           title="Save"
         >
-          <div className="absolute inset-[3px] rounded-full bg-[#1a1a1a]" />
           <img 
             src="/Icons/Save Icon.png" 
             alt="Save" 
-            className={`relative z-10 w-full h-full object-contain ${video.isSaved ? 'brightness-125 drop-shadow-[0_0_8px_rgba(201,169,110,0.6)]' : ''}`}
+            className={`w-full h-full object-contain ${video.isSaved ? 'brightness-125 drop-shadow-[0_0_8px_rgba(201,169,110,0.6)]' : ''}`}
           />
         </button>
         <span className="text-white text-[10px] font-semibold -mt-1">{formatNumber(video.stats.saves || 0)}</span>
@@ -506,24 +503,32 @@ export default function EnhancedVideoPlayer({
         {/* Share Button */}
         <button 
           onClick={handleShare}
-          className="relative hover:scale-105 active:scale-95 transition-transform"
-          style={{width:'36px',height:'36px'}}
+          className="hover:scale-105 active:scale-95 transition-transform"
+          style={{width:'48px',height:'48px'}}
           title="Share"
         >
-          <div className="absolute inset-[3px] rounded-full bg-[#1a1a1a]" />
-          <img src="/Icons/Share Icon.png" alt="Share" className="relative z-10 w-full h-full object-contain" />
+          <img src="/Icons/Share Icon.png" alt="Share" className="w-full h-full object-contain" />
         </button>
         <span className="text-white text-[10px] font-semibold -mt-1">{formatNumber(video.stats.shares)}</span>
 
         {/* Music Button */}
         <button 
           onClick={handleMusicClick}
-          className="relative hover:scale-105 active:scale-95 transition-transform animate-spin"
-          style={{width:'42px',height:'42px',animationDuration:'8s'}}
+          className="hover:scale-105 active:scale-95 transition-transform animate-spin"
+          style={{width:'48px',height:'48px',animationDuration:'8s'}}
           title="Music"
         >
-          <div className="absolute inset-[3px] rounded-full bg-[#1a1a1a]" />
-          <img src="/Icons/Music Icon.png" alt="Music" className="relative z-10 w-full h-full object-contain" />
+          <img src="/Icons/Music Icon.png" alt="Music" className="w-full h-full object-contain" />
+        </button>
+
+        {/* 3 Dots Button */}
+        <button 
+          onClick={handleReport}
+          className="hover:scale-105 active:scale-95 transition-transform"
+          style={{width:'48px',height:'48px'}}
+          title="More"
+        >
+          <img src="/Icons/3 Dots Buton.png" alt="More" className="w-full h-full object-contain" />
         </button>
       </div>
 
@@ -606,10 +611,11 @@ export default function EnhancedVideoPlayer({
       />
       
             {isMoreMenuOpen && (
-        <div className="fixed inset-0 z-modals flex flex-col justify-end">
+        <div className="fixed inset-0 z-modals flex items-end justify-center">
           <div className="absolute inset-0 pointer-events-auto" onClick={() => setIsMoreMenuOpen(false)} />
           <div
-            className="bg-[#1C1E24]/95 rounded-t-2xl max-h-[40dvh] flex flex-col shadow-2xl border-t border-white/10 pointer-events-auto w-full relative z-10"
+            className="bg-[#1C1E24]/95 rounded-t-2xl max-h-[40dvh] flex flex-col shadow-2xl border-2 border-b-0 border-[#C9A96E] pointer-events-auto w-full max-w-[480px] relative z-10"
+            style={{ marginBottom: '90px', boxShadow: '0 -4px 30px rgba(201,169,110,0.25)' }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">

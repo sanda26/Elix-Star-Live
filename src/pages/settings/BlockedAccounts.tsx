@@ -41,7 +41,7 @@ export default function BlockedAccounts() {
     setLoading(true);
     try {
       const { data, error } = await supabase
-        .from('blocks')
+        .from('blocked_users')
         .select('*, blocked_user:profiles!blocked_id(username, avatar_url)')
         .eq('blocker_id', currentUserId)
         .order('created_at', { ascending: false });
@@ -57,7 +57,7 @@ export default function BlockedAccounts() {
 
   const unblockUser = async (blockId: string) => {
     try {
-      const { error } = await supabase.from('blocks').delete().eq('id', blockId);
+      const { error } = await supabase.from('blocked_users').delete().eq('id', blockId);
 
       if (error) throw error;
 

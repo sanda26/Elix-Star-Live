@@ -465,7 +465,13 @@ function broadcastToRoom(roomId: string, event: string, data: any, exclude?: Cli
 
 async function updateViewerCount(roomId: string) {
   try {
-    // TODO: Update database with viewer count
+    if (!supabaseAdmin) return;
+    const room = rooms.get(roomId);
+    const count = room ? room.size : 0;
+    await supabaseAdmin
+      .from('live_streams')
+      .update({ viewer_count: count })
+      .eq('stream_key', roomId);
   } catch (error) {
     console.error('Failed to update viewer count:', error);
   }

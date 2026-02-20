@@ -160,120 +160,26 @@ export default function VideoFeed() {
       }}
       onScroll={handleScroll}
     >
-      {/* Top Navigation Bar - LUXURY REDESIGN */}
+      {/* Top Navigation Bar */}
       <div className="fixed left-0 right-0 z-[9999] flex justify-center pointer-events-none"
-           style={{ top: 'calc(var(--safe-top) + 0.5mm)' }}>
-        <div className="w-full max-w-[500px] relative px-2">
-          
-          {/* Background Image with Premium Glow */}
-          <div className="relative w-full" style={{ transform: 'scaleY(0.80)', transformOrigin: 'top' }}>
+           style={{ top: 'calc(var(--safe-top) + 2px)' }}>
+        <div className="w-full max-w-[480px] relative px-2">
+          <div className="absolute inset-x-4 top-1/2 -translate-y-1/2 h-[200%] rounded-full pointer-events-none" style={{background:'radial-gradient(ellipse at center, rgba(201,169,110,0.15) 0%, rgba(201,169,110,0.05) 40%, transparent 70%)'}} />
+          <div className="relative w-full">
             <img 
-              src="/Icons/topbar.png" 
+              src="/Icons/Top Bar.png" 
               alt="Navigation" 
               className="w-full h-auto pointer-events-none"
-              style={{ 
-                filter: 'drop-shadow(0 0 20px rgba(201,169,110,0.5)) drop-shadow(0 4px 15px rgba(0,0,0,0.6))',
-              }}
+              style={{ filter: 'drop-shadow(0 0 20px rgba(201,169,110,0.4)) drop-shadow(0 4px 30px rgba(201,169,110,0.2)) drop-shadow(0 2px 8px rgba(0,0,0,0.6))' }}
             />
-            <img
-              src="/Icons/topbar.png"
-              alt=""
-              className="absolute inset-0 w-full h-full object-contain pointer-events-none transition-opacity duration-200"
-              style={{
-                opacity: hoveredTopTabIndex === null ? 0 : 1,
-                filter: 'brightness(1.25) saturate(1.4) contrast(1.15)',
-                clipPath:
-                  hoveredTopTabIndex === null
-                    ? 'inset(0 100% 0 0)'
-                    : `inset(0 ${hoveredTopTabRight}% 0 ${hoveredTopTabLeft}%)`,
-              }}
-            />
-            
-            {/* Clickable Button Overlays */}
             <div className="absolute inset-0 flex items-center pointer-events-auto">
-              {/* LIVE Button - 13% */}
-              <button
-                onClick={() => { setActiveTab('live'); navigate('/live', { replace: true }); }}
-                onMouseEnter={() => setHoveredTopTabIndex(0)}
-                onMouseLeave={() => setHoveredTopTabIndex(null)}
-                onFocus={() => setHoveredTopTabIndex(0)}
-                onBlur={() => setHoveredTopTabIndex(null)}
-                className="h-full bg-transparent focus:outline-none focus-visible:outline-none active:bg-transparent appearance-none border-0 p-0 m-0"
-                style={{ width: '13%', WebkitTapHighlightColor: 'transparent' } as React.CSSProperties}
-                title="Live"
-              />
-              
-              {/* STEM Button - 12% */}
-              <button
-                onClick={() => { setActiveTab('stem'); navigate('/discover'); }}
-                onMouseEnter={() => setHoveredTopTabIndex(1)}
-                onMouseLeave={() => setHoveredTopTabIndex(null)}
-                onFocus={() => setHoveredTopTabIndex(1)}
-                onBlur={() => setHoveredTopTabIndex(null)}
-                className="h-full bg-transparent focus:outline-none focus-visible:outline-none active:bg-transparent appearance-none border-0 p-0 m-0"
-                style={{ width: '12%', WebkitTapHighlightColor: 'transparent' } as React.CSSProperties}
-                title="STEM"
-              />
-              
-              {/* Explore Button - 15% */}
-              <button
-                onClick={() => { setActiveTab('explore'); navigate('/discover'); }}
-                onMouseEnter={() => setHoveredTopTabIndex(2)}
-                onMouseLeave={() => setHoveredTopTabIndex(null)}
-                onFocus={() => setHoveredTopTabIndex(2)}
-                onBlur={() => setHoveredTopTabIndex(null)}
-                className="h-full bg-transparent focus:outline-none focus-visible:outline-none active:bg-transparent appearance-none border-0 p-0 m-0"
-                style={{ width: '15%', WebkitTapHighlightColor: 'transparent' } as React.CSSProperties}
-                title="Explore"
-              />
-              
-              {/* Following Button - 18% */}
-              <button
-                onClick={() => { setActiveTab('following'); navigate('/following'); }}
-                onMouseEnter={() => setHoveredTopTabIndex(3)}
-                onMouseLeave={() => setHoveredTopTabIndex(null)}
-                onFocus={() => setHoveredTopTabIndex(3)}
-                onBlur={() => setHoveredTopTabIndex(null)}
-                className="h-full bg-transparent focus:outline-none focus-visible:outline-none active:bg-transparent appearance-none border-0 p-0 m-0"
-                style={{ width: '18%', WebkitTapHighlightColor: 'transparent' } as React.CSSProperties}
-                title="Following"
-              />
-              
-              {/* Shop Button - 12% */}
-              <button
-                onClick={() => { setActiveTab('shop'); navigate('/purchase-coins'); }}
-                onMouseEnter={() => setHoveredTopTabIndex(4)}
-                onMouseLeave={() => setHoveredTopTabIndex(null)}
-                onFocus={() => setHoveredTopTabIndex(4)}
-                onBlur={() => setHoveredTopTabIndex(null)}
-                className="h-full bg-transparent focus:outline-none focus-visible:outline-none active:bg-transparent appearance-none border-0 p-0 m-0"
-                style={{ width: '12%', WebkitTapHighlightColor: 'transparent' } as React.CSSProperties}
-                title="Shop"
-              />
-              
-              {/* For You Button - 15% */}
-              <button
-                onClick={() => { setActiveTab('foryou'); }}
-                onMouseEnter={() => setHoveredTopTabIndex(5)}
-                onMouseLeave={() => setHoveredTopTabIndex(null)}
-                onFocus={() => setHoveredTopTabIndex(5)}
-                onBlur={() => setHoveredTopTabIndex(null)}
-                className="h-full bg-transparent focus:outline-none focus-visible:outline-none active:bg-transparent appearance-none border-0 p-0 m-0"
-                style={{ width: '15%', WebkitTapHighlightColor: 'transparent' } as React.CSSProperties}
-                title="For You"
-              />
-              
-              {/* Search Button - 15% */}
-              <button
-                onClick={() => navigate('/search')}
-                onMouseEnter={() => setHoveredTopTabIndex(6)}
-                onMouseLeave={() => setHoveredTopTabIndex(null)}
-                onFocus={() => setHoveredTopTabIndex(6)}
-                onBlur={() => setHoveredTopTabIndex(null)}
-                className="h-full bg-transparent focus:outline-none focus-visible:outline-none active:bg-transparent appearance-none border-0 p-0 m-0"
-                style={{ width: '15%', WebkitTapHighlightColor: 'transparent' } as React.CSSProperties}
-                title="Search"
-              />
+              <button onClick={() => navigate('/live', { replace: true })} className="h-full bg-transparent border-0 p-0 m-0" style={{ width: '13%' }} title="Live" />
+              <button onClick={() => navigate('/discover')} className="h-full bg-transparent border-0 p-0 m-0" style={{ width: '12%' }} title="STEM" />
+              <button onClick={() => navigate('/discover')} className="h-full bg-transparent border-0 p-0 m-0" style={{ width: '15%' }} title="Explore" />
+              <button onClick={() => navigate('/following')} className="h-full bg-transparent border-0 p-0 m-0" style={{ width: '18%' }} title="Following" />
+              <button onClick={() => navigate('/shop')} className="h-full bg-transparent border-0 p-0 m-0" style={{ width: '12%' }} title="Shop" />
+              <button onClick={() => {}} className="h-full bg-transparent border-0 p-0 m-0" style={{ width: '15%' }} title="For You" />
+              <button onClick={() => navigate('/search')} className="h-full bg-transparent border-0 p-0 m-0" style={{ width: '15%' }} title="Search" />
             </div>
           </div>
         </div>

@@ -628,7 +628,7 @@ export default function ElixCameraLayout({
               </button>
               <button
                 onClick={() => { setActiveFilter('none'); setEnhanceEnabled(false); }}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-white/10 text-white/60 border border-white/10"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-[#13151A] text-white/60 border border-[#C9A96E]/40"
               >
                 <RotateCcw size={12} />
                 Reset All

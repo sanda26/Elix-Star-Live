@@ -469,11 +469,12 @@ export default function CommentsModal({ isOpen, onClose, videoId }: CommentsModa
 
   return (
     <div
-      className="fixed inset-0 bg-[#13151A]/80 backdrop-blur-sm z-modals flex items-end justify-center"
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-modals flex items-end justify-center"
       onClick={onClose}
     >
       <div
-        className="bg-[#1C1E24]/95 rounded-t-2xl p-3 pb-safe max-h-[70dvh] w-full shadow-2xl flex flex-col"
+        className="bg-[#1C1E24]/95 rounded-t-2xl p-3 pb-safe max-h-[40dvh] w-full max-w-[480px] shadow-2xl flex flex-col border-2 border-b-0 border-[#C9A96E]"
+        style={{ marginBottom: '90px', boxShadow: '0 -4px 30px rgba(201,169,110,0.25)' }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-2">

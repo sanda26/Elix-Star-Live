@@ -7,13 +7,24 @@ interface AvatarRingProps {
 }
 
 export function AvatarRing({ src, alt = '', size, className = '', onClick }: AvatarRingProps) {
-  const innerSize = size * 0.6;
+  const innerSize = size * 0.65;
   return (
     <div
-      className={`relative flex-shrink-0 ${onClick ? 'cursor-pointer' : ''} ${className}`}
+      className={`relative flex-shrink-0 rounded-full ${onClick ? 'cursor-pointer' : ''} ${className}`}
       style={{ width: size, height: size }}
       onClick={onClick}
     >
+      <div
+        className="absolute rounded-full bg-[#1a1c22]"
+        style={{
+          width: innerSize,
+          height: innerSize,
+          top: '45%',
+          left: '51%',
+          transform: 'translate(-50%, -50%)',
+          zIndex: 1,
+        }}
+      />
       <img
         src={src}
         alt={alt}
@@ -21,15 +32,17 @@ export function AvatarRing({ src, alt = '', size, className = '', onClick }: Ava
         style={{
           width: innerSize,
           height: innerSize,
-          top: '42%',
-          left: '50%',
+          top: '45%',
+          left: '51%',
           transform: 'translate(-50%, -50%)',
+          zIndex: 2,
         }}
       />
       <img
         src="/Icons/Profile icon.png"
         alt=""
-        className="relative z-10 w-full h-full object-contain pointer-events-none"
+        className="absolute w-full h-full object-contain pointer-events-none rounded-full"
+        style={{ top: 0, left: 0, zIndex: 3 }}
       />
     </div>
   );

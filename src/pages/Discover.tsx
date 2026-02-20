@@ -9,10 +9,11 @@ interface Video {
   id: string;
   user_id: string;
   thumbnail_url: string;
-  video_url: string;
+  url: string;
   description: string;
-  views_count: number;
-  likes_count: number;
+  views: number;
+  likes: number;
+  engagement_score: number;
   creator?: { username: string; avatar_url: string | null };
 }
 
@@ -26,7 +27,6 @@ interface User {
 interface Hashtag {
   tag: string;
   use_count: number;
-  trending_score: number;
 }
 
 interface CreatorRanking {
@@ -35,7 +35,7 @@ interface CreatorRanking {
   username: string;
   display_name: string;
   avatar_url: string | null;
-  total_diamonds: number;
+  total_coins: number;
 }
 
 export default function Discover() {
@@ -76,8 +76,9 @@ export default function Discover() {
     try {
       const { data, error } = await supabase
         .from('videos')
-        .select('*, creator:profiles!user_id(username, avatar_url), trending:trending_scores(score)')
-        .order('trending.score', { ascending: false })
+        .select('*, creator:profiles!user_id(username, avatar_url)')
+        .eq('is_public', true)
+        .order('engagement_score', { ascending: false })
         .limit(30);
 
       if (error) throw error;
@@ -95,7 +96,7 @@ export default function Discover() {
       const { data, error } = await supabase
         .from('hashtags')
         .select('*')
-        .order('trending_score', { ascending: false })
+        .order('use_count', { ascending: false })
         .limit(50);
 
       if (error) throw error;
@@ -132,6 +133,7 @@ export default function Discover() {
         supabase
           .from('videos')
           .select('*, creator:profiles!user_id(username, avatar_url)')
+          .eq('is_public', true)
           .ilike('description', `%${searchQuery}%`)
           .limit(20),
         supabase
@@ -153,24 +155,24 @@ export default function Discover() {
   };
 
   return (
-    <div className="bg-[#13151A] text-white flex justify-center px-2">
-      <div className="w-full max-w-[480px] rounded-3xl overflow-hidden bg-[#13151A] flex flex-col">
+    <div className="fixed inset-0 bg-[#13151A] text-white flex justify-center">
+      <div className="w-full max-w-[480px] flex flex-col h-full overflow-hidden">
 
-        {/* ═══ HEADER ═══ */}
-        <div className="shrink-0 px-4 pt-3 pb-2 bg-[#13151A] relative">
-          <div className="flex items-center gap-3 mb-3">
-            <button onClick={() => navigate('/feed')} className="p-1.5 rounded-full hover:bg-white/5 transition" title="Back">
+        {/* ═══ HEADER with gold frame ═══ */}
+        <div className="mx-2 mt-2 rounded-t-2xl border-2 border-b-0 border-[#C9A96E] bg-[#13151A] z-10 shrink-0" style={{ boxShadow: '0 0 8px rgba(212,175,55,0.3)' }}>
+          <div className="px-3 pt-[env(safe-area-inset-top,8px)] pb-1 flex items-center justify-between relative">
+            <button onClick={() => navigate(-1)} className="p-1 z-10" title="Back">
               <img src="/Icons/Gold power buton.png" alt="Back" className="w-5 h-5" />
             </button>
-            <h1 className="text-[18px] font-extrabold tracking-tight flex-1">Discover</h1>
-            <button onClick={() => document.getElementById('discover-search')?.focus()} className="p-1.5 rounded-full hover:bg-white/5 transition" title="Search">
-              <Search className="w-5 h-5 text-white" />
+            <h1 className="text-sm font-bold text-gold-metallic absolute left-1/2 transform -translate-x-1/2">Explore</h1>
+            <button onClick={() => document.getElementById('discover-search')?.focus()} className="p-1 z-10" title="Search">
+              <Search className="w-4 h-4 text-[#C9A96E]" />
             </button>
           </div>
 
           {/* Search Bar */}
-          <div className="flex items-center gap-2.5 bg-white/8 rounded-xl px-3.5 py-2.5">
-            <Search className="w-4 h-4 text-white/40 shrink-0" />
+          <div className="mx-3 mb-2 flex items-center gap-2 bg-white/5 rounded-xl px-3 py-2 border border-[#C9A96E]/30">
+            <Search className="w-3.5 h-3.5 text-[#C9A96E]/50 shrink-0" />
             <input
               id="discover-search"
               type="text"
@@ -180,10 +182,10 @@ export default function Discover() {
                 setSearchQuery(e.target.value);
                 if (e.target.value.length >= 2) setActiveTab('search');
               }}
-              className="flex-1 bg-transparent outline-none text-[13px] text-white placeholder-white/40/30"
+              className="flex-1 bg-transparent outline-none text-[13px] text-gold-metallic placeholder-[#C9A96E]/30"
             />
             {searchQuery && (
-              <button onClick={() => setSearchQuery('')} className="p-0.5 rounded-full bg-white/10" title="Clear">
+              <button onClick={() => setSearchQuery('')} className="p-0.5 rounded-full bg-[#13151A] border border-[#C9A96E]/40" title="Clear">
                 <span className="text-white/50 text-xs leading-none px-1">✕</span>
               </button>
             )}
@@ -191,7 +193,7 @@ export default function Discover() {
 
           {/* Tabs */}
           {searchQuery.length < 2 && (
-            <div className="flex gap-1.5 mt-3 no-scrollbar overflow-x-auto pb-0.5">
+            <div className="flex gap-1.5 px-3 pb-2 no-scrollbar overflow-x-auto">
               <TabButton active={activeTab === 'trending'} onClick={() => setActiveTab('trending')} icon={<Flame className="w-3 h-3" />} label="Trending" />
               <TabButton active={activeTab === 'ranking'} onClick={() => setActiveTab('ranking')} icon={<Trophy className="w-3 h-3" />} label="Top 99" />
               <TabButton active={activeTab === 'hashtags'} onClick={() => setActiveTab('hashtags')} icon={<Hash className="w-3 h-3" />} label="Tags" />
@@ -203,10 +205,8 @@ export default function Discover() {
           )}
         </div>
 
-        <div className="w-full h-px bg-transparent shrink-0" />
-
-        {/* ═══ CONTENT ═══ */}
-        <div className="flex-1 overflow-y-auto">
+        {/* ═══ CONTENT with gold frame ═══ */}
+        <div className="flex-1 overflow-y-auto mx-2 rounded-b-2xl border-2 border-t-0 border-[#C9A96E] bg-[#13151A] pb-24" style={{ boxShadow: '0 0 8px rgba(212,175,55,0.3)' }}>
 
           {/* Loading */}
           {loading && (
@@ -220,11 +220,11 @@ export default function Discover() {
           {!loading && activeTab === 'trending' && (
             <div className="px-3 pt-3">
               <div className="flex items-center gap-2 mb-3 px-1">
-                <TrendingUp className="w-4 h-4 text-white" />
-                <h2 className="text-[14px] font-bold">Trending Now</h2>
+                <TrendingUp className="w-4 h-4 text-[#C9A96E]" />
+                <h2 className="text-[14px] font-bold text-gold-metallic">Trending Now</h2>
               </div>
               {trendingVideos.length > 0 ? (
-                <div className="grid grid-cols-3 gap-[3px]">
+                <div className="grid grid-cols-2 gap-2">
                   {trendingVideos.map(video => (
                     <VideoThumbnail key={video.id} video={video} />
                   ))}
@@ -241,8 +241,8 @@ export default function Discover() {
               {searchResults.users.length > 0 && (
                 <div className="mb-5">
                   <div className="flex items-center gap-2 mb-2 px-1">
-                    <Users className="w-4 h-4 text-white" />
-                    <h2 className="text-[14px] font-bold">Users</h2>
+                    <Users className="w-4 h-4 text-[#C9A96E]" />
+                    <h2 className="text-[14px] font-bold text-gold-metallic">Users</h2>
                   </div>
                   <div className="space-y-1">
                     {searchResults.users.map(user => (
@@ -255,10 +255,10 @@ export default function Discover() {
               {searchResults.videos.length > 0 && (
                 <div>
                   <div className="flex items-center gap-2 mb-2 px-1">
-                    <VideoIcon className="w-4 h-4 text-white" />
-                    <h2 className="text-[14px] font-bold">Videos</h2>
+                    <VideoIcon className="w-4 h-4 text-[#C9A96E]" />
+                    <h2 className="text-[14px] font-bold text-gold-metallic">Videos</h2>
                   </div>
-                  <div className="grid grid-cols-3 gap-[3px]">
+                  <div className="grid grid-cols-2 gap-2">
                     {searchResults.videos.map(video => (
                       <VideoThumbnail key={video.id} video={video} />
                     ))}
@@ -294,11 +294,11 @@ export default function Discover() {
               <div className="bg-gradient-to-br from-[#C9A96E]/10 to-[#B8943F]/5 p-4 rounded-2xl mb-3">
                 <div className="flex items-center gap-2.5">
                   <div className="w-10 h-10 rounded-xl bg-[#C9A96E]/20 flex items-center justify-center">
-                    <Trophy className="w-5 h-5 text-white" />
+                    <Trophy className="w-5 h-5 text-[#C9A96E]" />
                   </div>
                   <div>
-                    <h2 className="text-[15px] font-extrabold text-white">Weekly Ranking</h2>
-                    <p className="text-[11px] text-white/40">Top creators by diamonds this week</p>
+                    <h2 className="text-[15px] font-extrabold text-gold-metallic">Weekly Ranking</h2>
+                    <p className="text-[11px] text-white/40">Top creators by coins this week</p>
                   </div>
                 </div>
               </div>
@@ -347,8 +347,8 @@ export default function Discover() {
 
                       {/* Diamonds */}
                       <div className="flex items-center gap-1 bg-white/5 px-2.5 py-1 rounded-lg shrink-0">
-                        <span className="text-[11px]">💎</span>
-                        <span className="font-bold text-[12px] text-white/80">{formatNumber(creator.total_diamonds)}</span>
+                        <span className="text-[11px]">🪙</span>
+                        <span className="font-bold text-[12px] text-white/80">{formatNumber(creator.total_coins)}</span>
                       </div>
                     </button>
                   ))}
@@ -370,10 +370,10 @@ function TabButton({ active, onClick, icon, label }: { active: boolean; onClick:
   return (
     <button
       onClick={onClick}
-      className={`flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[11px] font-bold whitespace-nowrap transition-all ${
+      className={`flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[11px] font-bold whitespace-nowrap transition-all border ${
         active
-          ? 'bg-[#C9A96E]/15 text-white'
-          : 'text-white/40 hover:text-white/60'
+          ? 'bg-[#C9A96E]/15 text-[#C9A96E] border-[#C9A96E]/30'
+          : 'text-white/40 hover:text-white/60 border-transparent'
       }`}
     >
       {icon}
@@ -384,19 +384,93 @@ function TabButton({ active, onClick, icon, label }: { active: boolean; onClick:
 
 function VideoThumbnail({ video }: { video: Video }) {
   const navigate = useNavigate();
+  const videoRef = React.useRef<HTMLVideoElement>(null);
+  const containerRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    const el = containerRef.current;
+    if (!el || !video.url) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          videoRef.current?.play().catch(() => {});
+        } else {
+          if (videoRef.current) { videoRef.current.pause(); }
+        }
+      },
+      { threshold: 0.3 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [video.url]);
+
   return (
-    <button onClick={() => navigate(`/video/${video.id}`)} className="relative aspect-[3/4] bg-[#1C1E24] rounded-lg overflow-hidden w-full group">
-      <img
-        src={video.thumbnail_url || '/placeholder-video.png'}
-        alt="Video"
-        className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition"
-      />
-      <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-black/70 to-transparent" />
-      <div className="absolute bottom-1.5 left-1.5 flex items-center gap-1 text-white text-[11px] font-bold drop-shadow-md">
-        <HeartIcon className="w-3 h-3" />
-        {formatNumber(video.views_count)}
+    <div
+      ref={containerRef}
+      className="relative aspect-[9/16] bg-[#1C1E24] rounded-xl overflow-hidden w-full border border-[#C9A96E]/20"
+    >
+      <div className="absolute inset-0 cursor-pointer" onClick={() => navigate(`/video/${video.id}`)}>
+        {video.url ? (
+          <video
+            ref={videoRef}
+            src={video.url}
+            poster={video.thumbnail_url || undefined}
+            muted
+            loop
+            playsInline
+            preload="metadata"
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <img
+            src={video.thumbnail_url || '/placeholder-video.png'}
+            alt="Video"
+            className="w-full h-full object-cover"
+          />
+        )}
       </div>
-    </button>
+
+      {/* 3 Dots Menu — top right */}
+      <button
+        onClick={(e) => { e.stopPropagation(); navigate(`/video/${video.id}`); }}
+        className="absolute top-1.5 right-1.5 z-10"
+        title="More"
+      >
+        <img src="/Icons/3 Dots Buton.png" alt="More" className="w-6 h-6 object-contain drop-shadow-lg" />
+      </button>
+
+      {/* Action icons — right side */}
+      <div className="absolute right-1 bottom-10 flex flex-col items-center gap-2 z-10">
+        <button onClick={(e) => { e.stopPropagation(); navigate(`/video/${video.id}`); }} title="Like">
+          <img src="/Icons/Like Icon.png" alt="Like" className="w-7 h-7 object-contain drop-shadow-lg" />
+        </button>
+        <button onClick={(e) => { e.stopPropagation(); navigate(`/video/${video.id}`); }} title="Comment">
+          <img src="/Icons/Coment Icon.png" alt="Comment" className="w-7 h-7 object-contain drop-shadow-lg" />
+        </button>
+        <button onClick={(e) => { e.stopPropagation(); navigate(`/video/${video.id}`); }} title="Save">
+          <img src="/Icons/Save Icon.png" alt="Save" className="w-7 h-7 object-contain drop-shadow-lg" />
+        </button>
+        <button onClick={(e) => { e.stopPropagation(); navigate(`/video/${video.id}`); }} title="Share">
+          <img src="/Icons/Share Icon.png" alt="Share" className="w-7 h-7 object-contain drop-shadow-lg" />
+        </button>
+      </div>
+
+      {/* Bottom info */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent pointer-events-none" />
+      <div className="absolute bottom-2 left-2 right-10">
+        {video.creator?.username && (
+          <div className="flex items-center gap-1.5 mb-1">
+            {video.creator.avatar_url && (
+              <img src={video.creator.avatar_url} alt="" className="w-5 h-5 rounded-full object-cover" />
+            )}
+            <span className="text-white text-[10px] font-bold drop-shadow-md">@{video.creator.username}</span>
+          </div>
+        )}
+        {video.description && (
+          <p className="text-white/80 text-[9px] line-clamp-2 drop-shadow-md">{video.description}</p>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -431,7 +505,7 @@ function HashtagItem({ hashtag, index }: { hashtag: Hashtag; index: number }) {
       className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 transition text-left"
     >
       <div className="w-9 h-9 bg-[#C9A96E]/10 rounded-xl flex items-center justify-center shrink-0">
-        <Hash className="w-4 h-4 text-white" />
+        <Hash className="w-4 h-4 text-[#C9A96E]" />
       </div>
       <div className="flex-1 min-w-0">
         <p className="font-bold text-[13px] truncate">#{hashtag.tag}</p>

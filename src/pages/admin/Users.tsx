@@ -26,7 +26,7 @@ export default function AdminUsers() {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('user_id, username, email, avatar_url, created_at')
+        .select('user_id, username, avatar_url, created_at')
         .order('created_at', { ascending: false })
         .limit(100);
 
@@ -35,7 +35,7 @@ export default function AdminUsers() {
       const usersData = data?.map(u => ({
         id: u.user_id,
         username: u.username,
-        email: u.email,
+        email: '',
         avatar_url: u.avatar_url,
         created_at: u.created_at,
       })) || [];
@@ -51,11 +51,9 @@ export default function AdminUsers() {
   const handleBanUser = async (userId: string) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      await supabase.from('user_bans').insert({
-        user_id: userId,
-        banned_by: user?.id || 'system',
-        reason: 'Admin action',
-        ban_type: 'permanent',
+      await supabase.from('blocked_users').insert({
+        blocker_id: user?.id,
+        blocked_id: userId,
       });
 
       showToast('User banned successfully');

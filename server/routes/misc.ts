@@ -95,7 +95,7 @@ export async function handleBlockUser(req: Request, res: Response) {
 
   if (action === 'unblock') {
     const del = await getSupabaseAdmin()
-      .from('user_blocks')
+      .from('blocked_users')
       .delete()
       .eq('blocker_id', data.user.id)
       .eq('blocked_id', blockedUserId);
@@ -103,7 +103,7 @@ export async function handleBlockUser(req: Request, res: Response) {
     return res.json({ success: true, action });
   }
 
-  const ins = await getSupabaseAdmin().from('user_blocks').insert({
+  const ins = await getSupabaseAdmin().from('blocked_users').insert({
     blocker_id: data.user.id,
     blocked_id: blockedUserId,
   });

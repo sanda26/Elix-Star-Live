@@ -13,9 +13,9 @@ interface Profile {
   bio: string | null;
   avatar_url: string | null;
   website: string | null;
-  instagram_handle: string | null;
-  youtube_handle: string | null;
-  tiktok_handle: string | null;
+  instagram: string | null;
+  youtube: string | null;
+  tiktok: string | null;
 }
 
 export default function EditProfile() {
@@ -26,9 +26,9 @@ export default function EditProfile() {
     bio: '',
     avatar_url: '',
     website: '',
-    instagram_handle: '',
-    youtube_handle: '',
-    tiktok_handle: '',
+    instagram: '',
+    youtube: '',
+    tiktok: '',
   });
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -59,9 +59,9 @@ export default function EditProfile() {
           bio: data.bio || '',
           avatar_url: data.avatar_url || '',
           website: data.website || '',
-          instagram_handle: data.instagram_handle || '',
-          youtube_handle: data.youtube_handle || '',
-          tiktok_handle: data.tiktok_handle || '',
+          instagram: data.instagram || '',
+          youtube: data.youtube || '',
+          tiktok: data.tiktok || '',
         });
       }
     } catch (error) {
@@ -106,9 +106,9 @@ export default function EditProfile() {
           bio: profile.bio,
           avatar_url: profile.avatar_url,
           website: profile.website,
-          instagram_handle: profile.instagram_handle,
-          youtube_handle: profile.youtube_handle,
-          tiktok_handle: profile.tiktok_handle,
+          instagram: profile.instagram,
+          youtube: profile.youtube,
+          tiktok: profile.tiktok,
         })
         .eq('user_id', currentUserId);
 
@@ -204,24 +204,24 @@ export default function EditProfile() {
 
           <InputField
             label="Instagram"
-            value={profile.instagram_handle || ''}
-            onChange={val => setProfile(prev => ({ ...prev, instagram_handle: val }))}
+            value={profile.instagram || ''}
+            onChange={val => setProfile(prev => ({ ...prev, instagram: val }))}
             placeholder="@username"
             maxLength={50}
           />
 
           <InputField
             label="YouTube"
-            value={profile.youtube_handle || ''}
-            onChange={val => setProfile(prev => ({ ...prev, youtube_handle: val }))}
+            value={profile.youtube || ''}
+            onChange={val => setProfile(prev => ({ ...prev, youtube: val }))}
             placeholder="@channelname"
             maxLength={50}
           />
 
           <InputField
             label="TikTok"
-            value={profile.tiktok_handle || ''}
-            onChange={val => setProfile(prev => ({ ...prev, tiktok_handle: val }))}
+            value={profile.tiktok || ''}
+            onChange={val => setProfile(prev => ({ ...prev, tiktok: val }))}
             placeholder="@username"
             maxLength={50}
           />

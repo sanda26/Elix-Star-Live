@@ -22,15 +22,11 @@ export async function uploadAvatar(file: File, userId: string): Promise<string> 
   // Generate clean filename
   const fileExt = file.name.split('.').pop()?.toLowerCase() || 'jpg';
   const fileName = `${Date.now()}.${fileExt}`;
-  const filePath = `avatars/${userId}/${fileName}`;
+  const filePath = `${userId}/${fileName}`;
 
   try {
-    // 1. Upload to 'user-content' bucket
-    // Note: The bucket MUST be public and have RLS policies allowing uploads by authenticated users.
-    // If you see "new row violates row-level security policy", check your Storage policies in Supabase Dashboard.
-    // For now, we try to upload.
     const { error: uploadError } = await supabase.storage
-      .from('user-content')
+      .from('avatars')
       .upload(filePath, file, {
         cacheControl: '3600',
         upsert: true,
@@ -44,7 +40,7 @@ export async function uploadAvatar(file: File, userId: string): Promise<string> 
 
     // 2. Get Public URL
     const { data } = supabase.storage
-      .from('user-content')
+      .from('avatars')
       .getPublicUrl(filePath);
 
     if (!data.publicUrl) {

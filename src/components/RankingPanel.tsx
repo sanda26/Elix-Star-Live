@@ -45,17 +45,22 @@ export function RankingPanel({ onClose }: RankingPanelProps) {
 
   return (
         <div 
-          className="bg-[#1C1E24]/95 rounded-t-2xl p-4 pb-safe h-[50dvh] flex flex-col shadow-2xl w-full border-t border-[#C9A96E]/20" 
+          className="bg-[#1C1E24]/95 rounded-t-2xl p-3 pb-safe max-h-[40dvh] flex flex-col shadow-2xl w-full overflow-hidden" 
           onClick={(e) => e.stopPropagation()}
         >
+        {/* Drag handle */}
+        <div className="flex justify-center mb-2">
+          <div className="w-10 h-1 bg-white/20 rounded-full" />
+        </div>
+
         {/* Header */}
-        <div className="flex justify-between items-center mb-4 flex-shrink-0">
+        <div className="flex justify-between items-center mb-3 flex-shrink-0">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#C9A96E] to-[#B8943F] flex items-center justify-center shadow-lg shadow-[#C9A96E]/20">
-              <Trophy className="w-4 h-4 text-white" fill="currentColor" />
+            <div className="w-8 h-8 rounded-full bg-[#13151A] flex items-center justify-center border border-[#C9A96E]/40">
+              <Trophy className="w-4 h-4 text-[#C9A96E]" fill="currentColor" />
             </div>
             <div>
-              <h3 className="text-white font-bold text-lg leading-none">Weekly Ranking</h3>
+              <h3 className="text-white font-bold text-sm leading-none">Weekly Ranking</h3>
               <p className="text-white/50 text-[10px] font-medium">Top Creators This Week</p>
             </div>
           </div>

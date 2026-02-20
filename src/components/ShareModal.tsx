@@ -1,19 +1,24 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Link, 
   Download, 
-  Mail, 
   MessageCircle,
-  Facebook,
-  Twitter,
-  Instagram,
-  Youtube,
-  Check,
   Share2,
+  Check,
   QrCode,
-  Code
+  Code,
+  Copy,
+  Search,
+  Send,
+  TrendingUp,
+  Flag,
+  PlusCircle,
+  X,
 } from 'lucide-react';
 import { showToast } from '../lib/toast';
+import { supabase } from '../lib/supabase';
+import { useAuthStore } from '../store/useAuthStore';
+import { AvatarRing } from './AvatarRing';
 
 interface ShareModalProps {
   isOpen: boolean;
@@ -33,252 +38,175 @@ interface ShareModalProps {
   };
 }
 
-const sharePlatforms = [
-  {
-    name: 'Copy Link',
-    icon: Link,
-    color: 'bg-[#2A2D35]',
-    hover: 'hover:bg-[#2A2D35]',
-    action: 'copy'
-  },
-  {
-    name: 'Messages',
-    icon: MessageCircle,
-    color: 'bg-[#C9A96E]',
-    hover: 'hover:bg-[#B8943F]',
-    action: 'sms'
-  },
-  {
-    name: 'Email',
-    icon: Mail,
-    color: 'bg-red-600',
-    hover: 'hover:bg-red-700',
-    action: 'email'
-  },
-  {
-    name: 'WhatsApp',
-    icon: MessageCircle,
-    color: 'bg-[#C9A96E]',
-    hover: 'hover:bg-[#B8943F]',
-    action: 'whatsapp'
-  },
-  {
-    name: 'Facebook',
-    icon: Facebook,
-    color: 'bg-[#C9A96E]',
-    hover: 'hover:bg-[#B8943F]',
-    action: 'facebook'
-  },
-  {
-    name: 'Twitter',
-    icon: Twitter,
-    color: 'bg-[#C9A96E]',
-    hover: 'hover:bg-[#B8943F]',
-    action: 'twitter'
-  },
-  {
-    name: 'Instagram',
-    icon: Instagram,
-    color: 'bg-gradient-to-br from-purple-600 via-pink-600 to-orange-500',
-    hover: 'hover:from-purple-700 hover:via-pink-700 hover:to-orange-600',
-    action: 'instagram'
-  },
-  {
-    name: 'YouTube',
-    icon: Youtube,
-    color: 'bg-red-600',
-    hover: 'hover:bg-red-700',
-    action: 'youtube'
-  }
-];
-
 export default function ShareModal({ isOpen, onClose, video }: ShareModalProps) {
   const [copiedLink, setCopiedLink] = useState(false);
-  const [showQRCode, setShowQRCode] = useState(false);
+  const { user } = useAuthStore();
+  const [shareQuery, setShareQuery] = useState('');
+  const [followers, setFollowers] = useState<{ user_id: string; username: string; avatar_url: string | null }[]>([]);
+  const [sentTo, setSentTo] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (isOpen && user?.id) loadFollowers();
+  }, [isOpen, user?.id]);
+
+  const loadFollowers = async () => {
+    if (!user?.id) return;
+    try {
+      const { data: followData } = await supabase.from('followers').select('follower_id').eq('following_id', user.id).limit(50);
+      const { data: followingData } = await supabase.from('followers').select('following_id').eq('follower_id', user.id).limit(50);
+      const ids = new Set<string>();
+      (followData || []).forEach((f: any) => ids.add(f.follower_id));
+      (followingData || []).forEach((f: any) => ids.add(f.following_id));
+      ids.delete(user.id);
+      if (ids.size === 0) { setFollowers([]); return; }
+      const { data: profiles } = await supabase.from('profiles').select('user_id, username, avatar_url').in('user_id', Array.from(ids));
+      setFollowers(profiles || []);
+    } catch { setFollowers([]); }
+  };
+
+  const sendShareTo = async (targetUserId: string) => {
+    if (!user?.id || sentTo.has(targetUserId)) return;
+    const videoUrl = `${window.location.origin}/video/${video.id}`;
+    const msgText = `Check out this video by @${video.user.username}: ${videoUrl}`;
+    try {
+      const { data: existing } = await supabase.from('chat_threads').select('id')
+        .or(`and(user1_id.eq.${user.id},user2_id.eq.${targetUserId}),and(user1_id.eq.${targetUserId},user2_id.eq.${user.id})`)
+        .limit(1).single();
+      let threadId = existing?.id;
+      if (!threadId) {
+        const { data: newThread } = await supabase.from('chat_threads').insert({ user1_id: user.id, user2_id: targetUserId }).select('id').single();
+        threadId = newThread?.id;
+      }
+      if (threadId) {
+        await supabase.from('messages').insert({ thread_id: threadId, sender_id: user.id, text: msgText });
+        await supabase.from('chat_threads').update({ last_message: msgText, last_at: new Date().toISOString() }).eq('id', threadId);
+      }
+      setSentTo(prev => new Set(prev).add(targetUserId));
+    } catch {}
+  };
 
   if (!isOpen) return null;
 
   const videoUrl = `${window.location.origin}/video/${video.id}`;
   const shareText = `Check out this amazing video by @${video.user.username}: ${video.description}`;
 
-  const handleShare = async (platform: string) => {
+  const handleCopyLink = async () => {
     try {
-      switch (platform) {
-        case 'copy':
-          await navigator.clipboard.writeText(videoUrl);
-          setCopiedLink(true);
-          setTimeout(() => setCopiedLink(false), 2000);
-          break;
-          
-        case 'sms':
-          window.open(`sms:?body=${encodeURIComponent(shareText + ' ' + videoUrl)}`);
-          break;
-          
-        case 'email':
-          window.open(`mailto:?subject=Check out this video&body=${encodeURIComponent(shareText + '\n\n' + videoUrl)}`);
-          break;
-          
-        case 'whatsapp':
-          window.open(`https://wa.me/?text=${encodeURIComponent(shareText + ' ' + videoUrl)}`);
-          break;
-          
-        case 'facebook':
-          window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(videoUrl)}&quote=${encodeURIComponent(shareText)}`);
-          break;
-          
-        case 'twitter':
-          window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(videoUrl)}`);
-          break;
-          
-        case 'instagram':
-          // Instagram doesn't allow direct sharing via URL, copy to clipboard instead
-          await navigator.clipboard.writeText(shareText + ' ' + videoUrl);
-          showToast('Caption copied to clipboard! You can now paste it in your Instagram story or post.');
-          break;
-          
-        case 'youtube':
-          // YouTube doesn't allow direct sharing, copy to clipboard instead
-          await navigator.clipboard.writeText(shareText + ' ' + videoUrl);
-          showToast('Video link copied to clipboard!');
-          break;
-          
-        default:
-          if (navigator.share) {
-            await navigator.share({
-              title: `Video by @${video.user.username}`,
-              text: shareText,
-              url: videoUrl,
-            });
-          } else {
-            await navigator.clipboard.writeText(videoUrl);
-            setCopiedLink(true);
-            setTimeout(() => setCopiedLink(false), 2000);
-          }
-      }
-    } catch (error) {
-
-      // Fallback to copying link
-      try {
-        await navigator.clipboard.writeText(videoUrl);
-        setCopiedLink(true);
-        setTimeout(() => setCopiedLink(false), 2000);
-      } catch (clipboardError) {
-
-      }
-    }
+      await navigator.clipboard.writeText(videoUrl);
+      setCopiedLink(true);
+      showToast('Link copied!');
+      setTimeout(() => setCopiedLink(false), 2000);
+    } catch {}
   };
 
-  const generateQRCode = () => {
-    // In a real app, you'd use a QR code library
-    // For now, we'll just show a placeholder
-    setShowQRCode(true);
-  };
+  const filteredFollowers = followers.filter(f => f.username?.toLowerCase().includes(shareQuery.toLowerCase()));
 
-  const generateEmbedCode = () => {
-    const embedCode = `<iframe src="${videoUrl}" width="560" height="315" frameborder="0" allowfullscreen></iframe>`;
-    navigator.clipboard.writeText(embedCode);
-    showToast('Embed code copied to clipboard!');
-  };
+  const socialPlatforms = [
+    { name: 'WhatsApp', color: '#25D366', icon: <MessageCircle size={22} className="text-white" />, action: () => window.open(`https://wa.me/?text=${encodeURIComponent(shareText + ' ' + videoUrl)}`) },
+    { name: 'Facebook', color: '#1877F2', icon: <Share2 size={22} className="text-white" />, action: () => window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(videoUrl)}`) },
+    { name: 'Twitter', color: '#1DA1F2', icon: <Share2 size={22} className="text-white" />, action: () => window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(videoUrl)}`) },
+    { name: 'Copy Link', color: '#C9A96E', icon: copiedLink ? <Check size={22} className="text-white" /> : <Copy size={22} className="text-white" />, action: handleCopyLink },
+    { name: 'Email', color: '#EA4335', icon: <Send size={22} className="text-white" />, action: () => window.open(`mailto:?subject=Check out this video&body=${encodeURIComponent(shareText + '\n\n' + videoUrl)}`) },
+    { name: 'Messages', color: '#00C853', icon: <MessageCircle size={22} className="text-white" />, action: () => window.open(`sms:?body=${encodeURIComponent(shareText + ' ' + videoUrl)}`) },
+  ];
 
-  const handleDownload = async () => {
-    try {
-      // In a real app, you'd have a proper download endpoint
-      const link = document.createElement('a');
-      link.href = video.url;
-      link.download = `video_${video.id}.mp4`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } catch (error) {
-
-      showToast('Download failed. Please try again.');
-    }
-  };
+  const actionItems = [
+    { name: 'Promote', color: '#C9A96E', icon: <TrendingUp size={22} className="text-white" />, action: () => { if (navigator.share) navigator.share({ title: `Video by @${video.user.username}`, text: shareText, url: videoUrl }); } },
+    { name: 'Report', color: '#EF4444', icon: <Flag size={22} className="text-white" />, action: () => {} },
+    { name: 'Download', color: '#6B7280', icon: <Download size={22} className="text-white" />, action: () => { const a = document.createElement('a'); a.href = video.url; a.download = `video_${video.id}.mp4`; document.body.appendChild(a); a.click(); document.body.removeChild(a); } },
+    { name: 'QR Code', color: '#8B5CF6', icon: <QrCode size={22} className="text-white" />, action: handleCopyLink },
+  ];
 
   return (
-    <div className="fixed inset-0 z-modals bg-[#13151A] flex items-end" onClick={onClose}>
-      <div className="bg-[#13151A] w-full h-[40dvh] rounded-t-2xl overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-transparent">
-          <div className="flex items-center gap-3">
-            <Share2 className="w-4 h-4 text-white" />
-            <h3 className="text-white font-semibold">Share Video</h3>
+    <div className="fixed inset-0 z-modals bg-black/60 flex items-end justify-center" onClick={onClose}>
+      <div
+        className="bg-[#1C1E24]/95 w-full max-w-[480px] rounded-t-2xl overflow-hidden flex flex-col border-2 border-b-0 border-[#C9A96E] max-h-[40dvh]"
+        style={{ marginBottom: '90px', boxShadow: '0 -4px 30px rgba(201,169,110,0.25)' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex justify-center pt-3 pb-1">
+          <div className="w-10 h-1 bg-white/20 rounded-full" />
+        </div>
+
+        <div className="flex items-center justify-between gap-2 px-4 pb-2">
+          <h3 className="text-gold-metallic font-bold text-sm">Share to</h3>
+          <div className="flex-none w-[120px] bg-white/5 rounded-lg px-2 py-1.5 flex items-center gap-2 border border-[#C9A96E]/20">
+            <Search className="w-3.5 h-3.5 text-[#C9A96E]/40" />
+            <input
+              value={shareQuery}
+              onChange={(e) => setShareQuery(e.target.value)}
+              placeholder="Search..."
+              className="bg-transparent text-white text-xs outline-none w-full placeholder:text-white/20"
+            />
           </div>
         </div>
 
-        {/* Share Options */}
-        <div className="flex-1 overflow-y-auto p-3 pb-safe">
-          <div className="grid grid-cols-6 grid-rows-2 justify-items-center gap-3">
-            {sharePlatforms.map((platform) => (
-              <button
-                key={platform.name}
-                onClick={() => handleShare(platform.action)}
-                  className="flex flex-col items-center gap-1.5"
-              >
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${platform.color} ${platform.hover}`}>
-                    {platform.action === 'copy' && copiedLink ? (
-                      <Check className="w-1/2 h-1/2 text-white" />
-                    ) : (
-                      <platform.icon className="w-1/2 h-1/2 text-white" />
-                    )}
-                  </div>
-                  <span className="text-white text-[11px] text-center leading-tight">{platform.name}</span>
-              </button>
-            ))}
-            <button
-              onClick={handleDownload}
-                className="flex flex-col items-center gap-1.5"
-            >
-                <div className="w-10 h-10 rounded-full flex items-center justify-center transition-colors bg-white/10 hover:bg-white/15">
-                  <Download className="w-1/2 h-1/2 text-white" />
-                </div>
-                <span className="text-white text-[11px] text-center leading-tight">Download</span>
-            </button>
-
-            <button
-              onClick={generateQRCode}
-                className="flex flex-col items-center gap-1.5"
-            >
-                <div className="w-10 h-10 rounded-full flex items-center justify-center transition-colors bg-white/10 hover:bg-white/15">
-                  <QrCode className="w-1/2 h-1/2 text-white" />
-                </div>
-                <span className="text-white text-[11px] text-center leading-tight">QR Code</span>
-            </button>
-
-            <button
-              onClick={generateEmbedCode}
-                className="flex flex-col items-center gap-1.5"
-            >
-                <div className="w-10 h-10 rounded-full flex items-center justify-center transition-colors bg-white/10 hover:bg-white/15">
-                  <Code className="w-1/2 h-1/2 text-white" />
-                </div>
-                <span className="text-white text-[11px] text-center leading-tight">Embed</span>
-            </button>
-          </div>
-
-        </div>
-
-        {/* QR Code Modal */}
-        {showQRCode && (
-          <div
-            className="fixed inset-0 z-modals bg-[#13151A] flex items-center justify-center p-4"
-            onClick={() => setShowQRCode(false)}
-          >
-            <div className="bg-[#13151A] rounded-2xl p-6 max-w-sm w-full" onClick={(e) => e.stopPropagation()}>
-              <div className="flex items-center justify-between mb-4">
-                <h4 className="text-white font-semibold">QR Code</h4>
-              </div>
-              <div className="bg-white p-4 rounded-lg flex items-center justify-center">
-                <div className="w-48 h-48 bg-gray-300 rounded flex items-center justify-center">
-                  <QrCode className="w-1/2 h-1/2 text-white" />
-                </div>
-              </div>
-              <p className="text-white/60 text-sm text-center mt-3">
-                Scan this QR code to view the video
-              </p>
+        <div className="flex-1 overflow-y-auto px-4 pb-4 no-scrollbar">
+          {/* Followers Row */}
+          <div className="w-full overflow-hidden shrink-0 mb-3">
+            <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar items-center">
+              {filteredFollowers.length === 0 ? (
+                <p className="text-white/30 text-xs px-1">No followers yet</p>
+              ) : (
+                filteredFollowers.map((f) => (
+                  <button
+                    key={f.user_id}
+                    className="flex flex-col items-center gap-1 min-w-[56px] active:scale-95 transition-transform"
+                    onClick={() => sendShareTo(f.user_id)}
+                  >
+                    <div className="relative">
+                      <AvatarRing src={f.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(f.username || 'U')}&background=C9A96E&color=fff&size=128`} alt={f.username} size={48} />
+                      {sentTo.has(f.user_id) ? (
+                        <div className="absolute bottom-0 right-0 w-4 h-4 bg-[#C9A96E] rounded-full flex items-center justify-center border-2 border-[#1C1E24]">
+                          <Check size={8} className="text-black" />
+                        </div>
+                      ) : (
+                        <div className="absolute bottom-0 right-0 w-4 h-4 bg-[#FF2D55] rounded-full flex items-center justify-center border-2 border-[#1C1E24]">
+                          <Send size={7} className="text-white" />
+                        </div>
+                      )}
+                    </div>
+                    <span className="text-white text-[9px] font-bold truncate max-w-[56px]">
+                      {sentTo.has(f.user_id) ? 'Sent' : f.username || 'User'}
+                    </span>
+                  </button>
+                ))
+              )}
             </div>
           </div>
-        )}
+
+          {/* Social Row */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-3 no-scrollbar shrink-0">
+            {socialPlatforms.map((item) => (
+              <button
+                key={item.name}
+                onClick={() => { item.action(); }}
+                className="flex flex-col items-center gap-1 min-w-[60px]"
+              >
+                <div className="w-12 h-12 rounded-full flex items-center justify-center text-white shadow-lg" style={{ backgroundColor: item.color }}>
+                  {item.icon}
+                </div>
+                <span className="text-white/70 text-[10px]">{item.name}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Actions Row */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar shrink-0">
+            {actionItems.map((item) => (
+              <button
+                key={item.name}
+                onClick={() => { item.action(); }}
+                className="flex flex-col items-center gap-1 min-w-[60px]"
+              >
+                <div className="w-12 h-12 rounded-full bg-[#13151A] flex items-center justify-center border border-[#C9A96E]/40">
+                  {item.icon}
+                </div>
+                <span className="text-white/70 text-[10px]">{item.name}</span>
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );

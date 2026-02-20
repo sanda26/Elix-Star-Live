@@ -44,7 +44,7 @@ export const BuyCoinsModal: React.FC<BuyCoinsModalProps> = ({ isOpen, onClose, o
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[430px] z-[950]" onPointerDown={(e) => e.stopPropagation()}>
         <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 rounded-full bg-[#C9A96E]/20 flex items-center justify-center">
+          <div className="w-10 h-10 rounded-full bg-[#13151A] border border-[#C9A96E]/40 flex items-center justify-center">
             <Coins className="text-white" size={20} />
           </div>
           <div>

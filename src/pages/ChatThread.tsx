@@ -9,9 +9,9 @@ import { initiateCall } from '../lib/callService';
 interface Message {
   id: string;
   sender_id: string;
-  content: string;
+  text: string;
   created_at: string;
-  is_read: boolean;
+  read: boolean;
 }
 
 interface Participant {
@@ -43,14 +43,14 @@ export default function ChatThread() {
       try {
         // 1. Get conversation to find other participant
         const { data: conv, error } = await supabase
-          .from('conversations')
-          .select('participant_1, participant_2')
+          .from('chat_threads')
+          .select('user1_id, user2_id')
           .eq('id', threadId)
           .single();
         
         if (error) throw error;
 
-        const otherId = conv.participant_1 === user.id ? conv.participant_2 : conv.participant_1;
+        const otherId = conv.user1_id === user.id ? conv.user2_id : conv.user1_id;
         
         // 2. Get other user profile
         const { data: profile } = await supabase
@@ -83,7 +83,7 @@ export default function ChatThread() {
       const { data } = await supabase
         .from('messages')
         .select('*')
-        .eq('conversation_id', threadId)
+        .eq('thread_id', threadId)
         .order('created_at', { ascending: true });
       
       if (data) setMessages(data);
@@ -102,7 +102,7 @@ export default function ChatThread() {
           event: 'INSERT',
           schema: 'public',
           table: 'messages',
-          filter: `conversation_id=eq.${threadId}`,
+          filter: `thread_id=eq.${threadId}`,
         },
         (payload) => {
           const newMsg = payload.new as Message;
@@ -129,34 +129,28 @@ export default function ChatThread() {
     e.preventDefault();
     if (!draft.trim() || !user?.id || !threadId) return;
 
-    const text = draft.trim();
-    setDraft(''); // Optimistic clear
+    const msgText = draft.trim();
+    setDraft('');
 
     try {
-        // Optimistic update (optional, but Realtime is usually fast enough)
-        // const tempId = Date.now().toString();
-        // setMessages(prev => [...prev, { id: tempId, sender_id: user.id, content: text, created_at: new Date().toISOString(), is_read: false }]);
-
         const { error } = await supabase.from('messages').insert({
-            conversation_id: threadId,
+            thread_id: threadId,
             sender_id: user.id,
-            content: text
+            text: msgText,
         });
 
         if (error) throw error;
 
-        // Update conversation last_message
         await supabase
-            .from('conversations')
+            .from('chat_threads')
             .update({
-                last_message: text,
-                last_message_at: new Date().toISOString()
+                last_message: msgText,
+                last_at: new Date().toISOString(),
             })
             .eq('id', threadId);
 
     } catch (err) {
-
-        setDraft(text); // Restore draft on error
+        setDraft(msgText);
     }
   };
 
@@ -209,7 +203,7 @@ export default function ChatThread() {
                 });
                 if (callId) navigate('/call');
               }}
-              className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+              className="p-2 rounded-full bg-[#13151A] border border-[#C9A96E]/40 hover:bg-[#C9A96E]/10 transition-colors"
             >
               <Video className="w-5 h-5 text-white" />
             </button>
@@ -240,7 +234,7 @@ export default function ChatThread() {
                         : 'bg-[#222] text-white rounded-tl-none'
                     }`}
                 >
-                    {m.content}
+                    {m.text}
                 </div>
                 </div>
             );

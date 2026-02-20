@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, RefreshCw } from 'lucide-react';
+import { User, Eye, Radio, RefreshCw } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 type LiveCreator = {
@@ -8,12 +8,7 @@ type LiveCreator = {
   name: string;
   viewers: number;
   thumbnail?: string;
-};
-
-type LiveStreamRow = {
-  stream_key: string;
-  title: string | null;
-  viewer_count: number | null;
+  title?: string;
 };
 
 export default function LiveDiscover() {
@@ -24,12 +19,11 @@ export default function LiveDiscover() {
   const fetchLiveStreams = async () => {
     setLoading(true);
     try {
-      // Fetch active streams from Supabase
       const { data, error } = await supabase
         .from('live_streams')
         .select('*')
         .eq('is_live', true)
-        .order('created_at', { ascending: false });
+        .order('viewer_count', { ascending: false });
 
       if (error) throw error;
 
@@ -44,18 +38,17 @@ export default function LiveDiscover() {
           const profile: any = profileMap.get(stream.user_id);
           return {
             id: stream.stream_key || stream.id,
-            name: profile?.display_name || profile?.username || stream.title || 'Creator',
+            name: profile?.display_name || profile?.username || 'Creator',
             viewers: stream.viewer_count || 0,
             thumbnail: profile?.avatar_url || stream.thumbnail_url,
+            title: stream.title || undefined,
           };
         });
         setCreators(mapped);
       } else {
         setCreators([]);
       }
-    } catch (err) {
-
-      // NO FALLBACK/DEMO DATA - Real data only
+    } catch {
       setCreators([]);
     } finally {
       setLoading(false);
@@ -64,96 +57,145 @@ export default function LiveDiscover() {
 
   useEffect(() => {
     fetchLiveStreams();
-    
-    // Realtime subscription for new streams
     const channel = supabase
       .channel('public:live_streams')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'live_streams' }, () => {
         fetchLiveStreams();
       })
       .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
-  return (
-    <div className="bg-[#13151A] flex justify-center px-2">
-      <div className="relative w-full max-w-[480px] bg-[#13151A] overflow-hidden rounded-3xl">
-        <div className="absolute inset-0 bg-[#13151A]" />
+  const formatViewers = (n: number) => {
+    if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+    if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+    return n.toString();
+  };
 
-        <div className="relative z-10 px-4 pt-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <button onClick={() => navigate('/feed')} className="p-1 hover:brightness-125 transition" title="Back to For You">
-                <img src="/Icons/Gold power buton.png" alt="Back" className="w-5 h-5" />
-              </button>
-              <div>
-                <p className="text-white font-extrabold text-xl">Live</p>
-                <p className="text-white/60 text-xs font-semibold">Cine e live acum</p>
-              </div>
-            </div>
-            <button 
-              onClick={fetchLiveStreams}
-              className="p-2 text-white hover:brightness-125 rounded-full"
+  return (
+    <div className="fixed inset-0 bg-[#0A0B0E] flex justify-center overflow-hidden">
+      <div className="relative w-full max-w-[480px] flex flex-col">
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 pt-[calc(env(safe-area-inset-top,0px)+10px)] pb-2">
+          <div className="flex items-center gap-2.5">
+            <button onClick={() => navigate('/feed')} className="p-1" title="Back">
+              <img src="/Icons/Gold power buton.png" alt="Back" className="w-5 h-5" />
+            </button>
+            <span className="text-white font-bold text-base">Live</span>
+            {creators.length > 0 && (
+              <span className="text-white/30 text-xs font-medium">{creators.length} streaming</span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => navigate('/live/broadcast')}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-500 active:bg-red-600 active:scale-95 transition-all"
             >
-              <RefreshCw size={20} className={loading ? 'animate-spin' : ''} />
+              <Radio size={12} className="text-white" />
+              <span className="text-white text-[11px] font-bold">Go Live</span>
+            </button>
+            <button
+              onClick={fetchLiveStreams}
+              className="w-7 h-7 rounded-full bg-white/5 flex items-center justify-center"
+              title="Refresh"
+            >
+              <RefreshCw size={12} className={`text-white/40 ${loading ? 'animate-spin' : ''}`} />
             </button>
           </div>
+        </div>
 
-          <div className="mt-4 space-y-3">
-            {loading && creators.length === 0 ? (
-               <div className="text-white/50 text-center py-10 text-sm">Loading streams...</div>
-            ) : creators.length > 0 ? (
-              creators.map((c) => (
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto">
+          {loading && creators.length === 0 ? (
+            <div className="flex items-center justify-center py-32">
+              <div className="w-8 h-8 border-2 border-[#C9A96E] border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : creators.length > 0 ? (
+            <div className="grid grid-cols-2 gap-1 px-1 pb-[env(safe-area-inset-bottom,20px)]">
+              {creators.map((c, i) => (
                 <button
                   key={c.id}
                   type="button"
                   onClick={() => navigate(`/live/${c.id}`)}
-                  className="w-full flex items-center justify-between gap-3 p-3 rounded-2xl active:scale-[0.99] transition-transform"
+                  className={`relative overflow-hidden active:scale-[0.97] transition-transform ${
+                    i === 0 && creators.length > 2 ? 'col-span-2 aspect-[2/1.2]' : 'aspect-[3/4]'
+                  }`}
                 >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-12 h-12 rounded-full flex items-center justify-center text-white font-extrabold text-lg">
-                      {c.name.slice(0, 1).toUpperCase()}
-                    </div>
-                    <div className="min-w-0 text-left">
-                      <div className="flex items-center gap-2">
-                        <p className="text-white font-extrabold truncate max-w-[150px]">{c.name}</p>
-                        <span className="px-2 py-0.5 rounded-full bg-red-600 text-white text-[10px] font-extrabold animate-pulse">LIVE</span>
+                  {/* Background */}
+                  {c.thumbnail ? (
+                    <img
+                      src={c.thumbnail}
+                      alt=""
+                      className="absolute inset-0 w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="absolute inset-0 bg-gradient-to-br from-[#1a1c22] to-[#0e1015] flex items-center justify-center">
+                      <div className="w-16 h-16 rounded-full bg-[#C9A96E]/10 border border-[#C9A96E]/20 flex items-center justify-center">
+                        <span className="text-[#C9A96E] font-bold text-2xl">{c.name.slice(0, 1).toUpperCase()}</span>
                       </div>
-                      <div className="flex items-center gap-1.5 text-white/70 text-xs font-semibold">
-                        <User className="w-4 h-4" strokeWidth={2} />
-                        {c.viewers.toLocaleString()} viewers
+                    </div>
+                  )}
+
+                  {/* Gradient overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+
+                  {/* LIVE badge + viewer count */}
+                  <div className="absolute top-2 left-2 flex items-center gap-1.5">
+                    <span className="px-1.5 py-0.5 rounded bg-red-500 text-white text-[9px] font-extrabold uppercase tracking-wider flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                      Live
+                    </span>
+                    <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-black/50 text-white/80 text-[9px] font-semibold">
+                      <Eye size={10} />
+                      {formatViewers(c.viewers)}
+                    </span>
+                  </div>
+
+                  {/* Creator info at bottom */}
+                  <div className="absolute bottom-0 left-0 right-0 p-2.5">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-full border-2 border-red-500/60 overflow-hidden flex-shrink-0 bg-[#1a1c22]">
+                        {c.thumbnail ? (
+                          <img src={c.thumbnail} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-white/60 text-xs font-bold">
+                            {c.name.slice(0, 1).toUpperCase()}
+                          </div>
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-white font-bold text-xs truncate">{c.name}</p>
+                        {c.title && (
+                          <p className="text-white/50 text-[10px] truncate">{c.title}</p>
+                        )}
                       </div>
                     </div>
                   </div>
-                  <div className="text-white text-xs font-extrabold px-3 py-1.5 rounded-full">
-                    Watch
-                  </div>
                 </button>
-              ))
-            ) : (
-              <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
-                <div className="w-16 h-16 rounded-full flex items-center justify-center">
-                  <User className="w-8 h-8 text-white/20" />
-                </div>
-                <div>
-                  <p className="text-white font-bold">No one is live</p>
-                  <p className="text-white/50 text-xs mt-1">Go live to be the first!</p>
-                </div>
-                <button
-                  onClick={() => navigate('/create')}
-                  className="px-6 py-2 rounded-full bg-[#C9A96E] text-black font-bold text-sm"
-                >
-                  Go Live
-                </button>
+              ))}
+            </div>
+          ) : (
+            /* Empty state */
+            <div className="flex flex-col items-center justify-center h-full pb-20 px-8 text-center">
+              <div className="w-20 h-20 rounded-full bg-white/[0.02] border border-white/5 flex items-center justify-center mb-5">
+                <Radio className="w-8 h-8 text-white/10" />
               </div>
-            )}
-          </div>
+              <p className="text-white/60 font-bold text-base mb-1">No one is live right now</p>
+              <p className="text-white/25 text-xs mb-6 max-w-[240px]">
+                Start streaming and let your followers watch you in real time
+              </p>
+              <button
+                onClick={() => navigate('/live/broadcast')}
+                className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-red-500 active:bg-red-600 active:scale-95 transition-all"
+              >
+                <Radio size={14} className="text-white" />
+                <span className="text-white font-bold text-sm">Go Live</span>
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
 }
-

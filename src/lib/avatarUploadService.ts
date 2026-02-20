@@ -26,11 +26,10 @@ export class AvatarUploadService {
       
       // Generate unique file path
       const fileExt = processedFile.name.split('.').pop() || 'jpg';
-      const fileName = `avatars/${userId}/${Date.now()}.${fileExt}`;
+      const fileName = `${userId}/${Date.now()}.${fileExt}`;
 
-      // Upload to Supabase Storage
       const { data, error: uploadError } = await supabase.storage
-        .from('user-content')
+        .from('avatars')
         .upload(fileName, processedFile, {
           upsert: true,
           contentType: processedFile.type,
@@ -43,7 +42,7 @@ export class AvatarUploadService {
 
       // Get public URL
       const { data: { publicUrl } } = supabase.storage
-        .from('user-content')
+        .from('avatars')
         .getPublicUrl(fileName);
 
       // Update user profile
@@ -55,7 +54,7 @@ export class AvatarUploadService {
       if (updateError) {
         // Clean up uploaded file if profile update fails
         await supabase.storage
-          .from('user-content')
+          .from('avatars')
           .remove([fileName]);
         
         throw new Error(`Profile update failed: ${updateError.message}`);
@@ -92,7 +91,7 @@ export class AvatarUploadService {
         const filePath = this.extractFilePathFromUrl(profile.avatar_url);
         if (filePath) {
           const { error: deleteError } = await supabase.storage
-            .from('user-content')
+            .from('avatars')
             .remove([filePath]);
 
           if (deleteError) {
@@ -241,10 +240,9 @@ export class AvatarUploadService {
       const urlObj = new URL(url);
       const pathParts = urlObj.pathname.split('/');
       
-      // Find the part after 'user-content/'
-      const userContentIndex = pathParts.findIndex(part => part === 'user-content');
-      if (userContentIndex !== -1 && pathParts.length > userContentIndex + 1) {
-        return pathParts.slice(userContentIndex + 1).join('/');
+      const bucketIndex = pathParts.findIndex(part => part === 'avatars');
+      if (bucketIndex !== -1 && pathParts.length > bucketIndex + 1) {
+        return pathParts.slice(bucketIndex + 1).join('/');
       }
       
       return null;

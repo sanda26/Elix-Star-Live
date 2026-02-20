@@ -498,7 +498,8 @@ export default function Upload() {
   };
 
   return (
-    <div className="fixed inset-0 h-[100dvh] w-full bg-[#13151A] overflow-hidden flex items-end justify-center">
+    <div className="fixed inset-0 h-[100dvh] w-full bg-[#13151A] overflow-hidden flex justify-center">
+      <div className="w-full max-w-[480px] flex flex-col items-center justify-end h-full relative">
       {toast && <div className="fixed top-16 left-1/2 -translate-x-1/2 bg-white/10 backdrop-blur-md text-white text-sm px-4 py-2 rounded-xl z-[9999]">{toast}</div>}
       {/* PREVIEW MODE */}
        {recordedVideoUrl ? (
@@ -616,7 +617,7 @@ export default function Upload() {
                       className="absolute bottom-[10%] left-[5%] flex flex-col items-center gap-1 group z-30 pointer-events-auto"
                       title="Upload"
                    >
-                       <div className="w-10 h-10 bg-[#1C1E24]/80 rounded-full flex items-center justify-center text-white border-2 border-white group-hover:bg-[#2A2D35]">
+                       <div className="w-10 h-10 bg-[#13151A] rounded-full flex items-center justify-center text-white border border-[#C9A96E]/40 group-hover:bg-[#C9A96E]/10">
                            {/* Simple Upload Icon */}
                            <div className="w-4 h-4 border-2 border-white rounded-sm relative overflow-hidden">
                                <div className="absolute top-0.5 right-0.5 w-1 h-1 bg-white rounded-full"></div>
@@ -632,7 +633,7 @@ export default function Upload() {
                            className="flex flex-col items-center gap-1 group"
                            title="Retake"
                        >
-                           <div className="w-10 h-10 bg-[#1C1E24]/80 rounded-full flex items-center justify-center text-white border-2 border-white group-hover:bg-[#2A2D35]">
+                           <div className="w-10 h-10 bg-[#13151A] rounded-full flex items-center justify-center text-white border border-[#C9A96E]/40 group-hover:bg-[#C9A96E]/10">
                                <RotateCcw size={18} />
                            </div>
                            <span className="text-white font-bold text-[10px] shadow-black drop-shadow-md">Retake</span>
@@ -733,7 +734,7 @@ export default function Upload() {
                     className="absolute top-[2%] left-[5%] w-10 h-10 flex items-center justify-center"
                     title="Close"
                   >
-                    <img src="/Icons/Gold power buton.png" alt="Close" className="w-6 h-6" />
+                    <img src="/Icons/Gold power buton.png" alt="Close" className="w-5 h-5" />
                   </button>
 
                   {/* 2. Sound/Music */}
@@ -749,7 +750,7 @@ export default function Upload() {
 
                   {/* Zoom Out */}
                   <button 
-                    className="absolute top-[18%] right-[5%] w-8 h-8 flex items-center justify-center rounded-full bg-[#13151A]/40 text-white"
+                    className="absolute top-[18%] right-[5%] w-8 h-8 flex items-center justify-center rounded-full bg-[#13151A] border border-[#C9A96E]/40 text-white"
                     onClick={handleZoomOut}
                     title="Zoom out"
                     aria-label="Zoom out"
@@ -758,7 +759,7 @@ export default function Upload() {
                   </button>
                   {/* Zoom In */}
                   <button 
-                    className="absolute top-[26%] right-[5%] w-8 h-8 flex items-center justify-center rounded-full bg-[#13151A]/40 text-white"
+                    className="absolute top-[26%] right-[5%] w-8 h-8 flex items-center justify-center rounded-full bg-[#13151A] border border-[#C9A96E]/40 text-white"
                     onClick={handleZoomIn}
                     title="Zoom in"
                     aria-label="Zoom in"
@@ -853,7 +854,7 @@ export default function Upload() {
                     onClick={handleFileUpload}
                     title="Upload from Gallery"
                   >
-                    <div className="w-10 h-10 bg-[#1C1E24] rounded-full flex items-center justify-center text-white border-2 border-white group-hover:bg-[#2A2D35]">
+                    <div className="w-10 h-10 bg-[#13151A] rounded-full flex items-center justify-center text-white border border-[#C9A96E]/40 group-hover:bg-[#C9A96E]/10">
                         {/* Gallery Icon */}
                         <div className="w-4 h-4 border-2 border-white rounded-sm relative overflow-hidden">
                             <div className="absolute top-0.5 right-0.5 w-1 h-1 bg-white rounded-full"></div>
@@ -977,6 +978,7 @@ export default function Upload() {
           )}
         </>
       )}
+      </div>
     </div>
   );
 }

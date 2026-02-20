@@ -463,6 +463,55 @@ async function handleMessage(client: Client, event: string, data: any) {
       break;
     }
 
+    case 'rtc_join': {
+      broadcastToRoom(client.roomId, 'rtc_join', {
+        user_id: client.userId,
+        username: client.username,
+        avatar_url: client.avatarUrl,
+      }, client);
+      break;
+    }
+
+    case 'rtc_leave': {
+      broadcastToRoom(client.roomId, 'rtc_leave', {
+        user_id: client.userId,
+      }, client);
+      break;
+    }
+
+    case 'rtc_offer': {
+      const offerTarget = data.target_user_id;
+      if (offerTarget) {
+        sendToUser(client.roomId, offerTarget, 'rtc_offer', {
+          sdp: data.sdp,
+          from_user_id: client.userId,
+        });
+      }
+      break;
+    }
+
+    case 'rtc_answer': {
+      const answerTarget = data.target_user_id;
+      if (answerTarget) {
+        sendToUser(client.roomId, answerTarget, 'rtc_answer', {
+          sdp: data.sdp,
+          from_user_id: client.userId,
+        });
+      }
+      break;
+    }
+
+    case 'rtc_ice_candidate': {
+      const iceTarget = data.target_user_id;
+      if (iceTarget) {
+        sendToUser(client.roomId, iceTarget, 'rtc_ice_candidate', {
+          candidate: data.candidate,
+          from_user_id: client.userId,
+        });
+      }
+      break;
+    }
+
     default:
       console.log('Unknown event:', event);
   }
@@ -481,6 +530,34 @@ function sendToClient(client: Client, event: string, data: any) {
   } catch (error) {
     console.error('Failed to send to client:', error);
   }
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function sendToUser(roomId: string, userId: string, event: string, data: any) {
+  const room = rooms.get(roomId);
+  if (!room) return;
+
+  let message: string;
+  try {
+    message = JSON.stringify({
+      event,
+      data,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('Failed to serialize message:', error);
+    return;
+  }
+
+  room.forEach(client => {
+    if (client.userId === userId && client.ws.readyState === WebSocket.OPEN) {
+      try {
+        client.ws.send(message);
+      } catch (error) {
+        console.error('Failed to send to user:', error);
+      }
+    }
+  });
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

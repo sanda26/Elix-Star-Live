@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Sword } from 'lucide-react';
+import { Sword, Crown } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../store/useAuthStore';
 import { showToast } from '../lib/toast';
@@ -11,6 +11,7 @@ interface PendingInvite {
   hostAvatar: string;
   streamKey: string;
   hostUserId: string;
+  type: 'battle' | 'cohost';
 }
 
 export function BattleInviteBanner() {
@@ -38,6 +39,17 @@ export function BattleInviteBanner() {
               hostAvatar: row.data?.host_avatar || '',
               streamKey: row.data?.stream_key || '',
               hostUserId: row.data?.actor_id || '',
+              type: 'battle',
+            });
+          }
+          if (row?.type === 'cohost_invite' && !isOnLiveStream) {
+            setPendingInvite({
+              notifId: row.id,
+              hostName: row.data?.host_name || 'Someone',
+              hostAvatar: row.data?.host_avatar || '',
+              streamKey: row.data?.stream_key || '',
+              hostUserId: row.data?.actor_id || '',
+              type: 'cohost',
             });
           }
         }
@@ -61,11 +73,17 @@ export function BattleInviteBanner() {
       const myUsername = myProfile.data?.username || user?.username || user?.name || 'User';
       const myAvatarUrl = myProfile.data?.avatar_url || '';
 
+      const acceptType = pendingInvite.type === 'cohost' ? 'cohost_accepted' : 'battle_accepted';
+      const acceptTitle = pendingInvite.type === 'cohost' ? 'Co-Host Accepted' : 'Battle Accepted';
+      const acceptBody = pendingInvite.type === 'cohost'
+        ? `@${myUsername} accepted your co-host invite!`
+        : `@${myUsername} accepted your battle invite!`;
+
       await supabase.from('notifications').insert({
         user_id: pendingInvite.hostUserId,
-        type: 'battle_accepted',
-        title: 'Battle Accepted',
-        body: `@${myUsername} accepted your battle invite!`,
+        type: acceptType,
+        title: acceptTitle,
+        body: acceptBody,
         data: {
           actor_id: user.id,
           accepted_name: myUsername,
@@ -75,8 +93,9 @@ export function BattleInviteBanner() {
       });
 
       const streamKey = pendingInvite.streamKey;
+      const queryParam = pendingInvite.type === 'cohost' ? '?cohost=1' : '?battle=1';
       setPendingInvite(null);
-      navigate(`/live/${streamKey}`);
+      navigate(`/live/${streamKey}${queryParam}`);
     } catch {
       showToast('Failed to accept invite');
     }
@@ -92,6 +111,8 @@ export function BattleInviteBanner() {
 
   if (!pendingInvite || isOnLiveStream) return null;
 
+  const isBattle = pendingInvite.type === 'battle';
+
   return (
     <div className="fixed top-[calc(env(safe-area-inset-top,0px)+12px)] left-3 right-3 z-[9999] max-w-[480px] mx-auto animate-in slide-in-from-top">
       <div className="bg-[#1C1E24]/95 backdrop-blur-md rounded-2xl border border-[#C9A96E]/30 shadow-2xl shadow-black/50 p-4">
@@ -106,13 +127,17 @@ export function BattleInviteBanner() {
             )}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-white font-bold text-sm">Battle Invite</p>
+            <p className="text-white font-bold text-sm">{isBattle ? 'Battle Invite' : 'Co-Host Invite'}</p>
             <p className="text-white/60 text-xs truncate">
-              <span className="text-[#C9A96E]">@{pendingInvite.hostName}</span> wants to battle you!
+              <span className="text-[#C9A96E]">@{pendingInvite.hostName}</span> {isBattle ? 'wants to battle you!' : 'wants you to co-host!'}
             </p>
           </div>
-          <div className="w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center flex-shrink-0">
-            <Sword className="w-4 h-4 text-red-400" />
+          <div className={`w-8 h-8 rounded-full ${isBattle ? 'bg-red-500/20' : 'bg-[#C9A96E]/20'} flex items-center justify-center flex-shrink-0`}>
+            {isBattle ? (
+              <Sword className="w-4 h-4 text-red-400" />
+            ) : (
+              <Crown className="w-4 h-4 text-[#C9A96E]" />
+            )}
           </div>
         </div>
         <div className="flex gap-2">

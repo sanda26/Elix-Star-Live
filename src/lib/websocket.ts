@@ -22,6 +22,12 @@ export type WebSocketEvent =
   | 'battle_score_update'
   | 'battle_ended'
   | 'booster_activated'
+  // WebRTC signaling events
+  | 'rtc_offer'
+  | 'rtc_answer'
+  | 'rtc_ice_candidate'
+  | 'rtc_join'
+  | 'rtc_leave'
   // Moderation events
   | 'user_muted'
   | 'user_kicked'

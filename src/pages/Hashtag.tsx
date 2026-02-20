@@ -51,7 +51,7 @@ export default function Hashtag() {
       const videos = videoHashtags?.map(vh => (vh as any).videos).filter(Boolean) || [];
       setVideos(videos);
     } catch {
-      console.error('Failed to load hashtag');
+
     } finally {
       setLoading(false);
     }
@@ -96,7 +96,7 @@ export default function Hashtag() {
               <a
                 key={video.id}
                 href={`/video/${video.id}`}
-                className="relative aspect-[9/16] bg-gray-800 rounded overflow-hidden"
+                className="relative aspect-[9/16] bg-[#1C1E24] rounded overflow-hidden"
               >
                 <img
                   src={video.thumbnail_url || '/placeholder-video.png'}

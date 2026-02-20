@@ -27,7 +27,7 @@ export function IncomingCallModal() {
 
   return (
     <div className="fixed inset-0 z-[100] bg-[#13151A]/70 backdrop-blur-md flex items-center justify-center">
-      <div className="bg-gray-900 rounded-3xl p-8 max-w-sm w-full mx-4 text-center shadow-2xl">
+      <div className="bg-[#13151A] rounded-3xl p-8 max-w-sm w-full mx-4 text-center shadow-2xl">
         {remoteUser.avatar ? (
           <img
             src={remoteUser.avatar}
@@ -57,7 +57,7 @@ export function IncomingCallModal() {
           <button
             onClick={handleAccept}
             title="Accept call"
-            className="w-16 h-16 rounded-full bg-green-500 flex items-center justify-center shadow-lg active:scale-95 transition-transform animate-pulse"
+            className="w-16 h-16 rounded-full bg-[#C9A96E] flex items-center justify-center shadow-lg active:scale-95 transition-transform animate-pulse"
           >
             <Phone className="w-7 h-7 text-white" />
           </button>

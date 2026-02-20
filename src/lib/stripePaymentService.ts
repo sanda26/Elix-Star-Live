@@ -43,13 +43,13 @@ export class StripePaymentService {
         .order('coins', { ascending: true });
 
       if (error) {
-        console.error('Error fetching coin packages:', error);
+
         return [];
       }
 
       return data || [];
     } catch (err) {
-      console.error('Failed to fetch coin packages:', err);
+
       return [];
     }
   }
@@ -73,13 +73,13 @@ export class StripePaymentService {
       });
 
       if (error) {
-        console.error('Error creating payment session:', error);
+
         return { sessionId: '', error: error.message };
       }
 
       return { sessionId: data.sessionId };
     } catch (err) {
-      console.error('Payment session creation failed:', err);
+
       return { sessionId: '', error: 'Failed to create payment session' };
     }
   }
@@ -102,13 +102,13 @@ export class StripePaymentService {
       });
 
       if (error) {
-        console.error('Error creating subscription session:', error);
+
         return { sessionId: '', error: error.message };
       }
 
       return { sessionId: data.sessionId };
     } catch (err) {
-      console.error('Subscription session creation failed:', err);
+
       return { sessionId: '', error: 'Failed to create subscription session' };
     }
   }
@@ -143,7 +143,7 @@ export class StripePaymentService {
 
       return { success: true, message: 'Redirecting to payment...' };
     } catch (err) {
-      console.error('Subscription processing failed:', err);
+
       return { success: false, message: 'Subscription processing failed' };
     }
   }
@@ -178,7 +178,7 @@ export class StripePaymentService {
 
       return { success: true, message: 'Redirecting to payment...' };
     } catch (err) {
-      console.error('Payment processing failed:', err);
+
       return { success: false, message: 'Payment processing failed' };
     }
   }
@@ -208,7 +208,7 @@ export class StripePaymentService {
         return { success: false, message: data.message || 'Payment verification failed' };
       }
     } catch (err) {
-      console.error('Payment verification failed:', err);
+
       return { success: false, message: 'Payment verification failed' };
     }
   }
@@ -225,13 +225,13 @@ export class StripePaymentService {
         .single();
 
       if (error) {
-        console.error('Error fetching user balance:', error);
+
         return 0;
       }
 
       return data?.coins || 0;
     } catch (err) {
-      console.error('Failed to fetch user balance:', err);
+
       return 0;
     }
   }

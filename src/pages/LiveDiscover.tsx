@@ -45,7 +45,7 @@ export default function LiveDiscover() {
         setCreators([]);
       }
     } catch (err) {
-      console.error('Error fetching live streams:', err);
+
       // NO FALLBACK/DEMO DATA - Real data only
       setCreators([]);
     } finally {

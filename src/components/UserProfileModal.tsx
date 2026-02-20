@@ -5,6 +5,7 @@ import { useVideoStore } from '../store/useVideoStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { useSafetyStore } from '../store/useSafetyStore';
 import ReportModal from './ReportModal';
+import { showToast } from '../lib/toast';
 
 interface User {
   id: string;
@@ -53,21 +54,19 @@ export default function UserProfileModal({ isOpen, onClose, user, onFollow }: Us
   };
 
   const handleBlockUser = async () => {
-    if (window.confirm(`Are you sure you want to block @${user.username}?`)) {
-      const token = session?.access_token;
-      if (token) {
-        await fetch('/api/block-user', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ blockedUserId: user.id, action: 'block' }),
-        }).catch(() => null);
-      }
-      blockUser(user.id);
-      onClose();
+    const token = session?.access_token;
+    if (token) {
+      await fetch('/api/block-user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ blockedUserId: user.id, action: 'block' }),
+      }).catch(() => null);
     }
+    blockUser(user.id);
+    onClose();
   };
 
   const handleReportUser = () => {
@@ -154,7 +153,7 @@ export default function UserProfileModal({ isOpen, onClose, user, onFollow }: Us
           {/* Profile Header */}
           <div className="flex flex-col items-center mb-6">
             <div className="w-24 h-24 rounded-full mb-3 p-[2px] bg-gradient-to-tr from-[#C9A96E] to-[#C9A96E]">
-              <div className="w-full h-full rounded-full border-2 border-[#13151A] overflow-hidden bg-gray-800">
+              <div className="w-full h-full rounded-full border-2 border-[#13151A] overflow-hidden bg-[#1C1E24]">
                 <img 
                   src={user.avatar} 
                   alt={user.name} 
@@ -288,7 +287,7 @@ export default function UserProfileModal({ isOpen, onClose, user, onFollow }: Us
             {userVideos.length > 0 ? (
               <div className="grid grid-cols-3 gap-0.5 mt-0.5">
                 {userVideos.map((video) => (
-                  <div key={video.id} className="aspect-[3/4] bg-gray-900 relative">
+                  <div key={video.id} className="aspect-[3/4] bg-[#13151A] relative">
                     <img 
                       src={video.thumbnail || video.url} 
                       alt={video.description} 
@@ -330,7 +329,7 @@ export default function UserProfileModal({ isOpen, onClose, user, onFollow }: Us
       });
     } else {
       navigator.clipboard.writeText(profileUrl);
-      alert('Profile link copied to clipboard!');
+      showToast('Profile link copied to clipboard!');
     }
   }
 }

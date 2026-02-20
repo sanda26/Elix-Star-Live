@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Search, Ban } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { showToast } from '../../lib/toast';
 
 interface BlockedUser {
   id: string;
@@ -47,7 +48,7 @@ export default function BlockedAccounts() {
       if (error) throw error;
       setBlockedUsers(data || []);
     } catch (error) {
-      console.error('Failed to load blocked users:', error);
+
     } finally {
       setLoading(false);
     }
@@ -61,8 +62,8 @@ export default function BlockedAccounts() {
 
       setBlockedUsers(prev => prev.filter(b => b.id !== blockId));
     } catch (error) {
-      console.error('Failed to unblock user:', error);
-      alert('Failed to unblock user');
+
+      showToast('Failed to unblock user');
     }
   };
 

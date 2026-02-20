@@ -22,7 +22,7 @@ export const useDeepLinks = () => {
       // Parse elixstar://user/username
       const userMatch = url.match(/(?:elixstar|app):\/\/user\/([^?]+)/);
       if (userMatch) {
-        navigate(`/user/${userMatch[1]}`);
+        navigate(`/profile/${userMatch[1]}`);
         return;
       }
       

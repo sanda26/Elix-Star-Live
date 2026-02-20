@@ -73,7 +73,7 @@ export async function refreshVideoFypStatus(
       .update({ engagement_score: score, is_eligible_for_fyp: eligible })
       .eq('id', videoId);
   } catch (err) {
-    console.error('refreshVideoFypStatus failed:', err);
+
   }
 }
 
@@ -91,6 +91,6 @@ export async function boostNewVideo(videoId: string): Promise<void> {
       })
       .eq('id', videoId);
   } catch (err) {
-    console.error('boostNewVideo failed:', err);
+
   }
 }

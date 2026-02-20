@@ -16,6 +16,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { showToast } from '../lib/toast';
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -23,37 +24,28 @@ export default function Settings() {
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 2000); };
 
   const handleLogout = async () => {
-    if (confirm('Are you sure you want to log out?')) {
-      await supabase.auth.signOut();
-      navigate('/login');
-    }
+    await supabase.auth.signOut();
+    navigate('/login');
   };
 
   const handleDeleteAccount = async () => {
-    if (
-      confirm(
-        'Are you sure you want to delete your account? This action cannot be undone and all your data will be permanently deleted.'
-      )
-    ) {
-      // Call delete account API
-      const { data } = await supabase.auth.getSession();
-      const token = data.session?.access_token;
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
 
-      if (token) {
-        const response = await fetch('/api/delete-account', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-        });
+    if (token) {
+      const response = await fetch('/api/delete-account', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
-        if (response.ok) {
-          await supabase.auth.signOut();
-          navigate('/login');
-        } else {
-          alert('Failed to delete account. Please contact support.');
-        }
+      if (response.ok) {
+        await supabase.auth.signOut();
+        navigate('/login');
+      } else {
+        showToast('Failed to delete account. Please contact support.');
       }
     }
   };
@@ -122,7 +114,7 @@ export default function Settings() {
           <SettingItem
             icon={<Heart className="w-5 h-5" />}
             label="Liked Videos"
-            onClick={() => navigate('/profile/me?tab=liked')}
+            onClick={() => navigate('/profile?tab=liked')}
           />
         </Section>
 

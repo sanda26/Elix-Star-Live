@@ -31,13 +31,13 @@ export async function fetchGiftsFromDatabase(): Promise<GiftUiItem[]> {
       .order('coin_cost', { ascending: true });
 
     if (error) {
-      console.error('Error fetching gifts from database:', error);
+
       return [];
     }
 
     return buildGiftUiItemsFromCatalog(giftsData || []);
   } catch (err) {
-    console.error('Failed to fetch gifts:', err);
+
     return [];
   }
 }
@@ -50,7 +50,7 @@ export async function fetchGiftPriceMap(): Promise<Map<string, number>> {
       .eq('is_active', true);
 
     if (error) {
-      console.error('Error fetching gift prices:', error);
+
       return new Map();
     }
 
@@ -62,7 +62,7 @@ export async function fetchGiftPriceMap(): Promise<Map<string, number>> {
     }
     return map;
   } catch (err) {
-    console.error('Failed to fetch gift prices:', err);
+
     return new Map();
   }
 }

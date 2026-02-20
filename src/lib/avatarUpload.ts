@@ -38,7 +38,7 @@ export async function uploadAvatar(file: File, userId: string): Promise<string> 
       });
 
     if (uploadError) {
-      console.error('Supabase upload error:', uploadError);
+
       throw uploadError;
     }
 
@@ -54,7 +54,7 @@ export async function uploadAvatar(file: File, userId: string): Promise<string> 
     return data.publicUrl;
 
   } catch (err: any) {
-    console.error('Avatar upload failed:', err);
+
     throw new Error(err.message || 'Failed to upload image');
   }
 }

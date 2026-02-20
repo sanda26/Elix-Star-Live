@@ -68,7 +68,7 @@ export default function ChatThread() {
             });
         }
       } catch (err) {
-        console.error('Error loading conversation details:', err);
+
       }
     };
 
@@ -155,7 +155,7 @@ export default function ChatThread() {
             .eq('id', threadId);
 
     } catch (err) {
-        console.error('Failed to send message:', err);
+
         setDraft(text); // Restore draft on error
     }
   };

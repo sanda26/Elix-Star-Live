@@ -90,17 +90,12 @@ export default function EnhancedLikesModal({ isOpen, onClose, videoId, likes }: 
   };
 
   const handleMessage = (user: LikeUser) => {
-    console.log('Opening chat with', user.username);
-    // Navigate to chat or open messaging interface
   };
 
   const handleReportUser = (user: LikeUser) => {
-    console.log('Reporting user:', user.username);
-    // Open report modal for user
   };
 
   const handleBlockUser = (user: LikeUser) => {
-    console.log('Blocking user:', user.username);
   };
 
   const formatNumber = (num: number) => {

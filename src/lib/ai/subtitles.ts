@@ -76,7 +76,7 @@ export class SubtitleGenerator {
 
     this.recognition.onerror = (event: any) => {
       if (event.error === 'no-speech') return;
-      console.warn('Speech recognition error:', event.error);
+
     };
 
     this.recognition.onend = () => {

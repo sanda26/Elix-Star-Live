@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { DollarSign, Gift, Zap, Package } from 'lucide-react';
+import { showToast } from '../../lib/toast';
 
 interface GiftCatalogItem {
   id: string;
@@ -37,7 +38,7 @@ export default function AdminEconomy() {
       setGifts(giftsRes.data || []);
       setBoosters(boostersRes.data || []);
     } catch (error) {
-      console.error('Failed to load economy data:', error);
+
     } finally {
       setLoading(false);
     }
@@ -51,20 +52,20 @@ export default function AdminEconomy() {
         .eq('id', giftId);
 
       if (error) throw error;
-      alert('Price updated');
+      showToast('Price updated');
       loadData();
     } catch (error) {
-      console.error('Failed to update price:', error);
-      alert('Failed to update price');
+
+      showToast('Failed to update price');
     }
   };
 
   if (loading) {
-    return <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">Loading...</div>;
+    return <div className="min-h-screen bg-[#13151A] flex items-center justify-center text-white">Loading...</div>;
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white p-6">
+    <div className="min-h-screen bg-[#13151A] text-white p-6">
       <div className="max-w-7xl mx-auto">
         <h1 className="text-3xl font-bold mb-8 flex items-center gap-3">
           <DollarSign className="w-8 h-8 text-white" />
@@ -77,7 +78,7 @@ export default function AdminEconomy() {
             <Package className="w-6 h-6 text-white" />
             Coin Packages
           </h2>
-          <div className="bg-gray-800 rounded-lg p-6">
+          <div className="bg-[#1C1E24] rounded-lg p-6">
             <p className="text-gray-400">Managed via coin_packages table</p>
           </div>
         </div>
@@ -88,9 +89,9 @@ export default function AdminEconomy() {
             <Gift className="w-6 h-6 text-pink-500" />
             Gifts Catalog ({gifts.length})
           </h2>
-          <div className="bg-gray-800 rounded-lg overflow-hidden">
+          <div className="bg-[#1C1E24] rounded-lg overflow-hidden">
             <table className="w-full">
-              <thead className="bg-gray-700">
+              <thead className="bg-[#2A2D35]">
                 <tr>
                   <th className="px-4 py-3 text-left">Gift</th>
                   <th className="px-4 py-3 text-left">Rarity</th>
@@ -101,7 +102,7 @@ export default function AdminEconomy() {
               </thead>
               <tbody>
                 {gifts.map(gift => (
-                  <tr key={gift.id} className="hover:bg-gray-700/50">
+                  <tr key={gift.id} className="hover:bg-[#2A2D35]/50">
                     <td className="px-4 py-3 font-semibold">{gift.name}</td>
                     <td className="px-4 py-3">
                       <span className="px-2 py-1 bg-[#C9A96E] rounded text-xs">{gift.rarity}</span>
@@ -110,7 +111,7 @@ export default function AdminEconomy() {
                     <td className="px-4 py-3">
                       <span
                         className={`px-2 py-1 rounded text-xs ${
-                          gift.is_active ? 'bg-[#C9A96E]' : 'bg-gray-600'
+                          gift.is_active ? 'bg-[#C9A96E]' : 'bg-[#2A2D35]'
                         }`}
                       >
                         {gift.is_active ? 'Active' : 'Inactive'}
@@ -140,9 +141,9 @@ export default function AdminEconomy() {
             <Zap className="w-6 h-6 text-white" />
             Boosters Catalog ({boosters.length})
           </h2>
-          <div className="bg-gray-800 rounded-lg overflow-hidden">
+          <div className="bg-[#1C1E24] rounded-lg overflow-hidden">
             <table className="w-full">
-              <thead className="bg-gray-700">
+              <thead className="bg-[#2A2D35]">
                 <tr>
                   <th className="px-4 py-3 text-left">Booster</th>
                   <th className="px-4 py-3 text-left">Effect</th>
@@ -152,14 +153,14 @@ export default function AdminEconomy() {
               </thead>
               <tbody>
                 {boosters.map(booster => (
-                  <tr key={booster.id} className="hover:bg-gray-700/50">
+                  <tr key={booster.id} className="hover:bg-[#2A2D35]/50">
                     <td className="px-4 py-3 font-semibold">{booster.name}</td>
                     <td className="px-4 py-3 text-gray-400">{booster.effect_type}</td>
                     <td className="px-4 py-3 text-white font-bold">{booster.coin_cost}</td>
                     <td className="px-4 py-3">
                       <span
                         className={`px-2 py-1 rounded text-xs ${
-                          booster.is_active ? 'bg-[#C9A96E]' : 'bg-gray-600'
+                          booster.is_active ? 'bg-[#C9A96E]' : 'bg-[#2A2D35]'
                         }`}
                       >
                         {booster.is_active ? 'Active' : 'Inactive'}

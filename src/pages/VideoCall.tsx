@@ -175,7 +175,7 @@ export default function VideoCall() {
               className={`w-full h-full object-cover ${isVideoOff ? 'hidden' : ''}`}
             />
             {isVideoOff && (
-              <div className="w-full h-full flex items-center justify-center bg-gray-800">
+              <div className="w-full h-full flex items-center justify-center bg-[#1C1E24]">
                 <VideoOff className="w-6 h-6 text-white/50" />
               </div>
             )}

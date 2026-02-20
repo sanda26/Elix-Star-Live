@@ -117,7 +117,7 @@ const getAuthErrorMessage = (error: unknown) => {
     return error.message;
   }
   if (typeof error === 'string') return error;
-  console.error('Unknown auth error:', error);
+
   return `Authentication failed: ${error instanceof Error ? error.message : JSON.stringify(error)}`;
 };
 
@@ -141,14 +141,14 @@ export const useAuthStore = create<AuthStore>()(
       }
 
       try {
-        console.log('Attempting login for:', email);
+
         const { data, error } = await supabase.auth.signInWithPassword({ 
           email: email.trim(), 
           password 
         });
 
         if (error) {
-          console.error('Supabase Login Error:', error);
+
           // 2. Map common Supabase errors to user-friendly messages
           if (error.message.includes('Invalid login credentials')) {
              return { error: 'Incorrect email or password.' };
@@ -163,11 +163,11 @@ export const useAuthStore = create<AuthStore>()(
         }
 
         if (!data.user || !data.session) {
-          console.error('Login succeeded but no session returned', data);
+
           return { error: 'Login failed unexpectedly. Please try again.' };
         }
 
-        console.log('Login successful, setting user:', data.user.id);
+
         
         // 3. Force state update immediately
         set({ 
@@ -181,14 +181,14 @@ export const useAuthStore = create<AuthStore>()(
         
         return { error: null };
       } catch (err: any) {
-        console.error('Unexpected Login Exception:', err);
+
         const msg = err?.message || 'Unknown error occurred';
         if (msg.includes('fetch')) {
            return { error: 'Network error. Please check your connection.' };
         }
         // Handle AbortError specifically
         if (err.name === 'AbortError' || msg.includes('aborted')) {
-           console.warn('Login request aborted');
+
            // Return a specific error code or message that UI can ignore or handle gracefully
            return { error: 'aborted' }; 
         }
@@ -201,7 +201,7 @@ export const useAuthStore = create<AuthStore>()(
         return { error: 'Authentication is not configured. Missing Supabase credentials.', needsEmailConfirmation: false };
       }
       try {
-        console.log('Attempting signup for:', email);
+
         const { data, error } = await supabase.auth.signUp({
           email: email.trim(),
           password,
@@ -215,7 +215,7 @@ export const useAuthStore = create<AuthStore>()(
         });
 
         if (error) {
-          console.error('Supabase Signup Error:', error);
+
           if (error.message.includes('fetch')) {
              return { error: 'Network error. Please check your connection.', needsEmailConfirmation: false };
           }
@@ -223,7 +223,7 @@ export const useAuthStore = create<AuthStore>()(
         }
 
         if (data.user && data.session) {
-          console.log('Signup successful (session active):', data.user.id);
+
           set({ 
             supabaseUser: data.user, 
             session: data.session, 
@@ -237,20 +237,20 @@ export const useAuthStore = create<AuthStore>()(
         
         // If Supabase returned user but no session, email confirmation is likely required
         if (data.user && !data.session) {
-           console.log('Signup successful (waiting for confirmation):', data.user.id);
+
            return { error: null, needsEmailConfirmation: true };
         }
 
         return { error: 'Signup failed (No user data returned). Please try again.', needsEmailConfirmation: false };
       } catch (err: any) {
-        console.error('Unexpected Signup Exception:', err);
+
         const msg = err?.message || 'Unknown error occurred';
         
         if (msg.includes('fetch')) {
            return { error: 'Network error. Please check your connection.', needsEmailConfirmation: false };
         }
         if (err.name === 'AbortError' || msg.includes('aborted')) {
-           console.warn('Signup request aborted');
+
            return { error: 'aborted', needsEmailConfirmation: false }; 
         }
 
@@ -276,7 +276,7 @@ export const useAuthStore = create<AuthStore>()(
         try {
           await supabase.auth.signOut();
         } catch (error) {
-          console.warn('Supabase signOut failed (network error?), clearing local session anyway.', error);
+          /* ignored */
         }
       }
       set({
@@ -316,13 +316,13 @@ export const useAuthStore = create<AuthStore>()(
            set({ supabaseUser: null, session: null, user: null, isAuthenticated: false, isLoading: false, authMode: 'supabase' });
         }
       } catch (error) {
-        console.error('getSession error:', error);
+
         set({ isLoading: false });
       }
 
       if (!authUnsubscribe) {
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-          console.log('Auth state change:', event, session?.user?.id);
+
           const user = session?.user;
           if (user) {
             const mapped = mapUserToUser(user);

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Flag, CheckCircle, XCircle, Eye } from 'lucide-react';
+import { showToast } from '../../lib/toast';
 
 interface Report {
   id: string;
@@ -41,7 +42,7 @@ export default function AdminReports() {
       if (error) throw error;
       setReports(data || []);
     } catch (error) {
-      console.error('Failed to load reports:', error);
+
     } finally {
       setLoading(false);
     }
@@ -61,20 +62,20 @@ export default function AdminReports() {
 
       if (error) throw error;
 
-      alert('Report resolved');
+      showToast('Report resolved');
       loadReports();
     } catch (error) {
-      console.error('Failed to resolve report:', error);
-      alert('Failed to resolve report');
+
+      showToast('Failed to resolve report');
     }
   };
 
   if (loading) {
-    return <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">Loading...</div>;
+    return <div className="min-h-screen bg-[#13151A] flex items-center justify-center text-white">Loading...</div>;
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white p-6">
+    <div className="min-h-screen bg-[#13151A] text-white p-6">
       <div className="max-w-7xl mx-auto">
         <h1 className="text-3xl font-bold mb-6 flex items-center gap-3">
           <Flag className="w-8 h-8 text-red-500" />
@@ -86,7 +87,7 @@ export default function AdminReports() {
           <button
             onClick={() => setFilter('pending')}
             className={`px-4 py-2 rounded-lg font-semibold ${
-              filter === 'pending' ? 'bg-[#C9A96E] text-black' : 'bg-gray-700 text-white'
+              filter === 'pending' ? 'bg-[#C9A96E] text-black' : 'bg-[#2A2D35] text-white'
             }`}
           >
             Pending ({reports.filter(r => r.status === 'pending').length})
@@ -94,7 +95,7 @@ export default function AdminReports() {
           <button
             onClick={() => setFilter('all')}
             className={`px-4 py-2 rounded-lg font-semibold ${
-              filter === 'all' ? 'bg-[#C9A96E] text-black' : 'bg-gray-700 text-white'
+              filter === 'all' ? 'bg-[#C9A96E] text-black' : 'bg-[#2A2D35] text-white'
             }`}
           >
             All
@@ -104,7 +105,7 @@ export default function AdminReports() {
         {/* Reports List */}
         <div className="space-y-4">
           {reports.map(report => (
-            <div key={report.id} className="bg-gray-800 rounded-lg p-6">
+            <div key={report.id} className="bg-[#1C1E24] rounded-lg p-6">
               <div className="flex items-start justify-between mb-4">
                 <div>
                   <div className="flex items-center gap-3 mb-2">
@@ -125,7 +126,7 @@ export default function AdminReports() {
                       ? 'bg-[#C9A96E]'
                       : report.status === 'resolved'
                       ? 'bg-[#C9A96E]'
-                      : 'bg-gray-600'
+                      : 'bg-[#2A2D35]'
                   }`}
                 >
                   {report.status}
@@ -150,7 +151,7 @@ export default function AdminReports() {
                   </button>
                   <button
                     onClick={() => handleResolve(report.id, 'no_action')}
-                    className="px-4 py-2 bg-gray-600 rounded hover:bg-gray-700 flex items-center gap-2"
+                    className="px-4 py-2 bg-[#2A2D35] rounded hover:bg-[#2A2D35] flex items-center gap-2"
                   >
                     <CheckCircle className="w-4 h-4" />
                     No Action

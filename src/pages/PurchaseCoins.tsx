@@ -6,6 +6,7 @@ import { trackEvent } from '../lib/analytics';
 import { getPaymentMethod, isStripeAllowed } from '../lib/platform';
 import { purchaseProduct, type IAPProductId } from '../lib/iap';
 import { stripePaymentService, type CoinPackage } from '../lib/stripePaymentService';
+import { showToast } from '../lib/toast';
 
 // CoinPackage interface now imported from stripePaymentService
 
@@ -31,13 +32,13 @@ export default function PurchaseCoins() {
       const packages = await stripePaymentService.getCoinPackages();
       setPackages(packages);
     } catch (error) {
-      console.error('Failed to load packages:', error);
+
     }
   };
 
   const handlePurchase = async (pkg: CoinPackage) => {
     if (!currentUserId) {
-      alert('Please log in to purchase coins');
+      showToast('Please log in to purchase coins');
       navigate('/login');
       return;
     }
@@ -62,7 +63,7 @@ export default function PurchaseCoins() {
           throw new Error(result.error || 'IAP purchase failed');
         }
         // Coins are credited server-side via receipt validation
-        alert('Purchase successful! Coins have been added to your account.');
+        showToast('Purchase successful! Coins have been added to your account.');
         setLoading(false);
         setSelectedPackage(null);
         return;
@@ -74,7 +75,7 @@ export default function PurchaseCoins() {
         if (!result.success) {
           throw new Error(result.error || 'Play Store purchase failed');
         }
-        alert('Purchase successful! Coins have been added to your account.');
+        showToast('Purchase successful! Coins have been added to your account.');
         setLoading(false);
         setSelectedPackage(null);
         return;
@@ -97,8 +98,8 @@ export default function PurchaseCoins() {
       // Payment will redirect to Stripe, so we don't need to continue here
       return;
           } catch (error) {
-      console.error('Purchase failed:', error);
-      alert(error instanceof Error ? error.message : 'Purchase failed. Please try again.');
+
+      showToast(error instanceof Error ? error.message : 'Purchase failed. Please try again.');
       setLoading(false);
       setSelectedPackage(null);
     }

@@ -38,7 +38,7 @@ export default function FriendsFeed() {
           })));
         }
       } catch (err) {
-        console.error("Error fetching friends:", err);
+
       }
     };
     fetchUsers();

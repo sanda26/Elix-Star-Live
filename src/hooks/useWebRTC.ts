@@ -70,7 +70,7 @@ export function useWebRTCCall({ callId, localUserId, remoteUserId, isCaller }: U
       try {
         await pcRef.current.addIceCandidate(new RTCIceCandidate(candidate));
       } catch (e) {
-        console.warn('Failed to add buffered ICE candidate:', e);
+
       }
     }
   }, []);
@@ -170,7 +170,7 @@ export function useWebRTCCall({ callId, localUserId, remoteUserId, isCaller }: U
             try {
               await pc.addIceCandidate(new RTCIceCandidate(candidate));
             } catch (e) {
-              console.warn('Failed to add ICE candidate:', e);
+
             }
           } else {
             iceCandidateBuffer.current.push(candidate);

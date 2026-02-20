@@ -90,7 +90,7 @@ export default function Profile() {
         }
       }
     } catch (error) {
-      console.error('Failed to load profile:', error);
+
     } finally {
       setLoading(false);
     }
@@ -140,7 +140,7 @@ export default function Profile() {
       if (error) throw error;
       setVideos(data || []);
     } catch (error) {
-      console.error('Failed to load videos:', error);
+
     }
   };
 
@@ -176,7 +176,7 @@ export default function Profile() {
         trackEvent('user_follow', { target_user_id: displayUserId });
       }
     } catch (error) {
-      console.error('Failed to toggle follow:', error);
+
     }
   };
 

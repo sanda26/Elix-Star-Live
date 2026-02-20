@@ -393,7 +393,7 @@ export default function EnhancedVideoPlayer({
           muted={effectiveMuted}
           onClick={handleVideoClick}
           onError={(e) => {
-            console.warn(`Video ${video.id} failed to load:`, e);
+
             e.currentTarget.style.display = 'none';
             e.currentTarget.parentElement?.classList.add('bg-[#13151A]');
             const errorText = document.createElement('div');

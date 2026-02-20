@@ -80,7 +80,7 @@ export class PushNotificationService {
       // Save subscription to backend
       await this.saveSubscriptionToBackend();
     } catch (error) {
-      console.error('Failed to subscribe to push notifications:', error);
+
       throw error;
     }
   }
@@ -111,7 +111,7 @@ export class PushNotificationService {
       });
 
     if (error) {
-      console.error('Failed to save subscription:', error);
+
       throw error;
     }
   }
@@ -126,13 +126,13 @@ export class PushNotificationService {
       });
 
       if (error) {
-        console.error('Failed to send notification:', error);
+
         return false;
       }
 
       return true;
     } catch (error) {
-      console.error('Error sending notification:', error);
+
       return false;
     }
   }

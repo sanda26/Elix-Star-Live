@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Ban, Search } from 'lucide-react';
+import { showToast } from '../../lib/toast';
 
 interface User {
   id: string;
@@ -41,16 +42,13 @@ export default function AdminUsers() {
 
       setUsers(usersData);
     } catch (error) {
-      console.error('Failed to load users:', error);
+
     } finally {
       setLoading(false);
     }
   };
 
   const handleBanUser = async (userId: string) => {
-    const confirmed = confirm('Ban this user?');
-    if (!confirmed) return;
-
     try {
       await supabase.from('user_bans').insert({
         user_id: userId,
@@ -59,11 +57,11 @@ export default function AdminUsers() {
         ban_type: 'permanent',
       });
 
-      alert('User banned successfully');
+      showToast('User banned successfully');
       loadUsers();
     } catch (error) {
-      console.error('Failed to ban user:', error);
-      alert('Failed to ban user');
+
+      showToast('Failed to ban user');
     }
   };
 
@@ -74,16 +72,16 @@ export default function AdminUsers() {
   );
 
   if (loading) {
-    return <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">Loading...</div>;
+    return <div className="min-h-screen bg-[#13151A] flex items-center justify-center text-white">Loading...</div>;
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white p-6">
+    <div className="min-h-screen bg-[#13151A] text-white p-6">
       <div className="max-w-7xl mx-auto">
         <h1 className="text-3xl font-bold mb-6">User Management</h1>
 
         {/* Search */}
-        <div className="mb-6 flex items-center gap-4 bg-gray-800 rounded-lg px-4 py-3">
+        <div className="mb-6 flex items-center gap-4 bg-[#1C1E24] rounded-lg px-4 py-3">
           <Search className="w-5 h-5 text-white" />
           <input
             type="text"
@@ -95,9 +93,9 @@ export default function AdminUsers() {
         </div>
 
         {/* Users Table */}
-        <div className="bg-gray-800 rounded-lg overflow-hidden">
+        <div className="bg-[#1C1E24] rounded-lg overflow-hidden">
           <table className="w-full">
-            <thead className="bg-gray-700">
+            <thead className="bg-[#2A2D35]">
               <tr>
                 <th className="px-4 py-3 text-left">User</th>
                 <th className="px-4 py-3 text-left">Email</th>
@@ -107,7 +105,7 @@ export default function AdminUsers() {
             </thead>
             <tbody>
               {filteredUsers.map(user => (
-                <tr key={user.id} className="hover:bg-gray-700/50">
+                <tr key={user.id} className="hover:bg-[#2A2D35]/50">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
                       <img

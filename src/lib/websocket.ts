@@ -58,7 +58,7 @@ class WebSocketService {
     this.ws = new WebSocket(`${wsUrl}/live/${roomId}?token=${encodeURIComponent(token)}`);
 
     this.ws.onopen = () => {
-      console.log('[WebSocket] Connected to room:', roomId);
+
       this.reconnectAttempts = 0;
     };
 
@@ -67,16 +67,15 @@ class WebSocketService {
         const message: WebSocketMessage = JSON.parse(event.data);
         this.handleMessage(message);
       } catch (error) {
-        console.error('[WebSocket] Failed to parse message:', error);
+        /* ignored */
       }
     };
 
-    this.ws.onerror = (error) => {
-      console.error('[WebSocket] Error:', error);
+    this.ws.onerror = () => {
     };
 
     this.ws.onclose = () => {
-      console.log('[WebSocket] Disconnected');
+
       this.attemptReconnect();
     };
   }
@@ -101,7 +100,7 @@ class WebSocketService {
     if (this.ws?.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify({ event, data, timestamp: new Date().toISOString() }));
     } else {
-      console.warn('[WebSocket] Cannot send - not connected');
+
     }
   }
 
@@ -163,14 +162,13 @@ class WebSocketService {
 
   private attemptReconnect() {
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.error('[WebSocket] Max reconnect attempts reached');
+
       return;
     }
 
     const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts);
     this.reconnectAttempts++;
 
-    console.log(`[WebSocket] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})...`);
 
     // Clear any existing timer before setting a new one
     if (this.reconnectTimer) {

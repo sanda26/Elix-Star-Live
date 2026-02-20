@@ -42,12 +42,12 @@ async function fetchCameraFilters() {
       .order('name');
     
     if (error) {
-      console.error('Error fetching camera filters:', error);
+
       return [];
     }
     return data || [];
   } catch (err) {
-    console.error('Failed to fetch camera filters:', err);
+
     return [];
   }
 }
@@ -64,12 +64,12 @@ async function fetchSpeedOptions() {
       .order('value');
     
     if (error) {
-      console.error('Error fetching speed options:', error);
+
       return [];
     }
     return data || [];
   } catch (err) {
-    console.error('Failed to fetch speed options:', err);
+
     return [];
   }
 }
@@ -86,12 +86,12 @@ async function fetchStickerOptions() {
       .order('emoji');
     
     if (error) {
-      console.error('Error fetching sticker options:', error);
+
       return [];
     }
     return data || [];
   } catch (err) {
-    console.error('Failed to fetch sticker options:', err);
+
     return [];
   }
 }
@@ -864,7 +864,7 @@ export default function ElixCameraLayout({
                     className="flex flex-col items-center gap-1 group"
                     title="Retake"
                 >
-                    <div className="w-10 h-10 bg-gray-800/80 rounded-full flex items-center justify-center text-white border-2 border-white group-hover:bg-gray-700">
+                    <div className="w-10 h-10 bg-[#1C1E24]/80 rounded-full flex items-center justify-center text-white border-2 border-white group-hover:bg-[#2A2D35]">
                         <RotateCcw size={18} />
                     </div>
                     <span className="text-white font-bold text-[10px] shadow-black drop-shadow-md">Retake</span>

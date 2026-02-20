@@ -22,13 +22,13 @@ export async function fetchSoundTracksFromDatabase(): Promise<SoundTrack[]> {
       .order('title', { ascending: true });
 
     if (error) {
-      console.error('Error fetching sound tracks from database:', error);
+
       return [];
     }
 
     return soundData || [];
   } catch (err) {
-    console.error('Failed to fetch sound tracks:', err);
+
     return [];
   }
 }

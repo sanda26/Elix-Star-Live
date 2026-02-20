@@ -82,7 +82,7 @@ export default function CommentsModal({ isOpen, onClose, videoId }: CommentsModa
 
       setComments(commentsWithReplies);
     } catch (error) {
-      console.error('Failed to fetch comments:', error);
+
     } finally {
       setLoading(false);
     }
@@ -112,7 +112,7 @@ export default function CommentsModal({ isOpen, onClose, videoId }: CommentsModa
         level: reply.profiles?.level || 1
       }));
     } catch (error) {
-      console.error('Failed to fetch replies:', error);
+
       return [];
     }
   };
@@ -173,7 +173,7 @@ export default function CommentsModal({ isOpen, onClose, videoId }: CommentsModa
       setNewComment('');
       setReplyingTo(null);
     } catch (error) {
-      console.error('Failed to add comment:', error);
+
     }
   };
 
@@ -204,7 +204,7 @@ export default function CommentsModal({ isOpen, onClose, videoId }: CommentsModa
         setComments(prev => prev.filter(comment => comment.id !== commentId));
       }
     } catch (error) {
-      console.error('Failed to delete comment:', error);
+
     }
   };
 
@@ -240,7 +240,7 @@ export default function CommentsModal({ isOpen, onClose, videoId }: CommentsModa
       setEditingComment(null);
       setEditText('');
     } catch (error) {
-      console.error('Failed to edit comment:', error);
+
     }
   };
 
@@ -297,7 +297,7 @@ export default function CommentsModal({ isOpen, onClose, videoId }: CommentsModa
         return comment;
       }));
     } catch (error) {
-      console.error('Failed to like comment:', error);
+
     }
   };
 

@@ -7,10 +7,7 @@ import './index.css'
 
 // Debug: catch any unhandled errors that cause white screen
 // Only show critical crashes in dev, or log in prod
-window.addEventListener('error', (e) => {
-  if (import.meta.env.DEV) {
-     console.error('Global Error:', e.error);
-  }
+window.addEventListener('error', () => {
 });
 
 window.addEventListener('unhandledrejection', (e) => {
@@ -19,8 +16,6 @@ window.addEventListener('unhandledrejection', (e) => {
     e.preventDefault(); // Prevent browser console noise
     return;
   }
-  
-  console.error('Unhandled Promise Rejection:', e.reason);
   
   // Only show the crash screen in DEV mode and for non-abort errors
   if (import.meta.env.DEV) {
@@ -39,6 +34,6 @@ try {
     </StrictMode>,
   )
 } catch (e) {
-  console.error('Root render failed:', e);
+
   document.body.innerHTML = `<div style="padding:20px;color:red;font-family:monospace;background:#111;min-height:100vh"><h2>⚠️ Root Render Crash</h2><pre>${e instanceof Error ? e.message : String(e)}</pre></div>`;
 }

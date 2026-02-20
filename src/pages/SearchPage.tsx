@@ -72,7 +72,7 @@ export default function SearchPage() {
             <input 
               type="text" 
               placeholder="Search" 
-              className="w-full bg-gray-800 text-white rounded-md py-2 pl-10 pr-4 text-sm focus:outline-none focus:bg-gray-700"
+              className="w-full bg-[#1C1E24] text-white rounded-md py-2 pl-10 pr-4 text-sm focus:outline-none focus:bg-[#2A2D35]"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               autoFocus
@@ -102,7 +102,7 @@ export default function SearchPage() {
                     params.set('q', tag);
                     navigate({ pathname: location.pathname, search: `?${params.toString()}` }, { replace: true });
                   }}
-                  className="bg-gray-800 px-3 py-1.5 rounded-full text-sm hover:bg-gray-700 transition-colors"
+                  className="bg-[#1C1E24] px-3 py-1.5 rounded-full text-sm hover:bg-[#2A2D35] transition-colors"
                 >
                   {tag}
                 </button>

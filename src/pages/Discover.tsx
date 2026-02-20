@@ -82,7 +82,7 @@ export default function Discover() {
       if (error) throw error;
       setTrendingVideos(data || []);
     } catch (error) {
-      console.error('Failed to load trending:', error);
+
     } finally {
       setLoading(false);
     }
@@ -100,7 +100,7 @@ export default function Discover() {
       if (error) throw error;
       setTrendingHashtags(data || []);
     } catch (error) {
-      console.error('Failed to load hashtags:', error);
+
     } finally {
       setLoading(false);
     }
@@ -114,7 +114,7 @@ export default function Discover() {
       if (error) throw error;
       setRankings(data || []);
     } catch (error) {
-      console.error('Failed to load ranking:', error);
+
     } finally {
       setLoading(false);
     }
@@ -145,7 +145,7 @@ export default function Discover() {
         users: usersRes.data || [],
       });
     } catch (error) {
-      console.error('Search failed:', error);
+
     } finally {
       setLoading(false);
     }

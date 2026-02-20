@@ -13,6 +13,7 @@ import {
   QrCode,
   Code
 } from 'lucide-react';
+import { showToast } from '../lib/toast';
 
 interface ShareModalProps {
   isOpen: boolean;
@@ -36,8 +37,8 @@ const sharePlatforms = [
   {
     name: 'Copy Link',
     icon: Link,
-    color: 'bg-gray-600',
-    hover: 'hover:bg-gray-700',
+    color: 'bg-[#2A2D35]',
+    hover: 'hover:bg-[#2A2D35]',
     action: 'copy'
   },
   {
@@ -132,13 +133,13 @@ export default function ShareModal({ isOpen, onClose, video }: ShareModalProps) 
         case 'instagram':
           // Instagram doesn't allow direct sharing via URL, copy to clipboard instead
           await navigator.clipboard.writeText(shareText + ' ' + videoUrl);
-          alert('Caption copied to clipboard! You can now paste it in your Instagram story or post.');
+          showToast('Caption copied to clipboard! You can now paste it in your Instagram story or post.');
           break;
           
         case 'youtube':
           // YouTube doesn't allow direct sharing, copy to clipboard instead
           await navigator.clipboard.writeText(shareText + ' ' + videoUrl);
-          alert('Video link copied to clipboard!');
+          showToast('Video link copied to clipboard!');
           break;
           
         default:
@@ -155,14 +156,14 @@ export default function ShareModal({ isOpen, onClose, video }: ShareModalProps) 
           }
       }
     } catch (error) {
-      console.error('Error sharing:', error);
+
       // Fallback to copying link
       try {
         await navigator.clipboard.writeText(videoUrl);
         setCopiedLink(true);
         setTimeout(() => setCopiedLink(false), 2000);
       } catch (clipboardError) {
-        console.error('Failed to copy to clipboard:', clipboardError);
+
       }
     }
   };
@@ -176,7 +177,7 @@ export default function ShareModal({ isOpen, onClose, video }: ShareModalProps) 
   const generateEmbedCode = () => {
     const embedCode = `<iframe src="${videoUrl}" width="560" height="315" frameborder="0" allowfullscreen></iframe>`;
     navigator.clipboard.writeText(embedCode);
-    alert('Embed code copied to clipboard!');
+    showToast('Embed code copied to clipboard!');
   };
 
   const handleDownload = async () => {
@@ -189,8 +190,8 @@ export default function ShareModal({ isOpen, onClose, video }: ShareModalProps) 
       link.click();
       document.body.removeChild(link);
     } catch (error) {
-      console.error('Error downloading video:', error);
-      alert('Download failed. Please try again.');
+
+      showToast('Download failed. Please try again.');
     }
   };
 

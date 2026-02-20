@@ -25,7 +25,7 @@ export default function SavedVideos() {
       {/* Grid */}
       <div className="grid grid-cols-3 gap-0.5 p-0.5 flex-1 overflow-y-auto">
         {SAVED_VIDEOS.map((video) => (
-          <div key={video.id} className="aspect-[3/4] bg-gray-900 relative cursor-pointer" onClick={() => navigate('/feed')}>
+          <div key={video.id} className="aspect-[3/4] bg-[#13151A] relative cursor-pointer" onClick={() => navigate('/feed')}>
              <video 
                src={video.url} 
                className="w-full h-full object-cover" 

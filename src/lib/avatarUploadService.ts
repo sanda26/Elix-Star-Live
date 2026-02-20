@@ -63,7 +63,7 @@ export class AvatarUploadService {
 
       return { success: true, publicUrl };
     } catch (error) {
-      console.error('Avatar upload failed:', error);
+
       return { 
         success: false, 
         error: error instanceof Error ? error.message : 'Upload failed' 
@@ -96,7 +96,7 @@ export class AvatarUploadService {
             .remove([filePath]);
 
           if (deleteError) {
-            console.warn('Failed to delete avatar from storage:', deleteError);
+
           }
         }
       }
@@ -113,7 +113,7 @@ export class AvatarUploadService {
 
       return { success: true };
     } catch (error) {
-      console.error('Avatar removal failed:', error);
+
       return { 
         success: false, 
         error: error instanceof Error ? error.message : 'Removal failed' 

@@ -190,7 +190,7 @@ export default function VideoFeed() {
           .limit(1);
 
         if (error) {
-          console.error('Error fetching live streams:', error);
+
           setLiveStreams([]);
         } else {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -204,7 +204,7 @@ export default function VideoFeed() {
           })));
         }
       } catch (err) {
-        console.error('Error fetching live streams:', err);
+
         setLiveStreams([]);
       }
     };

@@ -83,7 +83,7 @@ function App() {
     // Failsafe: if loading takes too long (e.g. supabase hanging), force stop loading
     const timer = setTimeout(() => {
       if (useAuthStore.getState().isLoading) {
-        console.warn('Auth check timed out, forcing app load');
+
         useAuthStore.setState({ isLoading: false });
       }
     }, 3000);

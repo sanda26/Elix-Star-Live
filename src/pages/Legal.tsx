@@ -34,7 +34,7 @@ export default function Legal() {
             <button
               key={item.label}
               type="button"
-              className="w-full flex items-center p-4 hover:bg-gray-900 cursor-pointer text-left"
+              className="w-full flex items-center p-4 hover:bg-[#13151A] cursor-pointer text-left"
               onClick={() => navigate(item.to)}
             >
               <item.icon size={20} className="mr-4 text-white" />

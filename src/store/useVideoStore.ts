@@ -133,7 +133,7 @@ export const useVideoStore = create<VideoStore>()(
           try {
             feedResult = await fetchForYouFeed(1, 50);
           } catch (e) {
-            console.error('fetchForYouFeed failed, falling back to basic fetch:', e);
+
             feedResult = { videos: [] };
           }
 
@@ -171,7 +171,7 @@ export const useVideoStore = create<VideoStore>()(
 
             // 2. Fallback for profile relation if different join syntax needed
             if (res.error) {
-               console.log('Trying alternate query for videos...');
+
                res = await supabase
                   .from('videos')
                   .select(`
@@ -187,11 +187,11 @@ export const useVideoStore = create<VideoStore>()(
           } catch (fetchError: any) {
              // Catch abort errors specifically to avoid crashing
              if (fetchError.name === 'AbortError') {
-                console.warn('Video fetch aborted (likely slow network or unmount)');
+
                 set({ loading: false });
                 return;
              }
-             console.error('Supabase fetch failed:', fetchError);
+
              err = fetchError;
           }
 
@@ -264,7 +264,7 @@ export const useVideoStore = create<VideoStore>()(
 
           set({ videos: merged, likedVideos: likedIds, loading: false });
         } catch (err) {
-          console.error('Error fetching videos:', err);
+
           set({ loading: false });
         }
       },
@@ -337,7 +337,7 @@ export const useVideoStore = create<VideoStore>()(
 
           set({ videos: get().videos.filter((v) => v.id !== videoId) });
         } catch (err) {
-          console.error('deleteVideo failed:', err);
+
           set({ videos: snapshot });
           throw err instanceof Error ? err : new Error('Failed to delete video.');
         }
@@ -386,7 +386,7 @@ export const useVideoStore = create<VideoStore>()(
             })
             .eq('id', videoId);
         } catch (err) {
-          console.error('toggleLike persist failed:', err);
+
           set({ videos: state.videos, likedVideos: state.likedVideos });
         }
       },
@@ -472,8 +472,7 @@ export const useVideoStore = create<VideoStore>()(
              trackFollow(userId).catch(() => {});
           }
         } catch (err) {
-          console.error('toggleFollow persist failed:', err);
-          // Ideally revert state here, but for now we log error
+          /* ignored */
         }
       },
 
@@ -505,7 +504,7 @@ export const useVideoStore = create<VideoStore>()(
           trackShare(videoId).catch(() => {});
           await refreshVideoFypStatus(videoId, updatedStats);
         } catch (err) {
-          console.error('shareVideo FYP refresh failed:', err);
+          /* ignored */
         }
       },
 
@@ -574,8 +573,7 @@ export const useVideoStore = create<VideoStore>()(
           trackComment(videoId, commentData.text).catch(() => {});
           await refreshVideoFypStatus(videoId, updatedStats);
         } catch (err) {
-          console.error('addComment persist failed:', err);
-          // Revert on error? For now just log.
+          /* ignored */
         }
       },
 
@@ -597,7 +595,7 @@ export const useVideoStore = create<VideoStore>()(
         try {
           await supabase.from('comments').delete().eq('id', commentId);
         } catch (err) {
-          console.error('deleteComment failed:', err);
+          /* ignored */
         }
       },
 
@@ -640,7 +638,7 @@ export const useVideoStore = create<VideoStore>()(
              await supabase.from('comment_likes').insert({ comment_id: commentId, user_id: user.id });
           }
         } catch (err) {
-          console.error('toggleCommentLike failed:', err);
+          /* ignored */
         }
       },
 
@@ -670,7 +668,7 @@ export const useVideoStore = create<VideoStore>()(
           // Refresh FYP eligibility with new view count
           await refreshVideoFypStatus(videoId, updatedStats);
         } catch (err) {
-          console.error('incrementViews persist failed:', err);
+          /* ignored */
         }
       },
 

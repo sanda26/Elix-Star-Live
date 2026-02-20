@@ -58,7 +58,7 @@ export default function Login() {
       if (res.error) {
         // Handle AbortError specifically
         if (res.error === 'aborted' || res.error.includes('aborted')) {
-           console.warn('Login aborted by user or timeout');
+
            if (isMounted.current) setIsSubmitting(false);
            return;
         }
@@ -88,7 +88,7 @@ export default function Login() {
         navigate(from, { replace: true });
       }
     } catch (err: any) {
-      console.error('Login submit error:', err);
+
       
       // Check for AbortError in catch block too
       if (err.name === 'AbortError' || err.message?.includes('aborted')) {

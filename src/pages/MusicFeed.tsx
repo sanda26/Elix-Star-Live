@@ -41,12 +41,12 @@ export default function MusicFeed() {
     <div className="min-h-[100dvh] bg-[#13151A] text-white flex justify-center px-2">
       <div className="w-full max-w-[480px] h-[100dvh] rounded-3xl overflow-hidden bg-[#13151A] flex flex-col pt-[var(--safe-top)] pb-[calc(var(--safe-bottom)+12mm)] overflow-y-auto">
         {/* Header Info */}
-        <div className="p-4 pt-6 bg-gradient-to-b from-gray-900 to-black">
+        <div className="p-4 pt-6 bg-gradient-to-b from-[#13151A] to-black">
          <button onClick={() => navigate('/feed')} className="p-2 mb-4" title="Back to For You">
            <img src="/Icons/power-button.png" alt="Back" className="w-5 h-5" />
          </button>
          <div className="flex gap-4">
-         <div className="w-24 h-24 bg-gray-800 rounded-md flex items-center justify-center shrink-0">
+         <div className="w-24 h-24 bg-[#1C1E24] rounded-md flex items-center justify-center shrink-0">
             <Music size={40} className="text-white/50" />
          </div>
          <div className="flex-1">
@@ -72,7 +72,7 @@ export default function MusicFeed() {
           </div>
         ) : (
           videos.map((video) => (
-            <div key={video.id} className="aspect-[3/4] bg-gray-900 relative cursor-pointer" onClick={() => navigate('/')}>
+            <div key={video.id} className="aspect-[3/4] bg-[#13151A] relative cursor-pointer" onClick={() => navigate('/')}>
                <video 
                  src={video.video_url} 
                  className="w-full h-full object-cover" 

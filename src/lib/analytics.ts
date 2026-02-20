@@ -145,10 +145,7 @@ class AnalyticsService {
       app_version: '1.5.0',
     };
 
-    // Console log in development
-    if (import.meta.env.DEV) {
-      console.log('[Analytics]', event, enrichedProperties);
-    }
+
 
     // TODO: Send to analytics platform
     // if (window.posthog) {

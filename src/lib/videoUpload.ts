@@ -176,7 +176,7 @@ export class VideoUploadService {
         .single();
       
       if (error) {
-          console.error('Video insert error details:', error);
+
           if (error.code === '23503') { // foreign_key_violation
              throw new Error(`User ID mismatch (Code: 23503). Try logging out and back in.`);
           }
@@ -215,7 +215,7 @@ export class VideoUploadService {
 
       return videoData.id;
     } catch (error: any) {
-      console.error('Upload failed:', error);
+
       trackEvent('video_upload_failed', { error: String(error) });
       const msg = error?.message ?? error?.error_description ?? String(error);
       throw new Error(msg || 'Upload failed');

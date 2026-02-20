@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { showToast } from '../lib/toast';
 import {
   Send,
   Search,
@@ -45,8 +46,6 @@ import { supabase } from '../lib/supabase';
 import { LevelBadge } from '../components/LevelBadge';
 import ReportModal from '../components/ReportModal';
 import { RankingPanel } from '../components/RankingPanel';
-import { stripePaymentService } from '../lib/stripePaymentService';
-import { STRIPE_CONFIG } from '../config/stripe';
 import LiveAIFilters from '../components/LiveAIFilters';
 
 
@@ -271,7 +270,7 @@ export default function LiveStream() {
         { onConflict: 'stream_key' }
       );
       if (error) {
-        console.warn('Live status update failed:', error.message);
+
       }
     })();
     return () => {
@@ -282,7 +281,7 @@ export default function LiveStream() {
         .eq('user_id', user.id)
         .then(({ error }) => {
           if (error) {
-            console.warn('Live status clear failed:', error.message);
+
           }
         });
     };
@@ -1384,7 +1383,7 @@ export default function LiveStream() {
       setShowComboButton(true);
       resetComboTimer();
     } catch (error) {
-      console.error('Error sending gift:', error);
+
     }
   };
 
@@ -1418,7 +1417,7 @@ export default function LiveStream() {
       
       // Check balance
       if (coinBalance < lastSentGift.coins) {
-        alert("Not enough coins!");
+        showToast("Not enough coins!");
         return;
       }
 
@@ -1433,7 +1432,7 @@ export default function LiveStream() {
           if (error) {
             const msg = typeof error.message === 'string' ? error.message : '';
             if (msg.includes('insufficient_funds')) {
-              alert('Not enough coins');
+              showToast('Not enough coins');
               return;
             }
             setCoinBalance(prev => Math.max(0, prev - lastSentGift.coins));
@@ -1682,7 +1681,7 @@ export default function LiveStream() {
                 muted
                 playsInline
                 onError={(e) => {
-                  console.warn("Video failed to load, falling back to black");
+
                   e.currentTarget.style.display = 'block';
                   e.currentTarget.parentElement?.classList.add('bg-[#13151A]');
                 }}
@@ -1953,18 +1952,18 @@ export default function LiveStream() {
                     <button
                       type="button"
                       onClick={(e) => { e.stopPropagation(); setGiftTarget('opponent'); spawnHeartFromClient(e.clientX, e.clientY); }}
-                      className={`w-1/2 h-full overflow-hidden relative bg-gray-900 pointer-events-auto ${is4Player ? 'border-b border-white/5' : ''}`}
+                      className={`w-1/2 h-full overflow-hidden relative bg-[#13151A] pointer-events-auto ${is4Player ? 'border-b border-white/5' : ''}`}
                     >
                       {battleSlots[0].status === 'accepted' ? (
                         <video ref={opponentVideoRef} className="w-full h-full object-cover" autoPlay playsInline muted />
                       ) : battleSlots[0].status === 'invited' ? (
-                        <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-gray-900">
+                        <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-[#13151A]">
                           <img src={battleSlots[0].avatar} alt={battleSlots[0].name} className="w-12 h-12 rounded-full border-2 border-[#C9A96E] opacity-60" />
                           <div className="w-5 h-5 border-2 border-[#C9A96E] border-t-transparent rounded-full animate-spin" />
                           <span className="text-white text-[10px] font-bold">Waiting...</span>
                         </div>
                       ) : (
-                        <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-gray-900/80 pointer-events-auto" onClick={(e) => { e.stopPropagation(); setIsFindCreatorsOpen(true); }}>
+                        <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-[#13151A]/80 pointer-events-auto" onClick={(e) => { e.stopPropagation(); setIsFindCreatorsOpen(true); }}>
                           <div className="w-12 h-12 rounded-full border-2 border-dashed border-white/20 flex items-center justify-center">
                             <span className="text-white/30 text-2xl">+</span>
                           </div>
@@ -2015,18 +2014,18 @@ export default function LiveStream() {
                       <button
                         type="button"
                         onClick={(e) => { e.stopPropagation(); setGiftTarget('player3'); spawnHeartFromClient(e.clientX, e.clientY); }}
-                        className="w-1/2 h-full overflow-hidden relative bg-gray-900 pointer-events-auto border-r border-white/5"
+                        className="w-1/2 h-full overflow-hidden relative bg-[#13151A] pointer-events-auto border-r border-white/5"
                       >
                         {battleSlots[1].status === 'accepted' ? (
                           <video ref={player3VideoRef} className="w-full h-full object-cover" autoPlay playsInline muted />
                         ) : battleSlots[1].status === 'invited' ? (
-                          <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-gray-900">
+                          <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-[#13151A]">
                             <img src={battleSlots[1].avatar} alt={battleSlots[1].name} className="w-12 h-12 rounded-full border-2 border-[#C9A96E] opacity-60" />
                             <div className="w-5 h-5 border-2 border-[#C9A96E] border-t-transparent rounded-full animate-spin" />
                             <span className="text-white text-[10px] font-bold">Waiting...</span>
                           </div>
                         ) : (
-                          <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-gray-900/80 pointer-events-auto" onClick={(e) => { e.stopPropagation(); setIsFindCreatorsOpen(true); }}>
+                          <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-[#13151A]/80 pointer-events-auto" onClick={(e) => { e.stopPropagation(); setIsFindCreatorsOpen(true); }}>
                             <div className="w-12 h-12 rounded-full border-2 border-dashed border-white/20 flex items-center justify-center">
                               <span className="text-white/30 text-2xl">+</span>
                             </div>
@@ -2073,18 +2072,18 @@ export default function LiveStream() {
                       <button
                         type="button"
                         onClick={(e) => { e.stopPropagation(); setGiftTarget('player4'); spawnHeartFromClient(e.clientX, e.clientY); }}
-                        className="w-1/2 h-full overflow-hidden relative bg-gray-900 pointer-events-auto"
+                        className="w-1/2 h-full overflow-hidden relative bg-[#13151A] pointer-events-auto"
                       >
                         {battleSlots[2].status === 'accepted' ? (
                           <video ref={player4VideoRef} className="w-full h-full object-cover" autoPlay playsInline muted />
                         ) : battleSlots[2].status === 'invited' ? (
-                          <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-gray-900">
+                          <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-[#13151A]">
                             <img src={battleSlots[2].avatar} alt={battleSlots[2].name} className="w-12 h-12 rounded-full border-2 border-[#C9A96E] opacity-60" />
                             <div className="w-5 h-5 border-2 border-[#C9A96E] border-t-transparent rounded-full animate-spin" />
                             <span className="text-white text-[10px] font-bold">Waiting...</span>
                           </div>
                         ) : (
-                          <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-gray-900/80 pointer-events-auto" onClick={(e) => { e.stopPropagation(); setIsFindCreatorsOpen(true); }}>
+                          <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-[#13151A]/80 pointer-events-auto" onClick={(e) => { e.stopPropagation(); setIsFindCreatorsOpen(true); }}>
                             <div className="w-12 h-12 rounded-full border-2 border-dashed border-white/20 flex items-center justify-center">
                               <span className="text-white/30 text-2xl">+</span>
                             </div>
@@ -2219,7 +2218,7 @@ export default function LiveStream() {
                                     {/* Membership / Join Button (Bottom) */}
                                     <button
                                       type="button"
-                                      className={`col-start-1 row-start-1 flex items-center justify-center gap-1 ${hasJoinedToday ? 'bg-[#FF6B00] border-[#FF6B00]' : 'bg-white border-white/20'} rounded-full px-1.5 py-0.5 shadow-sm border w-[58px] h-7 z-0 transition-colors duration-200`}
+                                      className={`col-start-1 row-start-1 flex items-center justify-center gap-1 ${hasJoinedToday ? 'bg-[#C9A96E] border-[#C9A96E]' : 'bg-white border-white/20'} rounded-full px-1.5 py-0.5 shadow-sm border w-[58px] h-7 z-0 transition-colors duration-200`}
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         if (!hasJoinedToday && user?.id && effectiveStreamId) {
@@ -2258,16 +2257,16 @@ export default function LiveStream() {
                                     >
                                       <div className="relative">
                                         <Heart
-                                          className={`w-3.5 h-3.5 ${hasJoinedToday ? 'text-white fill-white' : 'text-[#FF6B00] fill-[#FF6B00]'}`}
+                                          className={`w-3.5 h-3.5 ${hasJoinedToday ? 'text-white fill-white' : 'text-[#C9A96E] fill-[#C9A96E]'}`}
                                           strokeWidth={2.5}
                                         />
                                         {!hasJoinedToday && (
-                                          <div className="absolute -top-1 -right-1 w-2 h-2 bg-[#FF6B00] rounded-full flex items-center justify-center border border-white">
+                                          <div className="absolute -top-1 -right-1 w-2 h-2 bg-[#C9A96E] rounded-full flex items-center justify-center border border-white">
                                             <span className="text-white text-[6px] font-bold leading-none">+</span>
                                           </div>
                                         )}
                                       </div>
-                                      <span className={`${hasJoinedToday ? 'text-white' : 'text-[#FF6B00]'} text-[10px] font-bold`}>Join</span>
+                                      <span className={`${hasJoinedToday ? 'text-white' : 'text-[#C9A96E]'} text-[10px] font-bold`}>Join</span>
                                     </button>
 
                                     {/* Follow Button (Top) - Shows "+ Follow" */}
@@ -2291,7 +2290,7 @@ export default function LiveStream() {
                           </div>
                           <div className="flex items-center gap-2 mt-1 ml-9 pointer-events-auto relative z-20">
                             <div 
-                              className="flex items-center gap-1 bg-gradient-to-r from-yellow-600 to-yellow-400 rounded-full px-2 py-0.5 border border-white/10 shadow-sm cursor-pointer w-fit" 
+                              className="flex items-center gap-1 bg-gradient-to-r from-[#C9A96E] to-[#D4B87A] rounded-full px-2 py-0.5 border border-white/10 shadow-sm cursor-pointer w-fit" 
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setShowRankingPanel(true);
@@ -2377,7 +2376,7 @@ export default function LiveStream() {
                             </div>
                               
                               <div className="flex items-center gap-2 mt-0.5 pointer-events-auto">
-                                <div className="flex items-center gap-1 bg-gradient-to-r from-yellow-600 to-yellow-400 rounded-full px-2 py-0.5 border border-white/10 shadow-sm cursor-pointer" onClick={(e) => {
+                                <div className="flex items-center gap-1 bg-gradient-to-r from-[#C9A96E] to-[#D4B87A] rounded-full px-2 py-0.5 border border-white/10 shadow-sm cursor-pointer" onClick={(e) => {
                                    e.stopPropagation();
                                    setShowRankingPanel(true);
                                 }}>
@@ -2599,8 +2598,8 @@ export default function LiveStream() {
                   )}
                 </button>
               )}
-              <button type="button" onClick={() => { if (!isBattleMode) toggleBattle(); else setIsFindCreatorsOpen(true); }} className="w-10 h-10 rounded-full bg-[#4DA6FF]/20 backdrop-blur-md border border-[#4DA6FF]/40 flex items-center justify-center shadow-lg">
-                <Users size={20} className="text-[#4DA6FF]" />
+              <button type="button" onClick={() => { if (!isBattleMode) toggleBattle(); else setIsFindCreatorsOpen(true); }} className="w-10 h-10 rounded-full bg-[#C9A96E]/20 backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg">
+                <Users size={20} className="text-[#C9A96E]" />
               </button>
               <button type="button" onClick={() => { setGiftTarget('me'); setShowGiftPanel(true); }} className="w-10 h-10 rounded-full bg-[#C9A96E]/20 backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg">
                 <Gift size={20} className="text-white" />
@@ -2741,14 +2740,14 @@ export default function LiveStream() {
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
               <div className="flex items-center gap-2">
-                <Users className="w-4 h-4 text-[#4DA6FF]" strokeWidth={2} />
+                <Users className="w-4 h-4 text-[#C9A96E]" strokeWidth={2} />
                 <span className="text-white font-bold text-sm">Invite Creators</span>
               </div>
             </div>
 
             {/* Search */}
             <div className="px-4 py-3">
-              <div className="flex items-center gap-3 px-3 h-10 rounded-xl bg-[#13151A]/50 border border-white/10 focus-within:border-[#4DA6FF]/50 transition-colors">
+              <div className="flex items-center gap-3 px-3 h-10 rounded-xl bg-[#13151A]/50 border border-white/10 focus-within:border-[#C9A96E]/50 transition-colors">
                 <Search className="w-4 h-4 text-white/50" strokeWidth={2} />
                 <input
                   value={creatorQuery}
@@ -2840,7 +2839,7 @@ export default function LiveStream() {
                           className={`px-4 py-1.5 text-[11px] font-bold rounded-full transition-all active:scale-95 ${
                             allFull 
                               ? 'bg-white/5 text-white/30 cursor-not-allowed' 
-                              : 'bg-[#4DA6FF] hover:bg-[#3b8ad9] text-white shadow-lg shadow-blue-500/20'
+                              : 'bg-[#C9A96E] hover:bg-[#B8943F] text-white shadow-lg shadow-[#C9A96E]/20'
                           }`}
                         >
                           Invite
@@ -3640,7 +3639,7 @@ export default function LiveStream() {
                     if (item.name === 'Copy Link') {
                        const shareUrl = `https://app.com/live/${effectiveStreamId}`;
                        navigator.clipboard.writeText(shareUrl);
-                       alert('Link copied!');
+                       showToast('Link copied!');
                     }
                     setShowSharePanel(false);
                   }}

@@ -75,7 +75,7 @@ export default function FollowingFeed() {
       if (error) throw error;
       setVideos(videosData || []);
     } catch (error) {
-      console.error('Failed to load following videos:', error);
+
     } finally {
       setLoading(false);
     }

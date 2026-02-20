@@ -32,7 +32,7 @@ export const BuyCoinsModal: React.FC<BuyCoinsModalProps> = ({ isOpen, onClose, o
   };
 
   const handlePaymentError = (error: string) => {
-    console.error('Payment error:', error);
+
     // Show error to user
   };
 

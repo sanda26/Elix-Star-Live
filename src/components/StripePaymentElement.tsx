@@ -141,7 +141,7 @@ export const StripePaymentElement: React.FC<StripePaymentElementProps> = ({
                 throw new Error('No client secret returned');
             }
         } catch (err) {
-             console.error('Payment init error:', err);
+
              onError('Failed to initialize payment system');
         } finally {
             setLoading(false);

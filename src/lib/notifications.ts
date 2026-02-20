@@ -32,7 +32,7 @@ class NotificationService {
    */
   async initialize() {
     if (!Capacitor.isNativePlatform()) {
-      console.log('Push notifications not available on web');
+
       return;
     }
 
@@ -62,12 +62,10 @@ class NotificationService {
         );
 
         this.isInitialized = true;
-        console.log('Push notifications initialized');
       } else {
-        console.log('Push notification permission denied');
       }
     } catch (error) {
-      console.error('Failed to initialize push notifications:', error);
+
     }
   }
 
@@ -75,7 +73,7 @@ class NotificationService {
    * Handle device token registration
    */
   private async handleRegistration(token: Token) {
-    console.log('Push registration success, token:', token.value);
+
     this.deviceToken = token.value;
 
     // Save token to backend
@@ -92,7 +90,7 @@ class NotificationService {
 
       trackEvent('push_token_registered', { platform: Capacitor.getPlatform() });
     } catch (error) {
-      console.error('Failed to save device token:', error);
+
     }
   }
 
@@ -100,7 +98,7 @@ class NotificationService {
    * Handle notification received while app is in foreground
    */
   private handleNotificationReceived(notification: PushNotificationSchema) {
-    console.log('Push notification received:', notification);
+
 
     // Show in-app notification banner
     this.showInAppNotification(notification);
@@ -115,7 +113,7 @@ class NotificationService {
    * Handle notification tap/action
    */
   private handleNotificationAction(action: any) {
-    console.log('Push notification action:', action);
+
 
     const notification = action.notification;
     const data = notification.data;
@@ -179,7 +177,7 @@ class NotificationService {
    */
   async requestPermission(): Promise<boolean> {
     if (!('Notification' in window)) {
-      console.log('Browser does not support notifications');
+
       return false;
     }
 

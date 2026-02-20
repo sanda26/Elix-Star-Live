@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { Heart, UserPlus, Bell, Search, MoreHorizontal, ChevronDown, Camera, ShoppingBag, Archive, MicOff, ChevronLeft, Plus } from 'lucide-react';
+import { Heart, UserPlus, Search, Camera, ShoppingBag, Archive, MicOff, Plus } from 'lucide-react';
 
 interface Notification {
   id: string;
@@ -153,7 +153,7 @@ export default function Inbox() {
                 {conversations.slice(0, 6).map(c => (
                     <button key={c.id} onClick={() => navigate(`/inbox/${c.id}`)} className="flex flex-col items-center gap-1 min-w-[64px]">
                         <div className="w-16 h-16 rounded-full p-[2px] bg-gradient-to-tr from-[#C9A96E] to-[#C9A96E]">
-                            <div className="w-full h-full rounded-full border-2 border-[#13151A] overflow-hidden bg-gray-800">
+                            <div className="w-full h-full rounded-full border-2 border-[#13151A] overflow-hidden bg-[#1C1E24]">
                                 <img src={c.otherUser?.avatar_url || ''} alt={c.otherUser?.username || 'User'} className="w-full h-full object-cover" />
                             </div>
                         </div>

@@ -3,6 +3,7 @@ import { AlertTriangle, Flag, Ban, EyeOff, MessageSquare, UserMinus } from 'luci
 import { useAuthStore } from '../store/useAuthStore';
 import { useVideoStore } from '../store/useVideoStore';
 import { supabase } from '../lib/supabase';
+import { showToast } from '../lib/toast';
 
 interface ReportModalProps {
   isOpen: boolean;
@@ -107,11 +108,11 @@ export default function ReportModal({ isOpen, onClose, videoId, contentType, con
 
   const handleSubmit = async () => {
     if (!selectedReason) {
-      alert('Please select a reason for reporting');
+      showToast('Please select a reason for reporting');
       return;
     }
     if (!authToken) {
-      alert('Please sign in to submit a report.');
+      showToast('Please sign in to submit a report.');
       return;
     }
 
@@ -149,8 +150,8 @@ export default function ReportModal({ isOpen, onClose, videoId, contentType, con
         setAdditionalDetails('');
       }, 2000);
     } catch (error) {
-      console.error('Error submitting report:', error);
-      alert('Failed to submit report. Please try again.');
+
+      showToast('Failed to submit report. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -164,8 +165,6 @@ export default function ReportModal({ isOpen, onClose, videoId, contentType, con
   const handleDelete = async () => {
     if (!canDelete) return;
     if (isDeletingVideo) return;
-    const ok = window.confirm('Delete this video?');
-    if (!ok) return;
     setIsDeletingVideo(true);
     try {
       await deleteVideo(videoId);
@@ -174,7 +173,7 @@ export default function ReportModal({ isOpen, onClose, videoId, contentType, con
       setAdditionalDetails('');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to delete video.';
-      alert(message);
+      showToast(message);
     } finally {
       setIsDeletingVideo(false);
     }

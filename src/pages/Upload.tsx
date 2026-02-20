@@ -149,10 +149,9 @@ export default function Upload() {
                previewAudioRef.current.volume = 1.0;
                previewAudioRef.current.currentTime = start;
                previewAudioRef.current.play()
-                   .then(() => console.log("Audio playing:", track.title))
-                   .catch(e => {
-                       console.error("Audio play failed", e);
-                       alert("Could not play audio. Check console for details.");
+                   .then(() => {})
+                   .catch(() => {
+                       showToast("Could not play audio preview.");
                    });
                setPlayingTrackId(track.id);
                
@@ -219,7 +218,7 @@ export default function Upload() {
         }
         setCameraError(null);
       } catch (err: unknown) {
-        console.error("Error accessing camera:", err);
+
         const error = err as { name?: string };
         if (error?.name === 'NotAllowedError' || error?.name === 'SecurityError') {
           setCameraError('Camera permission denied. Please allow camera access in your browser and tap Try Again.');
@@ -466,7 +465,7 @@ export default function Upload() {
         
       } catch (error: any) {
         const msg = error?.message || error?.error_description || String(error) || 'Unknown error';
-        console.error('Post failed:', error);
+
         setPostError(msg);
         setIsPosting(false);
         setPostProgress(0);
@@ -617,7 +616,7 @@ export default function Upload() {
                       className="absolute bottom-[10%] left-[5%] flex flex-col items-center gap-1 group z-30 pointer-events-auto"
                       title="Upload"
                    >
-                       <div className="w-10 h-10 bg-gray-800/80 rounded-full flex items-center justify-center text-white border-2 border-white group-hover:bg-gray-700">
+                       <div className="w-10 h-10 bg-[#1C1E24]/80 rounded-full flex items-center justify-center text-white border-2 border-white group-hover:bg-[#2A2D35]">
                            {/* Simple Upload Icon */}
                            <div className="w-4 h-4 border-2 border-white rounded-sm relative overflow-hidden">
                                <div className="absolute top-0.5 right-0.5 w-1 h-1 bg-white rounded-full"></div>
@@ -633,7 +632,7 @@ export default function Upload() {
                            className="flex flex-col items-center gap-1 group"
                            title="Retake"
                        >
-                           <div className="w-10 h-10 bg-gray-800/80 rounded-full flex items-center justify-center text-white border-2 border-white group-hover:bg-gray-700">
+                           <div className="w-10 h-10 bg-[#1C1E24]/80 rounded-full flex items-center justify-center text-white border-2 border-white group-hover:bg-[#2A2D35]">
                                <RotateCcw size={18} />
                            </div>
                            <span className="text-white font-bold text-[10px] shadow-black drop-shadow-md">Retake</span>
@@ -854,7 +853,7 @@ export default function Upload() {
                     onClick={handleFileUpload}
                     title="Upload from Gallery"
                   >
-                    <div className="w-10 h-10 bg-[#1C1E24] rounded-full flex items-center justify-center text-white border-2 border-white group-hover:bg-gray-700">
+                    <div className="w-10 h-10 bg-[#1C1E24] rounded-full flex items-center justify-center text-white border-2 border-white group-hover:bg-[#2A2D35]">
                         {/* Gallery Icon */}
                         <div className="w-4 h-4 border-2 border-white rounded-sm relative overflow-hidden">
                             <div className="absolute top-0.5 right-0.5 w-1 h-1 bg-white rounded-full"></div>

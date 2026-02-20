@@ -54,7 +54,7 @@ export interface IAPPurchaseResult {
  */
 export async function initializeIAP(): Promise<void> {
   if (!platform.isNative) {
-    console.log('[IAP] Skipping IAP init — not on native platform');
+
     return;
   }
 
@@ -64,7 +64,7 @@ export async function initializeIAP(): Promise<void> {
   // await InAppPurchases.addListener('purchaseCompleted', handlePurchaseCompleted);
   // await InAppPurchases.addListener('purchaseFailed', handlePurchaseFailed);
   
-  console.log('[IAP] IAP service initialized for', platform.name);
+
 }
 
 /**
@@ -72,7 +72,7 @@ export async function initializeIAP(): Promise<void> {
  */
 export async function loadProducts(): Promise<IAPProduct[]> {
   if (!platform.isNative) {
-    console.warn('[IAP] Cannot load IAP products on web');
+
     return [];
   }
 
@@ -80,7 +80,7 @@ export async function loadProducts(): Promise<IAPProduct[]> {
   // const { products } = await InAppPurchases.getProducts({ productIds: [...IAP_PRODUCT_IDS] });
   // return products.map(p => ({ ... }));
 
-  console.warn('[IAP] IAP plugin not yet installed — returning empty products');
+
   return [];
 }
 
@@ -115,7 +115,7 @@ export async function purchaseProduct(_productId: IAPProductId): Promise<IAPPurc
     return { success: false, error: 'IAP plugin not yet installed' };
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Purchase failed';
-    console.error('[IAP] Purchase error:', message);
+
     return { success: false, error: message };
   }
 }
@@ -128,5 +128,5 @@ export async function restorePurchases(): Promise<void> {
   
   // TODO: Implement with IAP plugin
   // await InAppPurchases.restorePurchases();
-  console.log('[IAP] Restore purchases called');
+
 }

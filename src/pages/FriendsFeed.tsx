@@ -48,7 +48,7 @@ export default function FriendsFeed() {
 
   return (
     <div className="min-h-[100dvh] bg-[#13151A] text-white flex justify-center px-2">
-      <div className="w-full max-w-[480px] h-[100dvh] rounded-3xl overflow-hidden bg-[#13151A] pt-[calc(var(--safe-top)+46px)] pb-[calc(var(--safe-bottom)+70px)] overflow-y-auto">
+      <div className="w-full max-w-[480px] h-[100dvh] rounded-3xl overflow-hidden bg-[#13151A] pt-[calc(var(--safe-top)+46px)] pb-[calc(var(--safe-bottom)+110px)] overflow-y-auto">
         <div className="p-4 flex items-center justify-between relative">
           <button onClick={() => navigate(-1)} className="p-1 z-10" title="Back">
              <img src="/Icons/power-button.png" alt="Back" className="w-5 h-5" />

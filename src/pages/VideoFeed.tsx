@@ -456,7 +456,7 @@ export default function VideoFeed() {
                 scrollSnapStop: 'always'
               }}
             >
-              <div className="w-full max-w-[480px] absolute left-1/2 -translate-x-1/2" style={{top:'calc(var(--safe-top) + 46px)', bottom:'calc(var(--safe-bottom) + 70px)'}}>
+              <div className="w-full max-w-[480px] absolute left-1/2 -translate-x-1/2" style={{top:'calc(var(--safe-top) + 46px)', bottom:'calc(var(--safe-bottom) + 110px)'}}>
                 <PromoCard
                   promo={item.promo}
                   onOpen={() =>
@@ -480,7 +480,7 @@ export default function VideoFeed() {
                 scrollSnapStop: 'always'
               }}
             >
-              <div className="w-full max-w-[480px] absolute left-1/2 -translate-x-1/2" style={{top:'calc(var(--safe-top) + 46px)', bottom:'calc(var(--safe-bottom) + 70px)'}}>
+              <div className="w-full max-w-[480px] absolute left-1/2 -translate-x-1/2" style={{top:'calc(var(--safe-top) + 46px)', bottom:'calc(var(--safe-bottom) + 110px)'}}>
                 <LiveStreamCard
                   stream={item.stream}
                   onOpen={() => navigate(`/live/${item.stream.stream_key}`, { replace: true })}

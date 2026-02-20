@@ -31,6 +31,7 @@ import {
   UserPlus,
   X,
   Crown,
+  Sword,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { GiftPanel } from '../components/GiftPanel';

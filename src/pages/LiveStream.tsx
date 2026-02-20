@@ -325,7 +325,7 @@ export default function LiveStream() {
   const [messages, setMessages] = useState<LiveMessage[]>([]);
   const [coinBalance, setCoinBalance] = useState(999999999);
   const [inputValue, setInputValue] = useState('');
-  const isBroadcast = streamId === 'broadcast';
+  const isBroadcast = streamId === 'broadcast' || location.pathname === '/live/broadcast';
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);

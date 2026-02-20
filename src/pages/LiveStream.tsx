@@ -2556,19 +2556,16 @@ export default function LiveStream() {
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
                 </button>
                 <button type="button" onClick={handleShare} className="w-9 h-9 rounded-full bg-[#13151A]/60 backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform" style={{boxShadow:'0 0 8px rgba(201,169,110,0.3), inset 0 1px 0 rgba(255,224,138,0.1)'}}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{filter:'drop-shadow(0 0 3px rgba(212,160,23,0.6)) drop-shadow(0 0 6px rgba(201,169,110,0.3))'}}>
+                  <svg width="20" height="20" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" style={{filter:'drop-shadow(0 0 3px rgba(212,160,23,0.6)) drop-shadow(0 0 6px rgba(201,169,110,0.3))'}}>
                     <defs>
-                      <linearGradient id="shareGold1" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" stopColor="#FFE08A"/>
-                        <stop offset="25%" stopColor="#D4A017"/>
-                        <stop offset="50%" stopColor="#C9A96E"/>
-                        <stop offset="75%" stopColor="#D4A017"/>
-                        <stop offset="100%" stopColor="#FFE08A"/>
+                      <linearGradient id="sGold1" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#FFE08A"/><stop offset="30%" stopColor="#D4A017"/><stop offset="50%" stopColor="#C9A96E"/><stop offset="70%" stopColor="#D4A017"/><stop offset="100%" stopColor="#FFE08A"/>
+                      </linearGradient>
+                      <linearGradient id="sFill1" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#1a1a1a"/><stop offset="50%" stopColor="#2a2520"/><stop offset="100%" stopColor="#1a1a1a"/>
                       </linearGradient>
                     </defs>
-                    <path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7" stroke="url(#shareGold1)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-                    <polyline points="16 6 12 2 8 6" stroke="url(#shareGold1)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-                    <line x1="12" y1="2" x2="12" y2="15" stroke="url(#shareGold1)" strokeWidth="2" strokeLinecap="round"/>
+                    <path d="M18 6l8 8-8 8v-5.5C11 16.5 6.5 19 4 24c0-9 5-14 14-15.5V6z" fill="url(#sFill1)" stroke="url(#sGold1)" strokeWidth="2" strokeLinejoin="round"/>
                   </svg>
                 </button>
                 <button type="button" onClick={() => setShowGiftPanel(true)} className="w-9 h-9 rounded-full bg-[#C9A96E]/20 backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform">
@@ -2642,19 +2639,16 @@ export default function LiveStream() {
                 <Gift size={20} className="text-white" />
               </button>
               <button type="button" onClick={() => setShowSharePanel(true)} className="w-10 h-10 rounded-full bg-[#13151A]/60 backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform" style={{boxShadow:'0 0 10px rgba(201,169,110,0.35), inset 0 1px 0 rgba(255,224,138,0.1)'}}>
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{filter:'drop-shadow(0 0 4px rgba(212,160,23,0.7)) drop-shadow(0 0 8px rgba(201,169,110,0.35))'}}>
+                <svg width="24" height="24" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" style={{filter:'drop-shadow(0 0 4px rgba(212,160,23,0.7)) drop-shadow(0 0 8px rgba(201,169,110,0.35))'}}>
                   <defs>
-                    <linearGradient id="shareGold2" x1="0%" y1="0%" x2="100%" y2="100%">
-                      <stop offset="0%" stopColor="#FFE08A"/>
-                      <stop offset="25%" stopColor="#D4A017"/>
-                      <stop offset="50%" stopColor="#C9A96E"/>
-                      <stop offset="75%" stopColor="#D4A017"/>
-                      <stop offset="100%" stopColor="#FFE08A"/>
+                    <linearGradient id="sGold2" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor="#FFE08A"/><stop offset="30%" stopColor="#D4A017"/><stop offset="50%" stopColor="#C9A96E"/><stop offset="70%" stopColor="#D4A017"/><stop offset="100%" stopColor="#FFE08A"/>
+                    </linearGradient>
+                    <linearGradient id="sFill2" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor="#1a1a1a"/><stop offset="50%" stopColor="#2a2520"/><stop offset="100%" stopColor="#1a1a1a"/>
                     </linearGradient>
                   </defs>
-                  <path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7" stroke="url(#shareGold2)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-                  <polyline points="16 6 12 2 8 6" stroke="url(#shareGold2)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-                  <line x1="12" y1="2" x2="12" y2="15" stroke="url(#shareGold2)" strokeWidth="2" strokeLinecap="round"/>
+                  <path d="M18 6l8 8-8 8v-5.5C11 16.5 6.5 19 4 24c0-9 5-14 14-15.5V6z" fill="url(#sFill2)" stroke="url(#sGold2)" strokeWidth="2" strokeLinejoin="round"/>
                 </svg>
               </button>
               <button type="button" onClick={() => setIsMoreMenuOpen(true)} className="w-10 h-10 rounded-full bg-[#13151A]/40 backdrop-blur-md border border-white/20 flex items-center justify-center shadow-lg">

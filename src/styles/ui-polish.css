@@ -1,6 +1,7 @@
 /* ═══ ROSE GOLD GRADIENT ICONS ═══ */
 svg[stroke="currentColor"][fill="none"] {
-  background: linear-gradient(145deg, #D4979F 0%, #B76E79 40%, #A25A65 70%, #8A4A54 100%);
+  background: linear-gradient(145deg, #F4C2C2 0%, #E8A0A0 20%, #B76E79 50%, #9E5C67 75%, #7A3E48 100%);
+  box-shadow: inset 0 1px 2px rgba(255,255,255,0.3), inset 0 -1px 2px rgba(0,0,0,0.15), 0 1px 3px rgba(183,110,121,0.3);
   border-radius: 50%;
   padding: 5px;
   box-sizing: content-box;

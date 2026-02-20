@@ -145,7 +145,7 @@ export default function SearchPage() {
                       className="w-full flex gap-3 p-2 rounded-lg bg-transparent5 hover:bg-transparent10 transition"
                     >
                       <img
-                        src={v.thumbnail ?? 'https://picsum.photos/120/160'}
+                        src={v.thumbnail ?? ''}
                         alt={v.description}
                         className="w-20 h-28 rounded-md object-cover bg-[#13151A]"
                       />

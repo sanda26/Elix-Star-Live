@@ -67,10 +67,10 @@ type UniverseTickerMessage = {
   receiver: string;
 };
 
-// ═══════════════════════════════════════════════════════════════
-// REALISTIC SIMULATED VIEWERS - Real names, photos, levels, chat
-// ═══════════════════════════════════════════════════════════════
-interface SimulatedViewer {
+
+
+const EMOJI_LIST = ['😀','😂','🥰','😍','🔥','💯','👏','🎉','❤️','💜','💙','⭐','🌟','✨','🙌','👑','💎','🚀','🎵','💃','🕺','😎','🤩','💪','🫶','💖'];
+type LiveViewer = {
   id: string;
   username: string;
   displayName: string;
@@ -79,218 +79,13 @@ interface SimulatedViewer {
   country: string;
   joinedAt: number;
   isActive: boolean;
-  chatFrequency: number; // seconds between messages (lower = more active)
-  supportDays: number; // how many days this user has supported the streamer (1 heart per day)
-  lastVisitDaysAgo: number; // how many days since last visit (0 = today, 1 = yesterday, 2+ = inactive/grey heart)
-}
-
-// In production, disable simulated viewers — only real viewers via WebSocket
-// In dev, use simulated viewers for testing
-const VIEWER_POOL: Omit<SimulatedViewer, 'joinedAt' | 'isActive'>[] = import.meta.env.DEV ? [
-  { id: 'v1', username: 'emma_rose22', displayName: 'Emma Rose', level: 34, avatar: 'https://i.pravatar.cc/100?img=1', country: '🇺🇸', chatFrequency: 8, supportDays: 127, lastVisitDaysAgo: 0 },
-  { id: 'v2', username: 'alex.madrid', displayName: 'Alex Madrid', level: 18, avatar: 'https://i.pravatar.cc/100?img=3', country: '🇪🇸', chatFrequency: 12, supportDays: 45, lastVisitDaysAgo: 1 },
-  { id: 'v3', username: 'sofiab_', displayName: 'Sofia Bianchi', level: 45, avatar: 'https://i.pravatar.cc/100?img=5', country: '🇮🇹', chatFrequency: 6, supportDays: 203, lastVisitDaysAgo: 0 },
-  { id: 'v4', username: 'lucassilva7', displayName: 'Lucas Silva', level: 27, avatar: 'https://i.pravatar.cc/100?img=7', country: '🇧🇷', chatFrequency: 10, supportDays: 89, lastVisitDaysAgo: 3 },
-  { id: 'v5', username: 'mia.chen_', displayName: 'Mia Chen', level: 52, avatar: 'https://i.pravatar.cc/100?img=9', country: '🇬🇧', chatFrequency: 15, supportDays: 312, lastVisitDaysAgo: 0 },
-  { id: 'v6', username: 'david_k99', displayName: 'David Kim', level: 8, avatar: 'https://i.pravatar.cc/100?img=11', country: '🇰🇷', chatFrequency: 20, supportDays: 12, lastVisitDaysAgo: 5 },
-  { id: 'v7', username: 'anya.pet', displayName: 'Anya Petrova', level: 61, avatar: 'https://i.pravatar.cc/100?img=13', country: '🇷🇺', chatFrequency: 7, supportDays: 365, lastVisitDaysAgo: 0 },
-  { id: 'v8', username: 'marcosantos_', displayName: 'Marco Santos', level: 14, avatar: 'https://i.pravatar.cc/100?img=14', country: '🇧🇷', chatFrequency: 9, supportDays: 34, lastVisitDaysAgo: 4 },
-  { id: 'v9', username: 'chloe.dpt', displayName: 'Chloé Dupont', level: 39, avatar: 'https://i.pravatar.cc/100?img=16', country: '🇫🇷', chatFrequency: 11, supportDays: 156, lastVisitDaysAgo: 0 },
-  { id: 'v10', username: 'jamesww_', displayName: 'James Wilson', level: 22, avatar: 'https://i.pravatar.cc/100?img=17', country: '🇺🇸', chatFrequency: 14, supportDays: 67, lastVisitDaysAgo: 1 },
-  { id: 'v11', username: 'yuki.tnk', displayName: 'Yuki Tanaka', level: 73, avatar: 'https://i.pravatar.cc/100?img=19', country: '🇯🇵', chatFrequency: 5, supportDays: 420, lastVisitDaysAgo: 0 },
-  { id: 'v12', username: 'isa_reyes', displayName: 'Isabella Reyes', level: 31, avatar: 'https://i.pravatar.cc/100?img=20', country: '🇲🇽', chatFrequency: 13, supportDays: 98, lastVisitDaysAgo: 2 },
-  { id: 'v13', username: 'noah.mllr', displayName: 'Noah Müller', level: 16, avatar: 'https://i.pravatar.cc/100?img=22', country: '🇩🇪', chatFrequency: 18, supportDays: 23, lastVisitDaysAgo: 7 },
-  { id: 'v14', username: 'lara_h', displayName: 'Lara Al-Hassan', level: 55, avatar: 'https://i.pravatar.cc/100?img=24', country: '🇦🇪', chatFrequency: 8, supportDays: 278, lastVisitDaysAgo: 0 },
-  { id: 'v15', username: 'olibrown', displayName: 'Oliver Brown', level: 10, avatar: 'https://i.pravatar.cc/100?img=25', country: '🇬🇧', chatFrequency: 22, supportDays: 7, lastVisitDaysAgo: 3 },
-  { id: 'v16', username: 'cami.lopez', displayName: 'Camila López', level: 42, avatar: 'https://i.pravatar.cc/100?img=26', country: '🇦🇷', chatFrequency: 7, supportDays: 189, lastVisitDaysAgo: 0 },
-  { id: 'v17', username: 'liamtaylor_', displayName: 'Liam Taylor', level: 29, avatar: 'https://i.pravatar.cc/100?img=28', country: '🇦🇺', chatFrequency: 16, supportDays: 54, lastVisitDaysAgo: 1 },
-  { id: 'v18', username: 'nina.w', displayName: 'Nina Weber', level: 37, avatar: 'https://i.pravatar.cc/100?img=29', country: '🇦🇹', chatFrequency: 10, supportDays: 142, lastVisitDaysAgo: 0 },
-  { id: 'v19', username: 'raj_p', displayName: 'Raj Patel', level: 48, avatar: 'https://i.pravatar.cc/100?img=30', country: '🇮🇳', chatFrequency: 9, supportDays: 231, lastVisitDaysAgo: 0 },
-  { id: 'v20', username: 'zaraaj', displayName: 'Zara Jones', level: 65, avatar: 'https://i.pravatar.cc/100?img=32', country: '🇺🇸', chatFrequency: 6, supportDays: 345, lastVisitDaysAgo: 0 },
-  { id: 'v21', username: 'mateo.g', displayName: 'Mateo García', level: 19, avatar: 'https://i.pravatar.cc/100?img=33', country: '🇪🇸', chatFrequency: 14, supportDays: 41, lastVisitDaysAgo: 6 },
-  { id: 'v22', username: 'elena_pop', displayName: 'Elena Popescu', level: 33, avatar: 'https://i.pravatar.cc/100?img=34', country: '🇷🇴', chatFrequency: 8, supportDays: 167, lastVisitDaysAgo: 0 },
-  { id: 'v23', username: 'amir.h', displayName: 'Amir Hosseini', level: 25, avatar: 'https://i.pravatar.cc/100?img=36', country: '🇮🇷', chatFrequency: 17, supportDays: 58, lastVisitDaysAgo: 4 },
-  { id: 'v24', username: 'lilytan_', displayName: 'Lily Tan', level: 58, avatar: 'https://i.pravatar.cc/100?img=38', country: '🇸🇬', chatFrequency: 7, supportDays: 290, lastVisitDaysAgo: 0 },
-  { id: 'v25', username: 'tyler.b', displayName: 'Tyler Brooks', level: 11, avatar: 'https://i.pravatar.cc/100?img=39', country: '🇺🇸', chatFrequency: 25, supportDays: 15, lastVisitDaysAgo: 8 },
-  { id: 'v26', username: 'sara_lind', displayName: 'Sara Lindqvist', level: 44, avatar: 'https://i.pravatar.cc/100?img=40', country: '🇸🇪', chatFrequency: 12, supportDays: 198, lastVisitDaysAgo: 1 },
-  { id: 'v27', username: 'diego.v', displayName: 'Diego Vargas', level: 20, avatar: 'https://i.pravatar.cc/100?img=41', country: '🇵🇪', chatFrequency: 11, supportDays: 73, lastVisitDaysAgo: 2 },
-  { id: 'v28', username: 'hannahlee', displayName: 'Hannah Lee', level: 36, avatar: 'https://i.pravatar.cc/100?img=43', country: '🇨🇦', chatFrequency: 9, supportDays: 134, lastVisitDaysAgo: 0 },
-  { id: 'v29', username: 'kai.nkm', displayName: 'Kai Nakamura', level: 71, avatar: 'https://i.pravatar.cc/100?img=44', country: '🇺🇸', chatFrequency: 6, supportDays: 401, lastVisitDaysAgo: 0 },
-  { id: 'v30', username: 'vale_rossi', displayName: 'Valentina Rossi', level: 50, avatar: 'https://i.pravatar.cc/100?img=45', country: '🇮🇹', chatFrequency: 8, supportDays: 256, lastVisitDaysAgo: 1 },
-  { id: 'v31', username: 'adriana_buc', displayName: 'Adriana Bucur', level: 28, avatar: 'https://i.pravatar.cc/100?img=46', country: '🇷🇴', chatFrequency: 9, supportDays: 82, lastVisitDaysAgo: 3 },
-  { id: 'v32', username: 'tomas.cz', displayName: 'Tomáš Novák', level: 15, avatar: 'https://i.pravatar.cc/100?img=47', country: '🇨🇿', chatFrequency: 19, supportDays: 29, lastVisitDaysAgo: 5 },
-  { id: 'v33', username: 'priya_sh', displayName: 'Priya Sharma', level: 41, avatar: 'https://i.pravatar.cc/100?img=48', country: '🇮🇳', chatFrequency: 7, supportDays: 175, lastVisitDaysAgo: 0 },
-  { id: 'v34', username: 'jake.miller', displayName: 'Jake Miller', level: 6, avatar: 'https://i.pravatar.cc/100?img=49', country: '🇺🇸', chatFrequency: 30, supportDays: 3, lastVisitDaysAgo: 10 },
-  { id: 'v35', username: 'fatima_kw', displayName: 'Fatima Al-Sabah', level: 67, avatar: 'https://i.pravatar.cc/100?img=50', country: '🇰🇼', chatFrequency: 8, supportDays: 334, lastVisitDaysAgo: 0 },
-  { id: 'v36', username: 'oscar.swe', displayName: 'Oscar Eriksson', level: 23, avatar: 'https://i.pravatar.cc/100?img=51', country: '🇸🇪', chatFrequency: 15, supportDays: 51, lastVisitDaysAgo: 2 },
-  { id: 'v37', username: 'amelie_fr', displayName: 'Amélie Martin', level: 38, avatar: 'https://i.pravatar.cc/100?img=52', country: '🇫🇷', chatFrequency: 10, supportDays: 145, lastVisitDaysAgo: 0 },
-  { id: 'v38', username: 'chen.wei', displayName: 'Chen Wei', level: 54, avatar: 'https://i.pravatar.cc/100?img=53', country: '🇨🇳', chatFrequency: 12, supportDays: 267, lastVisitDaysAgo: 1 },
-  { id: 'v39', username: 'maria_pt', displayName: 'Maria Ferreira', level: 30, avatar: 'https://i.pravatar.cc/100?img=54', country: '🇵🇹', chatFrequency: 11, supportDays: 93, lastVisitDaysAgo: 3 },
-  { id: 'v40', username: 'ethan.j', displayName: 'Ethan Johnson', level: 4, avatar: 'https://i.pravatar.cc/100?img=55', country: '🇺🇸', chatFrequency: 35, supportDays: 1, lastVisitDaysAgo: 14 },
-  { id: 'v41', username: 'noor_eg', displayName: 'Noor Ibrahim', level: 46, avatar: 'https://i.pravatar.cc/100?img=56', country: '🇪🇬', chatFrequency: 9, supportDays: 210, lastVisitDaysAgo: 0 },
-  { id: 'v42', username: 'anna.pol', displayName: 'Anna Kowalska', level: 32, avatar: 'https://i.pravatar.cc/100?img=57', country: '🇵🇱', chatFrequency: 13, supportDays: 104, lastVisitDaysAgo: 1 },
-  { id: 'v43', username: 'ryu_kr', displayName: 'Ryu Ji-hoon', level: 59, avatar: 'https://i.pravatar.cc/100?img=58', country: '🇰🇷', chatFrequency: 6, supportDays: 301, lastVisitDaysAgo: 0 },
-  { id: 'v44', username: 'jessica.au', displayName: 'Jessica Park', level: 21, avatar: 'https://i.pravatar.cc/100?img=59', country: '🇦🇺', chatFrequency: 14, supportDays: 62, lastVisitDaysAgo: 4 },
-  { id: 'v45', username: 'omar_ma', displayName: 'Omar Benali', level: 35, avatar: 'https://i.pravatar.cc/100?img=60', country: '🇲🇦', chatFrequency: 10, supportDays: 118, lastVisitDaysAgo: 0 },
-  { id: 'v46', username: 'eva.hrv', displayName: 'Eva Horvat', level: 17, avatar: 'https://i.pravatar.cc/100?img=61', country: '🇭🇷', chatFrequency: 20, supportDays: 19, lastVisitDaysAgo: 6 },
-  { id: 'v47', username: 'brandon_tx', displayName: 'Brandon Lee', level: 43, avatar: 'https://i.pravatar.cc/100?img=62', country: '🇺🇸', chatFrequency: 8, supportDays: 183, lastVisitDaysAgo: 0 },
-  { id: 'v48', username: 'ines.pt', displayName: 'Inês Costa', level: 26, avatar: 'https://i.pravatar.cc/100?img=63', country: '🇵🇹', chatFrequency: 12, supportDays: 76, lastVisitDaysAgo: 1 },
-  { id: 'v49', username: 'andrei_md', displayName: 'Andrei Moraru', level: 40, avatar: 'https://i.pravatar.cc/100?img=64', country: '🇲🇩', chatFrequency: 9, supportDays: 155, lastVisitDaysAgo: 0 },
-  { id: 'v50', username: 'maya.id', displayName: 'Maya Putri', level: 13, avatar: 'https://i.pravatar.cc/100?img=65', country: '🇮🇩', chatFrequency: 16, supportDays: 27, lastVisitDaysAgo: 5 },
-  { id: 'v51', username: 'gabriel_co', displayName: 'Gabriel Rojas', level: 57, avatar: 'https://i.pravatar.cc/100?img=66', country: '🇨🇴', chatFrequency: 7, supportDays: 284, lastVisitDaysAgo: 0 },
-  { id: 'v52', username: 'hana.jp', displayName: 'Hana Yamamoto', level: 69, avatar: 'https://i.pravatar.cc/100?img=67', country: '🇯🇵', chatFrequency: 5, supportDays: 378, lastVisitDaysAgo: 0 },
-  { id: 'v53', username: 'mihai_ro', displayName: 'Mihai Dragomir', level: 24, avatar: 'https://i.pravatar.cc/100?img=68', country: '🇷🇴', chatFrequency: 11, supportDays: 63, lastVisitDaysAgo: 1 },
-  { id: 'v54', username: 'aisha_ng', displayName: 'Aisha Okafor', level: 36, avatar: 'https://i.pravatar.cc/100?img=69', country: '🇳🇬', chatFrequency: 10, supportDays: 131, lastVisitDaysAgo: 0 },
-  { id: 'v55', username: 'felix.de', displayName: 'Felix Schmidt', level: 9, avatar: 'https://i.pravatar.cc/100?img=70', country: '🇩🇪', chatFrequency: 24, supportDays: 8, lastVisitDaysAgo: 9 },
-  { id: 'v56', username: 'luna_cl', displayName: 'Luna Vargas', level: 47, avatar: 'https://i.pravatar.cc/100?u=luna_cl', country: '🇨🇱', chatFrequency: 8, supportDays: 215, lastVisitDaysAgo: 0 },
-  { id: 'v57', username: 'max.uk', displayName: 'Max Williams', level: 12, avatar: 'https://i.pravatar.cc/100?u=max_uk', country: '🇬🇧', chatFrequency: 18, supportDays: 21, lastVisitDaysAgo: 3 },
-  { id: 'v58', username: 'selin_tr', displayName: 'Selin Yılmaz', level: 53, avatar: 'https://i.pravatar.cc/100?u=selin_tr', country: '🇹🇷', chatFrequency: 7, supportDays: 247, lastVisitDaysAgo: 0 },
-  { id: 'v59', username: 'leo.bsas', displayName: 'Leo Fernández', level: 28, avatar: 'https://i.pravatar.cc/100?u=leo_bsas', country: '🇦🇷', chatFrequency: 13, supportDays: 77, lastVisitDaysAgo: 2 },
-  { id: 'v60', username: 'naomi.ke', displayName: 'Naomi Wanjiku', level: 38, avatar: 'https://i.pravatar.cc/100?u=naomi_ke', country: '🇰🇪', chatFrequency: 11, supportDays: 149, lastVisitDaysAgo: 1 },
-  { id: 'v61', username: 'daniel_ie', displayName: 'Daniel Murphy', level: 7, avatar: 'https://i.pravatar.cc/100?u=daniel_ie', country: '🇮🇪', chatFrequency: 28, supportDays: 5, lastVisitDaysAgo: 12 },
-  { id: 'v62', username: 'thao.vn', displayName: 'Thao Nguyen', level: 62, avatar: 'https://i.pravatar.cc/100?u=thao_vn', country: '🇻🇳', chatFrequency: 6, supportDays: 319, lastVisitDaysAgo: 0 },
-  { id: 'v63', username: 'adam_pl', displayName: 'Adam Wiśniewski', level: 19, avatar: 'https://i.pravatar.cc/100?u=adam_pl', country: '🇵🇱', chatFrequency: 15, supportDays: 38, lastVisitDaysAgo: 4 },
-  { id: 'v64', username: 'zoe.nyc', displayName: 'Zoe Harper', level: 75, avatar: 'https://i.pravatar.cc/100?u=zoe_nyc', country: '🇺🇸', chatFrequency: 5, supportDays: 445, lastVisitDaysAgo: 0 },
-  { id: 'v65', username: 'ivan_bg', displayName: 'Ivan Petrov', level: 31, avatar: 'https://i.pravatar.cc/100?u=ivan_bg', country: '🇧🇬', chatFrequency: 14, supportDays: 102, lastVisitDaysAgo: 1 },
-  { id: 'v66', username: 'sakura_jp', displayName: 'Sakura Ito', level: 56, avatar: 'https://i.pravatar.cc/100?u=sakura_jp', country: '🇯🇵', chatFrequency: 7, supportDays: 273, lastVisitDaysAgo: 0 },
-  { id: 'v67', username: 'carlos.mx', displayName: 'Carlos Mendoza', level: 22, avatar: 'https://i.pravatar.cc/100?u=carlos_mx', country: '🇲🇽', chatFrequency: 12, supportDays: 56, lastVisitDaysAgo: 3 },
-  { id: 'v68', username: 'julia.at', displayName: 'Julia Steiner', level: 40, avatar: 'https://i.pravatar.cc/100?u=julia_at', country: '🇦🇹', chatFrequency: 10, supportDays: 164, lastVisitDaysAgo: 0 },
-  { id: 'v69', username: 'rashid_ae', displayName: 'Rashid Al-Maktoum', level: 82, avatar: 'https://i.pravatar.cc/100?u=rashid_ae', country: '🇦🇪', chatFrequency: 6, supportDays: 510, lastVisitDaysAgo: 0 },
-  { id: 'v70', username: 'bianca.ro', displayName: 'Bianca Ionescu', level: 29, avatar: 'https://i.pravatar.cc/100?u=bianca_ro', country: '🇷🇴', chatFrequency: 9, supportDays: 88, lastVisitDaysAgo: 1 },
-  { id: 'v71', username: 'tom_nz', displayName: 'Tom Mitchell', level: 15, avatar: 'https://i.pravatar.cc/100?u=tom_nz', country: '🇳🇿', chatFrequency: 20, supportDays: 18, lastVisitDaysAgo: 7 },
-  { id: 'v72', username: 'alina.ua', displayName: 'Alina Kovalenko', level: 44, avatar: 'https://i.pravatar.cc/100?u=alina_ua', country: '🇺🇦', chatFrequency: 8, supportDays: 195, lastVisitDaysAgo: 0 },
-  { id: 'v73', username: 'ryan_sg', displayName: 'Ryan Lim', level: 33, avatar: 'https://i.pravatar.cc/100?u=ryan_sg', country: '🇸🇬', chatFrequency: 13, supportDays: 110, lastVisitDaysAgo: 2 },
-  { id: 'v74', username: 'clara.es', displayName: 'Clara Hernández', level: 51, avatar: 'https://i.pravatar.cc/100?u=clara_es', country: '🇪🇸', chatFrequency: 7, supportDays: 253, lastVisitDaysAgo: 0 },
-  { id: 'v75', username: 'arjun.in', displayName: 'Arjun Reddy', level: 26, avatar: 'https://i.pravatar.cc/100?u=arjun_in', country: '🇮🇳', chatFrequency: 11, supportDays: 69, lastVisitDaysAgo: 1 },
-  { id: 'v76', username: 'sophie_ch', displayName: 'Sophie Keller', level: 18, avatar: 'https://i.pravatar.cc/100?u=sophie_ch', country: '🇨🇭', chatFrequency: 16, supportDays: 32, lastVisitDaysAgo: 5 },
-  { id: 'v77', username: 'kofi.gh', displayName: 'Kofi Asante', level: 43, avatar: 'https://i.pravatar.cc/100?u=kofi_gh', country: '🇬🇭', chatFrequency: 10, supportDays: 178, lastVisitDaysAgo: 0 },
-  { id: 'v78', username: 'victoria_se', displayName: 'Victoria Holm', level: 60, avatar: 'https://i.pravatar.cc/100?u=victoria_se', country: '🇸🇪', chatFrequency: 6, supportDays: 330, lastVisitDaysAgo: 0 },
-  { id: 'v79', username: 'pedro.br', displayName: 'Pedro Oliveira', level: 35, avatar: 'https://i.pravatar.cc/100?u=pedro_br', country: '🇧🇷', chatFrequency: 9, supportDays: 121, lastVisitDaysAgo: 1 },
-  { id: 'v80', username: 'nadia_dz', displayName: 'Nadia Benmoussa', level: 49, avatar: 'https://i.pravatar.cc/100?u=nadia_dz', country: '🇩🇿', chatFrequency: 8, supportDays: 222, lastVisitDaysAgo: 0 },
-  { id: 'v81', username: 'finn.no', displayName: 'Finn Johansen', level: 14, avatar: 'https://i.pravatar.cc/100?u=finn_no', country: '🇳🇴', chatFrequency: 22, supportDays: 11, lastVisitDaysAgo: 6 },
-  { id: 'v82', username: 'mei_tw', displayName: 'Mei-Ling Wu', level: 66, avatar: 'https://i.pravatar.cc/100?u=mei_tw', country: '🇹🇼', chatFrequency: 6, supportDays: 356, lastVisitDaysAgo: 0 },
-  { id: 'v83', username: 'stefan.rs', displayName: 'Stefan Jovanović', level: 27, avatar: 'https://i.pravatar.cc/100?u=stefan_rs', country: '🇷🇸', chatFrequency: 13, supportDays: 74, lastVisitDaysAgo: 2 },
-  { id: 'v84', username: 'leila.lb', displayName: 'Leila Khoury', level: 41, avatar: 'https://i.pravatar.cc/100?u=leila_lb', country: '🇱🇧', chatFrequency: 9, supportDays: 169, lastVisitDaysAgo: 0 },
-  { id: 'v85', username: 'ashley_ca', displayName: 'Ashley Nguyen', level: 20, avatar: 'https://i.pravatar.cc/100?u=ashley_ca', country: '🇨🇦', chatFrequency: 14, supportDays: 43, lastVisitDaysAgo: 3 },
-  { id: 'v86', username: 'hugo.fr', displayName: 'Hugo Laurent', level: 37, avatar: 'https://i.pravatar.cc/100?u=hugo_fr', country: '🇫🇷', chatFrequency: 11, supportDays: 137, lastVisitDaysAgo: 1 },
-  { id: 'v87', username: 'daria.ro', displayName: 'Daria Munteanu', level: 55, avatar: 'https://i.pravatar.cc/100?u=daria_ro', country: '🇷🇴', chatFrequency: 7, supportDays: 261, lastVisitDaysAgo: 0 },
-  { id: 'v88', username: 'josh_us', displayName: 'Josh Anderson', level: 3, avatar: 'https://i.pravatar.cc/100?u=josh_us', country: '🇺🇸', chatFrequency: 40, supportDays: 2, lastVisitDaysAgo: 15 },
-  { id: 'v89', username: 'mila.hr', displayName: 'Mila Kovačević', level: 46, avatar: 'https://i.pravatar.cc/100?u=mila_hr', country: '🇭🇷', chatFrequency: 8, supportDays: 207, lastVisitDaysAgo: 0 },
-  { id: 'v90', username: 'ravi_in', displayName: 'Ravi Kumar', level: 32, avatar: 'https://i.pravatar.cc/100?u=ravi_in', country: '🇮🇳', chatFrequency: 12, supportDays: 96, lastVisitDaysAgo: 1 },
-  { id: 'v91', username: 'kim_ph', displayName: 'Kim Santos', level: 24, avatar: 'https://i.pravatar.cc/100?u=kim_ph', country: '🇵🇭', chatFrequency: 10, supportDays: 59, lastVisitDaysAgo: 4 },
-  { id: 'v92', username: 'laura.it', displayName: 'Laura Conti', level: 63, avatar: 'https://i.pravatar.cc/100?u=laura_it', country: '🇮🇹', chatFrequency: 6, supportDays: 342, lastVisitDaysAgo: 0 },
-  { id: 'v93', username: 'ben_za', displayName: 'Ben Nkosi', level: 39, avatar: 'https://i.pravatar.cc/100?u=ben_za', country: '🇿🇦', chatFrequency: 11, supportDays: 150, lastVisitDaysAgo: 0 },
-  { id: 'v94', username: 'katya.ru', displayName: 'Katya Smirnova', level: 70, avatar: 'https://i.pravatar.cc/100?u=katya_ru', country: '🇷🇺', chatFrequency: 5, supportDays: 390, lastVisitDaysAgo: 0 },
-  { id: 'v95', username: 'lucas_nl', displayName: 'Lucas de Vries', level: 16, avatar: 'https://i.pravatar.cc/100?u=lucas_nl', country: '🇳🇱', chatFrequency: 18, supportDays: 25, lastVisitDaysAgo: 8 },
-  { id: 'v96', username: 'yara.sa', displayName: 'Yara Al-Rashid', level: 52, avatar: 'https://i.pravatar.cc/100?u=yara_sa', country: '🇸🇦', chatFrequency: 8, supportDays: 238, lastVisitDaysAgo: 0 },
-  { id: 'v97', username: 'chris.nz', displayName: 'Chris Thompson', level: 11, avatar: 'https://i.pravatar.cc/100?u=chris_nz', country: '🇳🇿', chatFrequency: 25, supportDays: 14, lastVisitDaysAgo: 10 },
-  { id: 'v98', username: 'ana.bg', displayName: 'Ana Dimitrova', level: 45, avatar: 'https://i.pravatar.cc/100?u=ana_bg', country: '🇧🇬', chatFrequency: 9, supportDays: 186, lastVisitDaysAgo: 0 },
-  { id: 'v99', username: 'malik_pk', displayName: 'Malik Hassan', level: 34, avatar: 'https://i.pravatar.cc/100?u=malik_pk', country: '🇵🇰', chatFrequency: 12, supportDays: 107, lastVisitDaysAgo: 2 },
-  { id: 'v100', username: 'celine.be', displayName: 'Céline Dubois', level: 58, avatar: 'https://i.pravatar.cc/100?u=celine_be', country: '🇧🇪', chatFrequency: 7, supportDays: 289, lastVisitDaysAgo: 0 },
-] : []; // Empty in production — no fake viewers
-
-// Realistic chat messages - hyper diverse, natural language with typos, slang, abbreviations
-const CHAT_MESSAGES = {
-  greeting: [],
-  reaction: [],
-  question: [],
-  compliment: [],
-  general: [],
-  emoji: [],
-  gift_reaction: [],
-  gift_encourage: [],
-  reply_style: [],
-  streamer_talk: [],
-  viewer_to_viewer: [],
+  chatFrequency: number;
+  supportDays: number;
+  lastVisitDaysAgo: number;
 };
 
-// Track recently used messages to avoid repetition
-const recentMessagesRef: string[] = [];
-const MAX_RECENT = 50;
-// Track recent chat usernames for viewer-to-viewer replies
-const recentChattersRef: string[] = [];
 
-const getRandomChatMessage = (
-  viewer: Omit<SimulatedViewer, 'joinedAt' | 'isActive'>,
-  isFirstMessage = false,
-  context: 'normal' | 'gift_reaction' | 'gift_encourage' | 'streamer' = 'normal'
-): string => {
-  const categories = Object.keys(CHAT_MESSAGES) as (keyof typeof CHAT_MESSAGES)[];
-  // categories: greeting(0), reaction(1), question(2), compliment(3), general(4), emoji(5),
-  //             gift_reaction(6), gift_encourage(7), reply_style(8), streamer_talk(9), viewer_to_viewer(10)
-  
-  let weights: number[];
-  if (isFirstMessage) {
-    weights = [100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-  } else if (context === 'gift_reaction') {
-    weights = [0, 5, 0, 0, 0, 10, 70, 5, 10, 0, 0];
-  } else if (context === 'gift_encourage') {
-    weights = [0, 0, 0, 0, 5, 5, 5, 75, 5, 0, 5];
-  } else if (context === 'streamer') {
-    weights = [0, 5, 10, 15, 5, 0, 0, 0, 5, 55, 5];
-  } else {
-    // Normal chat - all zeros because no mock messages exist
-    weights = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-  }
-  
-  const totalWeight = weights.reduce((a, b) => a + b, 0);
-  if (totalWeight === 0) return ''; // No messages to send
-  let r = Math.random() * totalWeight;
-  let categoryIndex = 0;
-  for (let i = 0; i < weights.length; i++) {
-    r -= weights[i];
-    if (r <= 0) { categoryIndex = i; break; }
-  }
-  const category = categories[categoryIndex];
-  const msgs = CHAT_MESSAGES[category] || []; // Fallback to empty array if undefined
-  
-  if (!msgs || msgs.length === 0) return ''; // Return empty string if no messages available
 
-  // Try to pick a message that hasn't been used recently
-  let msg = '';
-  let attempts = 0;
-  do {
-    msg = msgs[Math.floor(Math.random() * msgs.length)];
-    attempts++;
-  } while (recentMessagesRef.includes(msg) && attempts < 6);
-  
-  if (!msg) return '';
-
-  // Track recent messages
-  recentMessagesRef.push(msg);
-  if (recentMessagesRef.length > MAX_RECENT) recentMessagesRef.shift();
-  
-  // Replace {country} placeholder
-  msg = msg.replace('{country}', viewer.country);
-  
-  // Replace {viewer} with a recent chatter's name (for viewer-to-viewer)
-  if (msg.includes('{viewer}')) {
-    const otherChatters = recentChattersRef.filter(n => n !== viewer.displayName);
-    if (otherChatters.length > 0) {
-      const target = otherChatters[Math.floor(Math.random() * otherChatters.length)];
-      msg = msg.replace(/\{viewer\}/g, target);
-    } else {
-      // No recent chatters, fall back to a generic reaction
-      const fallbacks = CHAT_MESSAGES.reaction || [];
-      if (fallbacks.length > 0) {
-          msg = fallbacks[Math.floor(Math.random() * fallbacks.length)];
-      } else {
-          msg = "Wow!";
-      }
-    }
-  }
-  
-  // Random lowercase variation for realism (8% chance)
-  if (Math.random() < 0.08 && !msg.includes('🇺🇸') && !msg.includes('🇬🇧')) {
-    msg = msg.toLowerCase();
-  }
-  
-  // Track this viewer as a recent chatter
-  recentChattersRef.push(viewer.displayName);
-  if (recentChattersRef.length > 15) recentChattersRef.shift();
-  
-  return msg;
-};
 
 
 
@@ -323,7 +118,7 @@ export default function LiveStream() {
   }, []);
   const [currentGift, setCurrentGift] = useState<string | null>(null);
   const [messages, setMessages] = useState<LiveMessage[]>([]);
-  const [coinBalance, setCoinBalance] = useState(999999999);
+  const [coinBalance, setCoinBalance] = useState(0);
   const [inputValue, setInputValue] = useState('');
   const isBroadcast = streamId === 'broadcast' || location.pathname === '/live/broadcast';
   const [cameraError, setCameraError] = useState<string | null>(null);
@@ -337,7 +132,7 @@ export default function LiveStream() {
   const [isMicMuted, setIsMicMuted] = useState(false);
   const [isChatVisible, setIsChatVisible] = useState(true);
   const [isLiveSettingsOpen, setIsLiveSettingsOpen] = useState(false);
-  const [viewerCount, setViewerCount] = useState(Math.floor(Math.random() * 500) + 50);
+  const [viewerCount, setViewerCount] = useState(0);
   const [cameraFacing, setCameraFacing] = useState<'user' | 'environment'>('user');
   const user = useAuthStore((s) => s.user);
   const formatStreamName = (id: string) =>
@@ -353,12 +148,12 @@ export default function LiveStream() {
       : 'ELIX STAR';
   const myCreatorName = creatorName;
   const myAvatar = isBroadcast
-    ? user?.avatar || `https://i.pravatar.cc/150?u=young_creator_2026`
-    : `https://i.pravatar.cc/150?u=young_creator_2026`;
-  const [opponentCreatorName, setOpponentCreatorName] = useState('Paul');
+    ? user?.avatar || ``
+    : ``;
+  const [opponentCreatorName, setOpponentCreatorName] = useState('');
   const viewerName = user?.username || user?.name || 'viewer_123';
   const viewerAvatar =
-    user?.avatar || `https://i.pravatar.cc/150?u=${encodeURIComponent(viewerName)}`;
+    user?.avatar || `https://ui-avatars.com/api/?name=&background=121212&color=C9A96E`;
   const universeGiftLabel = 'Universe';
 
   // FaceAR State
@@ -431,7 +226,7 @@ export default function LiveStream() {
 
       const { error: insertError } = await supabase
         .from('profiles')
-        .insert({ user_id: user.id, coins: 999999999, level: 1, xp: 0 });
+        .insert({ user_id: user.id, coins: 0, level: 1, xp: 0 });
 
       if (insertError) {
         const code = (insertError as unknown as { code?: string }).code;
@@ -532,27 +327,35 @@ export default function LiveStream() {
   const [hasJoinedToday, setHasJoinedToday] = useState(false);
   const [myHeartCount, setMyHeartCount] = useState(0);
   const [creatorQuery, setCreatorQuery] = useState('');
+  const [creators, setCreators] = useState<{ id: string; name: string; followers: string; avatar: string }[]>([]);
 
-  const creators = [
-    { id: 'c1', name: 'Paul', followers: '1.2M', avatar: 'https://i.pravatar.cc/150?img=1' },
-    { id: 'c2', name: 'Maria Pop', followers: '842K', avatar: 'https://i.pravatar.cc/150?img=5' },
-    { id: 'c3', name: 'John Live', followers: '510K', avatar: 'https://i.pravatar.cc/150?img=3' },
-    { id: 'c4', name: 'Alex Cool', followers: '2.1M', avatar: 'https://i.pravatar.cc/150?img=7' },
-    { id: 'c5', name: 'Sarah J', followers: '976K', avatar: 'https://i.pravatar.cc/150?img=9' },
-    { id: 'c6', name: 'Emma Rose', followers: '1.5M', avatar: 'https://i.pravatar.cc/150?img=10' },
-    { id: 'c7', name: 'Lucas Silva', followers: '720K', avatar: 'https://i.pravatar.cc/150?img=11' },
-    { id: 'c8', name: 'Sofia B', followers: '1.8M', avatar: 'https://i.pravatar.cc/150?img=12' },
-    { id: 'c9', name: 'Mia Chen', followers: '430K', avatar: 'https://i.pravatar.cc/150?img=13' },
-    { id: 'c10', name: 'David Kim', followers: '2.3M', avatar: 'https://i.pravatar.cc/150?img=14' },
-    { id: 'c11', name: 'Anya Pet', followers: '890K', avatar: 'https://i.pravatar.cc/150?img=15' },
-    { id: 'c12', name: 'Marco S', followers: '1.1M', avatar: 'https://i.pravatar.cc/150?img=16' },
-    { id: 'c13', name: 'Chloe D', followers: '560K', avatar: 'https://i.pravatar.cc/150?img=17' },
-    { id: 'c14', name: 'James W', followers: '3.2M', avatar: 'https://i.pravatar.cc/150?img=18' },
-    { id: 'c15', name: 'Yuki T', followers: '1.7M', avatar: 'https://i.pravatar.cc/150?img=19' },
-    { id: 'c16', name: 'Isabella R', followers: '640K', avatar: 'https://i.pravatar.cc/150?img=20' },
-    { id: 'c17', name: 'Noah M', followers: '920K', avatar: 'https://i.pravatar.cc/150?img=22' },
-    { id: 'c18', name: 'Lara H', followers: '1.4M', avatar: 'https://i.pravatar.cc/150?img=24' },
-  ];
+  useEffect(() => {
+    if (!user?.id) return;
+    (async () => {
+      try {
+        const { data: follows } = await supabase
+          .from('followers')
+          .select('following_id')
+          .eq('follower_id', user.id)
+          .limit(50);
+        if (!follows || follows.length === 0) return;
+        const ids = follows.map((f: any) => f.following_id);
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('user_id, username, display_name, avatar_url, follower_count')
+          .in('user_id', ids);
+        if (profiles) {
+          const fmt = (n: number) => n >= 1000000 ? `${(n / 1000000).toFixed(1)}M` : n >= 1000 ? `${(n / 1000).toFixed(1)}K` : `${n}`;
+          setCreators(profiles.map((p: any) => ({
+            id: p.user_id,
+            name: p.display_name || p.username || 'User',
+            followers: fmt(p.follower_count ?? 0),
+            avatar: p.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.username || 'U')}&background=121212&color=C9A96E`,
+          })));
+        }
+      } catch { /* ignore */ }
+    })();
+  }, [user?.id]);
 
   const filteredCreators = creators.filter((c) => c.name.toLowerCase().includes(creatorQuery.trim().toLowerCase()));
 
@@ -566,32 +369,17 @@ export default function LiveStream() {
   const inviteTimersRef = useRef<NodeJS.Timeout[]>([]);
 
   const inviteCreatorToSlot = (creatorName: string) => {
-    // Find first empty slot
     const slotIndex = battleSlots.findIndex(s => s.status === 'empty');
-    if (slotIndex === -1) return; // All slots full
-    // Check if already invited
+    if (slotIndex === -1) return;
     if (battleSlots.some(s => s.name === creatorName && s.status !== 'empty')) return;
 
-    const avatar = `https://i.pravatar.cc/150?u=${encodeURIComponent(creatorName)}`;
+    const creator = creators.find(c => c.name === creatorName);
+    const avatar = creator?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(creatorName)}&background=121212&color=C9A96E`;
     setBattleSlots(prev => {
       const next = [...prev];
       next[slotIndex] = { name: creatorName, status: 'invited', avatar };
       return next;
     });
-
-    // Simulate acceptance after 2-4 seconds
-    const delay = 2000 + Math.random() * 2000;
-    const timer = setTimeout(() => {
-      setBattleSlots(prev => {
-        const next = [...prev];
-        const idx = next.findIndex(s => s.name === creatorName && s.status === 'invited');
-        if (idx !== -1) {
-          next[idx] = { ...next[idx], status: 'accepted' };
-        }
-        return next;
-      });
-    }, delay);
-    inviteTimersRef.current.push(timer);
   };
 
   // Mute state per player pane
@@ -637,32 +425,11 @@ export default function LiveStream() {
     const newHost: CoHost = {
       id: `host-${Date.now()}-${Math.random().toString(36).slice(2)}`,
       name: creator.name,
-      avatar: creator.avatar || `https://i.pravatar.cc/150?u=${encodeURIComponent(creator.name)}`,
+      avatar: creator.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(creator.name)}&background=121212&color=C9A96E`,
       status: 'invited',
       isMuted: false,
     };
     setCoHosts(prev => [...prev, newHost]);
-
-    const delay = 1500 + Math.random() * 3000;
-    const timer = setTimeout(() => {
-      setCoHosts(prev => prev.map(h =>
-        h.id === newHost.id ? { ...h, status: 'accepted' } : h
-      ));
-      const goLiveDelay = 800 + Math.random() * 1200;
-      const timer2 = setTimeout(() => {
-        setCoHosts(prev => prev.map(h =>
-          h.id === newHost.id ? { ...h, status: 'live' } : h
-        ));
-        setMessages(prev => [...prev, {
-          id: Date.now().toString(),
-          username: 'System',
-          text: `${creator.name} joined as co-host!`,
-          isSystem: true,
-        }]);
-      }, goLiveDelay);
-      coHostTimersRef.current.push(timer2);
-    }, delay);
-    coHostTimersRef.current.push(timer);
   };
 
   const removeCoHost = (hostId: string) => {
@@ -1040,7 +807,7 @@ export default function LiveStream() {
       .map(([name, coins]) => ({
         name,
         coins,
-        avatar: `https://i.pravatar.cc/150?u=${encodeURIComponent(name)}`,
+        avatar: `https://ui-avatars.com/api/?name=&background=121212&color=C9A96E`,
       }));
   };
 
@@ -1072,7 +839,7 @@ export default function LiveStream() {
     return String(count);
   };
 
-  const activeViewersRef = useRef<SimulatedViewer[]>([]);
+  const activeViewersRef = useRef<LiveViewer[]>([]);
   const spawnHeartAt = useCallback((x: number, y: number, colorOverride?: string, likerName?: string, likerAvatar?: string) => {
     const id = `${Date.now()}_${Math.random().toString(16).slice(2)}`;
     const dx = Math.round((Math.random() * 2 - 1) * 120);
@@ -1082,7 +849,7 @@ export default function LiveStream() {
     const color = colorOverride ?? colors[Math.floor(Math.random() * colors.length)];
     
     // Check if this is a membership heart (triggered by "Joined the team")
-    const isMembership = likerName === 'You' && likerAvatar === 'https://i.pravatar.cc/150?img=68';
+    const isMembership = likerName === 'You' && likerAvatar === '/Icons/elix-logo.png';
 
     // Pick a random viewer name if none provided
     let username = likerName;
@@ -1214,33 +981,6 @@ export default function LiveStream() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [speedChallengeActive, speedChallengeTime]);
 
-  // Simulate opponent taps during speed challenge
-  useEffect(() => {
-    if (!speedChallengeActive) {
-      if (speedChallengeTimerRef.current) clearInterval(speedChallengeTimerRef.current);
-      return;
-    }
-    speedChallengeTimerRef.current = setInterval(() => {
-      // Opponent taps randomly 3-8 times per second
-      if (battleSlots[0].status === 'accepted') {
-        const taps = Math.floor(Math.random() * 6) + 3;
-        setSpeedChallengeTaps(prev => ({ ...prev, opponent: (prev.opponent ?? 0) + taps }));
-        awardBattlePoints('opponent', taps * 2);
-      }
-      if (battleSlots[1].status === 'accepted') {
-        const taps = Math.floor(Math.random() * 5) + 2;
-        setSpeedChallengeTaps(prev => ({ ...prev, player3: (prev.player3 ?? 0) + taps }));
-        awardBattlePoints('player3', taps * 2);
-      }
-      if (battleSlots[2].status === 'accepted') {
-        const taps = Math.floor(Math.random() * 5) + 2;
-        setSpeedChallengeTaps(prev => ({ ...prev, player4: (prev.player4 ?? 0) + taps }));
-        awardBattlePoints('player4', taps * 2);
-      }
-    }, 1000);
-    return () => { if (speedChallengeTimerRef.current) clearInterval(speedChallengeTimerRef.current); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [speedChallengeActive]);
 
   // Auto-start speed challenge when score thresholds are reached
   useEffect(() => {
@@ -1477,353 +1217,10 @@ export default function LiveStream() {
     stream.getAudioTracks().forEach((t) => (t.enabled = !isMicMuted));
   }, [isMicMuted]);
 
-  // ═══════════════════════════════════════════════════════════
-  // ULTRA-REALISTIC VIEWER SIMULATION ENGINE (100 viewers)
-  // Phases: burst → growth → plateau → natural churn
-  // No repetition, natural timing, realistic behavior
-  // ═══════════════════════════════════════════════════════════
-  const [activeViewers, setActiveViewers] = useState<SimulatedViewer[]>([]);
+  const [activeViewers, setActiveViewers] = useState<LiveViewer[]>([]);
   useEffect(() => { activeViewersRef.current = activeViewers; }, [activeViewers]);
   useEffect(() => { speedChallengeTapsRef.current = speedChallengeTaps; }, [speedChallengeTaps]);
-  const viewerTimersRef = useRef<NodeJS.Timeout[]>([]);
-  const chatTimersRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
-  const availablePoolRef = useRef<Omit<SimulatedViewer, 'joinedAt' | 'isActive'>[]>([]);
-  const simulationPhaseRef = useRef<'burst' | 'growth' | 'plateau' | 'churn'>('burst');
 
-  useEffect(() => {
-    // Shuffle the entire 100-viewer pool
-    const shuffled = [...VIEWER_POOL].sort(() => Math.random() - 0.5);
-    availablePoolRef.current = [...shuffled];
-    const allIntervals: NodeJS.Timeout[] = [];
-
-    // Clear previous timers
-    viewerTimersRef.current.forEach(t => clearTimeout(t));
-    viewerTimersRef.current = [];
-
-    const addViewer = (viewer: Omit<SimulatedViewer, 'joinedAt' | 'isActive'>, showJoinMsg: boolean, showGreeting: boolean) => {
-      const newViewer: SimulatedViewer = { ...viewer, joinedAt: Date.now(), isActive: true };
-      setActiveViewers(prev => {
-        if (prev.some(v => v.id === viewer.id)) return prev;
-        return [...prev, newViewer];
-      });
-
-      if (showJoinMsg) {
-        // "username joined the live 🇺🇸" system message
-        setMessages(prev => [...prev.slice(-30), {
-          id: `join_${Date.now()}_${viewer.id}`,
-          username: viewer.displayName,
-          text: `joined ${viewer.country}`,
-          level: viewer.level,
-          avatar: viewer.avatar,
-          isSystem: true,
-        }]);
-      }
-
-      // Some viewers say hello when they join (15% chance if showGreeting)
-      if (showGreeting && Math.random() < 0.15) {
-        const greetDelay = 2000 + Math.random() * 6000; // 2-8s after joining
-        const gt = setTimeout(() => {
-          const msg = getRandomChatMessage(viewer, true);
-          setMessages(prev => [...prev.slice(-30), {
-            id: `greet_${Date.now()}_${viewer.id}`,
-            username: viewer.displayName,
-            text: msg,
-            level: viewer.level,
-            avatar: viewer.avatar,
-          }]);
-        }, greetDelay);
-        viewerTimersRef.current.push(gt);
-      }
-
-      setViewerCount(prev => prev + 1);
-    };
-
-    const removeRandomViewer = () => {
-      setActiveViewers(prev => {
-        if (prev.length <= 8) return prev; // Keep minimum 8 viewers always
-        // Prefer removing viewers who've been here longest or have high chatFrequency (less engaged)
-        const candidates = prev.filter(v => Date.now() - v.joinedAt > 45000); // Only those here > 45s
-        if (candidates.length === 0) return prev;
-        // Higher chatFrequency = less engaged = more likely to leave
-        const weights = candidates.map(c => c.chatFrequency);
-        const totalW = weights.reduce((a, b) => a + b, 0);
-        let r = Math.random() * totalW;
-        let leaving = candidates[0];
-        for (let i = 0; i < candidates.length; i++) {
-          r -= weights[i];
-          if (r <= 0) { leaving = candidates[i]; break; }
-        }
-        // Return viewer to available pool so they can rejoin later
-        availablePoolRef.current.push({
-          id: leaving.id, username: leaving.username, displayName: leaving.displayName,
-          level: leaving.level, avatar: leaving.avatar, country: leaving.country, chatFrequency: leaving.chatFrequency,
-          supportDays: leaving.supportDays, lastVisitDaysAgo: leaving.lastVisitDaysAgo,
-        });
-        // Clear their chat timer
-        const chatTimer = chatTimersRef.current.get(leaving.id);
-        if (chatTimer) { clearTimeout(chatTimer); chatTimersRef.current.delete(leaving.id); }
-        setViewerCount(p => Math.max(10, p - 1));
-        return prev.filter(v => v.id !== leaving.id);
-      });
-    };
-
-    const getNextViewer = (): Omit<SimulatedViewer, 'joinedAt' | 'isActive'> | null => {
-      if (availablePoolRef.current.length === 0) return null;
-      return availablePoolRef.current.shift()!;
-    };
-
-    // ─── PHASE 1: BURST (0-25s) ─── 8-15 viewers join quickly
-    simulationPhaseRef.current = 'burst';
-    const burstCount = 8 + Math.floor(Math.random() * 8); // 8-15
-    for (let i = 0; i < burstCount; i++) {
-      const viewer = getNextViewer();
-      if (!viewer) break;
-      const delay = 800 + Math.random() * 22000; // spread over 0.8-22s
-      const timer = setTimeout(() => {
-        addViewer(viewer, true, true);
-      }, delay);
-      viewerTimersRef.current.push(timer);
-    }
-
-    // ─── PHASE 2: GROWTH (25s-2min) ─── steady stream of new viewers
-    const growthStart = setTimeout(() => {
-      simulationPhaseRef.current = 'growth';
-      let growthAdded = 0;
-      const maxGrowth = 25 + Math.floor(Math.random() * 15); // 25-40 more
-      const growthInterval = setInterval(() => {
-        if (growthAdded >= maxGrowth) { clearInterval(growthInterval); return; }
-        const viewer = getNextViewer();
-        if (!viewer) { clearInterval(growthInterval); return; }
-        addViewer(viewer, Math.random() < 0.6, true);
-        growthAdded++;
-      }, 2000 + Math.random() * 4000); // every 2-6 seconds
-      allIntervals.push(growthInterval);
-    }, 25000);
-    viewerTimersRef.current.push(growthStart as unknown as NodeJS.Timeout);
-
-    // ─── PHASE 3: PLATEAU (2min+) ─── balance of joining/leaving
-    const plateauStart = setTimeout(() => {
-      simulationPhaseRef.current = 'plateau';
-      
-      const joinInterval = setInterval(() => {
-        const viewer = getNextViewer();
-        if (!viewer) return;
-        addViewer(viewer, Math.random() < 0.5, true);
-      }, 8000 + Math.random() * 12000);
-      allIntervals.push(joinInterval);
-
-      const leaveInterval = setInterval(() => {
-        if (Math.random() < 0.6) removeRandomViewer();
-      }, 15000 + Math.random() * 25000);
-      allIntervals.push(leaveInterval);
-    }, 120000);
-    viewerTimersRef.current.push(plateauStart as unknown as NodeJS.Timeout);
-
-    // ─── NATURAL CHURN ─── after 4 min, gentle rotate
-    const churnStart = setTimeout(() => {
-      simulationPhaseRef.current = 'churn';
-      const churnInterval = setInterval(() => {
-        removeRandomViewer();
-        if (Math.random() < 0.4) removeRandomViewer();
-        setTimeout(() => {
-          const v1 = getNextViewer();
-          if (v1) addViewer(v1, Math.random() < 0.4, true);
-          if (Math.random() < 0.4) {
-            setTimeout(() => {
-              const v2 = getNextViewer();
-              if (v2) addViewer(v2, Math.random() < 0.3, true);
-            }, 3000 + Math.random() * 5000);
-          }
-        }, 2000 + Math.random() * 5000);
-      }, 20000 + Math.random() * 30000);
-      allIntervals.push(churnInterval);
-    }, 240000);
-    viewerTimersRef.current.push(churnStart as unknown as NodeJS.Timeout);
-
-    return () => {
-      viewerTimersRef.current.forEach(t => clearTimeout(t));
-      allIntervals.forEach(t => clearInterval(t));
-      chatTimersRef.current.forEach(t => clearTimeout(t));
-      chatTimersRef.current.clear();
-    };
-  }, []);
-
-  // ─── CHAT SIMULATION ENGINE ───
-  // Each viewer chats independently at their own natural pace
-  // Includes: normal chat, streamer interaction, viewer-to-viewer replies,
-  // gift encouragement, and contextual reactions
-  const giftReactionTimersRef = useRef<NodeJS.Timeout[]>([]);
-  const simulatedGiftTimerRef = useRef<NodeJS.Timeout | null>(null);
-
-  useEffect(() => {
-    // Only let 1 viewer chat at a time - messages come one by one
-    if (chatTimersRef.current.size >= 1) return;
-    // Find newly added viewers (not already having a chat timer)
-    activeViewers.forEach(viewer => {
-      if (chatTimersRef.current.size >= 1) return;
-      if (chatTimersRef.current.has(viewer.id)) return;
-
-      const scheduleChat = (v: SimulatedViewer) => {
-        const baseDelay = v.chatFrequency * 8000; // 8x slower
-        const variance = baseDelay * 0.5;
-        const delay = Math.max(40000, baseDelay + (Math.random() * variance * 2 - variance)); // minimum 40 seconds between messages
-        
-        const timer = setTimeout(() => {
-          setActiveViewers(current => {
-            const stillActive = current.find(cv => cv.id === v.id);
-            if (!stillActive) {
-              chatTimersRef.current.delete(v.id);
-              return current;
-            }
-            
-            // Decide what kind of message to send based on natural distribution
-            const roll = Math.random();
-            let context: 'normal' | 'gift_reaction' | 'gift_encourage' | 'streamer' = 'normal';
-            if (roll < 0.12) context = 'streamer'; // 12% talk to streamer
-            else if (roll < 0.18) context = 'gift_encourage'; // 6% encourage gifting
-            // rest is normal (includes viewer-to-viewer, reactions, etc.)
-            
-            const msg = getRandomChatMessage(v, false, context);
-            setMessages(prev => [...prev.slice(-35), {
-              id: `chat_${Date.now()}_${v.id}_${Math.random().toString(36).slice(2, 6)}`,
-              username: v.displayName,
-              text: msg,
-              level: v.level,
-              avatar: v.avatar,
-            }]);
-            
-            // Release slot so a different viewer can chat next
-            chatTimersRef.current.delete(v.id);
-            return current;
-          });
-        }, delay);
-        chatTimersRef.current.set(v.id, timer);
-      };
-
-      const initialDelay = 3000 + Math.random() * 8000;
-      const initTimer = setTimeout(() => scheduleChat(viewer), initialDelay);
-      chatTimersRef.current.set(viewer.id, initTimer);
-    });
-
-    // Clean up timers for viewers that left
-    chatTimersRef.current.forEach((timer, viewerId) => {
-      if (!activeViewers.some(v => v.id === viewerId)) {
-        clearTimeout(timer);
-        chatTimersRef.current.delete(viewerId);
-      }
-    });
-  }, [activeViewers]);
-
-  // ─── GIFT REACTION SYSTEM ───
-  // When a gift is sent (real or simulated), 2-5 random active viewers react
-  const triggerGiftReactions = useCallback((giftName: string, senderName: string) => {
-    if (activeViewers.length < 2) return;
-    const reactCount = 1; // only 1 reaction per gift
-    const shuffledViewers = [...activeViewers]
-      .filter(v => v.displayName !== senderName) // don't react to own gift
-      .sort(() => Math.random() - 0.5)
-      .slice(0, reactCount);
-    
-    shuffledViewers.forEach((v, i) => {
-      const delay = 800 + (i * (500 + Math.random() * 1500)); // staggered 0.8s-5s
-      const timer = setTimeout(() => {
-        const msg = getRandomChatMessage(v, false, 'gift_reaction');
-        setMessages(prev => [...prev.slice(-35), {
-          id: `giftreact_${Date.now()}_${v.id}_${Math.random().toString(36).slice(2, 5)}`,
-          username: v.displayName,
-          text: msg,
-          level: v.level,
-          avatar: v.avatar,
-        }]);
-      }, delay);
-      giftReactionTimersRef.current.push(timer);
-    });
-  }, [activeViewers]);
-
-  // ─── SIMULATED VIEWER GIFTS ───
-  // Active viewers occasionally send small gifts (realistic behavior)
-  useEffect(() => {
-    if (activeViewers.length < 3) return;
-
-    const scheduleSimulatedGift = () => {
-      // Random interval between 25-90 seconds
-      const delay = 25000 + Math.random() * 65000;
-      simulatedGiftTimerRef.current = setTimeout(() => {
-        setActiveViewers(current => {
-          if (current.length < 3) return current;
-          
-          // Pick a random active viewer to "send" a gift
-          const gifter = current[Math.floor(Math.random() * current.length)];
-          
-          // Simulated viewers mostly send small/medium gifts
-          const smallGiftNames = [
-            { name: 'Red Rose', icon: '🌹', coins: 1 },
-            { name: 'Love Heart', icon: '❤️', coins: 5 },
-            { name: 'Morning Coffee', icon: '☕', coins: 15 },
-            { name: 'Ice Cream', icon: '🍦', coins: 50 },
-            { name: 'Super Car', icon: '🏎️', coins: 500 },
-            { name: 'Diamond Ring', icon: '💍', coins: 1000 },
-            { name: 'Teddy Bear', icon: '🧸', coins: 100 },
-            { name: 'Star', icon: '⭐', coins: 25 },
-            { name: 'Crown', icon: '👑', coins: 200 },
-            { name: 'Rocket', icon: '🚀', coins: 300 },
-          ];
-          
-          // Higher level viewers send more expensive gifts
-          let giftPool = smallGiftNames;
-          if (gifter.level < 20) {
-            giftPool = smallGiftNames.filter(g => g.coins <= 50);
-          } else if (gifter.level < 40) {
-            giftPool = smallGiftNames.filter(g => g.coins <= 200);
-          }
-          // Level 40+ can send any
-          
-          const gift = giftPool[Math.floor(Math.random() * giftPool.length)];
-          
-          // Gift message in chat
-          setMessages(prev => [...prev.slice(-35), {
-            id: `simgift_${Date.now()}_${gifter.id}`,
-            username: gifter.displayName,
-            text: `Sent a ${gift.name} ${gift.icon}`,
-            isGift: true,
-            level: gifter.level,
-            avatar: gifter.avatar,
-          }]);
-
-          // Trigger reactions from other viewers
-          setTimeout(() => {
-            triggerGiftReactions(gift.name, gifter.displayName);
-          }, 500);
-          
-          return current;
-        });
-        
-        // Schedule next simulated gift
-        scheduleSimulatedGift();
-      }, delay);
-    };
-
-    // Start after initial delay
-    const initDelay = setTimeout(() => scheduleSimulatedGift(), 30000 + Math.random() * 20000);
-
-    return () => {
-      clearTimeout(initDelay);
-      if (simulatedGiftTimerRef.current) clearTimeout(simulatedGiftTimerRef.current);
-      giftReactionTimersRef.current.forEach(t => clearTimeout(t));
-      giftReactionTimersRef.current = [];
-    };
-  }, [activeViewers.length > 2, triggerGiftReactions]);
-
-  // Organic viewer count fluctuation (slight random ±1-3)
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setViewerCount(prev => {
-        const delta = Math.floor(Math.random() * 5) - 2;
-        return Math.max(10, prev + delta);
-      });
-    }, 6000 + Math.random() * 4000);
-    return () => clearInterval(interval);
-  }, []);
 
   const [giftQueue, setGiftQueue] = useState<string[]>([]);
   const [isPlayingGift, setIsPlayingGift] = useState(false);
@@ -1980,8 +1377,6 @@ export default function LiveStream() {
       };
       setMessages(prev => [...prev, giftMsg]);
 
-      // Viewers react to the gift being sent
-      setTimeout(() => triggerGiftReactions(gift.name, viewerName), 1000 + Math.random() * 2000);
 
       // Handle Combo Logic
       setLastSentGift(gift);
@@ -2091,58 +1486,12 @@ export default function LiveStream() {
       };
       setMessages(prev => [...prev, giftMsg]);
 
-      // Viewers react to the gift being sent
-      setTimeout(() => triggerGiftReactions(lastSentGift.name, viewerName), 1000 + Math.random() * 2000);
 
       // Handle Combo Logic
       setComboCount(prev => prev + 1);
       resetComboTimer();
   };
 
-  const _simulateIncomingGift = () => {
-      const randomGift = GIFTS[Math.floor(Math.random() * GIFTS.length)];
-      
-      // Use a real active viewer as the gifter (much more realistic)
-      let gifterName: string;
-      let gifterAvatar: string;
-      let gifterLevel: number | undefined;
-      if (activeViewers.length > 0) {
-        const gifter = activeViewers[Math.floor(Math.random() * activeViewers.length)];
-        gifterName = gifter.displayName;
-        gifterAvatar = gifter.avatar;
-        gifterLevel = gifter.level;
-      } else {
-        // Fallback for early stream before viewers join
-        const fallbackNames = ['Luna V.', 'Alex M.', 'Sofia B.'];
-        gifterName = fallbackNames[Math.floor(Math.random() * fallbackNames.length)];
-        gifterAvatar = `https://i.pravatar.cc/150?u=${encodeURIComponent(gifterName)}`;
-      }
-      
-      const isFaceARGift = randomGift.id.startsWith('face_ar_');
-      if (!isFaceARGift && randomGift.video) {
-        setGiftQueue(prev => [...prev, randomGift.video]);
-      }
-
-      if (isBroadcast && !isBattleMode) {
-        maybeTriggerFaceARGift(randomGift);
-      }
-
-      maybeEnqueueUniverse(randomGift.name, gifterName);
-      addBattleGifterCoins(gifterName, randomGift.coins);
-
-      const giftMsg = {
-          id: Date.now().toString(),
-          username: gifterName,
-          text: `Sent a ${randomGift.name} ${randomGift.icon}`,
-          isGift: true,
-          level: gifterLevel,
-          avatar: gifterAvatar,
-      };
-      setMessages(prev => [...prev, giftMsg]);
-
-      // Other viewers react to the gift
-      setTimeout(() => triggerGiftReactions(randomGift.name, gifterName), 800 + Math.random() * 2000);
-  };
 
   const handleSendMessage = (e: React.FormEvent) => {
       e.preventDefault();
@@ -2217,13 +1566,11 @@ export default function LiveStream() {
   };
 
   const openMiniProfile = (username: string, coins?: number) => {
-    const viewer = VIEWER_POOL.find(v => v.displayName === username || v.username === username);
     const avatar = username === myCreatorName
       ? myAvatar
-      : viewer?.avatar || `https://i.pravatar.cc/150?u=${encodeURIComponent(username)}`;
-    const level = username === myCreatorName ? userLevel : (viewer?.level ?? null);
-    // Each user's total donated coins: supportDays * coins per day based on level
-    const donated = viewer ? viewer.supportDays * (50 + Math.floor((viewer.level || 1) * 15)) : (username === myCreatorName ? sessionContribution : 0);
+      : `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=121212&color=C9A96E`;
+    const level = username === myCreatorName ? userLevel : null;
+    const donated = username === myCreatorName ? sessionContribution : 0;
     setMiniProfile({ username, avatar, level, coins, donated });
   };
 
@@ -2796,7 +2143,7 @@ export default function LiveStream() {
                   return g ? (
                     <div key={i} className="w-9 h-9 rounded-full overflow-hidden border-[2.5px] drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]" style={{ borderColor: c, zIndex: 3 - i }}><img src={g.avatar} alt={g.name} className="w-full h-full object-cover" /></div>
                   ) : (
-                    <div key={i} className="w-9 h-9 rounded-full overflow-hidden border-[2.5px] bg-[#13151A]/80" style={{ borderColor: c, zIndex: 3 - i }}><img src={`https://i.pravatar.cc/100?img=${i + 10}`} alt="" className="w-full h-full object-cover opacity-50" /></div>
+                    <div key={i} className="w-9 h-9 rounded-full overflow-hidden border-[2.5px] bg-[#13151A]/80" style={{ borderColor: c, zIndex: 3 - i }}><img src={`/Icons/elix-logo.png`} alt="" className="w-full h-full object-cover opacity-50" /></div>
                   );
                 })}
               </div>
@@ -2819,7 +2166,7 @@ export default function LiveStream() {
                   return g ? (
                     <div key={i} className="w-9 h-9 rounded-full overflow-hidden border-[2.5px] drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]" style={{ borderColor: c, zIndex: 3 - i }}><img src={g.avatar} alt={g.name} className="w-full h-full object-cover" /></div>
                   ) : (
-                    <div key={i} className="w-9 h-9 rounded-full overflow-hidden border-[2.5px] bg-[#13151A]/80" style={{ borderColor: c, zIndex: 3 - i }}><img src={`https://i.pravatar.cc/100?img=${i + 15}`} alt="" className="w-full h-full object-cover opacity-50" /></div>
+                    <div key={i} className="w-9 h-9 rounded-full overflow-hidden border-[2.5px] bg-[#13151A]/80" style={{ borderColor: c, zIndex: 3 - i }}><img src={`/Icons/elix-logo.png`} alt="" className="w-full h-full object-cover opacity-50" /></div>
                   );
                 })}
               </div>
@@ -2865,9 +2212,8 @@ export default function LiveStream() {
                               </button>
                               
                               {(() => {
-                                const activeIds = new Set(activeViewers.map(v => v.id));
-                                const redCount = VIEWER_POOL.filter(v => activeIds.has(v.id) || (v.lastVisitDaysAgo ?? 0) < 2).length;
-                                const greyCount = VIEWER_POOL.filter(v => !activeIds.has(v.id) && (v.lastVisitDaysAgo ?? 0) >= 2).length;
+                                const redCount = 0;
+                                const greyCount = 0;
                                 return (
                                   <div className="absolute right-1 top-1/2 -translate-y-1/2 grid place-items-center pointer-events-auto">
                                     {/* Membership / Join Button (Bottom) */}
@@ -2898,7 +2244,7 @@ export default function LiveStream() {
                                             text: '❤️ Joined the team!',
                                             level: userLevel,
                                             isGift: false,
-                                            avatar: 'https://i.pravatar.cc/150?img=68',
+                                            avatar: '/Icons/elix-logo.png',
                                             isSystem: true,
                                             membershipIcon: '/icons/Membership.png'
                                           };
@@ -2976,9 +2322,8 @@ export default function LiveStream() {
                       <div className="pointer-events-auto flex items-center gap-2 mt-5">
                         <div className="flex items-center gap-1.5">
                             <div className="flex items-center -space-x-1 pointer-events-auto" onClick={() => setShowViewerList(prev => !prev)}>
-                              {(activeViewers.length > 0 ? activeViewers.slice(0, 3) : VIEWER_POOL.slice(0, 3)).map((v, i) => {
-                                const poolViewer = VIEWER_POOL.find(pv => pv.id === v.id);
-                                const donated = poolViewer ? poolViewer.supportDays * (50 + Math.floor((poolViewer.level || 1) * 15)) : 0;
+                              {activeViewers.slice(0, 3).map((v, i) => {
+                                const donated = 0;
                                 return (
                                   <div key={v.id} className="relative flex flex-col items-center" style={{ zIndex: 3 - i }}>
                                     <div className="relative w-7 h-7">
@@ -3050,9 +2395,8 @@ export default function LiveStream() {
                             </div>
                         </button>
                         {(() => {
-                          const activeIds = new Set(activeViewers.map(v => v.id));
-                          const redCount = VIEWER_POOL.filter(v => activeIds.has(v.id) || (v.lastVisitDaysAgo ?? 0) < 2).length;
-                          const greyCount = VIEWER_POOL.filter(v => !activeIds.has(v.id) && (v.lastVisitDaysAgo ?? 0) >= 2).length;
+                          const redCount = 0;
+                          const greyCount = 0;
                           return (
                             <button type="button" className="flex items-center gap-1 pointer-events-auto" onClick={(e) => { e.stopPropagation(); if (showMembershipBar) closeMembershipBar(); else openMembershipBar(); }}>
                               <Heart className={`w-3.5 h-3.5 drop-shadow-[0_0_3px_rgba(201,169,110,0.5)] transition-colors duration-300 ${membershipHeartActive ? 'text-white' : 'text-white'}`} strokeWidth={2} fill={membershipHeartActive ? '#C9A96E' : '#C9A96E'} />
@@ -3141,7 +2485,7 @@ export default function LiveStream() {
               {showEmojiPicker && (
                 <div className="absolute bottom-full left-0 mb-2 w-64 bg-[#1C1E24] border border-white/10 rounded-xl shadow-xl overflow-hidden pointer-events-auto z-[250]">
                   <div className="grid grid-cols-6 gap-2 p-2 max-h-48 overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
-                    {CHAT_MESSAGES.emoji.map((emoji, i) => (
+                    {EMOJI_LIST.map((emoji, i) => (
                       <button
                         key={i}
                         type="button"
@@ -3469,7 +2813,7 @@ export default function LiveStream() {
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         <img
-                          src={`https://i.pravatar.cc/150?u=${encodeURIComponent(c.name)}`}
+                          src={`https://ui-avatars.com/api/?name=&background=121212&color=C9A96E`}
                           alt={c.name}
                           className="w-10 h-10 rounded-full object-cover bg-white/10"
                         />
@@ -3677,11 +3021,7 @@ export default function LiveStream() {
             {/* Content */}
             <div className="max-h-[40dvh] overflow-y-auto" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
               {activeViewers
-                .map(v => {
-                  const poolViewer = VIEWER_POOL.find(pv => pv.id === v.id);
-                  const donated = poolViewer ? poolViewer.supportDays * (50 + Math.floor((poolViewer.level || 1) * 15)) : 0;
-                  return { ...v, donated };
-                })
+                .map(v => ({ ...v, donated: 0 }))
                 .sort((a, b) => b.donated - a.donated)
                 .map((v, idx) => (
                   <div key={v.id} className="flex items-center gap-2 px-3 py-2 hover:bg-white/5">
@@ -3710,7 +3050,7 @@ export default function LiveStream() {
                 ))}
               {activeViewers.length === 0 && (
                 <div className="py-6 text-center text-white/40 text-xs">
-                  Viewers are joining...
+                  No viewers yet
                 </div>
               )}
             </div>
@@ -3800,7 +3140,7 @@ export default function LiveStream() {
                    {hasJoinedToday && (
                      <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-white/10 border border-white/20">
                         <div className="relative">
-                          <img src={'https://i.pravatar.cc/150?img=68'} alt="You" className="w-8 h-8 rounded-full object-cover border border-white/10" />
+                          <img src={'/Icons/elix-logo.png'} alt="You" className="w-8 h-8 rounded-full object-cover border border-white/10" />
                           <div className="absolute -bottom-1 -right-1 bg-[#FF2D55] w-3.5 h-3.5 rounded-full flex items-center justify-center border border-[#1a1a1a]">
                             <Heart size={8} className="text-white fill-white" />
                           </div>
@@ -3813,25 +3153,6 @@ export default function LiveStream() {
                      </div>
                    )}
                    
-                   {/* Simulated list of other supporters */}
-                   {VIEWER_POOL.slice(0, 8).map((v, i) => (
-                     <div key={v.id} className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/5 transition-colors">
-                        <div className="relative">
-                          <img src={v.avatar} alt={v.username} className="w-8 h-8 rounded-full object-cover border border-white/10" />
-                          {/* Randomly show heart icon on some users to simulate they joined */}
-                          {i % 3 === 0 && (
-                            <div className="absolute -bottom-1 -right-1 bg-[#FF2D55] w-3.5 h-3.5 rounded-full flex items-center justify-center border border-[#1a1a1a]">
-                              <Heart size={8} className="text-white fill-white" />
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex-1">
-                          <div className="text-xs font-bold text-white/90">{v.displayName}</div>
-                          <div className="text-[10px] text-white/40">Level {v.level} • {v.country}</div>
-                        </div>
-                        <div className="text-white/30 text-[9px]">{i + 1}m ago</div>
-                     </div>
-                   ))}
                  </div>
                </div>
             </div>
@@ -3925,7 +3246,7 @@ export default function LiveStream() {
                             text: emoji, // In a real app this would be an image URL
                             level: userLevel,
                             isGift: false, // Could be treated as a special message type
-                            avatar: 'https://i.pravatar.cc/150?img=68', // Fallback for now to avoid TS issues with User type
+                            avatar: '/Icons/elix-logo.png', // Fallback for now to avoid TS issues with User type
                             isSystem: false
                           };
                           setMessages(prev => [...prev, newMessage]);
@@ -3961,7 +3282,7 @@ export default function LiveStream() {
                                 text: ev.target?.result as string, // Data URL
                                 level: userLevel,
                                 isGift: false, 
-                                avatar: 'https://i.pravatar.cc/150?img=68',
+                                avatar: '/Icons/elix-logo.png',
                                 isSystem: false
                               };
                               setMessages(prev => [...prev, newMessage]);
@@ -4280,24 +3601,24 @@ export default function LiveStream() {
               </div>
             </div>
             
-            {/* Followers List */}
+            {/* Followers List - populated from real data */}
             <div className="w-full overflow-hidden shrink-0">
               <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar items-center">
-                {VIEWER_POOL.filter(v => v.displayName.toLowerCase().includes(shareQuery.toLowerCase())).map((user) => (
+                {creators.filter(c => c.name.toLowerCase().includes(shareQuery.toLowerCase())).map((u) => (
                   <button 
-                    key={user.id} 
+                    key={u.id} 
                     className="flex flex-col items-center gap-1 min-w-[56px] active:scale-95 transition-transform"
                     onClick={() => {
                       setShowSharePanel(false);
                     }}
                   >
                     <div className="relative">
-                      <img src={user.avatar} alt={user.username} className="w-12 h-12 rounded-full object-cover bg-white/10 border border-white/10" />
+                      <img src={u.avatar} alt={u.name} className="w-12 h-12 rounded-full object-cover bg-white/10 border border-white/10" />
                       <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-[#FF2D55] rounded-full flex items-center justify-center border-2 border-[#1a1a1a]">
                         <Send size={7} className="text-white" />
                       </div>
                     </div>
-                    <span className="text-white text-[9px] font-bold truncate max-w-[56px]">{user.displayName}</span>
+                    <span className="text-white text-[9px] font-bold truncate max-w-[56px]">{u.name}</span>
                   </button>
                 ))}
               </div>

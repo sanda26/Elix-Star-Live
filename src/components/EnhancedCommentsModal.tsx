@@ -332,7 +332,7 @@ export default function CommentsModal({ isOpen, onClose, videoId }: CommentsModa
         <div className="flex-shrink-0 mt-1">
           <LevelBadge 
             level={comment.level || 1} 
-            avatar={comment.avatar_url || `https://i.pravatar.cc/150?u=${comment.user_id}`} 
+            avatar={comment.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(comment.username || 'U')}&background=121212&color=C9A96E`} 
             size={40} 
             layout="fixed"
           />
@@ -515,7 +515,7 @@ export default function CommentsModal({ isOpen, onClose, videoId }: CommentsModa
             <div className="flex-shrink-0">
                 <LevelBadge 
                     level={user?.level || 1} 
-                    avatar={user?.avatar || `https://i.pravatar.cc/150?u=${user?.id}`} 
+                    avatar={user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'U')}&background=121212&color=C9A96E`} 
                     size={36} 
                     layout="fixed"
                 />

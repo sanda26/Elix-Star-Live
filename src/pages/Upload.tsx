@@ -56,7 +56,7 @@ export default function Upload() {
   const mapRowToVideo = (row: any, profile: any) => ({
     id: row.id,
     url: row.url,
-    thumbnail: row.thumbnail_url || 'https://picsum.photos/400/600',
+    thumbnail: row.thumbnail_url || '',
     duration: '0:15',
     user: {
       id: profile?.user_id ?? profile?.id ?? row.user_id ?? 'unknown',

@@ -3046,57 +3046,86 @@ export default function LiveStream() {
         )}
       </AnimatePresence>
 
-      {/* ═══ VIEWER LIST PANEL (Restored) ═══ */}
+      {/* ═══ VIEWER LIST PANEL ═══ */}
       {showViewerList && (
-        <div className="absolute inset-0 z-[99999] flex flex-col justify-end">
-          <div 
-            className="absolute inset-0 pointer-events-auto" 
-            onClick={() => setShowViewerList(false)}
-          />
-          <div
-            className="bg-[#1C1E24]/95 rounded-t-2xl h-[40dvh] max-h-[40dvh] flex flex-col shadow-2xl border-t border-white/10 pointer-events-auto w-full relative z-10 overflow-y-auto no-scrollbar pb-safe"
-            onClick={(e) => e.stopPropagation()}
-          >
+        <div className="absolute inset-0 z-[99999] flex flex-col bg-[#0A0B0E]/95 backdrop-blur-sm">
+          <div className="flex-1 flex flex-col max-w-[480px] w-full mx-auto">
+
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
-              <div className="flex items-center gap-2">
-                <span className="text-white font-bold text-sm">Live Gifters</span>
-                <span className="bg-white/10 px-1.5 py-0.5 rounded-full text-white/70 text-[8px] font-bold tabular-nums">{formatCountShort(viewerCount)}</span>
+            <div className="flex items-center justify-between px-4 pt-[calc(env(safe-area-inset-top,0px)+10px)] pb-2">
+              <div className="flex items-center gap-2.5">
+                <button onClick={() => setShowViewerList(false)} className="p-1" title="Close">
+                  <img src="/Icons/Gold power buton.png" alt="Close" className="w-5 h-5" />
+                </button>
+                <span className="text-white font-bold text-base">Spectators</span>
+                <span className="text-white/30 text-xs font-medium">{formatCountShort(viewerCount)} watching</span>
               </div>
             </div>
-            {/* Content */}
-            <div className="max-h-[40dvh] overflow-y-auto" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-              {activeViewers
-                .map(v => ({ ...v, donated: 0 }))
-                .sort((a, b) => b.donated - a.donated)
-                .map((v, idx) => (
-                  <div key={v.id} className="flex items-center gap-2 px-3 py-2 hover:bg-white/5">
-                    <div className="relative flex-shrink-0">
-                      <AvatarRing src={v.avatar} alt={v.displayName} size={32} />
-                      {idx < 10 && (
-                        <span className="absolute -top-0.5 -left-0.5 bg-[#C9A96E] text-black text-[6px] font-black w-3 h-3 rounded-full flex items-center justify-center">{idx + 1}</span>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1">
-                        <span className="text-white text-[11px] font-semibold truncate">{v.displayName}</span>
-                        <span className="text-white/40 text-[9px]">{v.country}</span>
-                      </div>
-                      <div className="flex items-center gap-1 mt-0.5">
-                        <span className="text-[8px] font-bold text-white bg-[#C9A96E]/10 px-1 py-px rounded-full">LVL {v.level}</span>
-                        {idx < 10 && v.donated > 0 && (
-                          <span className="text-[8px] font-bold text-[#FF2D55]">{formatCoinsShort(v.donated)}</span>
+
+            {/* Grid */}
+            <div className="flex-1 overflow-y-auto px-1 pb-[env(safe-area-inset-bottom,20px)]">
+              {activeViewers.length > 0 ? (
+                <div className="grid grid-cols-2 gap-1">
+                  {activeViewers
+                    .map((v, idx) => ({ ...v, rank: idx }))
+                    .map((v) => (
+                      <button
+                        key={v.id}
+                        type="button"
+                        onClick={() => { setMiniProfile({ id: v.id, username: v.displayName, avatar: v.avatar, level: v.level ?? null }); setShowViewerList(false); }}
+                        className="relative overflow-hidden aspect-[3/4] active:scale-[0.97] transition-transform"
+                      >
+                        {v.avatar ? (
+                          <img src={v.avatar} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                        ) : (
+                          <div className="absolute inset-0 bg-gradient-to-br from-[#1a1c22] to-[#0e1015] flex items-center justify-center">
+                            <div className="w-14 h-14 rounded-full bg-[#C9A96E]/10 border border-[#C9A96E]/20 flex items-center justify-center">
+                              <span className="text-[#C9A96E] font-bold text-xl">{v.displayName.slice(0, 1).toUpperCase()}</span>
+                            </div>
+                          </div>
                         )}
-                      </div>
-                    </div>
-                    <button onClick={(e) => { e.stopPropagation(); setMiniProfile({ id: v.id, username: v.displayName, avatar: v.avatar, level: v.level ?? null }); setShowViewerList(false); }} className="px-2 py-0.5 rounded-full bg-[#C9A96E]/15 border border-[#C9A96E]/25 text-white text-[9px] font-bold hover:bg-[#C9A96E]/25 transition-colors">
-                      Follow
-                    </button>
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+
+                        {/* Rank + Level badges */}
+                        <div className="absolute top-2 left-2 flex items-center gap-1">
+                          {v.rank < 10 && (
+                            <span className="px-1.5 py-0.5 rounded bg-[#C9A96E] text-black text-[9px] font-extrabold">#{v.rank + 1}</span>
+                          )}
+                          <span className="px-1.5 py-0.5 rounded bg-black/50 text-white/80 text-[9px] font-semibold">LVL {v.level}</span>
+                        </div>
+
+                        {/* Country */}
+                        {v.country && (
+                          <div className="absolute top-2 right-2">
+                            <span className="text-white/60 text-[10px]">{v.country}</span>
+                          </div>
+                        )}
+
+                        {/* Name at bottom */}
+                        <div className="absolute bottom-0 left-0 right-0 p-2.5">
+                          <div className="flex items-center gap-2">
+                            <div className="w-7 h-7 rounded-full border-2 border-[#C9A96E]/40 overflow-hidden flex-shrink-0 bg-[#1a1c22]">
+                              {v.avatar ? (
+                                <img src={v.avatar} alt="" className="w-full h-full object-cover" />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center text-white/60 text-[10px] font-bold">
+                                  {v.displayName.slice(0, 1).toUpperCase()}
+                                </div>
+                              )}
+                            </div>
+                            <p className="text-white font-bold text-xs truncate">{v.displayName}</p>
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center h-full pb-20 text-center">
+                  <div className="w-16 h-16 rounded-full bg-white/[0.02] border border-white/5 flex items-center justify-center mb-4">
+                    <Users className="w-7 h-7 text-white/10" />
                   </div>
-                ))}
-              {activeViewers.length === 0 && (
-                <div className="py-6 text-center text-white/40 text-xs">
-                  No viewers yet
+                  <p className="text-white/50 font-bold text-sm">No spectators yet</p>
+                  <p className="text-white/25 text-xs mt-1">Share this stream to get viewers</p>
                 </div>
               )}
             </div>

@@ -236,7 +236,7 @@ export default function Profile() {
 
   return (
     <div className="min-h-[100dvh] bg-[#13151A] text-white flex justify-center px-2">
-      <div className="w-full max-w-[480px] h-[100dvh] flex flex-col bg-[#13151A] rounded-3xl overflow-hidden overflow-y-auto pt-[var(--safe-top)] pb-[calc(var(--safe-bottom)+12mm)]">
+      <div className="w-full max-w-[480px] h-[100dvh] flex flex-col bg-[#13151A] rounded-3xl overflow-hidden overflow-y-auto pt-[calc(var(--safe-top)+14mm)] pb-[calc(var(--safe-bottom)+18mm)]">
 
         {/* ═══ TOP BAR ═══ */}
         <header className="flex items-center justify-between pl-[calc(16px+3mm)] pr-4 pt-2 pb-2">

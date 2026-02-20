@@ -90,7 +90,7 @@ export default function Register() {
   };
 
   return (
-    <div className="min-h-[100dvh] h-[100dvh] bg-[#13151A] text-white flex items-center justify-center p-4 xs:p-3 sm:p-4 overflow-y-auto pt-[var(--safe-top)] pb-[calc(var(--safe-bottom)+12mm)]">
+    <div className="min-h-[100dvh] h-[100dvh] bg-[#13151A] text-white flex items-center justify-center p-4 xs:p-3 sm:p-4 overflow-y-auto pt-[calc(var(--safe-top)+14mm)] pb-[calc(var(--safe-bottom)+18mm)]">
       <div className="w-full max-w-[420px] xs:max-w-[320px] sm:max-w-[380px] bg-white/5 border border-white/10 rounded-2xl p-6 xs:p-4 sm:p-5">
         <h1 className="text-fluid-xl font-bold mb-6 xs:mb-4 sm:mb-5 text-center">Create Account</h1>
 

@@ -39,7 +39,7 @@ export default function MusicFeed() {
 
   return (
     <div className="min-h-[100dvh] bg-[#13151A] text-white flex justify-center px-2">
-      <div className="w-full max-w-[480px] h-[100dvh] rounded-3xl overflow-hidden bg-[#13151A] flex flex-col pt-[var(--safe-top)] pb-[calc(var(--safe-bottom)+12mm)] overflow-y-auto">
+      <div className="w-full max-w-[480px] h-[100dvh] rounded-3xl overflow-hidden bg-[#13151A] flex flex-col pt-[calc(var(--safe-top)+14mm)] pb-[calc(var(--safe-bottom)+18mm)] overflow-y-auto">
         {/* Header Info */}
         <div className="p-4 pt-6 bg-gradient-to-b from-[#13151A] to-black">
          <button onClick={() => navigate('/feed')} className="p-2 mb-4" title="Back to For You">

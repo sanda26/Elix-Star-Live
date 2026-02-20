@@ -100,7 +100,7 @@ export default function LiveStream() {
   const cameraStreamRef = useRef<MediaStream | null>(null);
   const setPromo = useLivePromoStore((s) => s.setPromo);
   const updateUser = useAuthStore((s) => s.updateUser);
-  const effectiveStreamId = streamId || 'broadcast';
+  const _rawStreamId = streamId;
   const PROMOTE_LIKES_THRESHOLD_LIVE = 100;
   const _PROMOTE_LIKES_THRESHOLD_BATTLE = 50;
   
@@ -132,21 +132,23 @@ export default function LiveStream() {
   const [viewerCount, setViewerCount] = useState(0);
   const [cameraFacing, setCameraFacing] = useState<'user' | 'environment'>('user');
   const user = useAuthStore((s) => s.user);
+  const isBroadcaster = _rawStreamId === 'broadcast' || location.pathname === '/live/broadcast';
+  const effectiveStreamId = isBroadcaster ? (user?.id || 'broadcast') : (_rawStreamId || 'broadcast');
   const formatStreamName = (id: string) =>
     id
       .split(/[-_]/g)
       .filter(Boolean)
       .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
       .join(' ');
+  const [hostName, setHostName] = useState('');
+  const [hostAvatar, setHostAvatar] = useState('');
   const creatorName = isBroadcast
-    ? user?.name || user?.username || 'Andrei Ionut Berica'
-    : streamId
-      ? formatStreamName(streamId)
-      : 'ELIX STAR';
+    ? user?.name || user?.username || 'Creator'
+    : hostName || 'Creator';
   const myCreatorName = creatorName;
   const myAvatar = isBroadcast
-    ? user?.avatar || ``
-    : ``;
+    ? user?.avatar || ''
+    : hostAvatar || '';
   const [opponentCreatorName, setOpponentCreatorName] = useState('');
   const viewerName = user?.username || user?.name || 'viewer_123';
   const viewerAvatar =
@@ -198,6 +200,30 @@ export default function LiveStream() {
     if (videoRef.current) setFaceARVideoEl(videoRef.current);
     if (faceARCanvasRef.current) setFaceARCanvasEl(faceARCanvasRef.current);
   }, [isBroadcast]);
+
+  useEffect(() => {
+    if (isBroadcast || !effectiveStreamId) return;
+    (async () => {
+      const { data: stream } = await supabase
+        .from('live_streams')
+        .select('user_id, title')
+        .eq('stream_key', effectiveStreamId)
+        .maybeSingle();
+      if (stream?.user_id) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('username, display_name, avatar_url')
+          .eq('user_id', stream.user_id)
+          .maybeSingle();
+        if (profile) {
+          setHostName(profile.display_name || profile.username || stream.title || 'Creator');
+          setHostAvatar(profile.avatar_url || '');
+        } else if (stream.title) {
+          setHostName(stream.title);
+        }
+      }
+    })();
+  }, [isBroadcast, effectiveStreamId]);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -358,26 +384,36 @@ export default function LiveStream() {
   const [hasJoinedToday, setHasJoinedToday] = useState(false);
   const [myHeartCount, setMyHeartCount] = useState(0);
   const [creatorQuery, setCreatorQuery] = useState('');
-  const [creators, setCreators] = useState<{ id: string; name: string; followers: string; avatar: string }[]>([]);
+  const [creators, setCreators] = useState<{ id: string; name: string; followers: string; avatar: string; isLive: boolean }[]>([]);
 
   useEffect(() => {
     if (!user?.id) return;
     (async () => {
       try {
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('user_id, username, display_name, avatar_url, followers_count')
-          .neq('user_id', user.id)
-          .order('followers_count', { ascending: false })
-          .limit(100);
-        if (profiles) {
+        const [profilesRes, liveRes] = await Promise.all([
+          supabase
+            .from('profiles')
+            .select('user_id, username, display_name, avatar_url, followers_count')
+            .neq('user_id', user.id)
+            .order('followers_count', { ascending: false })
+            .limit(100),
+          supabase
+            .from('live_streams')
+            .select('user_id')
+            .eq('is_live', true),
+        ]);
+        const liveUserIds = new Set((liveRes.data || []).map((l: any) => l.user_id));
+        if (profilesRes.data) {
           const fmt = (n: number) => n >= 1000000 ? `${(n / 1000000).toFixed(1)}M` : n >= 1000 ? `${(n / 1000).toFixed(1)}K` : `${n}`;
-          setCreators(profiles.map((p: any) => ({
+          const mapped = profilesRes.data.map((p: any) => ({
             id: p.user_id,
             name: p.display_name || p.username || 'User',
             followers: fmt(p.followers_count ?? 0),
             avatar: p.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.username || 'U')}&background=121212&color=C9A96E`,
-          })));
+            isLive: liveUserIds.has(p.user_id),
+          }));
+          mapped.sort((a: any, b: any) => (b.isLive ? 1 : 0) - (a.isLive ? 1 : 0));
+          setCreators(mapped);
         }
       } catch { /* ignore */ }
     })();
@@ -2683,10 +2719,15 @@ export default function LiveStream() {
                       disabled={coHosts.length >= MAX_CO_HOSTS}
                       className="w-full flex items-center gap-3 p-3 rounded-xl bg-white/5 hover:bg-[#C9A96E]/10 transition-all active:scale-[0.98] disabled:opacity-30"
                     >
-                      <img src={creator.avatar} alt={creator.name} className="w-10 h-10 rounded-full object-cover border border-[#C9A96E]/30" />
+                      <div className="relative">
+                        <img src={creator.avatar} alt={creator.name} className="w-10 h-10 rounded-full object-cover border border-[#C9A96E]/30" />
+                        {creator.isLive && (
+                          <div className="absolute -bottom-0.5 -right-0.5 px-1 py-0.5 bg-red-500 rounded text-[7px] font-black text-white leading-none">LIVE</div>
+                        )}
+                      </div>
                       <div className="flex-1 text-left">
                         <p className="text-white text-sm font-bold">{creator.name}</p>
-                        <p className="text-white/40 text-xs">Creator</p>
+                        <p className="text-white/40 text-xs">{creator.isLive ? 'Currently Live' : 'Creator'}</p>
                       </div>
                       <div className="px-3 py-1.5 rounded-full bg-[#C9A96E] flex items-center gap-1">
                         <UserPlus size={12} className="text-black" />
@@ -2799,11 +2840,16 @@ export default function LiveStream() {
                       className="px-3 py-2 flex items-center justify-between hover:bg-white/5 rounded-xl transition-colors"
                     >
                       <div className="flex items-center gap-3 min-w-0">
-                        <img
-                          src={`https://ui-avatars.com/api/?name=&background=121212&color=C9A96E`}
-                          alt={c.name}
-                          className="w-10 h-10 rounded-full object-cover bg-white/10"
-                        />
+                        <div className="relative">
+                          <img
+                            src={c.avatar}
+                            alt={c.name}
+                            className="w-10 h-10 rounded-full object-cover bg-white/10"
+                          />
+                          {c.isLive && (
+                            <div className="absolute -bottom-0.5 -right-0.5 px-1 py-0.5 bg-red-500 rounded text-[7px] font-black text-white leading-none">LIVE</div>
+                          )}
+                        </div>
                         <div className="min-w-0">
                           <p className="text-white text-sm font-bold truncate">{c.name}</p>
                           <p className="text-white/50 text-[10px] font-medium">{c.followers} followers</p>

@@ -34,12 +34,21 @@ export default function LiveDiscover() {
       if (error) throw error;
 
       if (data && data.length > 0) {
-        const mapped: LiveCreator[] = (data as any[]).map((stream) => ({
-          id: stream.stream_key || stream.id,
-          name: stream.title || 'Unknown User',
-          viewers: stream.viewer_count || 0,
-          thumbnail: stream.thumbnail_url
-        }));
+        const userIds = (data as any[]).map((s: any) => s.user_id).filter(Boolean);
+        const { data: profiles } = userIds.length > 0
+          ? await supabase.from('profiles').select('user_id, username, display_name, avatar_url').in('user_id', userIds)
+          : { data: [] };
+        const profileMap = new Map((profiles || []).map((p: any) => [p.user_id, p]));
+
+        const mapped: LiveCreator[] = (data as any[]).map((stream: any) => {
+          const profile: any = profileMap.get(stream.user_id);
+          return {
+            id: stream.stream_key || stream.id,
+            name: profile?.display_name || profile?.username || stream.title || 'Creator',
+            viewers: stream.viewer_count || 0,
+            thumbnail: profile?.avatar_url || stream.thumbnail_url,
+          };
+        });
         setCreators(mapped);
       } else {
         setCreators([]);

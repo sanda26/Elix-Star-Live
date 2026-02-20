@@ -339,7 +339,7 @@ export default function VideoFeed() {
             <div className="absolute inset-0 flex items-center pointer-events-auto">
               {/* LIVE Button - 13% */}
               <button
-                onClick={() => { setActiveTab('live'); navigate('/live'); }}
+                onClick={() => { setActiveTab('live'); navigate('/live', { replace: true }); }}
                 onMouseEnter={() => setHoveredTopTabIndex(0)}
                 onMouseLeave={() => setHoveredTopTabIndex(null)}
                 onFocus={() => setHoveredTopTabIndex(0)}

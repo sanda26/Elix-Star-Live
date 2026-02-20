@@ -1549,7 +1549,7 @@ export default function LiveStream() {
         cameraStreamRef.current = null;
       }
       clearCachedCameraStream();
-      navigate('/');
+      navigate('/feed', { replace: true });
   };
 
   const handleScreenTap = (e?: React.MouseEvent | React.TouchEvent) => {
@@ -2449,7 +2449,7 @@ export default function LiveStream() {
                             </div>
                             <span className="text-white text-[9px] font-bold tabular-nums">{formatCountShort(viewerCount)}</span>
                           </button>
-                          <button type="button" onClick={() => navigate('/')} className="w-10 h-10 text-white flex items-center justify-center hover:scale-110 active:scale-95 transition-all">
+                          <button type="button" onClick={() => navigate('/feed', { replace: true })} className="w-10 h-10 text-white flex items-center justify-center hover:scale-110 active:scale-95 transition-all">
                             <LogOut size={20} strokeWidth={2.5} />
                           </button>
                         </div>

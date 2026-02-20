@@ -3,7 +3,6 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { CheckCircle, Flag } from 'lucide-react';
 import { trackEvent } from '../lib/analytics';
-import { showToast } from '../lib/toast';
 
 const REPORT_REASONS = {
   video: [
@@ -46,7 +45,7 @@ export default function Report() {
 
   const handleSubmit = async () => {
     if (!selectedReason) {
-      showToast('Please select a reason');
+      alert('Please select a reason');
       return;
     }
 
@@ -77,7 +76,7 @@ export default function Report() {
       }, 2000);
     } catch (error) {
       console.error('Failed to submit report:', error);
-      showToast('Failed to submit report. Please try again.');
+      alert('Failed to submit report. Please try again.');
     } finally {
       setLoading(false);
     }

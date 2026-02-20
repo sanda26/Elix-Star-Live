@@ -393,6 +393,10 @@ export default function Profile() {
               <ShoppingBag size={16} className="text-[#ff2d55]" />
               <span className="text-[13px] font-bold text-white">Showcase</span>
             </button>
+            <button onClick={() => navigate('/edit-profile')} className="flex items-center gap-2 px-4 py-3 whitespace-nowrap">
+              <img src={displayAvatar} alt="" className="w-4 h-4 rounded-full object-cover" />
+              <span className="text-[13px] font-bold text-white">{displayName.length > 10 ? displayName.slice(0, 10) + '...' : displayName}</span>
+            </button>
           </div>
         </div>
 

@@ -13,7 +13,6 @@ import {
   QrCode,
   Code
 } from 'lucide-react';
-import { showToast } from '../lib/toast';
 
 interface ShareModalProps {
   isOpen: boolean;
@@ -133,13 +132,13 @@ export default function ShareModal({ isOpen, onClose, video }: ShareModalProps) 
         case 'instagram':
           // Instagram doesn't allow direct sharing via URL, copy to clipboard instead
           await navigator.clipboard.writeText(shareText + ' ' + videoUrl);
-          showToast('Caption copied to clipboard!');
+          alert('Caption copied to clipboard! You can now paste it in your Instagram story or post.');
           break;
           
         case 'youtube':
           // YouTube doesn't allow direct sharing, copy to clipboard instead
           await navigator.clipboard.writeText(shareText + ' ' + videoUrl);
-          showToast('Video link copied to clipboard!');
+          alert('Video link copied to clipboard!');
           break;
           
         default:
@@ -177,7 +176,7 @@ export default function ShareModal({ isOpen, onClose, video }: ShareModalProps) 
   const generateEmbedCode = () => {
     const embedCode = `<iframe src="${videoUrl}" width="560" height="315" frameborder="0" allowfullscreen></iframe>`;
     navigator.clipboard.writeText(embedCode);
-    showToast('Embed code copied to clipboard!');
+    alert('Embed code copied to clipboard!');
   };
 
   const handleDownload = async () => {
@@ -191,7 +190,7 @@ export default function ShareModal({ isOpen, onClose, video }: ShareModalProps) 
       document.body.removeChild(link);
     } catch (error) {
       console.error('Error downloading video:', error);
-      showToast('Download failed. Please try again.');
+      alert('Download failed. Please try again.');
     }
   };
 

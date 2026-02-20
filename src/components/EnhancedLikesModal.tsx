@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { X, UserPlus, UserMinus, MessageCircle, MoreHorizontal, Flag } from 'lucide-react';
 import { useVideoStore } from '../store/useVideoStore';
 import { useAuthStore } from '../store/useAuthStore';
-import { supabase } from '../lib/supabase';
 
 interface LikeUser {
   id: string;
@@ -23,8 +22,100 @@ interface LikesModalProps {
   likes: number;
 }
 
-export default function EnhancedLikesModal({ isOpen, onClose, likes, videoId }: LikesModalProps) {
-  const [likesData, setLikesData] = useState<LikeUser[]>([]);
+// Dummy data - in a real app, this would come from the API
+const DUMMY_LIKES: LikeUser[] = [
+  { 
+    id: '1', 
+    username: 'dance_queen', 
+    name: 'Sarah J.', 
+    avatar: 'https://i.pravatar.cc/150?img=5', 
+    isFollowing: false,
+    isVerified: true,
+    followers: 12500,
+    following: 890,
+    bio: 'Professional dancer 💃 | Choreographer | Dance instructor'
+  },
+  { 
+    id: '2', 
+    username: 'mike_moves', 
+    name: 'Mike T.', 
+    avatar: 'https://i.pravatar.cc/150?img=6', 
+    isFollowing: true,
+    isVerified: false,
+    followers: 3400,
+    following: 1200,
+    bio: 'Dance enthusiast | Content creator | Always moving 🕺'
+  },
+  { 
+    id: '3', 
+    username: 'elix_fan', 
+    name: 'Elix Fan', 
+    avatar: 'https://i.pravatar.cc/150?img=7', 
+    isFollowing: false,
+    isVerified: false,
+    followers: 890,
+    following: 340,
+    bio: 'Huge fan of Elix Star! 🌟'
+  },
+  { 
+    id: '4', 
+    username: 'beat_master', 
+    name: 'Beat Master', 
+    avatar: 'https://i.pravatar.cc/150?img=8', 
+    isFollowing: true,
+    isVerified: true,
+    followers: 89000,
+    following: 450,
+    bio: 'Music producer | Beat maker | Sound engineer 🎵'
+  },
+  { 
+    id: '5', 
+    username: 'new_user_123', 
+    name: 'New User', 
+    avatar: 'https://i.pravatar.cc/150?img=9', 
+    isFollowing: false,
+    isVerified: false,
+    followers: 45,
+    following: 23,
+    bio: 'Just getting started! 👋'
+  },
+  { 
+    id: '6', 
+    username: 'dance_pro', 
+    name: 'Dance Pro', 
+    avatar: 'https://i.pravatar.cc/150?img=10', 
+    isFollowing: false,
+    isVerified: true,
+    followers: 25000,
+    following: 1200,
+    bio: 'Professional dancer for 10+ years | Studio owner | Teacher'
+  },
+  { 
+    id: '7', 
+    username: 'music_lover', 
+    name: 'Music Lover', 
+    avatar: 'https://i.pravatar.cc/150?img=11', 
+    isFollowing: true,
+    isVerified: false,
+    followers: 5670,
+    following: 890,
+    bio: 'Music is life 🎶 | Always discovering new sounds'
+  },
+  { 
+    id: '8', 
+    username: 'content_creator', 
+    name: 'Content Creator', 
+    avatar: 'https://i.pravatar.cc/150?img=12', 
+    isFollowing: false,
+    isVerified: false,
+    followers: 1200,
+    following: 567,
+    bio: 'Creating content that inspires ✨'
+  }
+];
+
+export default function EnhancedLikesModal({ isOpen, onClose, likes }: LikesModalProps) {
+  const [likesData, setLikesData] = useState(DUMMY_LIKES);
   const [showUserOptions, setShowUserOptions] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState<'all' | 'following' | 'followers'>('all');
@@ -32,34 +123,7 @@ export default function EnhancedLikesModal({ isOpen, onClose, likes, videoId }: 
   const { toggleFollow } = useVideoStore();
   const { user: currentUser } = useAuthStore();
   
-  const isOwnProfile = false;
-
-  useEffect(() => {
-    if (!isOpen || !videoId) return;
-    (async () => {
-      try {
-        const { data } = await supabase
-          .from('likes')
-          .select('user_id, profiles:user_id(username, display_name, avatar_url, bio, followers_count, following_count)')
-          .eq('video_id', videoId)
-          .limit(50);
-        if (data) {
-          const mapped: LikeUser[] = data.map((l: any, i: number) => ({
-            id: l.user_id || String(i),
-            username: l.profiles?.username || 'user',
-            name: l.profiles?.display_name || l.profiles?.username || 'User',
-            avatar: l.profiles?.avatar_url || `https://ui-avatars.com/api/?name=U&background=121212&color=C9A96E`,
-            isFollowing: false,
-            isVerified: false,
-            followers: l.profiles?.followers_count || 0,
-            following: l.profiles?.following_count || 0,
-            bio: l.profiles?.bio || '',
-          }));
-          setLikesData(mapped);
-        }
-      } catch { /* silent */ }
-    })();
-  }, [isOpen, videoId]);
+  const isOwnProfile = currentUser?.id === 'current_user'; // Adjust as needed
 
   if (!isOpen) return null;
 
@@ -82,15 +146,20 @@ export default function EnhancedLikesModal({ isOpen, onClose, likes, videoId }: 
   };
 
   const handleMessage = (user: LikeUser) => {
-    // Navigate to chat
+    console.log('Opening chat with', user.username);
+    // Navigate to chat or open messaging interface
   };
 
   const handleReportUser = (user: LikeUser) => {
-    // Open report modal
+    console.log('Reporting user:', user.username);
+    // Open report modal for user
   };
 
   const handleBlockUser = (user: LikeUser) => {
-    // Block user
+    if (window.confirm(`Are you sure you want to block @${user.username}?`)) {
+      console.log('Blocking user:', user.username);
+      // Implement block functionality
+    }
   };
 
   const formatNumber = (num: number) => {

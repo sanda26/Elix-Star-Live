@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Ban, Search } from 'lucide-react';
-import { showToast } from '../../lib/toast';
 
 interface User {
   id: string;
@@ -60,11 +59,11 @@ export default function AdminUsers() {
         ban_type: 'permanent',
       });
 
-      showToast('User banned successfully');
+      alert('User banned successfully');
       loadUsers();
     } catch (error) {
       console.error('Failed to ban user:', error);
-      showToast('Failed to ban user');
+      alert('Failed to ban user');
     }
   };
 

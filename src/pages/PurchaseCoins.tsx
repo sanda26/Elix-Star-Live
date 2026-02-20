@@ -6,7 +6,6 @@ import { trackEvent } from '../lib/analytics';
 import { getPaymentMethod, isStripeAllowed } from '../lib/platform';
 import { purchaseProduct, type IAPProductId } from '../lib/iap';
 import { stripePaymentService, type CoinPackage } from '../lib/stripePaymentService';
-import { showToast } from '../lib/toast';
 
 // CoinPackage interface now imported from stripePaymentService
 
@@ -38,7 +37,7 @@ export default function PurchaseCoins() {
 
   const handlePurchase = async (pkg: CoinPackage) => {
     if (!currentUserId) {
-      showToast('Please log in to purchase coins');
+      alert('Please log in to purchase coins');
       navigate('/login');
       return;
     }
@@ -63,7 +62,7 @@ export default function PurchaseCoins() {
           throw new Error(result.error || 'IAP purchase failed');
         }
         // Coins are credited server-side via receipt validation
-        showToast('Purchase successful! Coins have been added to your account.');
+        alert('Purchase successful! Coins have been added to your account.');
         setLoading(false);
         setSelectedPackage(null);
         return;
@@ -75,7 +74,7 @@ export default function PurchaseCoins() {
         if (!result.success) {
           throw new Error(result.error || 'Play Store purchase failed');
         }
-        showToast('Purchase successful! Coins have been added to your account.');
+        alert('Purchase successful! Coins have been added to your account.');
         setLoading(false);
         setSelectedPackage(null);
         return;
@@ -99,7 +98,7 @@ export default function PurchaseCoins() {
       return;
           } catch (error) {
       console.error('Purchase failed:', error);
-      showToast(error instanceof Error ? error.message : 'Purchase failed. Please try again.');
+      alert(error instanceof Error ? error.message : 'Purchase failed. Please try again.');
       setLoading(false);
       setSelectedPackage(null);
     }

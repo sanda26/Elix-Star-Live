@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { Book, HelpCircle, Mail, MessageCircle, Send, Shield } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { trackEvent } from '../lib/analytics';
-import { showToast } from '../lib/toast';
 
 const FAQ_ITEMS = [
   {
@@ -43,7 +42,7 @@ export default function Support() {
 
   const handleSubmitTicket = async () => {
     if (!subject.trim() || !message.trim() || !email.trim()) {
-      showToast('Please fill in all fields');
+      alert('Please fill in all fields');
       return;
     }
 
@@ -66,7 +65,7 @@ export default function Support() {
       }, 2000);
     } catch (error) {
       console.error('Failed to submit ticket:', error);
-      showToast('Failed to submit. Please try again.');
+      alert('Failed to submit. Please try again.');
     } finally {
       setLoading(false);
     }

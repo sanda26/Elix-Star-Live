@@ -4,7 +4,6 @@ import { Camera } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { trackEvent } from '../lib/analytics';
 import { avatarUploadService } from '../lib/avatarUploadService';
-import { showToast } from '../lib/toast';
 
 interface Profile {
   username: string;
@@ -83,11 +82,11 @@ export default function EditProfile() {
         // Optional: Force a refresh of the user metadata if needed by other components
         await supabase.auth.refreshSession();
       } else {
-        showToast(result.error || 'Failed to upload avatar');
+        alert(result.error || 'Failed to upload avatar');
       }
     } catch (error) {
       console.error('Failed to upload avatar:', error);
-      showToast('Failed to upload avatar');
+      alert('Failed to upload avatar');
     } finally {
       setUploading(false);
     }
@@ -117,7 +116,7 @@ export default function EditProfile() {
       navigate(-1); // Go back
     } catch (error) {
       console.error('Failed to save profile:', error);
-      showToast('Failed to save profile');
+      alert('Failed to save profile');
     } finally {
       setLoading(false);
     }

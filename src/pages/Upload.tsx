@@ -9,7 +9,6 @@ import { useSettingsStore } from '../store/useSettingsStore';
 import { videoUploadService } from '../lib/videoUpload';
 import { supabase } from '../lib/supabase';
 import AIToolsPanel from '../components/AIToolsPanel';
-import { showToast } from '../lib/toast';
 
 export default function Upload() {
   const navigate = useNavigate();
@@ -153,7 +152,7 @@ export default function Upload() {
                    .then(() => console.log("Audio playing:", track.title))
                    .catch(e => {
                        console.error("Audio play failed", e);
-                       showToast("Could not play audio");
+                       alert("Could not play audio. Check console for details.");
                    });
                setPlayingTrackId(track.id);
                

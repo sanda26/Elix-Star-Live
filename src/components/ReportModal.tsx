@@ -3,7 +3,6 @@ import { AlertTriangle, Flag, Ban, EyeOff, MessageSquare, UserMinus } from 'luci
 import { useAuthStore } from '../store/useAuthStore';
 import { useVideoStore } from '../store/useVideoStore';
 import { supabase } from '../lib/supabase';
-import { showToast } from '../lib/toast';
 
 interface ReportModalProps {
   isOpen: boolean;
@@ -108,11 +107,11 @@ export default function ReportModal({ isOpen, onClose, videoId, contentType, con
 
   const handleSubmit = async () => {
     if (!selectedReason) {
-      showToast('Please select a reason for reporting');
+      alert('Please select a reason for reporting');
       return;
     }
     if (!authToken) {
-      showToast('Please sign in to submit a report.');
+      alert('Please sign in to submit a report.');
       return;
     }
 
@@ -151,7 +150,7 @@ export default function ReportModal({ isOpen, onClose, videoId, contentType, con
       }, 2000);
     } catch (error) {
       console.error('Error submitting report:', error);
-      showToast('Failed to submit report. Please try again.');
+      alert('Failed to submit report. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -175,7 +174,7 @@ export default function ReportModal({ isOpen, onClose, videoId, contentType, con
       setAdditionalDetails('');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to delete video.';
-      showToast(message);
+      alert(message);
     } finally {
       setIsDeletingVideo(false);
     }

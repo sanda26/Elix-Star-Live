@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Search, Ban } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { showToast } from '../../lib/toast';
 
 interface BlockedUser {
   id: string;
@@ -63,7 +62,7 @@ export default function BlockedAccounts() {
       setBlockedUsers(prev => prev.filter(b => b.id !== blockId));
     } catch (error) {
       console.error('Failed to unblock user:', error);
-      showToast('Failed to unblock user');
+      alert('Failed to unblock user');
     }
   };
 

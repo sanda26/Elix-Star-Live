@@ -3,7 +3,6 @@ import { supabase } from '../lib/supabase';
 import { websocket } from '../lib/websocket';
 import { Sword, Clock, Users } from 'lucide-react';
 import { trackEvent } from '../lib/analytics';
-import { showToast } from '../lib/toast';
 
 interface LiveStream {
   id: string;
@@ -100,11 +99,11 @@ export default function BattleInviteModal({
         target_user_id: selectedStream.user_id,
       });
 
-      showToast('Battle invitation sent!');
+      alert('Battle invitation sent!');
       onClose();
     } catch (error) {
       console.error('Failed to send invite:', error);
-      showToast('Failed to send battle invitation');
+      alert('Failed to send battle invitation');
     } finally {
       setLoading(false);
     }

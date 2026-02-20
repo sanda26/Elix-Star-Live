@@ -18,7 +18,13 @@ const isValidSupabaseConfig = (url?: string, key?: string) => {
 if (disableSupabase) {
   console.warn('Supabase is disabled via VITE_DISABLE_SUPABASE=true');
 } else if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn('Missing Supabase config. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.');
+  console.warn('Missing Supabase URL or Anon Key. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env file.');
+} else {
+  console.log('Supabase Config Loaded:', {
+    url: supabaseUrl,
+    keyLength: supabaseAnonKey?.length,
+    isPlaceholder: !isValidSupabaseConfig(supabaseUrl, supabaseAnonKey)
+  });
 }
 
 // Prefer localStorage so app works in browser; Capacitor apps can switch to Preferences if needed

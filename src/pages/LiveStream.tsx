@@ -48,7 +48,6 @@ import { RankingPanel } from '../components/RankingPanel';
 import { stripePaymentService } from '../lib/stripePaymentService';
 import { STRIPE_CONFIG } from '../config/stripe';
 import LiveAIFilters from '../components/LiveAIFilters';
-import { showToast } from '../lib/toast';
 
 
 type LiveMessage = {
@@ -2024,7 +2023,7 @@ export default function LiveStream() {
       
       // Check balance
       if (coinBalance < lastSentGift.coins) {
-        showToast("Not enough coins!");
+        alert("Not enough coins!");
         return;
       }
 
@@ -2039,7 +2038,7 @@ export default function LiveStream() {
           if (error) {
             const msg = typeof error.message === 'string' ? error.message : '';
             if (msg.includes('insufficient_funds')) {
-              showToast('Not enough coins');
+              alert('Not enough coins');
               return;
             }
             setCoinBalance(prev => Math.max(0, prev - lastSentGift.coins));
@@ -4320,7 +4319,7 @@ export default function LiveStream() {
                     if (item.name === 'Copy Link') {
                        const shareUrl = `https://app.com/live/${effectiveStreamId}`;
                        navigator.clipboard.writeText(shareUrl);
-                       showToast('Link copied!');
+                       alert('Link copied!');
                     }
                     setShowSharePanel(false);
                   }}

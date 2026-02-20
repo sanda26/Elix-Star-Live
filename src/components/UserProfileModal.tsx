@@ -5,7 +5,6 @@ import { useVideoStore } from '../store/useVideoStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { useSafetyStore } from '../store/useSafetyStore';
 import ReportModal from './ReportModal';
-import { showToast } from '../lib/toast';
 
 interface User {
   id: string;
@@ -331,7 +330,7 @@ export default function UserProfileModal({ isOpen, onClose, user, onFollow }: Us
       });
     } else {
       navigator.clipboard.writeText(profileUrl);
-      showToast('Profile link copied to clipboard!');
+      alert('Profile link copied to clipboard!');
     }
   }
 }

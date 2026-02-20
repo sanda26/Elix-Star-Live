@@ -44,12 +44,22 @@ export default function EnhancedLikesModal({ isOpen, onClose, videoId, likes }: 
           .select('user_id, username, display_name, avatar_url, bio, follower_count, following_count, is_verified')
           .in('user_id', userIds);
         if (profiles) {
+          let followSet = new Set<string>();
+          const me = (await supabase.auth.getUser()).data.user?.id;
+          if (me) {
+            const { data: myFollows } = await supabase
+              .from('followers')
+              .select('following_id')
+              .eq('follower_id', me)
+              .in('following_id', profiles.map((p: any) => p.user_id));
+            if (myFollows) followSet = new Set(myFollows.map((f: any) => f.following_id));
+          }
           setLikesData(profiles.map((p: any) => ({
             id: p.user_id,
             username: p.username || 'user',
             name: p.display_name || p.username || 'User',
             avatar: p.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.username || 'U')}&background=121212&color=C9A96E`,
-            isFollowing: false,
+            isFollowing: followSet.has(p.user_id),
             isVerified: p.is_verified ?? false,
             followers: p.follower_count ?? 0,
             following: p.following_count ?? 0,

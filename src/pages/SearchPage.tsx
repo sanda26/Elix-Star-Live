@@ -1,7 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Search as SearchIcon, X } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useVideoStore } from '../store/useVideoStore';
+import { supabase } from '../lib/supabase';
 
 const TRENDING_SEARCHES = [
   'Dance challenge',
@@ -15,8 +15,10 @@ const TRENDING_SEARCHES = [
 export default function SearchPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const videos = useVideoStore((s) => s.videos);
   const [query, setQuery] = useState('');
+  const [matchedUsers, setMatchedUsers] = useState<{ id: string; username: string; name: string; avatar: string }[]>([]);
+  const [matchedVideos, setMatchedVideos] = useState<{ id: string; description: string; thumbnail: string; username: string; hashtags: string[] }[]>([]);
+  const [searching, setSearching] = useState(false);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,26 +40,68 @@ export default function SearchPage() {
 
   const normalizedQuery = query.trim().toLowerCase();
 
-  const matchedUsers = useMemo(() => {
-    if (!normalizedQuery) return [];
-    const map = new Map<string, { id: string; username: string; name: string; avatar: string }>();
-    for (const v of videos) {
-      const u = v.user;
-      const hay = `${u.username} ${u.name}`.toLowerCase();
-      if (hay.includes(normalizedQuery)) {
-        map.set(u.id, { id: u.id, username: u.username, name: u.name, avatar: u.avatar });
-      }
+  useEffect(() => {
+    if (!normalizedQuery) {
+      setMatchedUsers([]);
+      setMatchedVideos([]);
+      return;
     }
-    return Array.from(map.values());
-  }, [normalizedQuery, videos]);
 
-  const matchedVideos = useMemo(() => {
-    if (!normalizedQuery) return [];
-    return videos.filter((v) => {
-      const hay = `${v.description} ${v.user.username} ${v.user.name} ${v.hashtags.join(' ')}`.toLowerCase();
-      return hay.includes(normalizedQuery);
-    });
-  }, [normalizedQuery, videos]);
+    let cancelled = false;
+    setSearching(true);
+
+    (async () => {
+      try {
+        const [usersRes, videosRes] = await Promise.all([
+          supabase
+            .from('profiles')
+            .select('user_id, username, display_name, avatar_url')
+            .or(`username.ilike.%${normalizedQuery}%,display_name.ilike.%${normalizedQuery}%`)
+            .limit(20),
+          supabase
+            .from('videos')
+            .select('id, description, thumbnail_url, user_id, hashtags')
+            .eq('is_public', true)
+            .or(`description.ilike.%${normalizedQuery}%`)
+            .order('created_at', { ascending: false })
+            .limit(30),
+        ]);
+
+        if (cancelled) return;
+
+        if (usersRes.data) {
+          setMatchedUsers(usersRes.data.map((p: any) => ({
+            id: p.user_id,
+            username: p.username || 'user',
+            name: p.display_name || p.username || '',
+            avatar: p.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.username || 'U')}&background=121212&color=C9A96E`,
+          })));
+        }
+
+        if (videosRes.data) {
+          const userIds = [...new Set(videosRes.data.map((v: any) => v.user_id))];
+          const { data: profiles } = await supabase
+            .from('profiles')
+            .select('user_id, username')
+            .in('user_id', userIds);
+          const profileMap = new Map((profiles || []).map((p: any) => [p.user_id, p.username || 'user']));
+
+          if (!cancelled) {
+            setMatchedVideos(videosRes.data.map((v: any) => ({
+              id: v.id,
+              description: v.description || '',
+              thumbnail: v.thumbnail_url || '',
+              username: profileMap.get(v.user_id) || 'user',
+              hashtags: v.hashtags || [],
+            })));
+          }
+        }
+      } catch { /* ignore */ }
+      if (!cancelled) setSearching(false);
+    })();
+
+    return () => { cancelled = true; };
+  }, [normalizedQuery]);
 
   return (
     <div className="min-h-[100dvh] bg-[#13151A] text-white flex justify-center px-2">
@@ -111,6 +155,8 @@ export default function SearchPage() {
           </>
         ) : (
           <div className="space-y-6">
+            {searching && <div className="text-sm text-white/40 text-center py-4">Searching...</div>}
+
             {matchedUsers.length > 0 && (
               <div>
                 <h2 className="font-bold mb-3">Users</h2>
@@ -119,9 +165,9 @@ export default function SearchPage() {
                     <button
                       key={u.id}
                       onClick={() => navigate(`/profile/${u.id}`)}
-                      className="w-full flex items-center gap-3 p-2 rounded-lg bg-transparent5 hover:bg-transparent10 transition"
+                      className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 transition"
                     >
-                      <img src={u.avatar} alt={u.username} className="w-10 h-10 rounded-full" />
+                      <img src={u.avatar} alt={u.username} className="w-10 h-10 rounded-full object-cover bg-[#1C1E24]" />
                       <div className="text-left">
                         <div className="text-sm font-semibold">@{u.username}</div>
                         <div className="text-xs text-white/60">{u.name}</div>
@@ -134,7 +180,7 @@ export default function SearchPage() {
 
             <div>
               <h2 className="font-bold mb-3">Videos</h2>
-              {matchedVideos.length === 0 ? (
+              {!searching && matchedVideos.length === 0 ? (
                 <div className="text-sm text-white/60">No videos found.</div>
               ) : (
                 <div className="space-y-2">
@@ -142,18 +188,18 @@ export default function SearchPage() {
                     <button
                       key={v.id}
                       onClick={() => navigate(`/video/${v.id}`)}
-                      className="w-full flex gap-3 p-2 rounded-lg bg-transparent5 hover:bg-transparent10 transition"
+                      className="w-full flex gap-3 p-2 rounded-lg hover:bg-white/5 transition"
                     >
                       <img
-                        src={v.thumbnail ?? ''}
+                        src={v.thumbnail || ''}
                         alt={v.description}
                         className="w-20 h-28 rounded-md object-cover bg-[#13151A]"
                       />
                       <div className="text-left flex-1">
                         <div className="text-sm font-semibold line-clamp-2">{v.description}</div>
-                        <div className="text-xs text-white/60 mt-1">@{v.user.username}</div>
+                        <div className="text-xs text-white/60 mt-1">@{v.username}</div>
                         <div className="text-xs text-white/40 mt-2 line-clamp-1">
-                          {v.hashtags.map((h) => `#${h}`).join(' ')}
+                          {v.hashtags.map((h: string) => `#${h}`).join(' ')}
                         </div>
                       </div>
                     </button>

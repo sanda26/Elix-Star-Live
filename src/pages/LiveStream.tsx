@@ -257,33 +257,67 @@ export default function LiveStream() {
     const key = effectiveStreamId;
     if (!key) return;
 
-    (async () => {
-      const { error } = await supabase.from('live_streams').upsert(
-        {
-          stream_key: key,
-          user_id: user.id,
-          title: creatorName,
-          is_live: true,
-        },
-        { onConflict: 'stream_key' }
-      );
-      if (error) {
+    if (isBroadcast) {
+      (async () => {
+        await supabase.from('live_streams').upsert(
+          {
+            stream_key: key,
+            user_id: user.id,
+            title: creatorName,
+            is_live: true,
+            viewer_count: 0,
+          },
+          { onConflict: 'stream_key' }
+        );
+      })();
 
-      }
-    })();
-    return () => {
+      const channel = supabase
+        .channel(`live_viewers_${key}`)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'live_streams', filter: `stream_key=eq.${key}` }, (payload: any) => {
+          if (payload.new?.viewer_count != null) {
+            setViewerCount(Number(payload.new.viewer_count));
+          }
+        })
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+        supabase
+          .from('live_streams')
+          .update({ is_live: false, viewer_count: 0 })
+          .eq('stream_key', key)
+          .eq('user_id', user.id)
+          .then(() => {});
+      };
+    } else {
+      supabase.rpc('increment_viewer_count', { p_stream_key: key }).then(() => {});
+
       supabase
         .from('live_streams')
-        .update({ is_live: false, viewer_count: 0 })
+        .select('viewer_count')
         .eq('stream_key', key)
-        .eq('user_id', user.id)
-        .then(({ error }) => {
-          if (error) {
-
+        .maybeSingle()
+        .then(({ data: streamData }) => {
+          if (streamData?.viewer_count != null) {
+            setViewerCount(Number(streamData.viewer_count));
           }
         });
-    };
-  }, [creatorName, effectiveStreamId, user?.id]);
+
+      const channel = supabase
+        .channel(`live_viewers_${key}`)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'live_streams', filter: `stream_key=eq.${key}` }, (payload: any) => {
+          if (payload.new?.viewer_count != null) {
+            setViewerCount(Number(payload.new.viewer_count));
+          }
+        })
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+        supabase.rpc('decrement_viewer_count', { p_stream_key: key }).then(() => {});
+      };
+    }
+  }, [creatorName, effectiveStreamId, isBroadcast, user?.id]);
 
   // Refresh coins when gift panel opens to ensure balance is up to date
   useEffect(() => {
@@ -330,23 +364,18 @@ export default function LiveStream() {
     if (!user?.id) return;
     (async () => {
       try {
-        const { data: follows } = await supabase
-          .from('followers')
-          .select('following_id')
-          .eq('follower_id', user.id)
-          .limit(50);
-        if (!follows || follows.length === 0) return;
-        const ids = follows.map((f: any) => f.following_id);
         const { data: profiles } = await supabase
           .from('profiles')
-          .select('user_id, username, display_name, avatar_url, follower_count')
-          .in('user_id', ids);
+          .select('user_id, username, display_name, avatar_url, followers_count')
+          .neq('user_id', user.id)
+          .order('followers_count', { ascending: false })
+          .limit(100);
         if (profiles) {
           const fmt = (n: number) => n >= 1000000 ? `${(n / 1000000).toFixed(1)}M` : n >= 1000 ? `${(n / 1000).toFixed(1)}K` : `${n}`;
           setCreators(profiles.map((p: any) => ({
             id: p.user_id,
             name: p.display_name || p.username || 'User',
-            followers: fmt(p.follower_count ?? 0),
+            followers: fmt(p.followers_count ?? 0),
             avatar: p.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.username || 'U')}&background=121212&color=C9A96E`,
           })));
         }

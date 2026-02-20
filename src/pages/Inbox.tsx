@@ -64,7 +64,7 @@ export default function Inbox() {
           body: n.body,
           image_url: n.image_url,
           action_url: n.action_url,
-          is_read: n.is_read ?? false,
+          is_read: n.is_read ?? n.read ?? false,
           created_at: n.created_at,
         })));
       } catch { /* ignore */ }

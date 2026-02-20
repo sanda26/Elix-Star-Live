@@ -75,6 +75,14 @@ export default function Profile() {
         .single();
 
       if (error) throw error;
+
+      const [{ count: followersCount }, { count: followingCount }] = await Promise.all([
+        supabase.from('followers').select('*', { count: 'exact', head: true }).eq('following_id', displayUserId),
+        supabase.from('followers').select('*', { count: 'exact', head: true }).eq('follower_id', displayUserId),
+      ]);
+      data.followers_count = followersCount ?? 0;
+      data.following_count = followingCount ?? 0;
+
       setProfileData(data);
       trackEvent('profile_view', { user_id: displayUserId, is_own: isOwnProfile });
 
@@ -175,6 +183,7 @@ export default function Profile() {
         setIsFollowing(true);
         trackEvent('user_follow', { target_user_id: displayUserId });
       }
+      loadProfile();
     } catch (error) {
 
     }

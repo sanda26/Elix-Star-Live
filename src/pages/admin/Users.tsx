@@ -50,9 +50,10 @@ export default function AdminUsers() {
 
   const handleBanUser = async (userId: string) => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
       await supabase.from('user_bans').insert({
         user_id: userId,
-        banned_by: 'ADMIN_ID', // Replace with actual admin ID
+        banned_by: user?.id || 'system',
         reason: 'Admin action',
         ban_type: 'permanent',
       });

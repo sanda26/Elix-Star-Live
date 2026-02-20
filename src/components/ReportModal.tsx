@@ -158,7 +158,7 @@ export default function ReportModal({ isOpen, onClose, videoId, contentType, con
   };
 
   const resolvedOwnerId = videoOwnerIdFromDb ?? videoOwnerId;
-  const canDeleteDemo = contentType === 'video' && !!authUserId && videoId.startsWith('mock-');
+  const canDeleteDemo = false;
   const canDeleteOwned = contentType === 'video' && !!authUserId && !!resolvedOwnerId && authUserId === resolvedOwnerId;
   const canDelete = canDeleteDemo || canDeleteOwned;
 

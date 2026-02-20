@@ -50,13 +50,14 @@ export default function AdminReports() {
 
   const handleResolve = async (reportId: string, outcome: 'removed' | 'warned' | 'no_action') => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
       const { error } = await supabase
         .from('reports')
         .update({
           status: 'resolved',
           outcome,
           resolved_at: new Date().toISOString(),
-          moderator_id: 'ADMIN_ID', // Replace with actual admin ID
+          moderator_id: user?.id || 'system',
         })
         .eq('id', reportId);
 

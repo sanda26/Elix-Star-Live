@@ -475,8 +475,7 @@ export default function CreatorLoginDetails() {
                         
                         saveCurrentAccount(emailToSave, usernameToSave, emailToSave === user.email ? user.avatar : undefined);
                         if (password) {
-                            // Only if user explicitly typed it
-                             window.localStorage.setItem('creator_saved_password', password);
+                            window.localStorage.removeItem('creator_saved_password');
                         }
                     } else {
                         // Clear

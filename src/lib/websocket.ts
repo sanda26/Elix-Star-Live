@@ -55,6 +55,9 @@ class WebSocketService {
       const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       wsUrl = `${proto}//${window.location.host}`;
     }
+    if (!wsUrl.startsWith('ws://localhost') && wsUrl.startsWith('ws://')) {
+      wsUrl = wsUrl.replace('ws://', 'wss://');
+    }
     this.ws = new WebSocket(`${wsUrl}/live/${roomId}?token=${encodeURIComponent(token)}`);
 
     this.ws.onopen = () => {
@@ -145,7 +148,7 @@ class WebSocketService {
 
     document.body.appendChild(video);
 
-    video.play().catch(console.error);
+    video.play().catch(() => {});
 
     // Remove after playing
     video.onended = () => {

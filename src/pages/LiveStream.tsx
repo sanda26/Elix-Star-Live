@@ -123,8 +123,6 @@ export default function LiveStream() {
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
-  const [showCoinModal, setShowCoinModal] = useState(false);
-  const [coinPassword, setCoinPassword] = useState('');
   const [showViewerList, setShowViewerList] = useState(false);
 
 
@@ -1088,37 +1086,6 @@ export default function LiveStream() {
   }, [location.search, isBattleMode, toggleBattle]);
 
   useEffect(() => {
-    const sampleLeft = 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4';
-    const sampleRight = 'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4';
-    const sample3 = 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4';
-    const sample4 = 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4';
-
-    if (isBattleMode) {
-      if (videoRef.current && !isBroadcast) {
-        if (videoRef.current.src !== sampleLeft) videoRef.current.src = sampleLeft;
-        videoRef.current.muted = true;
-        videoRef.current.play().catch(() => {});
-      }
-
-      if (opponentVideoRef.current) {
-        if (opponentVideoRef.current.src !== sampleRight) opponentVideoRef.current.src = sampleRight;
-        opponentVideoRef.current.muted = true;
-        opponentVideoRef.current.play().catch(() => {});
-      }
-
-      if (player3VideoRef.current) {
-        if (player3VideoRef.current.src !== sample3) player3VideoRef.current.src = sample3;
-        player3VideoRef.current.muted = true;
-        player3VideoRef.current.play().catch(() => {});
-      }
-
-      if (player4VideoRef.current) {
-        if (player4VideoRef.current.src !== sample4) player4VideoRef.current.src = sample4;
-        player4VideoRef.current.muted = true;
-        player4VideoRef.current.play().catch(() => {});
-      }
-    }
-
     if (!isBroadcast) return;
 
     let cancelled = false;
@@ -1274,7 +1241,6 @@ export default function LiveStream() {
       // Allow everyone to spend if they have coins locally (which we just set to max)
       if (coinBalance < gift.coins) {
           setShowGiftPanel(false);
-          setShowCoinModal(true);
           return;
       }
       
@@ -1291,7 +1257,6 @@ export default function LiveStream() {
             const msg = typeof error.message === 'string' ? error.message : '';
             if (msg.includes('insufficient_funds')) {
               setShowGiftPanel(false);
-              setShowCoinModal(true);
               return;
             }
             setCoinBalance(prev => Math.max(0, prev - gift.coins));
@@ -1674,17 +1639,11 @@ export default function LiveStream() {
               />
             ) : (
               <video
-                src="https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4"
-                className="w-full h-full object-cover"
+                ref={videoRef}
+                className="w-full h-full object-cover bg-[#13151A]"
                 autoPlay
-                loop
-                muted
                 playsInline
-                onError={(e) => {
-
-                  e.currentTarget.style.display = 'block';
-                  e.currentTarget.parentElement?.classList.add('bg-[#13151A]');
-                }}
+                muted
               />
             )}
 
@@ -3407,69 +3366,11 @@ export default function LiveStream() {
                 <span className="text-sm font-bold">{isChatVisible ? 'Hide chat' : 'Show chat'}</span>
               </button>
 
-              <button
-                type="button"
-                onClick={() => { setIsMoreMenuOpen(false); setCoinPassword(''); setShowCoinModal(true); }}
-                className="w-full px-4 py-3 flex items-center gap-3 text-white hover:bg-white/5 rounded-xl"
-              >
-                <span className="text-xl">💰</span>
-                <span className="text-sm font-bold">Reload Coins</span>
-              </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Coin Reload Password Modal */}
-      {showCoinModal && (
-        <div
-          className="absolute inset-0 z-[800] bg-[#13151A]/80 flex items-center justify-center pointer-events-auto"
-          onClick={() => setShowCoinModal(false)}
-        >
-          <div
-            className="bg-[#1a1a2e] rounded-2xl p-6 mx-4 w-full max-w-[320px] border border-[#C9A96E]/30 pointer-events-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-white text-lg font-bold text-center mb-4">Enter Password</h3>
-            <input
-              type="password"
-              value={coinPassword}
-              onChange={(e) => setCoinPassword(e.target.value)}
-              onKeyDown={async (e) => {
-                if (e.key === 'Enter') {
-                  if (coinPassword === 'elixstar2026') {
-                    setCoinBalance(99999999);
-                    if (user?.id) {
-                      await supabase.from('profiles').update({ coins: 99999999 }).eq('user_id', user.id);
-                    }
-                    setShowCoinModal(false);
-                    setCoinPassword('');
-                  }
-                }
-              }}
-              placeholder="Password..."
-              className="w-full px-4 py-3 bg-[#13151A]/50 border border-[#C9A96E]/40 rounded-xl text-white text-center outline-none focus:border-[#C9A96E] transition"
-              autoFocus
-            />
-            <button
-              type="button"
-              onClick={async () => {
-                if (coinPassword === 'elixstar2026') {
-                  setCoinBalance(99999999);
-                  if (user?.id) {
-                    await supabase.from('profiles').update({ coins: 99999999 }).eq('user_id', user.id);
-                  }
-                  setShowCoinModal(false);
-                  setCoinPassword('');
-                }
-              }}
-              className="w-full mt-3 py-3 bg-[#C9A96E] text-black font-bold rounded-xl hover:bg-[#C9A96E]/90 transition"
-            >
-              Confirm
-            </button>
-          </div>
-        </div>
-      )}
 
       {isLiveSettingsOpen && (
         <div

@@ -484,6 +484,32 @@ CREATE POLICY "user_content_update" ON storage.objects FOR UPDATE USING (bucket_
 DROP POLICY IF EXISTS "user_content_delete" ON storage.objects;
 CREATE POLICY "user_content_delete" ON storage.objects FOR DELETE USING (bucket_id = 'user-content' AND auth.uid() IS NOT NULL);
 
+-- ── Live Streams ──────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS live_streams (
+  id              uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+  stream_key      text UNIQUE NOT NULL,
+  user_id         uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  title           text,
+  thumbnail_url   text,
+  is_live         boolean DEFAULT false,
+  viewer_count    int DEFAULT 0,
+  created_at      timestamptz DEFAULT now(),
+  updated_at      timestamptz DEFAULT now()
+);
+
+ALTER TABLE live_streams ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "live_streams_select" ON live_streams;
+CREATE POLICY "live_streams_select" ON live_streams FOR SELECT USING (true);
+DROP POLICY IF EXISTS "live_streams_insert_own" ON live_streams;
+CREATE POLICY "live_streams_insert_own" ON live_streams FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "live_streams_update_own" ON live_streams;
+CREATE POLICY "live_streams_update_own" ON live_streams FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "live_streams_delete_own" ON live_streams;
+CREATE POLICY "live_streams_delete_own" ON live_streams FOR DELETE USING (auth.uid() = user_id);
+
+CREATE INDEX IF NOT EXISTS idx_live_streams_is_live ON live_streams(is_live) WHERE is_live = true;
+CREATE INDEX IF NOT EXISTS idx_live_streams_user ON live_streams(user_id);
+
 -- ── Realtime ────────────────────────────────────────────────
 -- Enable realtime for tables that need live updates
 ALTER PUBLICATION supabase_realtime ADD TABLE videos;
@@ -492,3 +518,4 @@ ALTER PUBLICATION supabase_realtime ADD TABLE comments;
 ALTER PUBLICATION supabase_realtime ADD TABLE messages;
 ALTER PUBLICATION supabase_realtime ADD TABLE call_signals;
 ALTER PUBLICATION supabase_realtime ADD TABLE notifications;
+ALTER PUBLICATION supabase_realtime ADD TABLE live_streams;

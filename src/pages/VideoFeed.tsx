@@ -22,6 +22,7 @@ type LiveStreamData = {
   viewer_count: number;
   user_id: string;
   username?: string;
+  avatar_url?: string;
 };
 
 type FeedItem =
@@ -49,11 +50,16 @@ function LiveStreamCard({ stream, onOpen }: { stream: LiveStreamData; onOpen: ()
         </div>
       </div>
 
-      <div className="absolute left-4 bottom-16 z-0 text-left">
-        <p className="text-white text-xl font-black">
-          {stream.title || 'Live Stream'}
-        </p>
-        <p className="text-white/70 text-sm font-semibold">@{stream.username || 'creator'}</p>
+      <div className="absolute left-4 bottom-16 z-0 text-left flex items-center gap-3">
+        {stream.avatar_url && (
+          <img src={stream.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover border-2 border-[#C9A96E]/50" />
+        )}
+        <div>
+          <p className="text-white text-lg font-black">
+            {stream.username || stream.title || 'Live Stream'}
+          </p>
+          <p className="text-white/70 text-xs font-semibold">@{stream.username || 'creator'}</p>
+        </div>
       </div>
 
       <div className="absolute left-4 bottom-4 z-0">
@@ -186,22 +192,34 @@ export default function VideoFeed() {
           .from('live_streams')
           .select('id, stream_key, title, viewer_count, user_id')
           .eq('is_live', true)
-          .eq('user_id', authUserId)
-          .limit(1);
+          .limit(10);
 
         if (error) {
-
           setLiveStreams([]);
         } else {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          setLiveStreams((data || []).map((d: any) => ({
-            id: d.id,
-            stream_key: d.stream_key,
-            title: d.title || 'Live Stream',
-            viewer_count: d.viewer_count || 0,
-            user_id: d.user_id,
-            username: d.title || 'creator'
-          })));
+          const userIds = (data || []).map((d: any) => d.user_id).filter(Boolean);
+          let profilesMap: Record<string, any> = {};
+          if (userIds.length > 0) {
+            const { data: profiles } = await supabase
+              .from('profiles')
+              .select('user_id, username, display_name, avatar_url')
+              .in('user_id', userIds);
+            if (profiles) {
+              profiles.forEach((p: any) => { profilesMap[p.user_id] = p; });
+            }
+          }
+          setLiveStreams((data || []).map((d: any) => {
+            const profile = profilesMap[d.user_id];
+            return {
+              id: d.id,
+              stream_key: d.stream_key,
+              title: d.title || profile?.display_name || profile?.username || 'Live Stream',
+              viewer_count: d.viewer_count || 0,
+              user_id: d.user_id,
+              username: profile?.display_name || profile?.username || 'Live Stream',
+              avatar_url: profile?.avatar_url || '',
+            };
+          }));
         }
       } catch (err) {
 

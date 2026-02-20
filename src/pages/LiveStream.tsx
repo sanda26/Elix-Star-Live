@@ -1641,7 +1641,7 @@ export default function LiveStream() {
   const activeLikes = liveLikes;
 
   return (
-    <div className="flex items-start justify-center min-h-[100dvh] h-[100dvh] bg-[#13151A]" style={{paddingTop:'calc(var(--safe-top) + 46px)', paddingBottom:'calc(var(--safe-bottom) + 70px)'}}>
+    <div className="flex items-start justify-center min-h-[100dvh] h-[100dvh] bg-[#13151A]">
       <div className="relative w-full h-full bg-[#13151A] overflow-hidden border-none">
         <div className="h-full w-full relative">
         {/* BACKGROUND: VIDEO AREA (Unified frame) */}

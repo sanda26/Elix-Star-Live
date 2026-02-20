@@ -1,3 +1,18 @@
+/* ═══ ROSE GOLD GRADIENT ICONS ═══ */
+svg[stroke="currentColor"] > line,
+svg[stroke="currentColor"] > path,
+svg[stroke="currentColor"] > circle,
+svg[stroke="currentColor"] > rect,
+svg[stroke="currentColor"] > polyline,
+svg[stroke="currentColor"] > polygon,
+svg[stroke="currentColor"] > ellipse {
+  stroke: url(#rg) !important;
+}
+
+svg[stroke="currentColor"][fill="none"] {
+  color: #C68678;
+}
+
 /* UI POLISH IMPROVEMENTS - TikTok Style Clean & Consistent */
 
 /* Consistent button sizes across the app */

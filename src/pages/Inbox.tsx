@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { Heart, UserPlus, Search, Camera, ShoppingBag, Archive, MicOff, Plus } from 'lucide-react';
+import { AvatarRing } from '../components/AvatarRing';
 
 interface Notification {
   id: string;
@@ -103,8 +104,8 @@ export default function Inbox() {
   }, [currentUserId]);
 
   return (
-    <div className="min-h-[100dvh] bg-[#13151A] text-white flex justify-center px-2">
-      <div className="w-full max-w-[480px] h-[100dvh] rounded-3xl overflow-hidden bg-[#13151A] flex flex-col pt-[calc(var(--safe-top)+46px)] pb-[calc(var(--safe-bottom)+110px)]">
+    <div className="bg-[#13151A] text-white flex justify-center px-2">
+      <div className="w-full max-w-[480px] rounded-3xl overflow-hidden bg-[#13151A] flex flex-col">
         
         {/* Header */}
         <div className="px-4 py-3 flex items-center justify-between sticky top-0 z-10 bg-[#13151A] relative">
@@ -112,7 +113,7 @@ export default function Inbox() {
               onClick={() => navigate(-1)}
               className="w-8 h-8 rounded-full flex items-center justify-center -ml-2 z-10"
             >
-                 <img src="/Icons/power-button.png" alt="Back" className="w-5 h-5" />
+                 <img src="/Icons/Gold power buton.png" alt="Back" className="w-5 h-5" />
             </button>
             
             <button className="absolute inset-0 flex items-center justify-center gap-1 font-bold text-lg pointer-events-none">
@@ -152,11 +153,7 @@ export default function Inbox() {
 
                 {conversations.slice(0, 6).map(c => (
                     <button key={c.id} onClick={() => navigate(`/inbox/${c.id}`)} className="flex flex-col items-center gap-1 min-w-[64px]">
-                        <div className="w-16 h-16 rounded-full p-[2px] bg-gradient-to-tr from-[#C9A96E] to-[#C9A96E]">
-                            <div className="w-full h-full rounded-full border-2 border-[#13151A] overflow-hidden bg-[#1C1E24]">
-                                <img src={c.otherUser?.avatar_url || ''} alt={c.otherUser?.username || 'User'} className="w-full h-full object-cover" />
-                            </div>
-                        </div>
+                        <AvatarRing src={c.otherUser?.avatar_url || ''} alt={c.otherUser?.username || 'User'} size={64} />
                         <span className="text-xs text-white font-semibold mt-1 truncate w-16 text-center">{c.otherUser?.username || 'User'}</span>
                     </button>
                 ))}
@@ -206,11 +203,7 @@ export default function Inbox() {
             {/* Message Items (Mixed) */}
             {conversations.map((conv, i) => (
                 <div key={conv.id} className="flex items-center gap-3 cursor-pointer" onClick={() => navigate(`/inbox/${conv.id}`)}>
-                    <div className={`w-12 h-12 rounded-full p-[2px] ${i === 0 ? 'bg-gradient-to-tr from-[#C9A96E] to-[#C9A96E]' : 'bg-transparent'}`}>
-                        <div className="w-full h-full rounded-full border-2 border-[#13151A] overflow-hidden">
-                             <img src={conv.otherUser?.avatar_url || ''} alt={conv.otherUser?.username || 'User'} className="w-full h-full object-cover" />
-                        </div>
-                    </div>
+                    <AvatarRing src={conv.otherUser?.avatar_url || ''} alt={conv.otherUser?.username || 'User'} size={48} />
                     <div className="flex-1 min-w-0">
                         <h3 className="font-bold text-sm truncate">{conv.otherUser?.username}</h3>
                         <p className={`text-xs truncate ${i === 0 ? 'text-white' : 'text-white/60'}`}>{conv.lastMessage}</p>

@@ -58,13 +58,13 @@ export default function Hashtag() {
   };
 
   return (
-    <div className="min-h-[100dvh] bg-[#13151A] text-white flex justify-center px-2">
-      <div className="w-full max-w-[480px] h-[100dvh] rounded-3xl overflow-hidden bg-[#13151A] flex flex-col pt-[calc(var(--safe-top)+46px)] pb-[calc(var(--safe-bottom)+110px)]">
+    <div className="bg-[#13151A] text-white flex justify-center px-2">
+      <div className="w-full max-w-[480px] rounded-3xl overflow-hidden bg-[#13151A] flex flex-col">
       {/* Header */}
       <div className="sticky top-0 z-10 px-4 py-6 bg-[#13151A]">
         <div className="flex items-center gap-3 mb-4">
           <button onClick={() => navigate('/feed')} className="p-1 hover:brightness-125 transition" title="Back to For You">
-            <img src="/Icons/power-button.png" alt="Back" className="w-5 h-5" />
+            <img src="/Icons/Gold power buton.png" alt="Back" className="w-5 h-5" />
           </button>
           <div className="w-16 h-16 bg-gradient-to-br from-[#C9A96E] to-[#B8943F] rounded-full flex items-center justify-center">
             <Hash className="w-8 h-8 text-black" />

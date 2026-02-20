@@ -7,11 +7,11 @@ export default function LegalDMCA() {
   const dmcaEmail = 'dmca@elixstarlive.com';
 
   return (
-    <div className="min-h-[100dvh] bg-[#13151A] text-white flex justify-center px-2">
-      <div className="w-full max-w-[480px] h-[100dvh] rounded-3xl overflow-hidden bg-[#13151A] flex flex-col pt-[calc(var(--safe-top)+46px)] pb-[calc(var(--safe-bottom)+110px)] overflow-y-auto p-4">
+    <div className="bg-[#13151A] text-white flex justify-center px-2">
+      <div className="w-full max-w-[480px] rounded-3xl overflow-hidden bg-[#13151A] flex flex-col overflow-y-auto p-4">
         <header className="flex items-center justify-between mb-4">
           <button onClick={() => navigate(-1)} aria-label="Back">
-            <img src="/Icons/power-button.png" alt="Back" className="w-4 h-4" />
+            <img src="/Icons/Gold power buton.png" alt="Back" className="w-4 h-4" />
           </button>
           <h1 className="font-bold text-lg">DMCA / Copyright Report</h1>
           <div className="w-6" />

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Phone, PhoneOff } from 'lucide-react';
 import { useCallStore } from '../store/useCallStore';
 import { acceptCall, rejectCall } from '../lib/callService';
+import { AvatarRing } from './AvatarRing';
 
 export function IncomingCallModal() {
   const navigate = useNavigate();
@@ -29,11 +30,7 @@ export function IncomingCallModal() {
     <div className="fixed inset-0 z-[100] bg-[#13151A]/70 backdrop-blur-md flex items-center justify-center">
       <div className="bg-[#13151A] rounded-3xl p-8 max-w-sm w-full mx-4 text-center shadow-2xl">
         {remoteUser.avatar ? (
-          <img
-            src={remoteUser.avatar}
-            alt={remoteUser.username}
-            className="w-24 h-24 rounded-full object-cover mx-auto mb-4 border-2 border-white/20"
-          />
+          <AvatarRing src={remoteUser.avatar} alt={remoteUser.username} size={96} className="mx-auto mb-4" />
         ) : (
           <div className="w-24 h-24 rounded-full bg-white/10 mx-auto mb-4 flex items-center justify-center text-3xl text-white">
             {remoteUser.username[0]?.toUpperCase()}

@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase';
 import { Search, Ban } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { showToast } from '../../lib/toast';
+import { AvatarRing } from '../../components/AvatarRing';
 
 interface BlockedUser {
   id: string;
@@ -79,7 +80,7 @@ export default function BlockedAccounts() {
         <div className="sticky top-0 bg-[#13151A] z-10 px-4 py-4 border-b border-transparent">
         <div className="flex items-center gap-3 mb-4">
           <button onClick={() => navigate(-1)} className="p-2 hover:brightness-125 rounded-full transition">
-            <img src="/Icons/power-button.png" alt="Back" className="w-5 h-5" />
+            <img src="/Icons/Gold power buton.png" alt="Back" className="w-5 h-5" />
           </button>
           <h1 className="text-xl font-bold">Blocked Accounts</h1>
         </div>
@@ -108,13 +109,10 @@ export default function BlockedAccounts() {
                 key={block.id}
                 className="flex items-center gap-3 p-4 bg-white rounded-xl"
               >
-                <img
-                  src={
-                    block.blocked_user?.avatar_url ||
-                    `https://ui-avatars.com/api/?name=${block.blocked_user?.username}`
-                  }
+                <AvatarRing
+                  src={block.blocked_user?.avatar_url || `https://ui-avatars.com/api/?name=${block.blocked_user?.username}`}
                   alt={block.blocked_user?.username}
-                  className="w-12 h-12 object-cover"
+                  size={48}
                 />
                 <div className="flex-1">
                   <p className="font-semibold">{block.blocked_user?.username}</p>

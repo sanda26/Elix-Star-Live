@@ -79,15 +79,15 @@ export default function LiveDiscover() {
   }, []);
 
   return (
-    <div className="min-h-[100dvh] bg-[#13151A] flex justify-center px-2">
-      <div className="relative w-full max-w-[480px] h-[100dvh] bg-[#13151A] overflow-hidden rounded-3xl pt-[calc(var(--safe-top)+46px)] pb-[calc(var(--safe-bottom)+110px)]">
+    <div className="bg-[#13151A] flex justify-center px-2">
+      <div className="relative w-full max-w-[480px] bg-[#13151A] overflow-hidden rounded-3xl">
         <div className="absolute inset-0 bg-[#13151A]" />
 
         <div className="relative z-10 px-4 pt-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <button onClick={() => navigate('/feed')} className="p-1 hover:brightness-125 transition" title="Back to For You">
-                <img src="/Icons/power-button.png" alt="Back" className="w-5 h-5" />
+                <img src="/Icons/Gold power buton.png" alt="Back" className="w-5 h-5" />
               </button>
               <div>
                 <p className="text-white font-extrabold text-xl">Live</p>

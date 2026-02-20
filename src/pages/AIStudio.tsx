@@ -80,7 +80,7 @@ export default function AIStudio() {
   };
 
   return (
-    <div className="min-h-[100dvh] h-[100dvh] bg-[#13151A] text-white flex flex-col overflow-hidden">
+    <div className="bg-[#13151A] text-white flex flex-col overflow-hidden">
       {toast && (
         <div className="fixed top-16 left-1/2 -translate-x-1/2 bg-[#C9A96E]/20 backdrop-blur-md text-white text-sm px-4 py-2 rounded-xl z-[9999]">
           {toast}
@@ -93,7 +93,7 @@ export default function AIStudio() {
       {/* Header */}
       <header className="flex items-center justify-between px-4 py-3 flex-shrink-0">
         <button onClick={() => navigate(-1)} className="p-1">
-          <ArrowLeft size={22} className="text-white" />
+          <img src="/Icons/Gold power buton.png" alt="Back" className="w-5 h-5" />
         </button>
         <div className="flex items-center gap-2">
           <Wand2 size={18} className="text-[#C9A96E]" />

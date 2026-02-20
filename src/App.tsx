@@ -1,6 +1,7 @@
 import React, { useEffect, Suspense, lazy } from 'react';
 import { Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { BottomNav } from './components/BottomNav';
+import { TopNav } from './components/TopNav';
 import { useAuthStore } from './store/useAuthStore';
 import { cn } from './lib/utils';
 import { useDeepLinks } from './lib/deepLinks';
@@ -110,19 +111,17 @@ function App() {
   const isFullScreen =
     location.pathname === '/' ||
     location.pathname === '/feed' ||
-    location.pathname.startsWith('/video/') ||
+    location.pathname.startsWith('/video/');
+
+  const isNavHidden =
     location.pathname === '/live' ||
     location.pathname.startsWith('/live/') ||
-    location.pathname.startsWith('/music/') ||
-    location.pathname === '/following';
-
-  const isBottomNavHidden =
-    location.pathname === '/upload' ||
     location.pathname === '/create' ||
     location.pathname.startsWith('/create/') ||
+    location.pathname === '/upload' ||
     location.pathname === '/login' ||
     location.pathname === '/register';
-  const showBottomNav = isAuthenticated && !isBottomNavHidden;
+  const showBottomNav = isAuthenticated && !isNavHidden;
 
   // Public routes that don't require authentication
   const isPublicRoute =
@@ -163,7 +162,7 @@ function App() {
 
       <OfflineBanner />
       <IncomingCallModal />
-      <main className={cn("min-h-screen", showBottomNav && !isFullScreen && "pb-nav")}>
+      <main className={cn("min-h-screen", showBottomNav && !isFullScreen && "pt-topbar pb-nav")}>
         <ErrorBoundary>
         <Suspense fallback={<PageLoader />}>
         <Routes>
@@ -230,6 +229,7 @@ function App() {
         </Suspense>
         </ErrorBoundary>
       </main>
+      {showBottomNav && <TopNav />}
       {showBottomNav && <BottomNav />}
     </div>
   );

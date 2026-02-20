@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { trackScreenView } from '../lib/analytics';
 import EnhancedVideoPlayer from '../components/EnhancedVideoPlayer';
+import { AvatarRing } from '../components/AvatarRing';
 
 interface Video {
   id: string;
@@ -82,12 +83,12 @@ export default function FollowingFeed() {
   };
 
   return (
-    <div className="min-h-[100dvh] bg-[#13151A] text-white flex justify-center px-2">
-      <div className="w-full max-w-[480px] h-[100dvh] rounded-3xl overflow-hidden bg-[#13151A] pt-[calc(var(--safe-top)+46px)] pb-[calc(var(--safe-bottom)+110px)] overflow-y-auto">
+    <div className="bg-[#13151A] text-white flex justify-center px-2">
+      <div className="w-full max-w-[480px] rounded-3xl overflow-hidden bg-[#13151A] overflow-y-auto">
         {/* Header — same as Friends */}
         <div className="p-4 flex items-center justify-between relative">
           <button onClick={() => navigate(-1)} className="p-1 z-10" title="Back">
-            <img src="/Icons/power-button.png" alt="Back" className="w-5 h-5" />
+            <img src="/Icons/Gold power buton.png" alt="Back" className="w-5 h-5" />
           </button>
 
           <h1 className="text-lg font-bold absolute left-1/2 transform -translate-x-1/2">Following</h1>
@@ -130,11 +131,7 @@ export default function FollowingFeed() {
                 onClick={() => navigate(`/profile/${u.id}`)}
                 className="flex-shrink-0 w-[72px] flex flex-col items-center gap-2"
               >
-                <div className="w-16 h-16 rounded-full p-[2px] bg-gradient-to-tr from-[#C9A96E] to-[#C9A96E]">
-                  <div className="w-full h-full rounded-full bg-[#13151A] p-[2px]">
-                    <img src={u.avatar_url || ''} alt={u.username} className="w-full h-full rounded-full object-cover" draggable={false} />
-                  </div>
-                </div>
+                <AvatarRing src={u.avatar_url || ''} alt={u.username} size={64} />
                 <div className="text-xs text-white/80 truncate w-full text-center">{u.username}</div>
               </button>
             ))}

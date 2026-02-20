@@ -33,7 +33,7 @@ export default function ForgotPassword() {
 
   if (success) {
     return (
-      <div className="min-h-[100dvh] h-[100dvh] bg-[#13151A] text-white flex items-center justify-center p-4 overflow-y-auto">
+      <div className="bg-[#13151A] text-white flex items-center justify-center p-4 overflow-y-auto">
         <div className="w-full max-w-[420px] bg-white/5 border border-white/10 rounded-2xl p-6 text-center">
           <CheckCircle className="w-12 h-12 text-white mx-auto mb-4" />
           <h1 className="text-xl font-bold mb-2">Check your email</h1>
@@ -53,7 +53,7 @@ export default function ForgotPassword() {
   }
 
   return (
-    <div className="min-h-[100dvh] h-[100dvh] bg-[#13151A] text-white flex items-center justify-center p-4 overflow-y-auto">
+    <div className="bg-[#13151A] text-white flex items-center justify-center p-4 overflow-y-auto">
       <div className="w-full max-w-[420px] bg-white/5 border border-white/10 rounded-2xl p-6">
         <Link to="/login" className="flex items-center gap-2 text-white/60 text-sm mb-4 hover:text-white">
           <ArrowLeft className="w-4 h-4" />

@@ -163,7 +163,7 @@ export default function ChatThread() {
   // Render System/Placeholder Views
   if (isSystemThread) {
      return (
-        <div className="min-h-[100dvh] bg-[#13151A] text-white p-4">
+        <div className="bg-[#13151A] text-white p-4">
              <header className="flex items-center gap-4 mb-4">
                 <button onClick={() => navigate('/inbox')}><ArrowLeft /></button>
                 <h1 className="font-bold text-lg capitalize">{threadId}</h1>
@@ -176,12 +176,12 @@ export default function ChatThread() {
   }
 
   return (
-    <div className="min-h-[100dvh] bg-[#13151A] text-white flex justify-center px-2">
-      <div className="w-full max-w-[480px] flex flex-col h-[100dvh] rounded-3xl overflow-hidden bg-[#13151A] pt-[calc(var(--safe-top)+46px)] pb-[calc(var(--safe-bottom)+110px)]">
+    <div className="bg-[#13151A] text-white flex justify-center px-2">
+      <div className="w-full max-w-[480px] flex flex-col rounded-3xl overflow-hidden bg-[#13151A]">
         {/* Header */}
         <header className="flex items-center gap-3 px-4 py-3 border-b border-white/10 bg-[#13151A]">
           <button onClick={() => navigate('/inbox')} className="p-1">
-             <img src="/Icons/power-button.png" alt="Back" className="w-5 h-5" />
+             <img src="/Icons/Gold power buton.png" alt="Back" className="w-5 h-5" />
           </button>
           
           {otherUser ? (

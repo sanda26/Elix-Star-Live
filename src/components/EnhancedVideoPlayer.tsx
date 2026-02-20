@@ -437,108 +437,93 @@ export default function EnhancedVideoPlayer({
         }}
       >
         
-        {/* Profile Avatar - SAME SIZE */}
-        <div className="relative -mt-4 mb-2">
+        {/* Profile Avatar */}
+        <div className="relative mb-1">
           <div 
-            className="w-12 h-12 rounded-full cursor-pointer hover:scale-105 transition-transform relative"
+            className="cursor-pointer hover:scale-105 transition-transform relative"
+            style={{width:'42px',height:'42px'}}
             onClick={handleProfileClick}
-            style={{
-              background: 'linear-gradient(145deg, #C9A96E 0%, #00c2be 50%, #C9A96E 100%)',
-              padding: '2px',
-              boxShadow: '0 4px 15px rgba(201, 169, 110, 0.4)',
-            }}
           >
             <img 
               src={video.user.avatar} 
               alt={video.user.username} 
-              className="w-full h-full rounded-full object-cover"
+              className="absolute rounded-full object-cover"
+              style={{width:'28px',height:'28px',top:'50%',left:'50%',transform:'translate(-50%,-55%)'}}
             />
-            {video.user.isVerified && (
-              <div className="absolute -bottom-1 -right-1 bg-[#C9A96E] rounded-full p-0.5 border-2 border-black">
-                <div className="w-2.5 h-2.5 bg-white rounded-full flex items-center justify-center">
-                  <div className="w-1.5 h-1.5 bg-[#C9A96E] rounded-full" />
-                </div>
-              </div>
-            )}
-            {!video.isFollowing && (
-               <div 
-                 className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-[#FE2C55] rounded-full p-0.5 cursor-pointer shadow-md transform scale-75 hover:scale-90 transition-transform"
-                 onClick={(e) => {
-                    e.stopPropagation();
-                    handleFollow();
-                 }}
-               >
-                 <UserPlus size={16} className="text-white" />
-               </div>
-            )}
+            <img 
+              src="/Icons/Profile icon.png" 
+              alt="" 
+              className="relative z-10 w-full h-full object-contain"
+            />
           </div>
         </div>
 
-        {/* Like Button - SAME SIZE */}
+        {/* Like Button */}
         <button 
           onClick={handleLike}
-          className="w-16 h-16 hover:scale-105 active:scale-95 transition-transform"
+          className="relative hover:scale-105 active:scale-95 transition-transform"
+          style={{width:'42px',height:'42px'}}
           title="Like"
         >
+          <div className="absolute inset-[3px] rounded-full bg-[#1a1a1a]" />
           <img 
-            src="/Icons/side-like.png?v=10" 
+            src="/Icons/Like Icon.png" 
             alt="Like" 
-            className={`w-full h-full object-contain ${video.isLiked ? 'brightness-125 drop-shadow-[0_0_10px_rgba(201,169,110,0.6)]' : ''}`}
+            className="relative z-10 w-full h-full object-contain transition-all duration-300"
+            style={video.isLiked ? {filter:'brightness(0.85) sepia(1) hue-rotate(-15deg) saturate(6)'} : {}}
           />
         </button>
-        <span className="text-white text-xs font-semibold -mt-1">{formatNumber(video.stats.likes)}</span>
+        <span className={`text-[10px] font-semibold -mt-1 ${video.isLiked ? 'text-red-500' : 'text-white'}`}>{formatNumber(video.stats.likes)}</span>
 
-        {/* Comment Button - SAME SIZE */}
+        {/* Comment Button */}
         <button 
           onClick={handleComment}
-          className="w-12 h-12 hover:scale-105 active:scale-95 transition-transform"
+          className="relative hover:scale-105 active:scale-95 transition-transform"
+          style={{width:'42px',height:'42px'}}
           title="Comments"
         >
-          <img src="/Icons/side-comment.png" alt="Comments" className="w-full h-full object-contain" />
+          <div className="absolute inset-[3px] rounded-full bg-[#1a1a1a]" />
+          <img src="/Icons/Coment Icon.png" alt="Comments" className="relative z-10 w-full h-full object-contain" />
         </button>
-        <span className="text-white text-xs font-semibold -mt-1">{formatNumber(video.stats.comments)}</span>
+        <span className="text-white text-[10px] font-semibold -mt-1">{formatNumber(video.stats.comments)}</span>
 
-        {/* Save Button - SAME SIZE */}
+        {/* Save Button */}
         <button 
           onClick={handleSave}
-          className="w-12 h-12 hover:scale-105 active:scale-95 transition-transform"
+          className="relative hover:scale-105 active:scale-95 transition-transform"
+          style={{width:'42px',height:'42px'}}
           title="Save"
         >
+          <div className="absolute inset-[3px] rounded-full bg-[#1a1a1a]" />
           <img 
-            src="/Icons/side-save.png" 
+            src="/Icons/Save Icon.png" 
             alt="Save" 
-            className={`w-full h-full object-contain ${video.isSaved ? 'brightness-125 drop-shadow-[0_0_10px_rgba(201,169,110,0.6)]' : ''}`}
+            className={`relative z-10 w-full h-full object-contain ${video.isSaved ? 'brightness-125 drop-shadow-[0_0_8px_rgba(201,169,110,0.6)]' : ''}`}
           />
         </button>
-        <span className="text-white text-xs font-semibold -mt-1">{formatNumber(video.stats.saves || 0)}</span>
+        <span className="text-white text-[10px] font-semibold -mt-1">{formatNumber(video.stats.saves || 0)}</span>
 
-        {/* Share Button - SAME SIZE */}
+        {/* Share Button */}
         <button 
           onClick={handleShare}
-          className="w-12 h-12 hover:scale-105 active:scale-95 transition-transform"
+          className="relative hover:scale-105 active:scale-95 transition-transform"
+          style={{width:'36px',height:'36px'}}
           title="Share"
         >
-          <img src="/Icons/side-share.png" alt="Share" className="w-full h-full object-contain" />
+          <div className="absolute inset-[3px] rounded-full bg-[#1a1a1a]" />
+          <img src="/Icons/Share Icon.png" alt="Share" className="relative z-10 w-full h-full object-contain" />
         </button>
-        <span className="text-white text-xs font-semibold -mt-1">{formatNumber(video.stats.shares)}</span>
+        <span className="text-white text-[10px] font-semibold -mt-1">{formatNumber(video.stats.shares)}</span>
 
-        {/* Music Button - SAME SIZE */}
+        {/* Music Button */}
         <button 
           onClick={handleMusicClick}
-          className="w-12 h-12 hover:scale-105 transition-transform animate-spin"
-          style={{ animationDuration: '8s' }}
+          className="relative hover:scale-105 active:scale-95 transition-transform animate-spin"
+          style={{width:'42px',height:'42px',animationDuration:'8s'}}
           title="Music"
         >
-          <img src="/Icons/side-music.png" alt="Music" className="w-full h-full object-contain" />
-        </button>
-
-        {/* Menu Button - SAME SIZE */}
-        <button 
-          onClick={handleReport}
-          className="w-12 h-12 hover:scale-105 active:scale-95 transition-transform"
-          title="More"
-        >
-          <img src="/Icons/side-menu.png" alt="More" className="w-full h-full object-contain" />
+          <div className="absolute inset-[3px] rounded-full bg-[#1a1a1a]" />
+          <img src="/Icons/Music Icon.png" alt="Music" className="relative z-10 w-full h-full object-contain" />
         </button>
       </div>
 

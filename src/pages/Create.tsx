@@ -128,7 +128,7 @@ function SoundPickerModal({
               Add URL
             </button>
             <button onClick={onClose} className="p-2">
-              <img src="/Icons/power-button.png" alt="Close" className="w-4 h-4 object-contain" />
+              <img src="/Icons/Gold power buton.png" alt="Close" className="w-4 h-4 object-contain" />
             </button>
           </div>
         </div>

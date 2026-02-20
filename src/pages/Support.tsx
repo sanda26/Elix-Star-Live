@@ -71,7 +71,7 @@ export default function Support() {
 
   if (submitted) {
     return (
-      <div className="min-h-[100dvh] bg-[#13151A] text-white flex items-center justify-center px-4">
+      <div className="bg-[#13151A] text-white flex items-center justify-center px-4">
         <div className="text-center">
           <div className="w-20 h-20 bg-[#C9A96E] rounded-full mx-auto mb-4 flex items-center justify-center">
             <Send className="w-10 h-10 text-white" />
@@ -85,15 +85,15 @@ export default function Support() {
 
   if (showContactForm) {
     return (
-      <div className="min-h-[100dvh] bg-[#13151A] text-white flex justify-center px-2">
-        <div className="w-full max-w-[480px] h-[100dvh] rounded-3xl overflow-hidden bg-[#13151A] flex flex-col pt-[calc(var(--safe-top)+46px)] pb-[calc(var(--safe-bottom)+110px)]">
+      <div className="bg-[#13151A] text-white flex justify-center px-2">
+        <div className="w-full max-w-[480px] rounded-3xl overflow-hidden bg-[#13151A] flex flex-col">
         {/* Header */}
         <div className="sticky top-0 bg-[#13151A] z-10 px-4 py-4 border-b border-transparent flex items-center justify-between">
           <button
             onClick={() => setShowContactForm(false)}
             className="p-2 hover:brightness-125 rounded-full transition"
           >
-            <img src="/Icons/power-button.png" alt="Back" className="w-5 h-5" />
+            <img src="/Icons/Gold power buton.png" alt="Back" className="w-5 h-5" />
           </button>
           <h1 className="text-lg font-bold">Contact Support</h1>
           <div className="w-10"></div>
@@ -150,12 +150,12 @@ export default function Support() {
   }
 
   return (
-    <div className="min-h-[100dvh] bg-[#13151A] text-white flex justify-center px-2">
-      <div className="w-full max-w-[480px] h-[100dvh] rounded-3xl overflow-hidden bg-[#13151A] flex flex-col pt-[calc(var(--safe-top)+46px)] pb-[calc(var(--safe-bottom)+110px)]">
+    <div className="bg-[#13151A] text-white flex justify-center px-2">
+      <div className="w-full max-w-[480px] rounded-3xl overflow-hidden bg-[#13151A] flex flex-col">
       {/* Header */}
       <div className="sticky top-0 bg-[#13151A] z-10 px-4 py-4 border-b border-transparent flex items-center gap-3">
         <button onClick={() => navigate(-1)} className="p-2 hover:brightness-125 rounded-full transition">
-          <img src="/Icons/power-button.png" alt="Back" className="w-5 h-5" />
+          <img src="/Icons/Gold power buton.png" alt="Back" className="w-5 h-5" />
         </button>
         <h1 className="text-xl font-bold">Help & Support</h1>
       </div>

@@ -167,6 +167,7 @@
   .pb-safe { padding-bottom: var(--safe-bottom); }
   .pl-safe { padding-left: var(--safe-left); }
   .pr-safe { padding-right: var(--safe-right); }
+  .pt-topbar { padding-top: calc(var(--safe-top) + 46px); }
   .pb-nav { padding-bottom: calc(var(--nav-height) + var(--safe-bottom)); }
 
   /* Responsive text that scales with viewport */

@@ -3,6 +3,7 @@ import { UserPlus, UserMinus, MessageCircle, Share2, MoreHorizontal, Flag, Ban, 
 import { useNavigate } from 'react-router-dom';
 import { useVideoStore } from '../store/useVideoStore';
 import { useAuthStore } from '../store/useAuthStore';
+import { AvatarRing } from './AvatarRing';
 import { useSafetyStore } from '../store/useSafetyStore';
 import ReportModal from './ReportModal';
 import { showToast } from '../lib/toast';
@@ -152,14 +153,8 @@ export default function UserProfileModal({ isOpen, onClose, user, onFollow }: Us
         <div className="p-4 pb-safe">
           {/* Profile Header */}
           <div className="flex flex-col items-center mb-6">
-            <div className="w-24 h-24 rounded-full mb-3 p-[2px] bg-gradient-to-tr from-[#C9A96E] to-[#C9A96E]">
-              <div className="w-full h-full rounded-full border-2 border-[#13151A] overflow-hidden bg-[#1C1E24]">
-                <img 
-                  src={user.avatar} 
-                  alt={user.name} 
-                  className="w-full h-full object-cover"
-                />
-              </div>
+            <div className="mb-3">
+              <AvatarRing src={user.avatar} alt={user.name} size={96} />
             </div>
             
             <h2 className="text-xl font-bold text-white flex items-center gap-1">

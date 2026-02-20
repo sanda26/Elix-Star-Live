@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Eye, EyeOff, Lock, Mail, User } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
+import { AvatarRing } from '../components/AvatarRing';
 
 export default function CreatorLoginDetails() {
   const navigate = useNavigate();
@@ -214,11 +215,11 @@ export default function CreatorLoginDetails() {
   };
 
   return (
-    <div className="min-h-[100dvh] bg-[#13151A] text-white flex justify-center px-2">
-      <div className="w-full max-w-[480px] h-[100dvh] rounded-3xl overflow-hidden bg-[#13151A] flex flex-col pt-[calc(var(--safe-top)+46px)] pb-[calc(var(--safe-bottom)+110px)] overflow-y-auto p-4">
+    <div className="bg-[#13151A] text-white flex justify-center px-2">
+      <div className="w-full max-w-[480px] rounded-3xl overflow-hidden bg-[#13151A] flex flex-col overflow-y-auto p-4">
         {/* ... header ... */}
         <header className="flex items-center justify-between mb-6">
-          <button onClick={() => navigate(-1)}><img src="/Icons/power-button.png" alt="Back" className="w-5 h-5" /></button>
+          <button onClick={() => navigate(-1)}><img src="/Icons/Gold power buton.png" alt="Back" className="w-5 h-5" /></button>
           <h1 className="font-bold text-lg">Creator Login Details</h1>
           <div className="w-6" />
         </header>
@@ -236,12 +237,8 @@ export default function CreatorLoginDetails() {
                     onClick={() => !isActive && switchAccount(acc.identifier)}
                     className={`flex-shrink-0 w-14 flex flex-col items-center gap-1.5 group cursor-pointer ${isActive ? 'opacity-100' : 'opacity-60 hover:opacity-100'}`}
                   >
-                    <div className={`relative w-10 h-10 rounded-full p-[1.5px] ${isActive ? 'bg-gradient-to-tr from-[#C9A96E] to-yellow-400' : 'bg-white/10 group-hover:bg-white/30'} transition-all`}>
-                      <img 
-                        src={acc.avatar || `https://ui-avatars.com/api/?name=${acc.username}&background=random`} 
-                        alt={acc.username}
-                        className="w-full h-full rounded-full object-cover bg-[#13151A]"
-                      />
+                    <div className={`relative ${isActive ? '' : ''} transition-all`}>
+                      <AvatarRing src={acc.avatar || `https://ui-avatars.com/api/?name=${acc.username}&background=random`} alt={acc.username} size={40} />
                       {isActive && (
                         <div className="absolute bottom-0 right-0 w-3 h-3 bg-[#C9A96E] rounded-full border-[1.5px] border-black flex items-center justify-center">
                           <div className="w-1 h-1 bg-[#13151A] rounded-full" />

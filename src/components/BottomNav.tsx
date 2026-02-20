@@ -6,9 +6,11 @@ export const BottomNav = () => {
   const location = useLocation();
 
   if (
-    location.pathname === '/upload' ||
+    location.pathname === '/live' ||
+    location.pathname.startsWith('/live/') ||
     location.pathname === '/create' ||
     location.pathname.startsWith('/create/') ||
+    location.pathname === '/upload' ||
     location.pathname === '/login' ||
     location.pathname === '/register'
   ) {

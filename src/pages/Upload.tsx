@@ -526,7 +526,7 @@ export default function Upload() {
                {/* Preview Top Controls */}
                <div className="absolute top-[2%] left-0 right-0 z-20 flex items-center justify-between pointer-events-auto px-4">
                     <button onClick={() => navigate('/feed')} className="p-1" title="Back to For You">
-                      <img src="/Icons/power-button.png" alt="Close" className="w-5 h-5" />
+                      <img src="/Icons/Gold power buton.png" alt="Close" className="w-5 h-5" />
                     </button>
                     <button 
                         className="w-40 h-8 rounded-full flex items-center justify-center gap-1 bg-[#13151A] border border-transparent"
@@ -733,7 +733,7 @@ export default function Upload() {
                     className="absolute top-[2%] left-[5%] w-10 h-10 flex items-center justify-center"
                     title="Close"
                   >
-                    <img src="/Icons/power-button.png" alt="Close" className="w-6 h-6" />
+                    <img src="/Icons/Gold power buton.png" alt="Close" className="w-6 h-6" />
                   </button>
 
                   {/* 2. Sound/Music */}
@@ -897,7 +897,7 @@ export default function Upload() {
                           onClick={() => setShowMusicModal(false)}
                           className="p-2"
                         >
-                            <img src="/Icons/power-button.png" alt="Close" className="w-5 h-5" />
+                            <img src="/Icons/Gold power buton.png" alt="Close" className="w-5 h-5" />
                         </button>
                       </div>
                   </div>

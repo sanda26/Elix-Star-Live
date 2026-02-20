@@ -2,9 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import EnhancedVideoPlayer from '../components/EnhancedVideoPlayer';
 import { useVideoStore } from '../store/useVideoStore';
-import { LivePromo, useLivePromoStore } from '../store/useLivePromoStore';
 import { useSafetyStore } from '../store/useSafetyStore';
-import { useAuthStore } from '../store/useAuthStore';
 import { supabase } from '../lib/supabase';
 import {
   startVideoView,
@@ -15,114 +13,12 @@ import { startRealtimeSync, stopRealtimeSync } from '../lib/realtimeSync';
 
 type HomeTopTab = 'live' | 'stem' | 'explore' | 'following' | 'shop' | 'foryou';
 
-type LiveStreamData = {
-  id: string;
-  stream_key: string;
-  title: string;
-  viewer_count: number;
-  user_id: string;
-  username?: string;
-  avatar_url?: string;
-};
-
-type FeedItem =
-  | { kind: 'promo'; promo: LivePromo }
-  | { kind: 'video'; videoId: string }
-  | { kind: 'live'; stream: LiveStreamData };
-
-function LiveStreamCard({ stream, onOpen }: { stream: LiveStreamData; onOpen: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onOpen}
-      className="w-full h-full relative bg-[#13151A] rounded-2xl overflow-hidden"
-    >
-      <div className="absolute left-4 top-4 z-0 flex items-center gap-2">
-        <div className="px-2.5 py-1 rounded-full bg-red-600 text-white text-[11px] font-black tracking-widest animate-pulse">
-          LIVE
-        </div>
-        <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#13151A]/50 text-white text-[11px] font-bold">
-          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-            <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-            <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
-          </svg>
-          {stream.viewer_count?.toLocaleString() || 0}
-        </div>
-      </div>
-
-      <div className="absolute left-4 bottom-16 z-0 text-left flex items-center gap-3">
-        {stream.avatar_url && (
-          <img src={stream.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover border-2 border-[#C9A96E]/50" />
-        )}
-        <div>
-          <p className="text-white text-lg font-black">
-            {stream.username || stream.title || 'Live Stream'}
-          </p>
-          <p className="text-white/70 text-xs font-semibold">@{stream.username || 'creator'}</p>
-        </div>
-      </div>
-
-      <div className="absolute left-4 bottom-4 z-0">
-        <div className="px-5 py-2 rounded-full bg-[#C9A96E] text-black text-sm font-black">
-          Watch Live
-        </div>
-      </div>
-    </button>
-  );
-}
-
-function PromoCard({ promo, onOpen }: { promo: LivePromo; onOpen: () => void }) {
-  const previewSrc =
-    'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4';
-
-  return (
-    <button
-      type="button"
-      onClick={onOpen}
-      className="w-full h-full relative bg-[#13151A] rounded-2xl overflow-hidden"
-    >
-      {promo.type === 'battle' ? (
-        <div className="absolute inset-0 flex">
-          <video className="w-1/2 h-full object-cover" src={previewSrc} autoPlay loop muted playsInline />
-          <video className="w-1/2 h-full object-cover" src={previewSrc} autoPlay loop muted playsInline />
-          <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/70" />
-        </div>
-      ) : (
-        <div className="absolute inset-0">
-          <video className="w-full h-full object-cover" src={previewSrc} autoPlay loop muted playsInline />
-          <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/70" />
-        </div>
-      )}
-
-      <div className="absolute left-4 top-4 z-10 flex items-center gap-2">
-        <div className="px-2.5 py-1 rounded-full bg-[#C9A96E] text-black text-[11px] font-black tracking-widest">
-          LIVE
-        </div>
-        <div className="px-2.5 py-1 rounded-full text-white text-[11px] font-black tracking-widest">
-          {promo.type === 'battle' ? 'BATTLE' : 'STREAM'}
-        </div>
-      </div>
-
-      <div className="absolute left-4 bottom-16 z-10 text-left">
-        <p className="text-white text-xl font-black">
-          {promo.type === 'battle' ? 'Live Battle' : 'Live Stream'}
-        </p>
-        <p className="text-white text-sm font-bold">{promo.likes.toLocaleString()} likes</p>
-      </div>
-
-      <div className="absolute left-4 bottom-4 z-10">
-        <div className="px-5 py-2 rounded-full bg-[#C9A96E] text-black text-sm font-black">Watch now</div>
-      </div>
-    </button>
-  );
-}
+type FeedItem = { kind: 'video'; videoId: string };
 
 export default function VideoFeed() {
   const location = useLocation();
   const { videos, fetchVideos, loading } = useVideoStore();
   const blockedUserIds = useSafetyStore((s) => s.blockedUserIds);
-  const promoBattle = useLivePromoStore((s) => s.promoBattle);
-  const promoLive = useLivePromoStore((s) => s.promoLive);
   const [activeIndex, setActiveIndex] = useState(0);
   const [activeTab, setActiveTab] = useState<HomeTopTab>('foryou');
   const [hoveredTopTabIndex, setHoveredTopTabIndex] = useState<number | null>(null);
@@ -166,8 +62,6 @@ export default function VideoFeed() {
     startRealtimeSync();
     return () => stopRealtimeSync();
   }, []);
-  const promos: FeedItem[] = [];
-  const promoCount = promos.length;
   const [loopCount, setLoopCount] = useState(1);
 
   const visibleVideos = blockedUserIds.length
@@ -176,73 +70,15 @@ export default function VideoFeed() {
 
   const videoIds = Array.from({ length: loopCount }).flatMap(() => visibleVideos.map((v) => v.id));
 
-  const [liveStreams, setLiveStreams] = useState<LiveStreamData[]>([]);
-  const authUserId = useAuthStore((s) => s.user?.id ?? null);
-
-  useEffect(() => {
-    const fetchLiveStreams = async () => {
-      if (activeTab !== 'foryou') return;
-      if (!authUserId) {
-        setLiveStreams([]);
-        return;
-      }
-
-      try {
-        const { data, error } = await supabase
-          .from('live_streams')
-          .select('id, stream_key, title, viewer_count, user_id')
-          .eq('is_live', true)
-          .limit(10);
-
-        if (error) {
-          setLiveStreams([]);
-        } else {
-          const userIds = (data || []).map((d: any) => d.user_id).filter(Boolean);
-          let profilesMap: Record<string, any> = {};
-          if (userIds.length > 0) {
-            const { data: profiles } = await supabase
-              .from('profiles')
-              .select('user_id, username, display_name, avatar_url')
-              .in('user_id', userIds);
-            if (profiles) {
-              profiles.forEach((p: any) => { profilesMap[p.user_id] = p; });
-            }
-          }
-          setLiveStreams((data || []).map((d: any) => {
-            const profile = profilesMap[d.user_id];
-            return {
-              id: d.id,
-              stream_key: d.stream_key,
-              title: d.title || profile?.display_name || profile?.username || 'Live Stream',
-              viewer_count: d.viewer_count || 0,
-              user_id: d.user_id,
-              username: profile?.display_name || profile?.username || 'Live Stream',
-              avatar_url: profile?.avatar_url || '',
-            };
-          }));
-        }
-      } catch (err) {
-
-        setLiveStreams([]);
-      }
-    };
-
-    fetchLiveStreams();
-  }, [activeTab, authUserId]);
-
   const feedItemsWithLive: FeedItem[] =
     activeTab === 'foryou'
-      ? [
-          ...promos,
-          ...liveStreams.map((stream): FeedItem => ({ kind: 'live', stream })),
-          ...videoIds.map((id): FeedItem => ({ kind: 'video', videoId: id })),
-        ]
+      ? videoIds.map((id): FeedItem => ({ kind: 'video', videoId: id }))
       : [];
 
   useEffect(() => {
     if (visibleVideos.length === 0) return;
     setActiveIndex(0);
-  }, [visibleVideos.length, promoCount, liveStreams.length]);
+  }, [visibleVideos.length]);
 
   const handleVideoEnd = (feedIndex: number) => {
     const container = containerRef.current;
@@ -444,52 +280,6 @@ export default function VideoFeed() {
       </div>
 
       {feedItemsWithLive.map((item, index) => {
-        if (item.kind === 'promo') {
-          return (
-            <div
-              key={`promo-${index}`}
-              className="h-[100dvh] w-full snap-start relative flex justify-center bg-[#13151A] px-2"
-              style={{
-                margin: 0,
-                padding: 0,
-                scrollSnapAlign: 'start',
-                scrollSnapStop: 'always'
-              }}
-            >
-              <div className="w-full max-w-[480px] absolute left-1/2 -translate-x-1/2" style={{top:'calc(var(--safe-top) + 46px)', bottom:'calc(var(--safe-bottom) + 110px)'}}>
-                <PromoCard
-                  promo={item.promo}
-                  onOpen={() =>
-                    navigate(`/live/${item.promo.streamId}${item.promo.type === 'battle' ? '?battle=1' : ''}`, { replace: true })
-                  }
-                />
-              </div>
-            </div>
-          );
-        }
-
-        if (item.kind === 'live') {
-          return (
-            <div
-              key={`live-${item.stream.id}-${index}`}
-              className="h-[100dvh] w-full snap-start relative flex justify-center bg-[#13151A] px-2"
-              style={{
-                margin: 0,
-                padding: 0,
-                scrollSnapAlign: 'start',
-                scrollSnapStop: 'always'
-              }}
-            >
-              <div className="w-full max-w-[480px] absolute left-1/2 -translate-x-1/2" style={{top:'calc(var(--safe-top) + 46px)', bottom:'calc(var(--safe-bottom) + 110px)'}}>
-                <LiveStreamCard
-                  stream={item.stream}
-                  onOpen={() => navigate(`/live/${item.stream.stream_key}`, { replace: true })}
-                />
-              </div>
-            </div>
-          );
-        }
-
         return (
           <div
             key={`video-${item.videoId}-${index}`}

@@ -51,13 +51,13 @@ export default function Settings() {
   };
 
   return (
-    <div className="min-h-[100dvh] bg-[#13151A] text-white flex justify-center px-2">
+    <div className="bg-[#13151A] text-white flex justify-center px-2">
       {toast && <div className="fixed top-16 left-1/2 -translate-x-1/2 bg-white/10 backdrop-blur-md text-white text-sm px-4 py-2 rounded-xl z-[9999] animate-pulse">{toast}</div>}
-      <div className="w-full max-w-[480px] h-[100dvh] rounded-3xl overflow-hidden bg-[#13151A] flex flex-col pt-[calc(var(--safe-top)+46px)] pb-[calc(var(--safe-bottom)+110px)]">
+      <div className="w-full max-w-[480px] rounded-3xl overflow-hidden bg-[#13151A] flex flex-col">
       {/* Header */}
       <div className="sticky top-0 z-10 px-4 py-4 flex items-center gap-3 bg-[#13151A]">
         <button onClick={() => navigate('/feed')} className="p-1 hover:brightness-125 transition" title="Back to For You">
-          <img src="/Icons/power-button.png" alt="Back" className="w-5 h-5" />
+          <img src="/Icons/Gold power buton.png" alt="Back" className="w-5 h-5" />
         </button>
         <h1 className="text-2xl font-bold">Settings</h1>
       </div>

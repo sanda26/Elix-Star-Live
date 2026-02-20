@@ -128,80 +128,29 @@ export const useVideoStore = create<VideoStore>()(
       fetchVideos: async () => {
         set({ loading: true });
         try {
-          // Attempt to fetch For You Feed with safe error handling
-          let feedResult;
-          try {
-            feedResult = await fetchForYouFeed(1, 50);
-          } catch (e) {
+          const { data, error } = await supabase
+            .from('videos')
+            .select('*')
+            .eq('is_public', true)
+            .order('created_at', { ascending: false })
+            .limit(50);
 
-            feedResult = { videos: [] };
-          }
-
-          if (feedResult.videos && feedResult.videos.length > 0) {
-            const mappedVideos: Video[] = feedResult.videos;
-            const likedIds = mappedVideos.filter(v => v.isLiked).map(v => v.id);
-
-            const fetchedIds = new Set(mappedVideos.map((v) => v.id));
-            const existing = get().videos;
-            const toPrepend = existing.filter((v) => !fetchedIds.has(v.id));
-            const merged = toPrepend.length ? [...toPrepend, ...mappedVideos] : mappedVideos;
-
-            set({ videos: merged, likedVideos: likedIds, loading: false });
-            return;
-          }
-
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          let data: any[] = [];
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          let err: any = null;
-
-          // 1. Try fetching all public videos sorted by creation time (newest first)
-          try {
-            // Remove AbortSignal.timeout here as it causes "AbortError" crashes on slow networks
-            // Supabase client handles timeouts internally
-            let res = await supabase
-              .from('videos')
-              .select(`
-                *,
-                user:users ( id, username, display_name, avatar_url ),
-                likes:likes ( count )
-              `)
-              .eq('is_public', true)
-              .order('created_at', { ascending: false });
-
-            // 2. Fallback for profile relation if different join syntax needed
-            if (res.error) {
-
-               res = await supabase
-                  .from('videos')
-                  .select(`
-                    id, url, thumbnail_url, description, created_at, is_public,
-                    user_id,
-                    user:profiles!user_id ( id, username, display_name, avatar_url )
-                  `)
-                  .eq('is_public', true)
-                  .order('created_at', { ascending: false });
-            }
-            data = res.data || [];
-            err = res.error;
-          } catch (fetchError: any) {
-             // Catch abort errors specifically to avoid crashing
-             if (fetchError.name === 'AbortError') {
-
-                set({ loading: false });
-                return;
-             }
-
-             err = fetchError;
-          }
-
-          if (data.length === 0) {
-            // No videos found in production DB
+          if (error || !data || data.length === 0) {
             set({ videos: [], likedVideos: [], loading: false });
             return;
           }
 
-          if (err && data.length === 0) throw err;
+          const userIds = [...new Set(data.map((v: any) => v.user_id).filter(Boolean))];
+          let profilesMap: Record<string, any> = {};
+          if (userIds.length > 0) {
+            const { data: profiles } = await supabase
+              .from('profiles')
+              .select('user_id, username, display_name, avatar_url, is_creator')
+              .in('user_id', userIds);
+            if (profiles) {
+              profiles.forEach((p: any) => { profilesMap[p.user_id] = p; });
+            }
+          }
 
           let likedIds: string[] = [];
           try {
@@ -210,16 +159,12 @@ export const useVideoStore = create<VideoStore>()(
               const { data: likes } = await supabase.from('likes').select('video_id').eq('user_id', user.id);
               likedIds = likes?.map((r: { video_id: string }) => r.video_id) ?? [];
             }
-          } catch {
-            // ignore
-          }
+          } catch {}
           const likedSet = new Set(likedIds);
 
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const mappedVideos: Video[] = data.map((v: any) => {
-            const u = v.user || {};
-            const uid = u?.user_id ?? u?.id ?? v.user_id ?? 'unknown';
-            const uname = u?.username ?? 'user';
+            const p = profilesMap[v.user_id] || {};
+            const uname = p.username || 'user';
             
             return {
               id: v.id,
@@ -227,24 +172,24 @@ export const useVideoStore = create<VideoStore>()(
               thumbnail: v.thumbnail_url || '',
               duration: '0:15',
               user: {
-                id: uid,
+                id: v.user_id || 'unknown',
                 username: uname,
-                name: u?.display_name ?? uname,
-                avatar: u?.avatar_url ?? `https://ui-avatars.com/api/?name=${encodeURIComponent(uname)}`,
+                name: p.display_name || uname,
+                avatar: p.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(uname)}`,
                 level: 1,
-                isVerified: !!u?.is_creator,
+                isVerified: !!p.is_creator,
                 followers: 0,
                 following: 0
               },
-              description: v.description || '',
+              description: v.description || v.caption || '',
               hashtags: [],
-              music: { id: 'original', title: 'Original Sound', artist: u?.display_name ?? uname, duration: '0:15' },
+              music: { id: 'original', title: 'Original Sound', artist: p.display_name || uname, duration: '0:15' },
               stats: { 
-                  views: v.views || 0, 
-                  likes: v.likes || 0, 
-                  comments: v.comments || 0, 
-                  shares: v.shares || 0, 
-                  saves: 0 
+                views: v.views || 0, 
+                likes: v.likes || 0, 
+                comments: v.comments || 0, 
+                shares: v.shares || 0, 
+                saves: 0 
               },
               createdAt: v.created_at,
               location: 'For You',
@@ -264,7 +209,6 @@ export const useVideoStore = create<VideoStore>()(
 
           set({ videos: merged, likedVideos: likedIds, loading: false });
         } catch (err) {
-
           set({ loading: false });
         }
       },

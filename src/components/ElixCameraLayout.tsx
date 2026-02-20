@@ -342,7 +342,7 @@ export default function ElixCameraLayout({
           className="w-10 h-10 flex items-center justify-center hover:scale-110 transition-transform active:scale-90 z-[60] relative"
           title="Close"
         >
-          <img src="/Icons/power-button.png" alt="Close" className="w-5 h-5 object-contain" />
+          <img src="/Icons/Gold power buton.png" alt="Close" className="w-5 h-5 object-contain" />
         </button>
       </div>
 

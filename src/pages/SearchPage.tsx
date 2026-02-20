@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Search as SearchIcon, X } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+import { AvatarRing } from '../components/AvatarRing';
 
 const TRENDING_SEARCHES = [
   'Dance challenge',
@@ -104,13 +105,13 @@ export default function SearchPage() {
   }, [normalizedQuery]);
 
   return (
-    <div className="min-h-[100dvh] bg-[#13151A] text-white flex justify-center px-2">
-      <div className="w-full max-w-[480px] h-[100dvh] rounded-3xl overflow-hidden bg-[#13151A] flex flex-col pt-[calc(var(--safe-top)+46px)] pb-[calc(var(--safe-bottom)+110px)] overflow-y-auto">
+    <div className="bg-[#13151A] text-white flex justify-center px-2">
+      <div className="w-full max-w-[480px] rounded-3xl overflow-hidden bg-[#13151A] flex flex-col overflow-y-auto">
       {/* Content */}
       <div className="p-4">
         <div className="flex items-center gap-2 mb-4">
           <button onClick={() => navigate('/feed')} className="p-1">
-            <img src="/Icons/power-button.png" alt="Back" className="w-5 h-5" />
+            <img src="/Icons/Gold power buton.png" alt="Back" className="w-5 h-5" />
           </button>
           <form onSubmit={handleSearch} className="flex-1 relative">
             <input 
@@ -167,7 +168,7 @@ export default function SearchPage() {
                       onClick={() => navigate(`/profile/${u.id}`)}
                       className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 transition"
                     >
-                      <img src={u.avatar} alt={u.username} className="w-10 h-10 rounded-full object-cover bg-[#1C1E24]" />
+                      <AvatarRing src={u.avatar} alt={u.username} size={40} />
                       <div className="text-left">
                         <div className="text-sm font-semibold">@{u.username}</div>
                         <div className="text-xs text-white/60">{u.name}</div>

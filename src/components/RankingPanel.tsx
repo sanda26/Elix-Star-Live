@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Trophy } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { AvatarRing } from './AvatarRing';
 
 interface CreatorRanking {
   rank: number;
@@ -80,11 +81,7 @@ export function RankingPanel({ onClose }: RankingPanelProps) {
                 {rankings[1] && (
                   <div className="flex flex-col items-center gap-1 w-1/3 order-1">
                     <div className="relative">
-                      <img 
-                        src={rankings[1].avatar_url || ''} 
-                        alt={rankings[1].display_name}
-                        className="w-12 h-12 rounded-full object-cover border-2 border-gray-300 shadow-[0_0_10px_rgba(209,213,219,0.3)]"
-                      />
+                      <AvatarRing src={rankings[1].avatar_url || ''} alt={rankings[1].display_name} size={48} />
                       <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-gray-300 text-black text-[10px] font-black px-1.5 rounded-full border border-white">
                         2
                       </div>
@@ -103,11 +100,7 @@ export function RankingPanel({ onClose }: RankingPanelProps) {
                       <div className="absolute -top-5 left-1/2 -translate-x-1/2 animate-bounce-slow">
                         <Trophy className="w-6 h-6 text-white drop-shadow-[0_0_10px_rgba(201,169,110,0.5)]" fill="currentColor" />
                       </div>
-                      <img 
-                        src={rankings[0].avatar_url || ''} 
-                        alt={rankings[0].display_name}
-                        className="w-16 h-16 rounded-full object-cover border-2 border-[#C9A96E] shadow-[0_0_15px_rgba(201,169,110,0.4)] ring-2 ring-[#C9A96E]/20"
-                      />
+                      <AvatarRing src={rankings[0].avatar_url || ''} alt={rankings[0].display_name} size={64} />
                       <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-[#C9A96E] text-black text-xs font-black px-2 py-0.5 rounded-full border border-white">
                         1
                       </div>
@@ -123,11 +116,7 @@ export function RankingPanel({ onClose }: RankingPanelProps) {
                 {rankings[2] && (
                   <div className="flex flex-col items-center gap-1 w-1/3 order-3">
                     <div className="relative">
-                      <img 
-                        src={rankings[2].avatar_url || ''} 
-                        alt={rankings[2].display_name}
-                        className="w-12 h-12 rounded-full object-cover border-2 border-[#C9A96E] shadow-[0_0_10px_rgba(201,169,110,0.3)]"
-                      />
+                      <AvatarRing src={rankings[2].avatar_url || ''} alt={rankings[2].display_name} size={48} />
                       <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-[#C9A96E] text-white text-[10px] font-black px-1.5 rounded-full border border-white/20">
                         3
                       </div>
@@ -153,13 +142,7 @@ export function RankingPanel({ onClose }: RankingPanelProps) {
                     </div>
 
                     {/* Avatar */}
-                    <div className="relative">
-                      <img 
-                        src={creator.avatar_url || ''} 
-                        alt={creator.display_name}
-                        className="w-9 h-9 rounded-full object-cover border border-white/10"
-                      />
-                    </div>
+                    <AvatarRing src={creator.avatar_url || ''} alt={creator.display_name} size={36} />
 
                     {/* Info */}
                     <div className="flex-1 min-w-0">

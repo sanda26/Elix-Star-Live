@@ -40,10 +40,12 @@ import GiftAnimationOverlay from '../components/GiftAnimationOverlay';
 import { ChatOverlay } from '../components/ChatOverlay';
 import { FaceARGift } from '../components/FaceARGift';
 import { useLivePromoStore } from '../store/useLivePromoStore';
+import { AvatarRing } from '../components/AvatarRing';
 import { useAuthStore } from '../store/useAuthStore';
 import { clearCachedCameraStream, getCachedCameraStream } from '../lib/cameraStream';
 import { supabase } from '../lib/supabase';
 import { LevelBadge } from '../components/LevelBadge';
+import { AvatarRing } from '../components/AvatarRing';
 import ReportModal from '../components/ReportModal';
 import { RankingPanel } from '../components/RankingPanel';
 import LiveAIFilters from '../components/LiveAIFilters';
@@ -1746,6 +1748,7 @@ export default function LiveStream() {
                     {/* Featured host — left half */}
                     <div className="w-1/2 h-full relative overflow-hidden rounded-xl bg-[#13151A] border-2 border-[#C9A96E]/50 shadow-lg">
                       <img src={featuredHost.avatar} alt={featuredHost.name} className="w-full h-full object-cover" />
+                      <img src="/Icons/Profile icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[1]" />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/20 pointer-events-none" />
                       <div className="absolute bottom-2 left-2 flex items-center gap-1 bg-black/60 backdrop-blur-sm rounded-full px-2 py-1">
                         <Crown size={10} className="text-white" />
@@ -1779,6 +1782,7 @@ export default function LiveStream() {
                         {smallHosts.map(host => (
                           <div key={host.id} className="relative overflow-hidden rounded-lg bg-[#13151A] border border-white/10 aspect-square">
                             <img src={host.avatar} alt={host.name} className="w-full h-full object-cover" />
+                            <img src="/Icons/Profile icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[1]" />
                             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
                             <div className="absolute bottom-0.5 left-0.5 bg-black/60 backdrop-blur-sm rounded-full px-1 py-0.5">
                               <span className="text-white text-[7px] font-bold truncate block max-w-[40px]">{host.name}</span>
@@ -1811,6 +1815,7 @@ export default function LiveStream() {
                       {liveCoHosts.map(host => (
                         <div key={host.id} className="relative overflow-hidden rounded-xl bg-[#13151A] border border-white/10 shadow-lg aspect-square">
                           <img src={host.avatar} alt={host.name} className="w-full h-full object-cover" />
+                          <img src="/Icons/Profile icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[1]" />
                           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/20 pointer-events-none" />
                           <div className="absolute bottom-1 left-1 flex items-center gap-1 bg-black/60 backdrop-blur-sm rounded-full px-1.5 py-0.5">
                             <span className="text-white text-[9px] font-bold truncate max-w-[50px]">{host.name}</span>
@@ -2164,9 +2169,9 @@ export default function LiveStream() {
                 {[['#FFD700'], ['#C0C0C0'], ['#CD7F32']].map(([c], i) => {
                   const g = getTopGifters('me')[i];
                   return g ? (
-                    <div key={i} className="w-9 h-9 rounded-full overflow-hidden border-[2.5px] drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]" style={{ borderColor: c, zIndex: 3 - i }}><img src={g.avatar} alt={g.name} className="w-full h-full object-cover" /></div>
+                    <div key={i} style={{ zIndex: 3 - i }}><AvatarRing src={g.avatar} alt={g.name} size={36} /></div>
                   ) : (
-                    <div key={i} className="w-9 h-9 rounded-full overflow-hidden border-[2.5px] bg-[#13151A]/80" style={{ borderColor: c, zIndex: 3 - i }}><img src={`/Icons/elix-logo.png`} alt="" className="w-full h-full object-cover opacity-50" /></div>
+                    <div key={i} style={{ zIndex: 3 - i }}><AvatarRing src="/Icons/elix-logo.png" alt="" size={36} /></div>
                   );
                 })}
               </div>
@@ -2187,9 +2192,9 @@ export default function LiveStream() {
                 {[['#FFD700'], ['#C0C0C0'], ['#CD7F32']].map(([c], i) => {
                   const g = getTopGifters('opponent')[i];
                   return g ? (
-                    <div key={i} className="w-9 h-9 rounded-full overflow-hidden border-[2.5px] drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]" style={{ borderColor: c, zIndex: 3 - i }}><img src={g.avatar} alt={g.name} className="w-full h-full object-cover" /></div>
+                    <div key={i} style={{ zIndex: 3 - i }}><AvatarRing src={g.avatar} alt={g.name} size={36} /></div>
                   ) : (
-                    <div key={i} className="w-9 h-9 rounded-full overflow-hidden border-[2.5px] bg-[#13151A]/80" style={{ borderColor: c, zIndex: 3 - i }}><img src={`/Icons/elix-logo.png`} alt="" className="w-full h-full object-cover opacity-50" /></div>
+                    <div key={i} style={{ zIndex: 3 - i }}><AvatarRing src="/Icons/elix-logo.png" alt="" size={36} /></div>
                   );
                 })}
               </div>
@@ -2216,10 +2221,10 @@ export default function LiveStream() {
                         <div className="px-0 py-1 animate-luxury-fade-in -ml-2 relative">
                           <div className="flex items-center relative">
                             <div 
-                              className="relative z-10 w-14 h-14 rounded-full border-2 border-white overflow-hidden flex-shrink-0 pointer-events-auto cursor-pointer active:scale-95 transition-transform"
+                              className="relative z-10 flex-shrink-0 pointer-events-auto cursor-pointer active:scale-95 transition-transform"
                               onClick={(e) => { e.stopPropagation(); openMiniProfile(myCreatorName); }}
                             >
-                              <img src={myAvatar} alt={myCreatorName} className="w-full h-full object-cover" />
+                              <AvatarRing src={myAvatar} alt={myCreatorName} size={56} />
                             </div>
                             <div className="flex flex-col justify-center -ml-4 pl-6 pr-16 h-9 rounded-full border border-white/60 bg-[#13151A]/50 min-w-[140px] relative" style={{ borderTopLeftRadius: 0, borderBottomLeftRadius: 0 }}>
                               <span className="text-white text-[10px] font-bold truncate max-w-[160px] leading-tight">{myCreatorName}</span>
@@ -2349,8 +2354,8 @@ export default function LiveStream() {
                                 const donated = 0;
                                 return (
                                   <div key={v.id} className="relative flex flex-col items-center" style={{ zIndex: 3 - i }}>
-                                    <div className="relative w-7 h-7">
-                                      <img src={v.avatar} alt={v.username} className="w-7 h-7 rounded-full border-2 border-[#C9A96E] object-cover" />
+                                    <div className="relative">
+                                      <AvatarRing src={v.avatar} alt={v.username} size={28} />
                                       <span className="absolute bottom-0 inset-x-0 flex items-center justify-center text-white text-[5px] font-black leading-none drop-shadow-[0_1px_2px_rgba(0,0,0,1)]">{formatCoinsShort(donated)}</span>
                                     </div>
                                   </div>
@@ -2385,11 +2390,10 @@ export default function LiveStream() {
                         <button type="button" onClick={() => openMiniProfile(myCreatorName)} className="pr-3 pl-2 py-2 hover:scale-105 transition-all animate-luxury-fade-in">
                           <div className="flex items-center gap-2">
                             <div 
-                              className="relative z-10 w-11 h-11 rounded-full border-2 border-[#C9A96E] shadow-lg overflow-hidden flex-shrink-0 pointer-events-auto cursor-pointer active:scale-95 transition-transform"
+                              className="relative z-10 flex-shrink-0 pointer-events-auto cursor-pointer active:scale-95 transition-transform"
                               onClick={(e) => { e.stopPropagation(); openMiniProfile(myCreatorName); }}
                             >
-                              <img src={myAvatar} alt={myCreatorName} className="w-full h-full object-cover" />
-                              <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-gradient-to-br from-[#C9A96E] to-[#00c2be] rounded-full border-2 border-black animate-premium-glow" />
+                              <AvatarRing src={myAvatar} alt={myCreatorName} size={44} />
                             </div>
                             <div className="min-w-0 flex items-center gap-2">
                               <p className="text-white font-black text-[14px] truncate max-w-[160px]">{myCreatorName}</p>
@@ -2444,7 +2448,7 @@ export default function LiveStream() {
                           <button onClick={() => setShowViewerList(prev => !prev)} className="flex items-center gap-1 bg-[#13151A]/40 backdrop-blur-sm rounded-full px-2 py-1 pointer-events-auto">
                             <div className="flex -space-x-1 pointer-events-auto" onClick={() => setShowViewerList(prev => !prev)}>
                               {activeViewers.slice(0, 3).map(v => (
-                                <img key={v.id} src={v.avatar} alt="" className="w-5 h-5 rounded-full border border-black object-cover" />
+                                <AvatarRing key={v.id} src={v.avatar} alt="" size={20} />
                               ))}
                             </div>
                             <span className="text-white text-[9px] font-bold tabular-nums">{formatCountShort(viewerCount)}</span>
@@ -2688,7 +2692,7 @@ export default function LiveStream() {
                   {coHosts.map(host => (
                     <div key={host.id} className="flex flex-col items-center gap-1 min-w-[60px]">
                       <div className="relative">
-                        <img src={host.avatar} alt={host.name} className="w-12 h-12 rounded-full object-cover border-2 border-[#C9A96E]" />
+                        <AvatarRing src={host.avatar} alt={host.name} size={48} />
                         <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-[#1a1a1a] ${
                           host.status === 'live' ? 'bg-[#C9A96E]' : host.status === 'accepted' ? 'bg-[#C9A96E]/60' : 'bg-[#C9A96E]/30 animate-pulse'
                         }`} />
@@ -2740,7 +2744,7 @@ export default function LiveStream() {
                       className="w-full flex items-center gap-3 p-3 rounded-xl bg-white/5 hover:bg-[#C9A96E]/10 transition-all active:scale-[0.98] disabled:opacity-30"
                     >
                       <div className="relative">
-                        <img src={creator.avatar} alt={creator.name} className="w-10 h-10 rounded-full object-cover border border-[#C9A96E]/30" />
+                        <AvatarRing src={creator.avatar} alt={creator.name} size={40} />
                         {creator.isLive && (
                           <div className="absolute -bottom-0.5 -right-0.5 px-1 py-0.5 bg-red-500 rounded text-[7px] font-black text-white leading-none">LIVE</div>
                         )}
@@ -2822,7 +2826,7 @@ export default function LiveStream() {
                           </div>
                         ) : (
                           <div className="relative">
-                            <img src={slot.avatar} alt={slot.name} className="w-10 h-10 rounded-full object-cover border-2" style={{ borderColor: slot.status === 'accepted' ? '#00C853' : '#C9A96E' }} />
+                            <AvatarRing src={slot.avatar} alt={slot.name} size={40} />
                             {slot.status === 'invited' && (
                               <div className="absolute inset-0 rounded-full flex items-center justify-center bg-[#13151A]/40">
                                 <div className="w-4 h-4 border-2 border-[#C9A96E] border-t-transparent rounded-full animate-spin" />
@@ -2861,11 +2865,7 @@ export default function LiveStream() {
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         <div className="relative">
-                          <img
-                            src={c.avatar}
-                            alt={c.name}
-                            className="w-10 h-10 rounded-full object-cover bg-white/10"
-                          />
+                          <AvatarRing src={c.avatar} alt={c.name} size={40} />
                           {c.isLive && (
                             <div className="absolute -bottom-0.5 -right-0.5 px-1 py-0.5 bg-red-500 rounded text-[7px] font-black text-white leading-none">LIVE</div>
                           )}
@@ -2963,7 +2963,7 @@ export default function LiveStream() {
               <div className="flex items-start justify-between">
                 <div className="flex items-start gap-3 min-w-0">
                   <div className="relative -mt-6 flex-shrink-0">
-                    <img src={miniProfile.avatar} alt={miniProfile.username} className="w-20 h-20 rounded-full object-cover border-4 border-[#1a1a1a] aspect-square" />
+                    <AvatarRing src={miniProfile.avatar} alt={miniProfile.username} size={80} />
                   </div>
                   <div className="min-w-0 pt-1">
                     <div className="text-white font-black text-[16px] truncate">{miniProfile.username}</div>
@@ -3079,7 +3079,7 @@ export default function LiveStream() {
                 .map((v, idx) => (
                   <div key={v.id} className="flex items-center gap-2 px-3 py-2 hover:bg-white/5">
                     <div className="relative flex-shrink-0">
-                      <img src={v.avatar} alt={v.displayName} className="w-8 h-8 rounded-full object-cover border border-white/10" />
+                      <AvatarRing src={v.avatar} alt={v.displayName} size={32} />
                       {idx < 10 && (
                         <span className="absolute -top-0.5 -left-0.5 bg-[#C9A96E] text-black text-[6px] font-black w-3 h-3 rounded-full flex items-center justify-center">{idx + 1}</span>
                       )}
@@ -3608,7 +3608,7 @@ export default function LiveStream() {
                     }}
                   >
                     <div className="relative">
-                      <img src={u.avatar} alt={u.name} className="w-12 h-12 rounded-full object-cover bg-white/10 border border-white/10" />
+                      <AvatarRing src={u.avatar} alt={u.name} size={48} />
                       <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-[#FF2D55] rounded-full flex items-center justify-center border-2 border-[#1a1a1a]">
                         <Send size={7} className="text-white" />
                       </div>

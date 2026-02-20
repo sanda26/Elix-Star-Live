@@ -3,6 +3,7 @@ import { X, UserPlus, UserMinus, MessageCircle, MoreHorizontal, Flag } from 'luc
 import { useVideoStore } from '../store/useVideoStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { supabase } from '../lib/supabase';
+import { AvatarRing } from './AvatarRing';
 
 interface LikeUser {
   id: string;
@@ -195,11 +196,7 @@ export default function EnhancedLikesModal({ isOpen, onClose, videoId, likes }: 
                 <div key={user.id} className="p-4 hover:bg-transparent transition-colors group">
                   <div className="flex items-center gap-3">
                     <div className="relative flex-shrink-0">
-                      <img
-                        src={user.avatar}
-                        alt={user.name}
-                        className="w-12 h-12 rounded-full object-cover"
-                      />
+                      <AvatarRing src={user.avatar} alt={user.name} size={48} />
                       {user.isVerified && (
                         <div className="absolute -bottom-1 -right-1 bg-[#C9A96E] rounded-full p-0.5">
                           <div className="w-3 h-3 bg-white rounded-full flex items-center justify-center">

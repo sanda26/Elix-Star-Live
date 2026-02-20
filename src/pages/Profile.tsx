@@ -4,6 +4,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
 import { supabase } from '../lib/supabase';
 import { uploadAvatar } from '../lib/avatarUpload';
+import { AvatarRing } from '../components/AvatarRing';
 import { trackEvent } from '../lib/analytics';
 
 interface Video {
@@ -49,8 +50,8 @@ export default function Profile() {
   const isOwnProfile = !routeUserId || routeUserId === user?.id;
   const displayUserId = routeUserId || user?.id;
   
-  const displayName = profileData?.display_name || profileData?.username || 'User';
-  const displayUsername = profileData?.username || 'user';
+  const displayName = profileData?.display_name || profileData?.username || user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email?.split('@')[0] || 'User';
+  const displayUsername = profileData?.username || user?.email?.split('@')[0] || 'user';
   const displayAvatar = profileData?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=random`;
 
   useEffect(() => {
@@ -231,18 +232,15 @@ export default function Profile() {
   };
 
   if (loading) {
-     return <div className="min-h-[100dvh] bg-[#13151A] text-white flex items-center justify-center">Loading...</div>;
+     return <div className="bg-[#13151A] text-white flex items-center justify-center">Loading...</div>;
   }
 
   return (
-    <div className="min-h-[100dvh] bg-[#13151A] text-white flex justify-center px-2">
-      <div className="w-full max-w-[480px] h-[100dvh] flex flex-col bg-[#13151A] rounded-3xl overflow-hidden overflow-y-auto pt-[calc(var(--safe-top)+46px)] pb-[calc(var(--safe-bottom)+110px)]">
+    <div className="bg-[#13151A] text-white flex justify-center px-2">
+      <div className="w-full max-w-[480px] flex flex-col bg-[#13151A] rounded-3xl overflow-hidden overflow-y-auto">
 
         {/* ═══ TOP BAR ═══ */}
         <header className="flex items-center justify-between pl-[calc(16px+3mm)] pr-4 pt-2 pb-2">
-          <button onClick={() => navigate('/feed')} title="Add friends" className="p-1">
-            <UserPlus size={22} className="text-white" />
-          </button>
           <div className="flex-1" />
           <div className="flex items-center gap-4">
             <button onClick={() => { if (navigator.share) navigator.share({ title: displayName, url: window.location.href }); else navigator.clipboard.writeText(window.location.href); }} title="Share profile" className="p-1">
@@ -268,7 +266,7 @@ export default function Profile() {
                 </button>
               </div>
               <div className="px-5 py-4 flex items-center gap-3 border-b border-white/5">
-                <img src={displayAvatar} alt="Avatar" className="w-10 h-10 rounded-full object-cover border border-white/10" />
+                <AvatarRing src={displayAvatar} alt="Avatar" size={40} />
                 <div>
                   <p className="text-white font-semibold text-sm">{displayName}</p>
                   <p className="text-white/50 text-xs">{user?.email || '@' + displayUsername}</p>
@@ -298,11 +296,7 @@ export default function Profile() {
         {/* ═══ AVATAR ═══ */}
         <div className="flex flex-col items-center mt-2 mb-3">
           <div className="relative group cursor-pointer" onClick={() => isOwnProfile && document.getElementById('avatar-upload')?.click()}>
-            <div className="w-[96px] h-[96px] rounded-full p-[3px] bg-gradient-to-tr from-[#C9A96E] to-[#C9A96E]">
-              <div className="w-full h-full rounded-full border-[3px] border-[#13151A] overflow-hidden">
-                <img src={displayAvatar} alt="Profile" className="w-full h-full rounded-full object-cover" />
-              </div>
-            </div>
+            <AvatarRing src={displayAvatar} alt="Profile" size={96} />
             {isOwnProfile && (
               <div className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-7 h-7 rounded-full bg-[#C9A96E] border-[3px] border-[#13151A] flex items-center justify-center">
                 <span className="text-black font-bold text-sm leading-none">+</span>
@@ -403,7 +397,7 @@ export default function Profile() {
               <span className="text-[13px] font-bold text-white">Showcase</span>
             </button>
             <button onClick={() => navigate('/edit-profile')} className="flex items-center gap-2 px-4 py-3 whitespace-nowrap">
-              <img src={displayAvatar} alt="" className="w-4 h-4 rounded-full object-cover" />
+              <AvatarRing src={displayAvatar} alt="" size={16} />
               <span className="text-[13px] font-bold text-white">{displayName.length > 10 ? displayName.slice(0, 10) + '...' : displayName}</span>
             </button>
           </div>
@@ -512,17 +506,6 @@ export default function Profile() {
           </div>
         )}
 
-        {/* ═══ CREATOR CENTRE BANNER ═══ */}
-        {isOwnProfile && (
-          <button
-            onClick={() => navigate('/creator/login-details')}
-            className="mx-3 mt-3 flex items-center gap-3 px-4 py-3 bg-white/5 border border-white/8 rounded-xl"
-          >
-            <Store size={20} className="text-white/50 shrink-0" />
-            <span className="text-[13px] font-bold text-white flex-1 text-left">Elix Creator Centre</span>
-            <ChevronRight size={18} className="text-white/30 shrink-0" />
-          </button>
-        )}
 
       </div>
     </div>

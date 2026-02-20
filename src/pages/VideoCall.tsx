@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { AvatarRing } from '../components/AvatarRing';
 import {
   Phone,
   PhoneOff,
@@ -8,7 +9,6 @@ import {
   Video,
   VideoOff,
   SwitchCamera,
-  ArrowLeft,
 } from 'lucide-react';
 import { useCallStore } from '../store/useCallStore';
 import { useAuthStore } from '../store/useAuthStore';
@@ -131,11 +131,7 @@ export default function VideoCall() {
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center gap-4">
             {remoteUser.avatar ? (
-              <img
-                src={remoteUser.avatar}
-                alt={remoteUser.username}
-                className="w-24 h-24 rounded-full object-cover border-2 border-white/20"
-              />
+              <AvatarRing src={remoteUser.avatar} alt={remoteUser.username} size={96} />
             ) : (
               <div className="w-24 h-24 rounded-full bg-white/10 flex items-center justify-center text-3xl text-white">
                 {remoteUser.username[0]?.toUpperCase()}
@@ -154,7 +150,7 @@ export default function VideoCall() {
           title="Go back"
           className="absolute top-12 left-4 w-10 h-10 rounded-full bg-[#13151A]/40 flex items-center justify-center"
         >
-          <ArrowLeft className="w-5 h-5 text-white" />
+          <img src="/Icons/Gold power buton.png" alt="Back" className="w-5 h-5" />
         </button>
 
         {/* Timer / Status */}

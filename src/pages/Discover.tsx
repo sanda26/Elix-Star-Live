@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { Search, TrendingUp, Hash, Users, Video as VideoIcon, Trophy, Music, Flame, Sparkles, Star, Zap } from 'lucide-react';
 import { trackEvent } from '../lib/analytics';
+import { AvatarRing } from '../components/AvatarRing';
 
 interface Video {
   id: string;
@@ -152,14 +153,14 @@ export default function Discover() {
   };
 
   return (
-    <div className="min-h-[100dvh] bg-[#13151A] text-white flex justify-center px-2">
-      <div className="w-full max-w-[480px] h-[100dvh] rounded-3xl overflow-hidden bg-[#13151A] flex flex-col pt-[calc(var(--safe-top)+46px)] pb-[calc(var(--safe-bottom)+110px)]">
+    <div className="bg-[#13151A] text-white flex justify-center px-2">
+      <div className="w-full max-w-[480px] rounded-3xl overflow-hidden bg-[#13151A] flex flex-col">
 
         {/* ═══ HEADER ═══ */}
         <div className="shrink-0 px-4 pt-3 pb-2 bg-[#13151A] relative">
           <div className="flex items-center gap-3 mb-3">
             <button onClick={() => navigate('/feed')} className="p-1.5 rounded-full hover:bg-white/5 transition" title="Back">
-              <img src="/Icons/power-button.png" alt="Back" className="w-5 h-5" />
+              <img src="/Icons/Gold power buton.png" alt="Back" className="w-5 h-5" />
             </button>
             <h1 className="text-[18px] font-extrabold tracking-tight flex-1">Discover</h1>
             <button onClick={() => document.getElementById('discover-search')?.focus()} className="p-1.5 rounded-full hover:bg-white/5 transition" title="Search">
@@ -326,15 +327,10 @@ export default function Discover() {
                       
                       {/* Avatar */}
                       <div className="relative shrink-0">
-                        <img 
+                        <AvatarRing 
                           src={creator.avatar_url || `https://ui-avatars.com/api/?name=${creator.username}&background=222&color=C9A96E`} 
                           alt={creator.username}
-                          className={`w-10 h-10 rounded-full object-cover ${
-                            creator.rank === 1 ? 'ring-2 ring-[#C9A96E]/40' :
-                            creator.rank === 2 ? 'ring-2 ring-gray-300/30' :
-                            creator.rank === 3 ? 'ring-2 ring-[#C9A96E]/30' :
-                            ''
-                          }`}
+                          size={40}
                         />
                         {creator.rank === 1 && (
                           <div className="absolute -top-1.5 -right-1 text-sm">👑</div>

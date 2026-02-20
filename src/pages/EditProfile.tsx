@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { Camera } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { trackEvent } from '../lib/analytics';
+import { AvatarRing } from '../components/AvatarRing';
 import { avatarUploadService } from '../lib/avatarUploadService';
 import { showToast } from '../lib/toast';
 
@@ -124,12 +125,12 @@ export default function EditProfile() {
   };
 
   return (
-    <div className="min-h-[100dvh] bg-[#13151A] text-white flex justify-center px-2">
-      <div className="w-full max-w-[480px] h-[100dvh] rounded-3xl overflow-hidden bg-[#13151A] flex flex-col pt-[calc(var(--safe-top)+46px)] pb-[calc(var(--safe-bottom)+110px)]">
+    <div className="bg-[#13151A] text-white flex justify-center px-2">
+      <div className="w-full max-w-[480px] rounded-3xl overflow-hidden bg-[#13151A] flex flex-col">
       {/* Header */}
       <div className="sticky top-0 z-10 px-4 py-4 flex items-center justify-between bg-[#13151A]">
         <button onClick={() => navigate(-1)} className="p-2 hover:brightness-125 rounded-full transition">
-          <img src="/Icons/power-button.png" alt="Back" className="w-5 h-5" />
+          <img src="/Icons/Gold power buton.png" alt="Back" className="w-5 h-5" />
         </button>
         <h1 className="text-lg font-bold">Edit Profile</h1>
         <button
@@ -145,12 +146,9 @@ export default function EditProfile() {
         {/* Avatar */}
         <div className="flex flex-col items-center gap-4">
           <div className="relative group cursor-pointer">
-            <img
-              src={profile.avatar_url || `https://ui-avatars.com/api/?name=${profile.username}`}
-              alt="Avatar"
-              className="w-24 h-24 object-cover rounded-full border-2 border-[#C9A96E]"
-              onClick={() => document.getElementById('avatar-upload')?.click()}
-            />
+            <div onClick={() => document.getElementById('avatar-upload')?.click()}>
+              <AvatarRing src={profile.avatar_url || `https://ui-avatars.com/api/?name=${profile.username}`} alt="Avatar" size={96} />
+            </div>
             <label
               htmlFor="avatar-upload"
               className="absolute bottom-0 right-0 w-8 h-8 bg-[#C9A96E] rounded-full flex items-center justify-center cursor-pointer hover:scale-110 transition shadow-lg"

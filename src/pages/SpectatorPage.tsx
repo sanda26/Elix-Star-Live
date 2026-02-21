@@ -651,8 +651,8 @@ export default function SpectatorPage() {
           <ReportModal
             isOpen={isReportModalOpen}
             onClose={() => setIsReportModalOpen(false)}
-            targetId={hostUserId}
-            targetType="user"
+            videoId={hostUserId}
+            contentType="live"
           />
         )}
       </div>

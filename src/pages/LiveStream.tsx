@@ -1777,7 +1777,18 @@ export default function LiveStream() {
       cancelled = true;
       if (!keepStreamAliveOnCleanup) stop();
     };
-  }, [isBattleMode, isBroadcast, cameraFacing]);
+  }, [isBroadcast, cameraFacing]);
+
+  // Re-attach camera stream to videoRef when battle mode toggles (the <video> element changes)
+  useEffect(() => {
+    if (!isBroadcast) return;
+    const stream = cameraStreamRef.current;
+    if (!stream || !videoRef.current) return;
+    if (videoRef.current.srcObject !== stream) {
+      videoRef.current.srcObject = stream;
+      videoRef.current.play().catch(() => {});
+    }
+  }, [isBattleMode, isBroadcast]);
 
   useEffect(() => {
     const stream = cameraStreamRef.current;

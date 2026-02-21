@@ -771,6 +771,99 @@ export default function LiveStream() {
     setPendingCoHostInvite(null);
   };
 
+  // ─── JOIN REQUEST: spectator asks creator to let them join ───
+  const [joinRequestSent, setJoinRequestSent] = useState(false);
+  type PendingJoinRequest = { notifId: string; requesterName: string; requesterAvatar: string; requesterId: string; type: 'cohost' | 'battle' };
+  const [pendingJoinRequest, setPendingJoinRequest] = useState<PendingJoinRequest | null>(null);
+
+  const sendJoinRequest = async (type: 'cohost' | 'battle') => {
+    if (!user?.id || !effectiveStreamId || isBroadcast) return;
+    const { data: stream } = await supabase
+      .from('live_streams')
+      .select('user_id')
+      .eq('stream_key', effectiveStreamId)
+      .maybeSingle();
+    if (!stream?.user_id) { showToast('Stream not found'); return; }
+    const myName = user.username || user.name || 'User';
+    await supabase.from('notifications').insert({
+      user_id: stream.user_id,
+      type: 'join_request',
+      title: type === 'cohost' ? 'Co-Host Request' : 'Battle Request',
+      body: `@${myName} wants to ${type === 'cohost' ? 'co-host' : 'battle'}!`,
+      data: {
+        actor_id: user.id,
+        requester_name: myName,
+        requester_avatar: user.avatar || '',
+        stream_key: effectiveStreamId,
+        request_type: type,
+      },
+    });
+    setJoinRequestSent(true);
+    showToast('Request sent!');
+  };
+
+  useEffect(() => {
+    if (!user?.id || !isBroadcast) return;
+    const chan = supabase
+      .channel(`join_request_${user.id}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
+        (payload: any) => {
+          const row = payload.new;
+          if (row?.type === 'join_request') {
+            setPendingJoinRequest({
+              notifId: row.id,
+              requesterName: row.data?.requester_name || 'Someone',
+              requesterAvatar: row.data?.requester_avatar || '',
+              requesterId: row.data?.actor_id || '',
+              type: row.data?.request_type === 'battle' ? 'battle' : 'cohost',
+            });
+          }
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(chan); };
+  }, [user?.id, isBroadcast]);
+
+  const acceptJoinRequest = async () => {
+    if (!pendingJoinRequest || !user?.id) return;
+    const req = pendingJoinRequest;
+    setPendingJoinRequest(null);
+    supabase.from('notifications').update({ is_read: true }).eq('id', req.notifId).then(() => {});
+    const myName = user.username || user.name || 'Creator';
+    await supabase.from('notifications').insert({
+      user_id: req.requesterId,
+      type: req.type === 'cohost' ? 'cohost_invite' : 'battle_invite',
+      title: req.type === 'cohost' ? 'Co-Host Invite' : 'Battle Invite',
+      body: `@${myName} accepted your request!`,
+      data: {
+        actor_id: user.id,
+        host_name: myName,
+        host_avatar: user.avatar || '',
+        stream_key: effectiveStreamId,
+      },
+    });
+    if (req.type === 'cohost') {
+      setCoHosts(prev => [...prev, {
+        id: `host-${Date.now()}`,
+        userId: req.requesterId,
+        name: req.requesterName,
+        avatar: req.requesterAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(req.requesterName)}&background=121212&color=C9A96E`,
+        status: 'invited',
+        isMuted: false,
+      }]);
+    }
+    showToast(`Accepted @${req.requesterName}'s request!`);
+  };
+
+  const declineJoinRequest = async () => {
+    if (!pendingJoinRequest) return;
+    supabase.from('notifications').update({ is_read: true }).eq('id', pendingJoinRequest.notifId).then(() => {});
+    setPendingJoinRequest(null);
+    showToast('Request declined');
+  };
+
   // Co-host presence: when joining as cohost, announce to host via Supabase broadcast
   const isCoHostJoiner = new URLSearchParams(location.search).get('cohost') === '1';
 
@@ -3150,13 +3243,18 @@ export default function LiveStream() {
                 <button type="button" onClick={() => setIsMoreMenuOpen(true)} className="w-9 h-9 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform">
                   <MoreVertical size={16} className="text-[#C9A96E]" />
                 </button>
-                <button type="button" onClick={handleShare} className="w-9 h-9 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform">
-                  <Share2 size={16} className="text-[#C9A96E]" />
-                </button>
+                {!joinRequestSent ? (
+                  <button type="button" onClick={() => sendJoinRequest('cohost')} className="w-9 h-9 rounded-full bg-[#C9A96E] flex items-center justify-center shadow-lg active:scale-95 transition-transform">
+                    <UserPlus size={16} className="text-black" />
+                  </button>
+                ) : (
+                  <div className="w-9 h-9 rounded-full bg-[#13151A] border border-green-500/40 flex items-center justify-center">
+                    <Check size={16} className="text-green-400" />
+                  </div>
+                )}
                 <button type="button" onClick={() => setShowGiftPanel(true)} className="w-9 h-9 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform">
                   <Gift size={16} className="text-[#C9A96E]" />
                 </button>
-                <LiveAIFilters currentFilter={liveFilterCss} onFilterChange={setLiveFilterCss} />
                 <button type="button" onPointerDown={(e) => { handleLikeTap(e); }} className="w-9 h-9 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform">
                   <Heart size={16} fill="#FF2D55" className="text-[#FF2D55]" />
                 </button>
@@ -3395,6 +3493,54 @@ export default function LiveStream() {
             <RankingPanel onClose={() => setShowRankingPanel(false)} />
           </div>
         </>
+      )}
+
+      {/* ─── INCOMING JOIN REQUEST BANNER (Creator sees this) ─── */}
+      {pendingJoinRequest && isBroadcast && (
+        <div className="fixed inset-0 z-[100002] flex flex-col justify-end pointer-events-none max-w-[480px] mx-auto">
+          <div className="absolute inset-0 bg-black/40 pointer-events-auto" onClick={() => declineJoinRequest()} />
+          <div className="pointer-events-auto animate-in slide-in-from-bottom relative z-10">
+            <div className="bg-[#1C1E24]/95 backdrop-blur-md rounded-t-2xl border-t border-[#C9A96E]/30 shadow-2xl p-4 pb-safe">
+              <div className="flex justify-center mb-3">
+                <div className="w-10 h-1 bg-white/20 rounded-full" />
+              </div>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 rounded-full border-2 border-[#C9A96E]/50 overflow-hidden bg-[#13151A] flex-shrink-0">
+                  {pendingJoinRequest.requesterAvatar ? (
+                    <img src={pendingJoinRequest.requesterAvatar} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-[#C9A96E] font-bold text-lg">
+                      {pendingJoinRequest.requesterName.slice(0, 1).toUpperCase()}
+                    </div>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-white font-bold text-sm truncate">
+                    {pendingJoinRequest.type === 'cohost' ? 'Co-Host Request' : 'Battle Request'}
+                  </p>
+                  <p className="text-white/60 text-xs">
+                    <span className="text-[#C9A96E]">@{pendingJoinRequest.requesterName}</span> wants to {pendingJoinRequest.type === 'cohost' ? 'co-host' : 'battle'}
+                  </p>
+                </div>
+                <div className="w-8 h-8 rounded-full bg-[#C9A96E]/20 flex items-center justify-center flex-shrink-0">
+                  {pendingJoinRequest.type === 'cohost' ? (
+                    <Crown className="w-4 h-4 text-[#C9A96E]" />
+                  ) : (
+                    <Sword className="w-4 h-4 text-red-400" />
+                  )}
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button type="button" onClick={(e) => { e.stopPropagation(); e.preventDefault(); declineJoinRequest(); }} className="flex-1 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/70 text-xs font-bold active:scale-95 transition-all pointer-events-auto">
+                  Decline
+                </button>
+                <button type="button" onClick={(e) => { e.stopPropagation(); e.preventDefault(); acceptJoinRequest(); }} className="flex-1 py-2.5 rounded-xl bg-[#C9A96E] text-black text-xs font-bold active:scale-95 transition-all shadow-lg shadow-[#C9A96E]/20 pointer-events-auto">
+                  Accept
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* ─── INCOMING BATTLE INVITE BANNER (Bottom sheet) ─── */}

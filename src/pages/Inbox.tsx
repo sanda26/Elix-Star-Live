@@ -201,6 +201,8 @@ export default function Inbox() {
         {/* List Content */}
         <div className="flex-1 overflow-y-auto px-4 py-1 space-y-4">
             
+            {(activeFilter === 'main' || activeFilter === 'unread') && (
+            <>
             {/* New Followers */}
             <button onClick={() => navigate('/profile')} className="flex items-center gap-3 w-full text-left">
                 <div className="w-12 h-12 rounded-full bg-gradient-to-b from-[#f5e6a3] to-[#b8922e] flex items-center justify-center">
@@ -226,9 +228,11 @@ export default function Inbox() {
                     </p>
                 </div>
             </button>
+            </>
+            )}
 
             {/* Battle Invites */}
-            {notifications.filter(n => n.type === 'battle_invite' && !n.is_read).map(notif => (
+            {(activeFilter === 'main' || activeFilter === 'requests') && notifications.filter(n => n.type === 'battle_invite' && !n.is_read).map(notif => (
                 <div key={notif.id} className="flex items-center gap-3 w-full">
                     <div className="w-12 h-12 rounded-full bg-red-500/20 border border-red-500/30 flex items-center justify-center flex-shrink-0 overflow-hidden">
                         {(notif.rawData?.host_avatar || notif.image_url) ? (
@@ -289,7 +293,7 @@ export default function Inbox() {
             ))}
 
             {/* Message Items (Mixed) */}
-            {conversations.map((conv, i) => (
+            {(activeFilter === 'main' || activeFilter === 'unread') && conversations.map((conv, i) => (
                 <div key={conv.id} className="flex items-center gap-3 cursor-pointer" onClick={() => navigate(`/inbox/${conv.id}`)}>
                     <AvatarRing src={conv.otherUser?.avatar_url || ''} alt={conv.otherUser?.username || 'User'} size={48} />
                     <div className="flex-1 min-w-0">
@@ -304,7 +308,7 @@ export default function Inbox() {
             ))}
 
             {/* System Notification */}
-            {notifications.filter(n => n.type === 'system').map(notif => (
+            {(activeFilter === 'main') && notifications.filter(n => n.type === 'system').map(notif => (
                 <button key={notif.id} onClick={() => notif.action_url ? navigate(notif.action_url) : null} className="flex items-center gap-3 w-full text-left">
                     <div className="w-12 h-12 rounded-full bg-[#13151A] border border-[#C9A96E]/40 flex items-center justify-center">
                         <Archive className="w-6 h-6 stroke-gold-metallic" />

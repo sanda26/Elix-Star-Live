@@ -53,13 +53,13 @@ export default function SafetyCenter() {
             icon={<Lock className="w-6 h-6" />}
             title="Account Privacy"
             description="Control who can see your content and interact with you"
-            onClick={() => showToast('Account privacy settings coming soon')}
+            onClick={() => navigate('/edit-profile')}
           />
           <ActionCard
             icon={<Eye className="w-6 h-6" />}
             title="Data & Personalization"
             description="Manage how your data is used"
-            onClick={() => showToast('Data settings coming soon')}
+            onClick={() => navigate('/privacy')}
           />
         </Section>
 

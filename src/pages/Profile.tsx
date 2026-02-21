@@ -6,6 +6,7 @@ import { supabase } from '../lib/supabase';
 import { uploadAvatar } from '../lib/avatarUpload';
 import { AvatarRing } from '../components/AvatarRing';
 import { trackEvent } from '../lib/analytics';
+import ReportModal from '../components/ReportModal';
 
 interface Video {
   id: string;
@@ -47,6 +48,7 @@ export default function Profile() {
   const [showAccountMenu, setShowAccountMenu] = useState(false);
   const [shopItems, setShopItems] = useState<{ id: string; title: string; price: number; image_url: string | null }[]>([]);
   const [showSharePanel, setShowSharePanel] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
   const [shareFollowers, setShareFollowers] = useState<{ user_id: string; username: string; avatar_url: string | null }[]>([]);
   const [shareSent, setShareSent] = useState<Set<string>>(new Set());
   const [ranking, setRanking] = useState<number | null>(null);
@@ -266,8 +268,8 @@ export default function Profile() {
 
       if (error) throw error;
       setVideos(data || []);
-    } catch (error) {
-
+    } catch {
+      setVideos([]);
     }
   };
 
@@ -507,7 +509,7 @@ export default function Profile() {
                 <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar shrink-0">
                   {[
                     { name: 'Promote', icon: <TrendingUp size={22} className="text-white" />, action: () => { if (navigator.share) navigator.share({ title: `${displayName} on Elix`, url: `${window.location.origin}/profile/${displayUserId}` }); } },
-                    { name: 'Report', icon: <Flag size={22} className="text-white" />, action: () => {} },
+                    { name: 'Report', icon: <Flag size={22} className="text-white" />, action: () => { setShowSharePanel(false); setShowReportModal(true); } },
                   ].map((item) => (
                     <button key={item.name} onClick={item.action} className="flex flex-col items-center gap-1 min-w-[60px]">
                       <div className="w-12 h-12 rounded-full bg-[#13151A] flex items-center justify-center border border-[#C9A96E]/40">{item.icon}</div>
@@ -703,7 +705,7 @@ export default function Profile() {
                 className="aspect-[3/4] bg-[#1C1E24] relative group text-left"
               >
                 <img 
-                  src={video.thumbnail_url || '/placeholder-video.png'} 
+                  src={video.thumbnail_url || `https://ui-avatars.com/api/?name=Video&background=1C1E24&color=C9A96E&size=200`} 
                   alt="Video" 
                   className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition" 
                 />
@@ -768,6 +770,16 @@ export default function Profile() {
 
 
       </div>
+
+      {showReportModal && displayUserId && (
+        <ReportModal
+          isOpen={showReportModal}
+          onClose={() => setShowReportModal(false)}
+          videoId=""
+          contentType="user"
+          contentId={displayUserId}
+        />
+      )}
     </div>
   );
 }

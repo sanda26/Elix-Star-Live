@@ -204,6 +204,92 @@ export async function handleSendNotification(req: Request, res: Response) {
   }
 }
 
+// --- Apple receipt verification via App Store Server API ---
+async function verifyAppleReceipt(
+  transactionId: string,
+): Promise<{ valid: boolean; productId?: string; detail?: string }> {
+  // StoreKit 2 transactions are JWS-signed — the transactionId is sufficient for
+  // server-side lookup using the App Store Server API v2.
+  // Env vars: APPLE_ISSUER_ID, APPLE_KEY_ID, APPLE_PRIVATE_KEY (p8 contents),
+  //           APPLE_BUNDLE_ID, APPLE_IAP_ENVIRONMENT ('Sandbox' | 'Production')
+  const issuerId = process.env.APPLE_ISSUER_ID;
+  const keyId = process.env.APPLE_KEY_ID;
+  const privateKey = process.env.APPLE_PRIVATE_KEY;
+  const bundleId = process.env.APPLE_BUNDLE_ID || 'com.elixstarlive.app';
+  const env = process.env.APPLE_IAP_ENVIRONMENT || 'Production';
+
+  if (!issuerId || !keyId || !privateKey) {
+    // If Apple creds aren't configured yet, accept the transaction optimistically
+    // so development/testing can proceed. Log a warning so it's visible.
+    console.warn('[IAP] Apple API keys not configured — skipping server verification');
+    return { valid: true, detail: 'apple-keys-not-configured' };
+  }
+
+  try {
+    // Build JWT for App Store Server API (ES256 / P-256)
+    const crypto = await import('crypto');
+
+    const header = Buffer.from(
+      JSON.stringify({ alg: 'ES256', kid: keyId, typ: 'JWT' }),
+    ).toString('base64url');
+
+    const now = Math.floor(Date.now() / 1000);
+    const payload = Buffer.from(
+      JSON.stringify({
+        iss: issuerId,
+        iat: now,
+        exp: now + 3600,
+        aud: 'appstoreconnect-v1',
+        bid: bundleId,
+      }),
+    ).toString('base64url');
+
+    const sign = crypto.createSign('SHA256');
+    sign.update(`${header}.${payload}`);
+    const signature = sign
+      .sign(
+        { key: privateKey.replace(/\\n/g, '\n'), format: 'pem' },
+        'base64url',
+      );
+
+    const jwt = `${header}.${payload}.${signature}`;
+
+    const baseUrl =
+      env === 'Production'
+        ? 'https://api.storekit.itunes.apple.com'
+        : 'https://api.storekit-sandbox.itunes.apple.com';
+
+    const resp = await fetch(
+      `${baseUrl}/inApps/v1/transactions/${transactionId}`,
+      { headers: { Authorization: `Bearer ${jwt}` } },
+    );
+
+    if (!resp.ok) {
+      const body = await resp.text();
+      return { valid: false, detail: `apple-api-${resp.status}: ${body}` };
+    }
+
+    const json: any = await resp.json();
+    // The response signedTransactionInfo is a JWS; decode the payload to get productId
+    const parts = (json.signedTransactionInfo || '').split('.');
+    if (parts.length === 3) {
+      const txPayload = JSON.parse(
+        Buffer.from(parts[1], 'base64url').toString(),
+      );
+      return {
+        valid: true,
+        productId: txPayload.productId,
+        detail: JSON.stringify(txPayload),
+      };
+    }
+
+    return { valid: true, detail: 'jws-decode-skipped' };
+  } catch (err: any) {
+    console.error('[IAP] Apple verification error:', err);
+    return { valid: false, detail: err.message };
+  }
+}
+
 // --- Verify Purchase ---
 export async function handleVerifyPurchase(req: Request, res: Response) {
   if (req.method !== 'POST') return res.status(405).send('Method not allowed');
@@ -215,18 +301,49 @@ export async function handleVerifyPurchase(req: Request, res: Response) {
   const { data: { user }, error: authError } = await getSupabase().auth.getUser(token);
   if (authError || !user) return res.status(401).json({ error: 'Unauthorized' });
 
+  // Rate limit: 20 purchases per hour
+  const rateCheck = checkRateLimit(user.id, 'iap:verify', 20, 60 * 60 * 1000);
+  if (!rateCheck.allowed) return res.status(429).json({ error: 'Too many purchase attempts' });
+
   try {
     const { userId, packageId, provider, receipt, transactionId } = req.body;
-    if (!userId || !packageId || !provider || !receipt || !transactionId) {
+    if (!userId || !packageId || !provider || !transactionId) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
     if (userId !== user.id) return res.status(403).json({ error: 'Forbidden' });
 
-    // Mock verification for now (or implement real calls as needed)
-    // The original code had placeholders for Apple/Google verification
-    const isValid = true; // Assume valid for now or copy logic if strictly needed
-    const verificationResponse = { provider, verified: isValid, note: "Server-side verification" };
+    // Duplicate-transaction guard
+    const { data: existing } = await getSupabase()
+      .from('purchases')
+      .select('id')
+      .eq('provider_tx_id', transactionId)
+      .maybeSingle();
+
+    if (existing) {
+      return res.status(409).json({ error: 'Transaction already processed' });
+    }
+
+    // Provider-specific verification
+    let isValid = false;
+    let verificationResponse: any = {};
+
+    if (provider === 'apple') {
+      const apple = await verifyAppleReceipt(transactionId);
+      isValid = apple.valid;
+      verificationResponse = {
+        provider: 'apple',
+        verified: apple.valid,
+        productId: apple.productId,
+        detail: apple.detail,
+      };
+    } else if (provider === 'google') {
+      // TODO: implement Google Play verification when needed
+      isValid = true;
+      verificationResponse = { provider: 'google', verified: true, note: 'google-not-yet-verified' };
+    } else {
+      return res.status(400).json({ error: `Unknown provider: ${provider}` });
+    }
 
     if (!isValid) return res.status(400).json({ error: 'Invalid receipt' });
 
@@ -235,12 +352,12 @@ export async function handleVerifyPurchase(req: Request, res: Response) {
       p_package_id: packageId,
       p_provider: provider,
       p_provider_tx_id: transactionId,
-      p_raw_receipt: receipt,
+      p_raw_receipt: receipt || '',
       p_verification_response: verificationResponse,
     });
 
     if (error) {
-      console.error('Purchase verification error:', error);
+      console.error('Purchase verification DB error:', error);
       return res.status(500).json({ error: error.message });
     }
 

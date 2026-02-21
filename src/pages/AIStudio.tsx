@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Upload, Play, Pause, Wand2, Download, Share2, Sparkles } from 'lucide-react';
 import AIToolsPanel from '../components/AIToolsPanel';
 import { FILTER_PRESETS } from '../lib/ai/filters';
+import { showToast } from '../lib/toast';
 import { enhanceSettingsToCss, DEFAULT_ENHANCE, autoEnhance, type EnhanceSettings } from '../lib/ai/enhance';
 import { extractThumbnails, type ThumbnailCandidate } from '../lib/ai/thumbnails';
 
@@ -187,9 +188,9 @@ export default function AIStudio() {
         videoRef={videoRef}
         onFilterChange={setFilterCss}
         onEnhanceChange={setEnhanceCss}
-        onCaptionSelect={() => {}}
-        onThumbnailSelect={() => {}}
-        onVoiceEffectChange={() => {}}
+        onCaptionSelect={(caption) => { if (caption) showToast('Caption applied'); }}
+        onThumbnailSelect={() => { showToast('Thumbnail selected'); }}
+        onVoiceEffectChange={() => { showToast('Voice effect applied'); }}
       />
     </div>
   );

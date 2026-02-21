@@ -295,10 +295,10 @@ wss.on('connection', async (ws: WebSocket, req) => {
       const message = JSON.parse(data.toString());
       const { event, data: eventData } = message;
       
-      console.log('Received message:', event, eventData);
+      if (process.env.NODE_ENV !== 'production') console.log('Received message:', event, eventData);
 
-      // Handle join_room for testing
-      if (event === 'join_room' && eventData && eventData.skipAuth) {
+      // Dev-only: allow unauthenticated join for local testing
+      if (process.env.NODE_ENV !== 'production' && event === 'join_room' && eventData && eventData.skipAuth) {
         const { roomId, userId, username } = eventData;
         
         client = {
@@ -315,20 +315,17 @@ wss.on('connection', async (ws: WebSocket, req) => {
         
         clients.set(ws, client);
         
-        // Add to room
         if (!rooms.has(roomId)) {
           rooms.set(roomId, new Set());
         }
         rooms.get(roomId)!.add(client);
         
-        // Send join confirmation
         sendToClient(client, 'room_joined', {
           roomId,
           userId,
           username
         });
         
-        console.log(`Test client joined: ${username} in room ${roomId}`);
         return;
       }
 

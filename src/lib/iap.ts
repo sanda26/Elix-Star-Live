@@ -1,42 +1,27 @@
 /**
- * Apple In-App Purchase Service
- * 
- * This module handles iOS In-App Purchases using the Capacitor IAP plugin.
- * 
- * SETUP REQUIRED:
- * 1. Install a Capacitor IAP plugin:
- *    npm install @capawesome-team/capacitor-in-app-purchases
- *    OR use RevenueCat: npm install @revenuecat/purchases-capacitor
- * 
- * 2. Register products in App Store Connect:
- *    - coins_100  (Consumable, $0.99)
- *    - coins_500  (Consumable, $4.99)
- *    - coins_1000 (Consumable, $9.99)
- *    - coins_5000 (Consumable, $49.99)
- * 
- * 3. Add StoreKit capability in Xcode:
- *    Target → Signing & Capabilities → + Capability → In-App Purchase
- * 
- * 4. Set up server-side receipt validation in api/verify-purchase.ts
+ * Apple / Google In-App Purchase Service
+ * Uses @capgo/native-purchases for StoreKit 2 (iOS) and Google Play Billing (Android).
  */
 
 import { platform } from './platform';
+import { supabase } from './supabase';
 
-// Product IDs matching App Store Connect
-export const IAP_PRODUCT_IDS = [
-  'com.elixstar.coins_100',
-  'com.elixstar.coins_500',
-  'com.elixstar.coins_1000',
-  'com.elixstar.coins_5000',
-] as const;
+// Product IDs — must match App Store Connect / Google Play Console
+export const IAP_PRODUCTS = {
+  'com.elixstarlive.coins_100':  { coins: 100,  label: '100 Coins' },
+  'com.elixstarlive.coins_500':  { coins: 500,  label: '500 Coins' },
+  'com.elixstarlive.coins_1000': { coins: 1000, label: '1,000 Coins' },
+  'com.elixstarlive.coins_5000': { coins: 5000, label: '5,000 Coins' },
+} as const;
 
-export type IAPProductId = typeof IAP_PRODUCT_IDS[number];
+export const IAP_PRODUCT_IDS = Object.keys(IAP_PRODUCTS) as IAPProductId[];
+export type IAPProductId = keyof typeof IAP_PRODUCTS;
 
 export interface IAPProduct {
-  id: IAPProductId;
+  id: string;
   title: string;
   description: string;
-  price: string; // Localized price string from App Store
+  price: string;
   priceAmountMicros: number;
   coins: number;
 }
@@ -46,87 +31,171 @@ export interface IAPPurchaseResult {
   transactionId?: string;
   receipt?: string;
   error?: string;
+  coins?: number;
 }
 
-/**
- * Initialize the IAP service.
- * Call this once on app startup (only on iOS/Android).
- */
-export async function initializeIAP(): Promise<void> {
-  if (!platform.isNative) {
+let _billingSupported: boolean | null = null;
+let _plugin: typeof import('@capgo/native-purchases').NativePurchases | null = null;
+let _PURCHASE_TYPE: typeof import('@capgo/native-purchases').PURCHASE_TYPE | null = null;
 
-    return;
+async function getPlugin() {
+  if (_plugin) return { NativePurchases: _plugin, PURCHASE_TYPE: _PURCHASE_TYPE! };
+  try {
+    const mod = await import('@capgo/native-purchases');
+    _plugin = mod.NativePurchases;
+    _PURCHASE_TYPE = mod.PURCHASE_TYPE;
+    return { NativePurchases: _plugin, PURCHASE_TYPE: _PURCHASE_TYPE };
+  } catch {
+    return null;
   }
-
-  // TODO: Initialize IAP plugin when installed
-  // Example with @capawesome-team/capacitor-in-app-purchases:
-  // await InAppPurchases.initialize();
-  // await InAppPurchases.addListener('purchaseCompleted', handlePurchaseCompleted);
-  // await InAppPurchases.addListener('purchaseFailed', handlePurchaseFailed);
-  
-
 }
 
-/**
- * Load available products from App Store / Google Play.
- */
-export async function loadProducts(): Promise<IAPProduct[]> {
-  if (!platform.isNative) {
+export async function initializeIAP(): Promise<void> {
+  if (!platform.isNative) return;
 
+  try {
+    const mod = await getPlugin();
+    if (!mod) return;
+
+    const { isBillingSupported } = await mod.NativePurchases.isBillingSupported();
+    _billingSupported = isBillingSupported;
+  } catch {
+    _billingSupported = false;
+  }
+}
+
+export async function isBillingAvailable(): Promise<boolean> {
+  if (!platform.isNative) return false;
+  if (_billingSupported !== null) return _billingSupported;
+  await initializeIAP();
+  return _billingSupported ?? false;
+}
+
+export async function loadProducts(): Promise<IAPProduct[]> {
+  if (!platform.isNative) return [];
+
+  try {
+    const mod = await getPlugin();
+    if (!mod) return [];
+
+    const { products } = await mod.NativePurchases.getProducts({
+      productIdentifiers: [...IAP_PRODUCT_IDS],
+      productType: mod.PURCHASE_TYPE.INAPP,
+    });
+
+    return products.map((p: any) => ({
+      id: p.identifier || p.productIdentifier,
+      title: p.title || '',
+      description: p.description || '',
+      price: p.priceString || `$${(p.priceAmountMicros / 1_000_000).toFixed(2)}`,
+      priceAmountMicros: p.priceAmountMicros || 0,
+      coins: IAP_PRODUCTS[p.identifier as IAPProductId]?.coins ?? 0,
+    }));
+  } catch {
     return [];
   }
-
-  // TODO: Implement with IAP plugin
-  // const { products } = await InAppPurchases.getProducts({ productIds: [...IAP_PRODUCT_IDS] });
-  // return products.map(p => ({ ... }));
-
-
-  return [];
 }
 
-/**
- * Purchase a product via Apple IAP / Google Play Billing.
- */
-export async function purchaseProduct(_productId: IAPProductId): Promise<IAPPurchaseResult> {
+export async function purchaseProduct(productId: IAPProductId): Promise<IAPPurchaseResult> {
   if (!platform.isNative) {
-    return { success: false, error: 'IAP is only available on native platforms' };
+    return { success: false, error: 'In-app purchases are only available in the app' };
+  }
+
+  const mod = await getPlugin();
+  if (!mod) {
+    return { success: false, error: 'Purchase service not available' };
+  }
+
+  const available = await isBillingAvailable();
+  if (!available) {
+    return { success: false, error: 'Purchases are not supported on this device' };
   }
 
   try {
-    // TODO: Implement with IAP plugin
-    // const result = await InAppPurchases.purchaseProduct({ productId });
-    // 
-    // // Validate receipt server-side
-    // const validation = await fetch('/api/verify-purchase', {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-    //   body: JSON.stringify({
-    //     userId,
-    //     packageId: productId,
-    //     provider: platform.isIOS ? 'apple' : 'google',
-    //     receipt: result.receipt,
-    //     transactionId: result.transactionId,
-    //   }),
-    // });
-    // 
-    // if (!validation.ok) throw new Error('Receipt validation failed');
-    // return { success: true, transactionId: result.transactionId };
+    const result = await mod.NativePurchases.purchaseProduct({
+      productIdentifier: productId,
+      productType: mod.PURCHASE_TYPE.INAPP,
+      quantity: 1,
+    });
 
-    return { success: false, error: 'IAP plugin not yet installed' };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Purchase failed';
+    const transactionId = result.transactionId;
+    const receipt = result.receipt || result.purchaseToken || '';
 
-    return { success: false, error: message };
+    if (!transactionId) {
+      return { success: false, error: 'Purchase could not be verified' };
+    }
+
+    // Verify on server + credit coins
+    const verifyResult = await verifyAndCreditPurchase(
+      productId,
+      transactionId,
+      receipt,
+    );
+
+    if (!verifyResult.success) {
+      return { success: false, error: verifyResult.error || 'Verification failed' };
+    }
+
+    return {
+      success: true,
+      transactionId,
+      receipt,
+      coins: IAP_PRODUCTS[productId]?.coins ?? 0,
+    };
+  } catch (err: any) {
+    const msg = err?.message || String(err);
+    if (msg.includes('cancel') || msg.includes('Cancel') || msg.includes('USER_CANCELED')) {
+      return { success: false, error: 'Purchase cancelled' };
+    }
+    return { success: false, error: msg || 'Purchase failed' };
   }
 }
 
-/**
- * Restore previous purchases (for non-consumable/subscription products).
- */
+async function verifyAndCreditPurchase(
+  packageId: string,
+  transactionId: string,
+  receipt: string,
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return { success: false, error: 'Not authenticated' };
+
+    const provider = platform.isIOS ? 'apple' : 'google';
+
+    const res = await fetch('/api/verify-purchase', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({
+        userId: session.user.id,
+        packageId,
+        provider,
+        receipt,
+        transactionId,
+      }),
+    });
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      return { success: false, error: body.error || 'Server verification failed' };
+    }
+
+    return { success: true };
+  } catch {
+    return { success: false, error: 'Could not reach verification server' };
+  }
+}
+
 export async function restorePurchases(): Promise<void> {
   if (!platform.isNative) return;
-  
-  // TODO: Implement with IAP plugin
-  // await InAppPurchases.restorePurchases();
 
+  try {
+    const mod = await getPlugin();
+    if (!mod) return;
+    await mod.NativePurchases.restorePurchases();
+  } catch {
+    // Restore failed silently
+  }
 }

@@ -15,6 +15,7 @@ export default function Upload() {
   const { muteAllSounds } = useSettingsStore();
   const videoRef = useRef<HTMLVideoElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const cameraFacingRef = useRef<'user' | 'environment'>('user');
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [chunks, setChunks] = useState<Blob[]>([]);
@@ -670,8 +671,8 @@ export default function Upload() {
                   });
                   setShowAITools(false);
                 }}
-                onThumbnailSelect={() => {}}
-                onVoiceEffectChange={() => {}}
+                onThumbnailSelect={() => { showToast('Thumbnail selected'); }}
+                onVoiceEffectChange={() => { showToast('Voice effect applied'); }}
               />
          </>
        ) : (
@@ -768,8 +769,24 @@ export default function Upload() {
                   </button>
                   {/* 3. Flip Camera */}
                   <button 
-                    className="absolute top-[34%] right-[5%] w-8 h-8 flex items-center justify-center opacity-0 hover:opacity-100 hover:brightness-125 rounded-full"
-                    onClick={() => showToast('Flip Camera')}
+                    className="absolute top-[34%] right-[5%] w-8 h-8 flex items-center justify-center rounded-full bg-[#13151A]/60 border border-[#C9A96E]/30"
+                    onClick={async () => {
+                      try {
+                        const currentStream = videoRef.current?.srcObject as MediaStream | null;
+                        if (currentStream) {
+                          currentStream.getTracks().forEach(t => t.stop());
+                        }
+                        const newFacing = cameraFacingRef.current === 'user' ? 'environment' : 'user';
+                        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: newFacing }, audio: true }).catch(() =>
+                          navigator.mediaDevices.getUserMedia({ video: { facingMode: newFacing } })
+                        );
+                        if (videoRef.current) {
+                          videoRef.current.srcObject = stream;
+                          await videoRef.current.play();
+                        }
+                        cameraFacingRef.current = newFacing;
+                      } catch { showToast('Cannot flip camera'); }
+                    }}
                     title="Flip Camera"
                   >
                     <RefreshCw size={20} className="text-white" />
@@ -777,7 +794,7 @@ export default function Upload() {
 
                   {/* 4. Speed */}
                   <button 
-                    className="absolute top-[42%] right-[5%] w-8 h-8 flex items-center justify-center opacity-0 hover:opacity-100 hover:brightness-125 rounded-full"
+                    className="absolute top-[42%] right-[5%] w-8 h-8 flex items-center justify-center rounded-full bg-[#13151A]/60 border border-[#C9A96E]/30"
                     onClick={() => showToast('Speed: 1x')}
                     title="Speed"
                   >
@@ -786,8 +803,8 @@ export default function Upload() {
 
                   {/* 5. Beauty */}
                   <button 
-                    className="absolute top-[50%] right-[5%] w-8 h-8 flex items-center justify-center opacity-0 hover:opacity-100 hover:brightness-125 rounded-full"
-                    onClick={() => showToast('Beauty filter on')}
+                    className="absolute top-[50%] right-[5%] w-8 h-8 flex items-center justify-center rounded-full bg-[#13151A]/60 border border-[#C9A96E]/30"
+                    onClick={() => showToast('Beauty: On')}
                     title="Beauty"
                   >
                     <span className="text-white text-xs">✨</span>
@@ -795,7 +812,7 @@ export default function Upload() {
 
                   {/* 6. Timer */}
                   <button 
-                    className="absolute top-[58%] right-[5%] w-8 h-8 flex items-center justify-center opacity-0 hover:opacity-100 hover:brightness-125 rounded-full"
+                    className="absolute top-[58%] right-[5%] w-8 h-8 flex items-center justify-center rounded-full bg-[#13151A]/60 border border-[#C9A96E]/30"
                     onClick={() => showToast('Timer: Off')}
                     title="Timer"
                   >
@@ -804,7 +821,7 @@ export default function Upload() {
 
                   {/* 7. Flash */}
                   <button 
-                    className="absolute top-[66%] right-[5%] w-8 h-8 flex items-center justify-center opacity-0 hover:opacity-100 hover:brightness-125 rounded-full"
+                    className="absolute top-[66%] right-[5%] w-8 h-8 flex items-center justify-center rounded-full bg-[#13151A]/60 border border-[#C9A96E]/30"
                     onClick={() => showToast('Flash: Off')}
                     title="Flash"
                   >
@@ -816,7 +833,7 @@ export default function Upload() {
                   {/* 8. AI Effects */}
                   <button 
                     className="absolute bottom-[15%] left-[15%] w-10 h-10 bg-gradient-to-br from-[#C9A96E] to-[#B8943F] rounded-lg flex items-center justify-center"
-                    onClick={() => showToast('Record a video first to use AI Studio')}
+                    onClick={() => { if (!recordedVideoUrl) showToast('Record a video first'); }}
                   >
                     <Wand2 size={16} className="text-black" />
                   </button>

@@ -1,5 +1,6 @@
 import { loadStripe } from '@stripe/stripe-js';
 import { supabase } from '../lib/supabase';
+import { platform } from '../lib/platform';
 
 export interface CoinPackage {
   id: string;
@@ -21,7 +22,9 @@ export class StripePaymentService {
   private stripe: any = null;
 
   constructor() {
-    this.initializeStripe();
+    if (!platform.isNative) {
+      this.initializeStripe();
+    }
   }
 
   private async initializeStripe() {

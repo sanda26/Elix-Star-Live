@@ -29,6 +29,16 @@ export default function Settings() {
   };
 
   const handleDeleteAccount = async () => {
+    const confirmed = window.confirm(
+      'Are you sure you want to delete your account? This action is permanent and cannot be undone. All your data, videos, and coins will be lost.'
+    );
+    if (!confirmed) return;
+
+    const doubleConfirm = window.confirm(
+      'This is your last chance. Delete your account permanently?'
+    );
+    if (!doubleConfirm) return;
+
     const { data } = await supabase.auth.getSession();
     const token = data.session?.access_token;
 
@@ -99,7 +109,7 @@ export default function Settings() {
             icon={<Globe className="w-5 h-5" />}
             label="Language"
             value="English"
-            onClick={() => showToast('More languages coming soon')}
+            onClick={() => showToast('Language: English')}
           />
         </Section>
 

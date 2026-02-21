@@ -178,7 +178,7 @@ export default function VideoFeed() {
               <button onClick={() => navigate('/discover')} className="h-full bg-transparent border-0 p-0 m-0" style={{ width: '15%' }} title="Explore" />
               <button onClick={() => navigate('/following')} className="h-full bg-transparent border-0 p-0 m-0" style={{ width: '18%' }} title="Following" />
               <button onClick={() => navigate('/shop')} className="h-full bg-transparent border-0 p-0 m-0" style={{ width: '12%' }} title="Shop" />
-              <button onClick={() => {}} className="h-full bg-transparent border-0 p-0 m-0" style={{ width: '15%' }} title="For You" />
+              <button onClick={() => navigate('/feed', { replace: true })} className="h-full bg-transparent border-0 p-0 m-0" style={{ width: '15%' }} title="For You" />
               <button onClick={() => navigate('/search')} className="h-full bg-transparent border-0 p-0 m-0" style={{ width: '15%' }} title="Search" />
             </div>
           </div>

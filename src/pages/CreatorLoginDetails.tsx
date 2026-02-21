@@ -187,8 +187,7 @@ export default function CreatorLoginDetails() {
       }
       
       // 2. Auto sign in if password is known (or just prefill)
-      // For this demo/MVP, we'll just prefill the form and let the user sign in manually 
-      // unless we stored the password insecurely (which we did for this specific request).
+      // Prefill the form and let the user sign in manually.
       
       // Update local state to reflect selected account
       setEmail(targetEmail);

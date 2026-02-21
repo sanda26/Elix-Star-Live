@@ -1,11 +1,20 @@
-import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import React, { useState, useEffect } from 'react';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { CreditCard, Smartphone, Coins } from 'lucide-react';
+import { CreditCard, Smartphone, Coins, Sparkles } from 'lucide-react';
 import { STRIPE_CONFIG } from '@/config/stripe';
 import { StripePaymentElement } from './StripePaymentElement';
-import { IS_STORE_BUILD } from '@/config/build';
+import { platform } from '@/lib/platform';
+import {
+  loadProducts as loadIAPProducts,
+  purchaseProduct,
+  initializeIAP,
+  IAP_PRODUCTS,
+  type IAPProductId,
+  type IAPProduct,
+} from '@/lib/iap';
+import { showToast } from '@/lib/toast';
 
 interface BuyCoinsModalProps {
   isOpen: boolean;
@@ -16,7 +25,54 @@ interface BuyCoinsModalProps {
 export const BuyCoinsModal: React.FC<BuyCoinsModalProps> = ({ isOpen, onClose, onSuccess }) => {
   const [selectedPackage, setSelectedPackage] = useState(STRIPE_CONFIG.coinPackages[0]);
   const [showPaymentElement, setShowPaymentElement] = useState(false);
+  const [nativeProducts, setNativeProducts] = useState<IAPProduct[]>([]);
+  const [nativeLoading, setNativeLoading] = useState<string | null>(null);
+  const isNative = platform.isNative;
   const loading = false;
+
+  useEffect(() => {
+    if (isOpen && isNative) {
+      loadNative();
+    }
+  }, [isOpen, isNative]);
+
+  const loadNative = async () => {
+    await initializeIAP();
+    const products = await loadIAPProducts();
+    if (products.length > 0) {
+      setNativeProducts(products);
+    } else {
+      const fallback: IAPProduct[] = Object.entries(IAP_PRODUCTS).map(
+        ([id, meta]) => ({
+          id,
+          title: meta.label,
+          description: `Get ${meta.coins} coins`,
+          price: '',
+          priceAmountMicros: 0,
+          coins: meta.coins,
+        }),
+      );
+      setNativeProducts(fallback);
+    }
+  };
+
+  const handleNativePurchase = async (product: IAPProduct) => {
+    setNativeLoading(product.id);
+    try {
+      const result = await purchaseProduct(product.id as IAPProductId);
+      if (result.success) {
+        if (onSuccess) onSuccess(product.coins);
+        showToast(`+${product.coins.toLocaleString()} coins added!`);
+        onClose();
+      } else if (result.error !== 'Purchase cancelled') {
+        showToast(result.error || 'Purchase failed');
+      }
+    } catch {
+      showToast('Purchase failed');
+    } finally {
+      setNativeLoading(null);
+    }
+  };
 
   const handlePackageSelect = async (coinPackage: typeof STRIPE_CONFIG.coinPackages[0]) => {
     setSelectedPackage(coinPackage);
@@ -24,16 +80,12 @@ export const BuyCoinsModal: React.FC<BuyCoinsModalProps> = ({ isOpen, onClose, o
   };
 
   const handlePaymentSuccess = () => {
-    // Update user's coin balance
-    if (onSuccess) {
-      onSuccess(selectedPackage.coins);
-    }
+    if (onSuccess) onSuccess(selectedPackage.coins);
     onClose();
   };
 
-  const handlePaymentError = (error: string) => {
-
-    // Show error to user
+  const handlePaymentError = (_error: string) => {
+    showToast('Payment failed. Please try again.');
   };
 
   const handleBackToPackages = () => {
@@ -53,16 +105,34 @@ export const BuyCoinsModal: React.FC<BuyCoinsModalProps> = ({ isOpen, onClose, o
           </div>
         </div>
 
-        {IS_STORE_BUILD ? (
-          <div className="space-y-4">
-            <div className="text-center text-sm text-white/60">
-              Purchases are handled through the App Store / Play Store in the native app build.
-            </div>
-            <Button className="w-full" onClick={onClose}>
-              Close
-            </Button>
+        {/* Native IAP (iOS / Android) */}
+        {isNative ? (
+          <div className="space-y-3">
+            {nativeProducts.map((product) => (
+              <Button
+                key={product.id}
+                variant="outline"
+                className="w-full justify-between h-auto py-3 border-white/10 hover:border-[#C9A96E]/50 bg-white/5 hover:bg-white/10"
+                onClick={() => handleNativePurchase(product)}
+                disabled={nativeLoading === product.id}
+              >
+                <div className="flex items-center gap-3">
+                  <Sparkles className="w-4 h-4 text-[#C9A96E]" />
+                  <div className="text-left">
+                    <div className="font-semibold text-white">{product.title}</div>
+                    {product.price && (
+                      <div className="text-sm text-white/60">{product.price}</div>
+                    )}
+                  </div>
+                </div>
+                <Badge variant="secondary" className="bg-white/10 text-white">
+                  {nativeLoading === product.id ? 'Processing…' : `${product.coins} coins`}
+                </Badge>
+              </Button>
+            ))}
           </div>
         ) : !showPaymentElement ? (
+          /* Web — Stripe package selection */
           <div className="space-y-4">
             <div className="text-center text-sm text-white/60 mb-4">
               Choose a coin package to continue
@@ -83,9 +153,7 @@ export const BuyCoinsModal: React.FC<BuyCoinsModalProps> = ({ isOpen, onClose, o
                 >
                   <div className="flex items-center gap-3">
                     <div className="text-left">
-                      <div className={`font-semibold ${selectedPackage.id === coinPackage.id ? 'text-white' : 'text-white'}`}>
-                        {coinPackage.label}
-                      </div>
+                      <div className="font-semibold text-white">{coinPackage.label}</div>
                       <div className="text-sm opacity-75">${coinPackage.price}</div>
                     </div>
                   </div>
@@ -110,6 +178,7 @@ export const BuyCoinsModal: React.FC<BuyCoinsModalProps> = ({ isOpen, onClose, o
             </div>
           </div>
         ) : (
+          /* Web — Stripe payment element */
           <div className="space-y-4">
             <div className="flex items-center justify-between mb-4">
               <Button

@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.elixstar.app',
+  appId: 'com.elixstarlive.app',
   appName: 'Elix Star Live',
   webDir: 'dist',
   server: {

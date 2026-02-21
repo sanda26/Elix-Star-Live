@@ -119,14 +119,14 @@ export default function Shop() {
       .limit(1)
       .single();
     if (existing?.id) {
-      navigate(`/chat/${existing.id}`);
+      navigate(`/inbox/${existing.id}`);
     } else {
       const { data: newThread } = await supabase
         .from('chat_threads')
         .insert({ user1_id: user.id, user2_id: sellerId })
         .select('id')
         .single();
-      if (newThread?.id) navigate(`/chat/${newThread.id}`);
+      if (newThread?.id) navigate(`/inbox/${newThread.id}`);
     }
   };
 

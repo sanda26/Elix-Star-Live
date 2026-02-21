@@ -99,7 +99,7 @@ export default function Hashtag() {
                 className="relative aspect-[9/16] bg-[#1C1E24] rounded overflow-hidden"
               >
                 <img
-                  src={video.thumbnail_url || '/placeholder-video.png'}
+                  src={video.thumbnail_url || `https://ui-avatars.com/api/?name=Video&background=1C1E24&color=C9A96E&size=200`}
                   alt="Video"
                   className="w-full h-full object-cover"
                 />

@@ -1,5 +1,4 @@
 import React from 'react';
-
 import { useNavigate } from 'react-router-dom';
 
 export default function Terms() {
@@ -7,31 +6,170 @@ export default function Terms() {
 
   return (
     <div className="bg-[#13151A] text-white flex justify-center px-2">
-      <div className="w-full max-w-[480px] rounded-3xl overflow-hidden bg-[#13151A] flex flex-col overflow-y-auto p-4">
+      <div className="w-full max-w-[480px] rounded-3xl overflow-hidden bg-[#13151A] flex flex-col overflow-y-auto p-4 pb-20">
         <header className="flex items-center justify-between mb-4">
-          <button onClick={() => navigate(-1)} aria-label="Back">
+          <button onClick={() => navigate(-1)} aria-label="Back" title="Back">
             <img src="/Icons/Gold power buton.png" alt="Back" className="w-5 h-5" />
           </button>
-          <h1 className="font-bold text-lg">Terms & Conditions</h1>
+          <h1 className="font-bold text-lg">Terms of Service</h1>
           <div className="w-6" />
         </header>
 
-        <div className="text-sm text-white/75 space-y-3 leading-6">
-          <p>By using ElixStarLive, you agree to these Terms.</p>
-          <p>
-            Users are responsible for the content they upload and confirm they own or have all necessary rights to their
-            videos and audio.
-          </p>
-          <p>
-            ElixStarLive does not claim ownership over user content. We reserve the right to remove any content that
-            violates our policies, copyright laws, or applicable regulations.
-          </p>
-          <p>
-            ElixStarLive may disable audio, video, live streaming, or accounts at any time to comply with legal
-            requirements.
-          </p>
+        <p className="text-xs text-white/40 italic mb-4">Last updated: February 20, 2026</p>
+
+        <div className="text-sm text-white/75 space-y-5 leading-6">
+          <Section title="1. Acceptance of Terms">
+            <p>
+              By accessing or using Elix Star Live ("the App"), operated by Elix Star Live Ltd,
+              registered in England and Wales, you agree to be bound by these Terms of Service.
+              If you do not agree, do not use the App.
+            </p>
+          </Section>
+
+          <Section title="2. Eligibility">
+            <p>
+              You must be at least 13 years old to use Elix Star Live. If you are under 18, you
+              must have parental or guardian consent. By creating an account, you represent that you
+              meet these requirements.
+            </p>
+          </Section>
+
+          <Section title="3. User Accounts">
+            <ul className="list-disc pl-5 space-y-1">
+              <li>You are responsible for maintaining the security of your account and password.</li>
+              <li>You must provide accurate information when creating an account.</li>
+              <li>One person may not maintain more than one account.</li>
+              <li>You are responsible for all activity that occurs under your account.</li>
+              <li>Notify us immediately if you suspect unauthorised access to your account.</li>
+            </ul>
+          </Section>
+
+          <Section title="4. User Content">
+            <ul className="list-disc pl-5 space-y-1">
+              <li>You retain ownership of content you create and upload.</li>
+              <li>
+                By posting content, you grant us a worldwide, non-exclusive, royalty-free licence to
+                display, distribute, and promote your content within the App and for marketing purposes.
+              </li>
+              <li>
+                You must not post content that is illegal, harmful, threatening, abusive, harassing,
+                defamatory, obscene, or otherwise objectionable.
+              </li>
+              <li>We reserve the right to remove content that violates these terms without prior notice.</li>
+              <li>
+                You represent and warrant that you have all necessary rights to the content you upload,
+                including audio, video, and images.
+              </li>
+            </ul>
+          </Section>
+
+          <Section title="5. Live Streaming">
+            <ul className="list-disc pl-5 space-y-1">
+              <li>You must comply with all applicable laws when live streaming.</li>
+              <li>Nudity, violence, hate speech, harassment, and illegal activities are prohibited.</li>
+              <li>We may terminate streams that violate our guidelines without notice.</li>
+              <li>Live streams may be recorded and stored for moderation and safety purposes.</li>
+            </ul>
+          </Section>
+
+          <Section title="6. Virtual Currency & Gifts">
+            <ul className="list-disc pl-5 space-y-1">
+              <li>Coins are virtual currency purchased through Apple In-App Purchase (iOS), Google Play Billing (Android), or Stripe (web).</li>
+              <li>Coins have no real-world monetary value and cannot be exchanged for cash.</li>
+              <li>All coin purchases are final and non-refundable, except as required by applicable law.</li>
+              <li>Gifts sent to creators are converted to coins in the creator's account.</li>
+              <li>We reserve the right to modify coin pricing, bonuses, and availability at any time.</li>
+            </ul>
+          </Section>
+
+          <Section title="7. Prohibited Conduct">
+            <p>You agree not to:</p>
+            <ul className="list-disc pl-5 space-y-1">
+              <li>Harass, bully, or threaten other users</li>
+              <li>Impersonate another person or entity</li>
+              <li>Post spam or send unsolicited messages</li>
+              <li>Attempt to hack, exploit, or reverse-engineer the App</li>
+              <li>Use bots, scrapers, or other automated systems</li>
+              <li>Upload malware, viruses, or any harmful code</li>
+              <li>Violate any applicable local, national, or international law</li>
+              <li>Promote scams, fraud, or misleading information</li>
+            </ul>
+          </Section>
+
+          <Section title="8. Intellectual Property">
+            <p>
+              All App content, design, branding, logos, and software are the property of Elix Star
+              Live Ltd and are protected by copyright, trademark, and other intellectual property
+              laws. You may not copy, modify, distribute, or create derivative works without our
+              written permission.
+            </p>
+          </Section>
+
+          <Section title="9. Termination">
+            <p>
+              We may suspend or terminate your account at any time for violations of these terms or
+              for any reason at our discretion. You may delete your account at any time through
+              Settings. Upon termination, your right to use the App ceases immediately, and any
+              remaining virtual currency is forfeited.
+            </p>
+          </Section>
+
+          <Section title="10. Disclaimer of Warranties">
+            <p>
+              The App is provided "as is" and "as available" without warranties of any kind, either
+              express or implied. We do not guarantee uninterrupted, secure, or error-free service.
+              Your use of the App is at your own risk.
+            </p>
+          </Section>
+
+          <Section title="11. Limitation of Liability">
+            <p>
+              To the maximum extent permitted by law, Elix Star Live Ltd shall not be liable for any
+              indirect, incidental, special, consequential, or punitive damages arising from your
+              use of the App. Our total liability shall not exceed the amount you have paid to us in
+              the twelve (12) months preceding the claim.
+            </p>
+          </Section>
+
+          <Section title="12. Indemnification">
+            <p>
+              You agree to indemnify, defend, and hold harmless Elix Star Live Ltd and its officers,
+              directors, employees, and agents from any claims, liabilities, damages, losses, or
+              expenses arising from your use of the App or violation of these terms.
+            </p>
+          </Section>
+
+          <Section title="13. Governing Law">
+            <p>
+              These terms are governed by and construed in accordance with the laws of England and
+              Wales. Any disputes shall be subject to the exclusive jurisdiction of the courts of
+              England and Wales.
+            </p>
+          </Section>
+
+          <Section title="14. Changes to Terms">
+            <p>
+              We may update these terms at any time. We will notify you of material changes via
+              email or in-app notification. Continued use of the App after changes constitutes
+              acceptance of the updated terms.
+            </p>
+          </Section>
+
+          <Section title="15. Contact">
+            <p>Questions about these terms? Contact us at:</p>
+            <p className="text-white font-medium">legal@elixstarlive.com</p>
+          </Section>
         </div>
       </div>
+    </div>
+  );
+}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <h2 className="text-white font-semibold text-base mb-2">{title}</h2>
+      {children}
     </div>
   );
 }

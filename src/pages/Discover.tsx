@@ -83,8 +83,8 @@ export default function Discover() {
 
       if (error) throw error;
       setTrendingVideos(data || []);
-    } catch (error) {
-
+    } catch {
+      setTrendingVideos([]);
     } finally {
       setLoading(false);
     }
@@ -101,8 +101,8 @@ export default function Discover() {
 
       if (error) throw error;
       setTrendingHashtags(data || []);
-    } catch (error) {
-
+    } catch {
+      setTrendingHashtags([]);
     } finally {
       setLoading(false);
     }
@@ -115,8 +115,8 @@ export default function Discover() {
 
       if (error) throw error;
       setRankings(data || []);
-    } catch (error) {
-
+    } catch {
+      setRankings([]);
     } finally {
       setLoading(false);
     }
@@ -147,8 +147,8 @@ export default function Discover() {
         videos: videosRes.data || [],
         users: usersRes.data || [],
       });
-    } catch (error) {
-
+    } catch {
+      setSearchResults({ videos: [], users: [] });
     } finally {
       setLoading(false);
     }
@@ -423,7 +423,7 @@ function VideoThumbnail({ video }: { video: Video }) {
           />
         ) : (
           <img
-            src={video.thumbnail_url || '/placeholder-video.png'}
+            src={video.thumbnail_url || `https://ui-avatars.com/api/?name=Video&background=1C1E24&color=C9A96E&size=200`}
             alt="Video"
             className="w-full h-full object-cover"
           />

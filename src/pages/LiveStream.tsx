@@ -32,6 +32,9 @@ import {
   X,
   Crown,
   Sword,
+  Coins,
+  Lock,
+  Flag,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { GiftPanel } from '../components/GiftPanel';
@@ -129,6 +132,13 @@ export default function LiveStream() {
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [showTestCoinsModal, setShowTestCoinsModal] = useState(false);
+  const [testCoinsStep, setTestCoinsStep] = useState<'password' | 'amount'>('password');
+  const [testCoinsPwd, setTestCoinsPwd] = useState('');
+  const [testCoinsError, setTestCoinsError] = useState('');
+  const [testCoinsAmount, setTestCoinsAmount] = useState('');
+  const testCoinsPwdRef = useRef<HTMLInputElement>(null);
+  const TEST_COINS_HASH = '63dca1ea4ecb9e3799b4416c03152bdd91243928741837d63994f4b2153a66d1';
   const [showViewerList, setShowViewerList] = useState(false);
 
 
@@ -1127,14 +1137,12 @@ export default function LiveStream() {
       battleScoreTapWindowRef.current = { windowStart: 0, count: 0 };
       battleTripleTapRef.current = { target: null, lastTapAt: 0, count: 0 };
       setMiniProfile(null);
-      // Reset speed challenge
       setSpeedChallengeActive(false);
       setSpeedChallengeCountdown(null);
       setSpeedChallengeTime(10);
       setSpeedChallengeTaps({ me: 0, opponent: 0, player3: 0, player4: 0 });
       setSpeedChallengeResult(null);
       setSpeedMultiplier(1);
-      // Reset invite slots
       setBattleSlots([
         { userId: '', name: '', status: 'empty', avatar: '' },
         { userId: '', name: '', status: 'empty', avatar: '' },
@@ -1142,6 +1150,13 @@ export default function LiveStream() {
       ]);
       inviteTimersRef.current.forEach(t => clearTimeout(t));
       inviteTimersRef.current = [];
+      setIsFindCreatorsOpen(false);
+      setCreatorQuery('');
+      const params = new URLSearchParams(location.search);
+      if (params.has('battle')) {
+        params.delete('battle');
+        navigate({ pathname: location.pathname, search: params.toString() ? `?${params.toString()}` : '' }, { replace: true });
+      }
       return;
     }
     // Enter battle mode but DON'T start countdown yet - wait for invites
@@ -1164,7 +1179,7 @@ export default function LiveStream() {
     battleTripleTapRef.current = { target: null, lastTapAt: 0, count: 0 };
     // Open invite panel
     setIsFindCreatorsOpen(true);
-  }, [isBattleMode]);
+  }, [isBattleMode, location.search, location.pathname, navigate]);
 
   // No auto-start - user must press Match to begin
 
@@ -2953,7 +2968,7 @@ export default function LiveStream() {
                             <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round"><polyline points="6 9 12 15 18 9"/></svg>
                           </button>
                         </div>
-                        <button type="button" onClick={stopBroadcast} className="w-7 h-7 rounded-full flex items-center justify-center active:scale-95 transition-transform" title="End broadcast">
+                        <button type="button" onClick={() => { if (isBattleMode) { toggleBattle(); } else { stopBroadcast(); } }} className="w-7 h-7 rounded-full flex items-center justify-center active:scale-95 transition-transform" title={isBattleMode ? 'End battle' : 'End broadcast'}>
                           <img src="/Icons/Gold power buton.png" alt="Close" className="w-5 h-5 object-contain" />
                         </button>
                       </div>
@@ -3080,7 +3095,7 @@ export default function LiveStream() {
           </div>
 
       {/* BOTTOM ZONE: INPUT (Fixed) - Moved out to ensure top z-index */}
-      <div className="bottom-zone flex-none pointer-events-auto bg-transparent px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-2 min-h-[50px] flex items-center fixed bottom-0 left-0 right-0 z-[50] justify-center">
+      <div className="bottom-zone flex-none pointer-events-auto bg-transparent px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-2 min-h-[50px] flex items-center fixed bottom-0 left-0 right-0 z-[90] justify-center">
         <div className="w-full max-w-[480px] mx-auto">
           {/* Spectator Input & Actions */}
           {!isBroadcast && (
@@ -3133,8 +3148,8 @@ export default function LiveStream() {
               </form>
               
               <div className="flex items-center gap-2 flex-shrink-0 pointer-events-auto">
-                <button type="button" onClick={() => setIsReportModalOpen(true)} className="w-9 h-9 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+                <button type="button" onClick={() => setIsMoreMenuOpen(true)} className="w-9 h-9 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform">
+                  <MoreVertical size={16} className="text-[#C9A96E]" />
                 </button>
                 <button type="button" onClick={handleShare} className="w-9 h-9 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform">
                   <Share2 size={16} className="text-[#C9A96E]" />
@@ -3222,11 +3237,15 @@ export default function LiveStream() {
       {/* ═══ INVITE HOST PANEL (Multi-Host, up to 12) ═══ */}
       {isInviteHostOpen && (
         <div className="absolute inset-0 z-[99999] flex flex-col justify-end">
-          <div className="absolute inset-0 pointer-events-auto" onClick={() => { setIsInviteHostOpen(false); setHostSearchQuery(''); }} />
+          <div className="absolute inset-0 bg-black/40 pointer-events-auto" onClick={() => { setIsInviteHostOpen(false); setHostSearchQuery(''); }} />
           <div
-            className="bg-[#1C1E24]/95 rounded-t-2xl max-h-[65dvh] flex flex-col shadow-2xl border-t border-[#C9A96E]/20 pointer-events-auto w-full relative z-10 overflow-hidden pb-safe"
+            className="bg-[#1C1E24]/95 backdrop-blur-md rounded-t-2xl max-h-[65dvh] flex flex-col shadow-2xl border-t border-[#C9A96E]/20 pointer-events-auto w-full relative z-10 overflow-hidden pb-safe"
             onClick={(e) => e.stopPropagation()}
           >
+            {/* Drag handle */}
+            <div className="flex justify-center pt-2 pb-1">
+              <div className="w-10 h-1 bg-white/20 rounded-full" />
+            </div>
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
               <div className="flex items-center gap-2">
@@ -3426,8 +3445,8 @@ export default function LiveStream() {
 
       {/* ─── INCOMING CO-HOST INVITE BANNER ─── */}
       {pendingCoHostInvite && (
-        <div className="absolute top-[calc(env(safe-area-inset-top,0px)+60px)] left-3 right-3 z-[99998] animate-in slide-in-from-top">
-          <div className="bg-[#1C1E24]/95 backdrop-blur-md rounded-2xl border border-[#C9A96E]/30 shadow-2xl shadow-black/50 p-4">
+        <div className="absolute top-[calc(env(safe-area-inset-top,0px)+60px)] left-3 right-3 z-[99998] pointer-events-auto animate-in slide-in-from-top">
+          <div className="bg-[#1C1E24]/95 backdrop-blur-md rounded-2xl border border-[#C9A96E]/30 shadow-2xl shadow-black/50 p-4 pointer-events-auto">
             <div className="flex items-center gap-3 mb-3">
               <div className="w-12 h-12 rounded-full border-2 border-[#C9A96E]/50 overflow-hidden bg-[#13151A] flex-shrink-0">
                 {pendingCoHostInvite.hostAvatar ? (
@@ -3451,15 +3470,15 @@ export default function LiveStream() {
             <div className="flex gap-2">
               <button
                 type="button"
-                onClick={declineCoHostInvite}
-                className="flex-1 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/70 text-xs font-bold active:scale-95 transition-all"
+                onClick={(e) => { e.stopPropagation(); declineCoHostInvite(); }}
+                className="flex-1 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/70 text-xs font-bold active:scale-95 transition-all pointer-events-auto"
               >
                 Decline
               </button>
               <button
                 type="button"
-                onClick={acceptCoHostInvite}
-                className="flex-1 py-2.5 rounded-xl bg-[#C9A96E] text-black text-xs font-bold active:scale-95 transition-all shadow-lg shadow-[#C9A96E]/20"
+                onClick={(e) => { e.stopPropagation(); acceptCoHostInvite(); }}
+                className="flex-1 py-2.5 rounded-xl bg-[#C9A96E] text-black text-xs font-bold active:scale-95 transition-all shadow-lg shadow-[#C9A96E]/20 pointer-events-auto"
               >
                 Accept & Join
               </button>
@@ -3472,16 +3491,20 @@ export default function LiveStream() {
       {isFindCreatorsOpen && (
         <div className="absolute inset-0 z-[99999] flex flex-col justify-end">
           <div 
-            className="absolute inset-0 pointer-events-auto" 
+            className="absolute inset-0 bg-black/40 pointer-events-auto" 
             onClick={() => {
               setIsFindCreatorsOpen(false);
               setCreatorQuery('');
             }}
           />
           <div
-            className="bg-[#1C1E24]/95 rounded-t-2xl h-[40dvh] max-h-[40dvh] flex flex-col shadow-2xl border-t border-white/10 pointer-events-auto w-full relative z-10 overflow-y-auto no-scrollbar pb-safe"
+            className="bg-[#1C1E24]/95 backdrop-blur-md rounded-t-2xl h-[50dvh] max-h-[50dvh] flex flex-col shadow-2xl border-t border-[#C9A96E]/20 pointer-events-auto w-full relative z-10 overflow-y-auto no-scrollbar pb-safe"
             onClick={(e) => e.stopPropagation()}
           >
+            {/* Drag handle */}
+            <div className="flex justify-center pt-2 pb-1">
+              <div className="w-10 h-1 bg-white/20 rounded-full" />
+            </div>
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
               <div className="flex items-center gap-2">
@@ -4118,7 +4141,7 @@ export default function LiveStream() {
             className="absolute bottom-0 left-0 right-0 z-[99999] pointer-events-auto"
           >
           <div
-            className="bg-[#1C1E24]/95 rounded-t-2xl p-3 pb-safe max-h-[40dvh] overflow-y-auto no-scrollbar shadow-2xl w-full"
+            className="bg-[#1C1E24]/95 rounded-t-2xl p-3 pb-safe max-h-[55dvh] overflow-y-auto no-scrollbar shadow-2xl w-full"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Drag handle */}
@@ -4134,7 +4157,27 @@ export default function LiveStream() {
 
             {/* Content */}
             <div className="flex flex-col gap-0.5">
-              {/* Share Button - always visible */}
+
+              {/* Test Coins - for gifting tests */}
+              <button
+                type="button"
+                onClick={() => {
+                  setShowTestCoinsModal(true);
+                  setTestCoinsStep('password');
+                  setTestCoinsPwd('');
+                  setTestCoinsError('');
+                  setTestCoinsAmount('');
+                  setIsMoreMenuOpen(false);
+                }}
+                className="w-full px-4 py-3 flex items-center gap-3 text-white hover:bg-[#C9A96E]/10 rounded-xl transition-colors"
+              >
+                <div className="w-8 h-8 rounded-full bg-[#13151A] flex items-center justify-center border border-[#C9A96E]/40">
+                  <Coins className="w-4 h-4 text-[#C9A96E]" strokeWidth={2} />
+                </div>
+                <span className="text-sm font-bold">Test Coins</span>
+              </button>
+
+              {/* Share Button */}
               <button
                 type="button"
                 onClick={() => { setShowSharePanel(true); setIsMoreMenuOpen(false); }}
@@ -4228,8 +4271,165 @@ export default function LiveStream() {
                 <span className="text-sm font-bold">{isChatVisible ? 'Hide chat' : 'Show chat'}</span>
               </button>
 
+              <button
+                type="button"
+                onClick={() => { setIsReportModalOpen(true); setIsMoreMenuOpen(false); }}
+                className="w-full px-4 py-3 flex items-center gap-3 text-white hover:bg-[#C9A96E]/10 rounded-xl transition-colors"
+              >
+                <div className="w-8 h-8 rounded-full bg-[#13151A] flex items-center justify-center border border-[#C9A96E]/40">
+                  <Flag className="w-4 h-4 text-[#C9A96E]" strokeWidth={2} />
+                </div>
+                <span className="text-sm font-bold">Report</span>
+              </button>
+
             </div>
           </div>
+          </div>
+        </>
+      )}
+
+      {showTestCoinsModal && (
+        <>
+          <div
+            className="absolute inset-0 bg-black/60 pointer-events-auto"
+            style={{ zIndex: 100000 }}
+            onClick={() => setShowTestCoinsModal(false)}
+          />
+          <div
+            className="absolute inset-0 flex items-center justify-center pointer-events-none"
+            style={{ zIndex: 100001 }}
+          >
+            <div
+              className="bg-[#1C1E24] rounded-2xl p-5 mx-6 w-full max-w-xs shadow-2xl border border-[#C9A96E]/30 pointer-events-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-2 mb-4">
+                <Lock className="w-5 h-5 text-[#C9A96E]" />
+                <span className="text-white font-bold text-base">
+                  {testCoinsStep === 'password' ? 'Enter Password' : 'Add Test Coins'}
+                </span>
+              </div>
+
+              {testCoinsStep === 'password' && (
+                <form
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    try {
+                      const encoder = new TextEncoder();
+                      const data = encoder.encode(testCoinsPwd);
+                      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+                      const hashArray = Array.from(new Uint8Array(hashBuffer));
+                      const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+                      if (hashHex === TEST_COINS_HASH) {
+                        setTestCoinsError('');
+                        setTestCoinsStep('amount');
+                      } else {
+                        setTestCoinsError('Wrong password');
+                        setTestCoinsPwd('');
+                      }
+                    } catch {
+                      setTestCoinsError('Verification failed');
+                    }
+                  }}
+                >
+                  <input
+                    ref={testCoinsPwdRef}
+                    type="password"
+                    autoFocus
+                    value={testCoinsPwd}
+                    onChange={(e) => { setTestCoinsPwd(e.target.value); setTestCoinsError(''); }}
+                    placeholder="Password"
+                    className="w-full bg-[#13151A] text-white text-sm rounded-xl px-4 py-3 border border-white/10 focus:border-[#C9A96E]/60 focus:outline-none placeholder:text-white/30 mb-2"
+                  />
+                  {testCoinsError && (
+                    <p className="text-red-400 text-xs mb-2">{testCoinsError}</p>
+                  )}
+                  <div className="flex gap-2 mt-3">
+                    <button
+                      type="button"
+                      onClick={() => setShowTestCoinsModal(false)}
+                      className="flex-1 py-2.5 rounded-xl bg-white/5 text-white/60 text-sm font-bold"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={!testCoinsPwd}
+                      className="flex-1 py-2.5 rounded-xl bg-[#C9A96E] text-black text-sm font-bold disabled:opacity-40"
+                    >
+                      Unlock
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {testCoinsStep === 'amount' && (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const amount = parseInt(testCoinsAmount, 10);
+                    if (!amount || amount <= 0) {
+                      setTestCoinsError('Enter a valid amount');
+                      return;
+                    }
+                    if (amount > 999999) {
+                      setTestCoinsError('Max 999,999 coins per top-up');
+                      return;
+                    }
+                    setCoinBalance(prev => prev + amount);
+                    showToast(`+${amount.toLocaleString()} test coins added`);
+                    setShowTestCoinsModal(false);
+                  }}
+                >
+                  <p className="text-white/40 text-xs mb-3">These coins are for testing only and have no real value.</p>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Coins className="w-4 h-4 text-[#C9A96E]" />
+                    <span className="text-white/60 text-xs">Current: {coinBalance.toLocaleString()}</span>
+                  </div>
+                  <input
+                    type="number"
+                    autoFocus
+                    value={testCoinsAmount}
+                    onChange={(e) => { setTestCoinsAmount(e.target.value); setTestCoinsError(''); }}
+                    placeholder="Amount (e.g. 5000)"
+                    min="1"
+                    max="999999"
+                    className="w-full bg-[#13151A] text-white text-sm rounded-xl px-4 py-3 border border-white/10 focus:border-[#C9A96E]/60 focus:outline-none placeholder:text-white/30 mb-2"
+                  />
+                  {testCoinsError && (
+                    <p className="text-red-400 text-xs mb-2">{testCoinsError}</p>
+                  )}
+                  <div className="grid grid-cols-3 gap-1.5 mb-3">
+                    {[1000, 5000, 10000, 25000, 50000, 100000].map(amt => (
+                      <button
+                        key={amt}
+                        type="button"
+                        onClick={() => setTestCoinsAmount(String(amt))}
+                        className="py-1.5 rounded-lg bg-white/5 text-white/70 text-xs font-bold hover:bg-[#C9A96E]/20 transition-colors"
+                      >
+                        {amt >= 1000 ? `${amt / 1000}K` : amt}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowTestCoinsModal(false)}
+                      className="flex-1 py-2.5 rounded-xl bg-white/5 text-white/60 text-sm font-bold"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={!testCoinsAmount}
+                      className="flex-1 py-2.5 rounded-xl bg-[#C9A96E] text-black text-sm font-bold disabled:opacity-40"
+                    >
+                      Add Coins
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
           </div>
         </>
       )}

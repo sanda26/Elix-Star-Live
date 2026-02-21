@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
 import { Eye, EyeOff, Lock, Mail, User } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 
 export default function Register() {
   const navigate = useNavigate();
@@ -13,6 +14,7 @@ export default function Register() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -32,7 +34,11 @@ export default function Register() {
     setError(null);
     setInfo(null);
 
-    // Validation
+    if (!acceptedTerms) {
+      setError('You must accept the Terms of Service and Privacy Policy to continue.');
+      return;
+    }
+
     if (password.length < 6) {
       setError('Password must be at least 6 characters.');
       return;
@@ -65,6 +71,22 @@ export default function Register() {
         return;
       }
 
+      // Store consent timestamp
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          await supabase.from('user_consents').insert({
+            user_id: user.id,
+            consent_type: 'terms_and_privacy',
+            version: '2026-02-20',
+            accepted_at: new Date().toISOString(),
+            ip_address: null,
+          });
+        }
+      } catch {
+        // Non-blocking — consent storage failure shouldn't prevent registration
+      }
+
       if (res.needsEmailConfirmation) {
         if (isMounted.current) {
           setInfo('Please check your email to confirm your account.');
@@ -73,7 +95,6 @@ export default function Register() {
         return;
       }
 
-      // Success - navigate to home
       if (isMounted.current) {
         navigate('/', { replace: true });
       }
@@ -171,6 +192,26 @@ export default function Register() {
               </button>
             </div>
           </div>
+
+          {/* Terms & Privacy acceptance */}
+          <label className="flex items-start gap-3 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={acceptedTerms}
+              onChange={(e) => setAcceptedTerms(e.target.checked)}
+              className="mt-1 w-4 h-4 rounded border-white/30 bg-white/10 accent-[#C9A96E] flex-shrink-0"
+            />
+            <span className="text-fluid-xs text-white/70 leading-5">
+              I agree to the{' '}
+              <Link to="/terms" className="text-[#C9A96E] underline" target="_blank">
+                Terms of Service
+              </Link>{' '}
+              and{' '}
+              <Link to="/privacy" className="text-[#C9A96E] underline" target="_blank">
+                Privacy Policy
+              </Link>
+            </span>
+          </label>
 
           {error && (
             <div className="text-fluid-sm text-rose-300 bg-rose-500/10 border border-rose-500/20 rounded-xl p-3 xs:p-2.5">

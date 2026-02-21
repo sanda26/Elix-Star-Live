@@ -159,7 +159,7 @@ export default function BattleInviteModal({
                 }`}
               >
                 <img
-                  src={stream.thumbnail_url || stream.creator?.avatar_url || '/placeholder.png'}
+                  src={stream.thumbnail_url || stream.creator?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(stream.creator?.username || 'U')}&background=13151A&color=C9A96E`}
                   alt={stream.title}
                   className="w-16 h-16 object-cover rounded-lg flex-shrink-0"
                 />

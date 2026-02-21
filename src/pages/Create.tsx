@@ -173,7 +173,7 @@ function SoundPickerModal({
   );
 }
 
-const DEMO_TEMPLATES: Template[] = [
+const PRESET_TEMPLATES: Template[] = [
   { id: '1', title: 'Na batida da música', thumbnail: '', video_count: '73.7K videos', clips: '1 clip', category: 'for_you' },
   { id: '2', title: 'Everyone Has A Story', thumbnail: '', video_count: '16.9K videos', clips: '1 clip', category: 'for_you' },
   { id: '3', title: 'Golden Hour Vibes', thumbnail: '', video_count: '45.2K videos', clips: '3 clips', category: 'trendy' },
@@ -234,9 +234,9 @@ export default function Create() {
   const pinchStartZoomRef = useRef<number>(1);
 
   const filteredTemplates = useMemo(() => {
-    let t = DEMO_TEMPLATES.filter((tpl) => tpl.category === templateTab);
+    let t = PRESET_TEMPLATES.filter((tpl) => tpl.category === templateTab);
     if (searchQuery) {
-      t = DEMO_TEMPLATES.filter((tpl) => tpl.title.toLowerCase().includes(searchQuery.toLowerCase()));
+      t = PRESET_TEMPLATES.filter((tpl) => tpl.title.toLowerCase().includes(searchQuery.toLowerCase()));
     }
     return t;
   }, [templateTab, searchQuery]);

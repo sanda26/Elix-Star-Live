@@ -113,11 +113,6 @@ class AnalyticsService {
   initialize() {
     if (this.isInitialized) return;
     
-    // TODO: Initialize PostHog or Firebase Analytics
-    // if (typeof window !== 'undefined' && window.posthog) {
-    //   window.posthog.init('YOUR_API_KEY', { api_host: 'https://app.posthog.com' });
-    // }
-    
     this.isInitialized = true;
     this.trackEvent('app_open', {});
   }
@@ -125,10 +120,6 @@ class AnalyticsService {
   setUserId(userId: string | null) {
     this.userId = userId;
     
-    // TODO: Identify user in analytics platform
-    // if (userId && window.posthog) {
-    //   window.posthog.identify(userId);
-    // }
   }
 
   trackEvent(event: AnalyticsEvent, properties: AnalyticsProperties = {}) {

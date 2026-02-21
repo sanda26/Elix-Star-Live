@@ -7,6 +7,7 @@ import { cn } from './lib/utils';
 import { useDeepLinks } from './lib/deepLinks';
 import { analytics } from './lib/analytics';
 import { notificationService } from './lib/notifications';
+import { initializeIAP } from './lib/iap';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { OfflineBanner } from './components/OfflineBanner';
 import { IncomingCallModal } from './components/IncomingCallModal';
@@ -96,6 +97,9 @@ function App() {
     
     // Initialize push notifications
     notificationService.initialize();
+
+    // Initialize IAP (no-op on web)
+    initializeIAP();
 
     return () => clearTimeout(timer);
   }, [checkUser]);

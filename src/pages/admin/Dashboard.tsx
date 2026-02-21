@@ -46,8 +46,8 @@ export default function AdminDashboard() {
         totalRevenue: revenue / 100, // Convert to dollars
         pendingReports: reports.count || 0,
       });
-    } catch (error) {
-
+    } catch {
+      // Stats load failed
     } finally {
       setLoading(false);
     }

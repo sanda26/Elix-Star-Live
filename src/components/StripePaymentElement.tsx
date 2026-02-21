@@ -6,9 +6,10 @@ import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
 import { useAuthStore } from '@/store/useAuthStore';
 import { IS_STORE_BUILD } from '@/config/build';
-import { supabase } from '@/lib/supabase'; // Import supabase client
+import { supabase } from '@/lib/supabase';
+import { platform } from '@/lib/platform';
 
-const stripePromise = hasStripeKey() ? loadStripe(getStripeKey()) : null;
+const stripePromise = (!platform.isNative && hasStripeKey()) ? loadStripe(getStripeKey()) : null;
 
 interface PaymentFormProps {
   amount: number;

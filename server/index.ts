@@ -159,6 +159,31 @@ const clients = new Map<WebSocket, Client>();
 const processedTransactions = new Map<string, number>();
 
 // ═══════════════════════════════════════════════════════════════
+// GIFT REGISTRY — Server-side source of truth for gift values
+// ═══════════════════════════════════════════════════════════════
+const GIFT_VALUES: Record<string, number> = {
+  s_rose: 1, s_heart: 5, s_coffee: 15, s_diamond: 300, s_crown: 1500,
+  s_panda: 10, s_butterfly: 25, s_cat: 50, s_dog: 100, s_sun: 250,
+  s_rainbow: 500, s_unicorn: 1000, global_universe: 1000000,
+  horse_gallop: 5000, rex_dino: 12000, treasure_chest: 15000, war_bird: 15000,
+  kitty_treasure: 17000, frost_wolf: 18000, voyager_ship: 19000, fiery_lion: 21000,
+  night_panther: 22000, titan_gorilla: 23000, misty_wolf: 25000, cosmic_panther: 26000,
+  star_wand: 28000, beast_relic: 31000, crystal_rhino: 32000, storm_phoenix: 34000,
+  ice_sorceress: 37000, fire_phoenix: 38000, lavarok: 40000, blazing_wizard: 42000,
+  aelyra_flameveil: 45000, golden_lion: 46000, dragon_egg: 49000, lava_demon: 52000,
+  dragon_wrath: 55000, flames_royalty: 55000, fire_unicorn: 55000, thunder_falcon: 58000,
+  infernal_lion: 60000, fantasy_unicorn: 61000, sky_guardian: 64000, majestic_bird: 65000,
+  flame_king: 65000, majestic_phoenix: 70000, molten_fury: 75000, universe: 80000,
+  lava_rampage: 80000, guardian_chest: 85000, storm_warrior: 85000, pink_jet: 88000,
+  frost_lion: 90000, night_owl: 90000, drake_cub: 95000, romantic_jet: 99000,
+  guardian_vault: 100000, elix_gold_universe: 120000, lightning_hypercar: 150000,
+};
+
+function getGiftValue(giftId: string): number {
+  return GIFT_VALUES[giftId] || 0;
+}
+
+// ═══════════════════════════════════════════════════════════════
 // BATTLE SYSTEM — Server-controlled sessions, timers, scoring
 // ═══════════════════════════════════════════════════════════════
 interface BattleSession {
@@ -170,7 +195,8 @@ interface BattleSession {
   opponentName: string;
   hostScore: number;
   opponentScore: number;
-  timeLeft: number;       // seconds remaining
+  endsAt: number;         // Unix timestamp (ms) when battle ends
+  timeLeft: number;       // computed from endsAt for convenience
   status: 'WAITING' | 'COUNTDOWN' | 'ACTIVE' | 'ENDED';
   winner: 'host' | 'opponent' | 'draw' | null;
   timer: ReturnType<typeof setInterval> | null;
@@ -190,7 +216,8 @@ function createBattle(hostRoomId: string, hostUserId: string, hostName: string):
     opponentName: '',
     hostScore: 0,
     opponentScore: 0,
-    timeLeft: 300, // 5 minutes
+    endsAt: 0,
+    timeLeft: 300,
     status: 'WAITING',
     winner: null,
     timer: null,
@@ -229,6 +256,8 @@ function startBattleTimer(roomId: string) {
   const session = battles.get(roomId);
   if (!session) return;
   session.status = 'ACTIVE';
+  session.endsAt = Date.now() + 300 * 1000; // 5 minutes from now
+  session.timeLeft = 300;
   broadcastBattleState(roomId, session);
 
   session.timer = setInterval(() => {
@@ -237,13 +266,13 @@ function startBattleTimer(roomId: string) {
       if (s?.timer) clearInterval(s.timer);
       return;
     }
-    s.timeLeft--;
+    s.timeLeft = Math.max(0, Math.round((s.endsAt - Date.now()) / 1000));
 
-    // Broadcast time update every second
     broadcastToRoom(roomId, 'battle_tick', {
       timeLeft: s.timeLeft,
       hostScore: s.hostScore,
       opponentScore: s.opponentScore,
+      endsAt: s.endsAt,
     });
 
     if (s.timeLeft <= 0) {
@@ -327,6 +356,9 @@ function endBattle(roomId: string) {
 }
 
 function broadcastBattleState(roomId: string, session: BattleSession) {
+  if (session.endsAt > 0) {
+    session.timeLeft = Math.max(0, Math.round((session.endsAt - Date.now()) / 1000));
+  }
   broadcastToRoom(roomId, 'battle_state_sync', {
     id: session.id,
     status: session.status,
@@ -337,6 +369,7 @@ function broadcastBattleState(roomId: string, session: BattleSession) {
     hostScore: session.hostScore,
     opponentScore: session.opponentScore,
     timeLeft: session.timeLeft,
+    endsAt: session.endsAt,
     winner: session.winner,
   });
 }
@@ -470,6 +503,27 @@ wss.on('connection', async (ws: WebSocket, req) => {
 
     // Update viewer count
     await updateViewerCount(roomId);
+
+    // If there's an active battle in this room, send state to new joiner
+    const activeBattleOnJoin = battles.get(roomId);
+    if (activeBattleOnJoin && activeBattleOnJoin.status !== 'ENDED') {
+      if (activeBattleOnJoin.endsAt > 0) {
+        activeBattleOnJoin.timeLeft = Math.max(0, Math.round((activeBattleOnJoin.endsAt - Date.now()) / 1000));
+      }
+      sendToClient(client, 'battle_state_sync', {
+        id: activeBattleOnJoin.id,
+        status: activeBattleOnJoin.status,
+        hostUserId: activeBattleOnJoin.hostUserId,
+        hostName: activeBattleOnJoin.hostName,
+        opponentUserId: activeBattleOnJoin.opponentUserId,
+        opponentName: activeBattleOnJoin.opponentName,
+        hostScore: activeBattleOnJoin.hostScore,
+        opponentScore: activeBattleOnJoin.opponentScore,
+        timeLeft: activeBattleOnJoin.timeLeft,
+        endsAt: activeBattleOnJoin.endsAt,
+        winner: activeBattleOnJoin.winner,
+      });
+    }
 
   } catch (error) {
     console.error('Connection setup error:', error);
@@ -628,16 +682,16 @@ async function handleMessage(client: Client, event: string, data: any) {
           });
         }
 
-        // Auto-score gifts in active battles
+        // Auto-score gifts in active battles — use server-side gift value, NOT client
         const activeBattle = battles.get(client.roomId);
         if (activeBattle && activeBattle.status === 'ACTIVE') {
-          const giftCoins = typeof data.coins === 'number' ? data.coins : 0;
-          if (giftCoins > 0) {
-            const giftTarget = data.battleTarget as string | undefined;
-            if (giftTarget === 'opponent') {
-              addBattleScoreForTarget(client.roomId, 'opponent', giftCoins);
+          const serverGiftValue = getGiftValue(data.giftId);
+          if (serverGiftValue > 0) {
+            const giftTarget = data.battleTarget;
+            if (giftTarget === 'host' || giftTarget === 'opponent') {
+              addBattleScoreForTarget(client.roomId, giftTarget, serverGiftValue);
             } else {
-              addBattleScoreForTarget(client.roomId, 'host', giftCoins);
+              addBattleScoreForTarget(client.roomId, 'host', serverGiftValue);
             }
           }
         }
@@ -676,12 +730,14 @@ async function handleMessage(client: Client, event: string, data: any) {
       }
 
       case 'battle_gift_score': {
-        // When a gift is sent during battle, frontend tells server which side to score
+        // Manual score event — validate target, use server gift value
         const bRoom = userBattleRoom.get(client.userId) || client.roomId;
-        const target = data.target as 'host' | 'opponent';
-        const points = typeof data.points === 'number' ? data.points : 0;
-        if (target && points > 0) {
-          addBattleScoreForTarget(bRoom, target, points);
+        const target = data.target;
+        if (target !== 'host' && target !== 'opponent') break;
+        const giftId = data.giftId;
+        const serverPoints = giftId ? getGiftValue(giftId) : 0;
+        if (serverPoints > 0) {
+          addBattleScoreForTarget(bRoom, target, serverPoints);
         }
         break;
       }
@@ -696,9 +752,11 @@ async function handleMessage(client: Client, event: string, data: any) {
       }
 
       case 'battle_get_state': {
-        // Client requests current battle state (e.g. on reconnect)
         const currentBattle = battles.get(client.roomId);
         if (currentBattle) {
+          if (currentBattle.endsAt > 0) {
+            currentBattle.timeLeft = Math.max(0, Math.round((currentBattle.endsAt - Date.now()) / 1000));
+          }
           sendToClient(client, 'battle_state_sync', {
             id: currentBattle.id,
             status: currentBattle.status,
@@ -709,6 +767,7 @@ async function handleMessage(client: Client, event: string, data: any) {
             hostScore: currentBattle.hostScore,
             opponentScore: currentBattle.opponentScore,
             timeLeft: currentBattle.timeLeft,
+            endsAt: currentBattle.endsAt,
             winner: currentBattle.winner,
           });
         }

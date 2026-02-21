@@ -206,7 +206,7 @@ export default function VideoFeed() {
     const currentItem = feedItemsWithLive[activeIndex];
     if (!currentItem || currentItem.kind !== 'live') return;
     const timer = setTimeout(() => {
-      navigate(`/live/${currentItem.stream.streamKey}`);
+      navigate(`/watch/${currentItem.stream.streamKey}`);
     }, 1200);
     return () => clearTimeout(timer);
   }, [activeIndex, feedItemsWithLive, navigate]);
@@ -270,7 +270,7 @@ export default function VideoFeed() {
               {item.kind === 'live' ? (
                 <button
                   type="button"
-                  onClick={() => navigate(`/live/${item.stream.streamKey}`)}
+                  onClick={() => navigate(`/watch/${item.stream.streamKey}`)}
                   className="w-full h-full relative bg-[#0A0B0E] overflow-hidden group"
                 >
                   {/* Animated gradient background */}

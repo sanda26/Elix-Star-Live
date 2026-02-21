@@ -278,7 +278,7 @@ export default function Inbox() {
                                             });
                                         }
                                         setNotifications(prev => prev.filter(n => n.id !== notif.id));
-                                        if (streamKey) navigate(`/live/${streamKey}`);
+                                        if (streamKey) navigate(`/watch/${streamKey}`);
                                     } catch {
                                         showToast('Failed to accept');
                                     }

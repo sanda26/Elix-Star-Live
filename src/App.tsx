@@ -64,6 +64,7 @@ const Support = lazy(() => import('./pages/Support'));
 const Guidelines = lazy(() => import('./pages/Guidelines'));
 const VideoCall = lazy(() => import('./pages/VideoCall'));
 const AIStudio = lazy(() => import('./pages/AIStudio'));
+const SpectatorPage = lazy(() => import('./pages/SpectatorPage'));
 
 function LiveStreamKeyed() {
   const loc = useLocation();
@@ -127,6 +128,7 @@ function App() {
   const isNavHidden =
     location.pathname === '/live' ||
     location.pathname.startsWith('/live/') ||
+    location.pathname.startsWith('/watch/') ||
     location.pathname === '/create' ||
     location.pathname.startsWith('/create/') ||
     location.pathname === '/upload' ||
@@ -212,6 +214,7 @@ function App() {
             <Route path="/live/start" element={<Navigate to="/live" replace />} />
             <Route path="/live/broadcast" element={<LiveStreamKeyed />} />
             <Route path="/live/watch/:streamId" element={<LiveStreamKeyed />} />
+            <Route path="/watch/:streamId" element={<SpectatorPage />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/profile/:userId" element={<Profile />} />
             <Route path="/friends" element={<FriendsFeed />} />

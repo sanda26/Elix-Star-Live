@@ -125,7 +125,7 @@ export default function FollowingFeed() {
                 <button
                   key={u.id}
                   type="button"
-                  onClick={() => u.is_live ? navigate(`/live/${u.id}`) : navigate(`/profile/${u.id}`)}
+                  onClick={() => u.is_live ? navigate(`/watch/${u.id}`) : navigate(`/profile/${u.id}`)}
                   className="flex-shrink-0 flex flex-col items-center gap-1" style={{ width: 95, minWidth: 95 }}
                 >
                   <div className="relative" style={{ width: 85, height: 85 }}>

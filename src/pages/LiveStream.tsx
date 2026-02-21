@@ -773,7 +773,7 @@ export default function LiveStream() {
       }).then(() => {});
     } catch { /* fire-and-forget */ }
     showToast(`Joining @${invite.hostName}'s stream...`);
-    window.location.href = `/live/${invite.streamKey}`;
+    window.location.href = `/watch/${invite.streamKey}`;
   };
 
   const declineCoHostInvite = async () => {

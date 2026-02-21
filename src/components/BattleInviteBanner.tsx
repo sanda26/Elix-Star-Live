@@ -94,9 +94,12 @@ export function BattleInviteBanner() {
       }).then(() => {});
     } catch { /* fire-and-forget */ }
 
-    const queryParam = invite.type === 'battle' ? '?battle=1' : '';
     showToast(`Joining @${invite.hostName}'s stream...`);
-    window.location.href = `/live/${invite.streamKey}${queryParam}`;
+    if (invite.type === 'battle') {
+      window.location.href = `/live/${invite.streamKey}?battle=1`;
+    } else {
+      window.location.href = `/watch/${invite.streamKey}`;
+    }
   };
 
   const declineInvite = async () => {

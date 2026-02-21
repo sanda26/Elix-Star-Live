@@ -117,7 +117,7 @@ export default function LiveDiscover() {
                 <button
                   key={c.id}
                   type="button"
-                  onClick={() => navigate(`/live/${c.id}`)}
+                  onClick={() => navigate(`/watch/${c.id}`)}
                   className={`relative overflow-hidden active:scale-[0.97] transition-transform ${
                     i === 0 && creators.length > 2 ? 'col-span-2 aspect-[2/1.2]' : 'aspect-[3/4]'
                   }`}

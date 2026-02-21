@@ -38,6 +38,11 @@
       </defs>
     </svg>
     <div id="root"></div>
+    <div id="err-debug" style="display:none;position:fixed;top:0;left:0;right:0;z-index:999999;background:#600;color:#fff;padding:12px;font-size:12px;max-height:40vh;overflow:auto;word-break:break-all"></div>
+    <script>
+      window.onerror=function(m,s,l,c,e){var d=document.getElementById('err-debug');if(d){d.style.display='block';d.textContent='ERROR: '+m+' at '+s+':'+l+':'+c+(e&&e.stack?'\n'+e.stack:'');}};
+      window.onunhandledrejection=function(ev){var d=document.getElementById('err-debug');if(d){d.style.display='block';d.textContent='REJECT: '+(ev.reason&&ev.reason.message||ev.reason||'unknown')+(ev.reason&&ev.reason.stack?'\n'+ev.reason.stack:'');}};
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

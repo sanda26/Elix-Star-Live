@@ -78,6 +78,8 @@ export default function SpectatorPage() {
   const [joinRequestSent, setJoinRequestSent] = useState(false);
   const [showChatInput, setShowChatInput] = useState(false);
   const chatInputRef = useRef<HTMLInputElement>(null);
+  const [showViewersPanel, setShowViewersPanel] = useState(false);
+  const [viewersList, setViewersList] = useState<{ id: string; name: string; avatar: string; level?: number }[]>([]);
 
   const [userLevel, setUserLevel] = useState(user?.level || 1);
   const [userXP, setUserXP] = useState(0);
@@ -783,8 +785,29 @@ export default function SpectatorPage() {
 
               {/* Right: Viewer avatars + count + close */}
               <div className="pointer-events-auto flex items-center gap-2 flex-shrink-0">
-                {/* Viewer avatar stack */}
-                <div className="flex items-center">
+                {/* Viewer avatar stack — tap to open viewers panel */}
+                <button
+                  type="button"
+                  title="View top viewers"
+                  className="flex items-center active:scale-95 transition-transform"
+                  onClick={async () => {
+                    setShowViewersPanel(true);
+                    try {
+                      const { data } = await supabase
+                        .from('profiles')
+                        .select('user_id, username, display_name, avatar_url, level')
+                        .limit(50);
+                      if (data) {
+                        setViewersList(data.map((p: any) => ({
+                          id: p.user_id,
+                          name: p.display_name || p.username || 'User',
+                          avatar: p.avatar_url || '',
+                          level: p.level || 1,
+                        })));
+                      }
+                    } catch {}
+                  }}
+                >
                   <div className="flex -space-x-2">
                     {[hostAvatar, viewerAvatar].filter(Boolean).slice(0, 3).map((av, i) => (
                       <div key={i} className="w-7 h-7 rounded-full border-2 border-[#0A0B0E] overflow-hidden bg-[#1a1a2e]">
@@ -802,7 +825,7 @@ export default function SpectatorPage() {
                       {viewerCount >= 1000 ? (viewerCount / 1000).toFixed(1) + 'K' : viewerCount}
                     </span>
                   </div>
-                </div>
+                </button>
                 <button
                   type="button"
                   title="Leave stream"
@@ -926,6 +949,62 @@ export default function SpectatorPage() {
                 userCoins={coinBalance}
                 onRechargeSuccess={(newBalance) => setCoinBalance(newBalance)}
               />
+            </div>
+          </>
+        )}
+
+        {/* TOP VIEWERS PANEL */}
+        {showViewersPanel && (
+          <>
+            <div
+              className="fixed inset-0 bg-black/40 pointer-events-auto"
+              style={{ zIndex: 99998 }}
+              onClick={() => setShowViewersPanel(false)}
+            />
+            <div className="fixed bottom-0 left-0 right-0 z-[999999] pointer-events-auto max-w-[480px] mx-auto">
+              <div className="bg-[#1C1E24]/95 backdrop-blur-md rounded-t-2xl h-[40vh] flex flex-col shadow-2xl border-t border-[#C9A96E]/20 overflow-hidden">
+                <div className="flex justify-center pt-3 pb-1">
+                  <div className="w-10 h-1 bg-white/20 rounded-full" />
+                </div>
+                <div className="flex items-center justify-between px-4 pb-2">
+                  <h3 className="text-white font-bold text-sm">Top Viewers</h3>
+                  <div className="flex items-center gap-1">
+                    <Eye size={12} className="text-white/50" />
+                    <span className="text-white/60 text-xs font-semibold">{viewerCount}</span>
+                  </div>
+                </div>
+                <div className="flex-1 overflow-y-auto no-scrollbar px-4 pb-4">
+                  {viewersList.length === 0 ? (
+                    <div className="flex items-center justify-center h-full">
+                      <div className="w-6 h-6 border-2 border-[#C9A96E] border-t-transparent rounded-full animate-spin" />
+                    </div>
+                  ) : (
+                    viewersList.map((v, i) => (
+                      <button
+                        key={v.id}
+                        type="button"
+                        className="flex items-center gap-3 w-full py-2.5 active:bg-white/5 rounded-xl transition-colors"
+                        onClick={() => { setShowViewersPanel(false); navigate(`/profile/${v.id}`); }}
+                      >
+                        <span className="text-white/30 text-xs font-bold w-5 text-right">{i + 1}</span>
+                        <div className="w-10 h-10 rounded-full border-2 border-[#C9A96E]/30 overflow-hidden bg-[#13151A] flex-shrink-0">
+                          {v.avatar ? (
+                            <img src={v.avatar} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <span className="text-[#C9A96E] font-bold text-sm">{v.name.slice(0, 1).toUpperCase()}</span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0 text-left">
+                          <p className="text-white text-sm font-semibold truncate">{v.name}</p>
+                          {v.level && <p className="text-white/40 text-[10px] font-medium">Level {v.level}</p>}
+                        </div>
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
             </div>
           </>
         )}

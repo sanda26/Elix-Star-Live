@@ -1,37 +1,9 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
 import { supabase } from '../lib/supabase';
-
-const ICE_SERVERS: RTCConfiguration = {
-  iceServers: [
-    { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' },
-    {
-      urls: 'turn:openrelay.metered.ca:80',
-      username: 'openrelayproject',
-      credential: 'openrelayproject',
-    },
-    {
-      urls: 'turn:openrelay.metered.ca:443',
-      username: 'openrelayproject',
-      credential: 'openrelayproject',
-    },
-  ],
-  iceCandidatePoolSize: 4,
-};
-
-function buildWsUrl(roomId: string, token: string): string {
-  let wsUrl = import.meta.env.VITE_WS_URL as string | undefined;
-  if (!wsUrl) {
-    const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    wsUrl = `${proto}//${window.location.host}`;
-  }
-  if (!wsUrl.startsWith('ws://localhost') && wsUrl.startsWith('ws://')) {
-    wsUrl = wsUrl.replace('ws://', 'wss://');
-  }
-  return `${wsUrl}/live/${roomId}?token=${encodeURIComponent(token)}`;
-}
+import { websocket } from '../lib/websocket';
+import { useLiveWebRTC } from '../hooks/useLiveWebRTC';
 
 interface LivePreviewCardProps {
   streamKey: string;
@@ -53,156 +25,67 @@ export default function LivePreviewCard({
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const pcRef = useRef<RTCPeerConnection | null>(null);
-  const wsRef = useRef<WebSocket | null>(null);
   const [hasStream, setHasStream] = useState(false);
-  const [connecting, setConnecting] = useState(false);
-  const mountedRef = useRef(true);
-  const iceCandidateBufferRef = useRef<RTCIceCandidateInit[]>([]);
-  const hasRemoteDescRef = useRef(false);
+  const [wsConnected, setWsConnected] = useState(false);
 
-  const wsSend = useCallback((event: string, data: any) => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ event, data, timestamp: new Date().toISOString() }));
-    }
-  }, []);
+  const previewUserId = user?.id || `anon-${streamKey.slice(0, 8)}`;
 
-  const cleanup = useCallback(() => {
-    if (pcRef.current) {
-      pcRef.current.close();
-      pcRef.current = null;
-    }
-    if (wsRef.current) {
-      try {
-        const ws = wsRef.current;
-        ws.onclose = null;
-        ws.close();
-      } catch {}
-      wsRef.current = null;
-    }
-    hasRemoteDescRef.current = false;
-    iceCandidateBufferRef.current = [];
-    setHasStream(false);
-    setConnecting(false);
-  }, []);
-
-  useEffect(() => {
-    mountedRef.current = true;
-    return () => {
-      mountedRef.current = false;
-      cleanup();
-    };
-  }, [cleanup]);
-
+  // Connect/disconnect websocket when card becomes active/inactive
   useEffect(() => {
     if (!isActive || !streamKey) {
-      cleanup();
+      websocket.disconnect();
+      setWsConnected(false);
+      setHasStream(false);
       return;
     }
 
-    const previewUserId = user?.id ? `preview-${user.id}-${streamKey}` : `preview-anon-${streamKey}`;
     let cancelled = false;
 
-    const connectPreview = async () => {
-      setConnecting(true);
-
-      const { data: session } = await supabase.auth.getSession();
-      const token = session?.session?.access_token || 'anonymous';
-
+    const connect = async () => {
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token || '';
       if (cancelled) return;
-
-      const wsUrl = buildWsUrl(streamKey, token);
-      const ws = new WebSocket(wsUrl);
-      wsRef.current = ws;
-
-      const pc = new RTCPeerConnection(ICE_SERVERS);
-      pcRef.current = pc;
-      const remoteStream = new MediaStream();
-
-      pc.addTransceiver('video', { direction: 'recvonly' });
-      pc.addTransceiver('audio', { direction: 'recvonly' });
-
-      pc.ontrack = (event) => {
-        event.streams[0]?.getTracks().forEach(track => {
-          remoteStream.addTrack(track);
-        });
-        if (videoRef.current && mountedRef.current) {
-          videoRef.current.srcObject = remoteStream;
-          videoRef.current.play().catch(() => {});
-          setHasStream(true);
-          setConnecting(false);
-        }
-      };
-
-      pc.onicecandidate = (event) => {
-        if (event.candidate) {
-          wsSend('rtc_ice_candidate', {
-            target_user_id: streamKey,
-            candidate: event.candidate.toJSON(),
-          });
-        }
-      };
-
-      pc.onconnectionstatechange = () => {
-        if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') {
-          if (mountedRef.current) setHasStream(false);
-        }
-      };
-
-      const flushIceCandidates = async () => {
-        if (!hasRemoteDescRef.current) return;
-        while (iceCandidateBufferRef.current.length > 0) {
-          const candidate = iceCandidateBufferRef.current.shift()!;
-          try { await pc.addIceCandidate(new RTCIceCandidate(candidate)); } catch {}
-        }
-      };
-
-      ws.onmessage = async (event) => {
-        try {
-          const msg = JSON.parse(event.data);
-          if (cancelled || !pcRef.current) return;
-
-          if (msg.event === 'rtc_offer') {
-            try {
-              await pcRef.current.setRemoteDescription(new RTCSessionDescription(msg.data.sdp));
-              hasRemoteDescRef.current = true;
-              const answer = await pcRef.current.createAnswer();
-              await pcRef.current.setLocalDescription(answer);
-              wsSend('rtc_answer', {
-                target_user_id: msg.data.from_user_id,
-                sdp: answer,
-              });
-              await flushIceCandidates();
-            } catch {}
-          } else if (msg.event === 'rtc_ice_candidate') {
-            if (hasRemoteDescRef.current) {
-              try { await pcRef.current.addIceCandidate(new RTCIceCandidate(msg.data.candidate)); } catch {}
-            } else {
-              iceCandidateBufferRef.current.push(msg.data.candidate);
-            }
-          }
-        } catch {}
-      };
-
-      ws.onopen = () => {
-        wsSend('rtc_join', { user_id: previewUserId });
-      };
-
-      ws.onclose = () => {};
-      ws.onerror = () => {};
+      websocket.connect(streamKey, token);
+      setWsConnected(true);
     };
 
-    const timer = setTimeout(connectPreview, 300);
+    const timer = setTimeout(connect, 200);
 
     return () => {
       cancelled = true;
       clearTimeout(timer);
-      cleanup();
+      websocket.disconnect();
+      setWsConnected(false);
+      setHasStream(false);
     };
-  }, [isActive, streamKey, user?.id, cleanup, wsSend]);
+  }, [isActive, streamKey]);
+
+  // Use the same WebRTC hook as SpectatorPage
+  const { remotePeers } = useLiveWebRTC({
+    roomId: streamKey,
+    localUserId: previewUserId,
+    localStream: null,
+    enabled: wsConnected && isActive && !!streamKey,
+  });
+
+  // Attach remote stream to video element
+  useEffect(() => {
+    if (remotePeers.length === 0) {
+      setHasStream(false);
+      return;
+    }
+    const peer = remotePeers[0];
+    if (peer.stream && videoRef.current) {
+      if (videoRef.current.srcObject !== peer.stream) {
+        videoRef.current.srcObject = peer.stream;
+        videoRef.current.play().catch(() => {});
+        setHasStream(true);
+      }
+    }
+  }, [remotePeers]);
 
   const handleTap = () => {
-    cleanup();
+    websocket.disconnect();
     navigate(`/watch/${streamKey}`);
   };
 
@@ -239,21 +122,18 @@ export default function LivePreviewCard({
             </div>
           </div>
           <p className="text-white font-semibold text-base">{name}</p>
-          {connecting && (
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 border-2 border-white/60 border-t-transparent rounded-full animate-spin" />
-              <span className="text-white/60 text-sm">Connecting...</span>
-            </div>
-          )}
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 border-2 border-white/60 border-t-transparent rounded-full animate-spin" />
+            <span className="text-white/60 text-sm">Connecting...</span>
+          </div>
         </div>
       )}
 
       {/* Subtle gradient at bottom for text readability */}
       <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-black/70 via-black/30 to-transparent z-[2] pointer-events-none" />
 
-      {/* Bottom overlay: TikTok-style LIVE badges + creator info */}
+      {/* Bottom overlay: LIVE badge + creator info */}
       <div className="absolute bottom-16 left-0 right-0 z-[5] px-4">
-        {/* Badges row */}
         <div className="flex items-center gap-2 mb-2">
           <div className="flex items-center gap-1 px-2.5 py-1 rounded bg-red-500/90">
             <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
@@ -266,10 +146,8 @@ export default function LivePreviewCard({
           </div>
         </div>
 
-        {/* Creator name */}
         <p className="text-white font-bold text-[15px] drop-shadow-lg">{name}</p>
 
-        {/* Stream title / description */}
         {title && (
           <p className="text-white/80 text-[13px] mt-0.5 drop-shadow-md line-clamp-2">{title}</p>
         )}

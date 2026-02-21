@@ -326,7 +326,7 @@ export default function LiveStream() {
       };
     } else {
       // Viewer joining: increment count via SECURITY DEFINER RPC
-      supabase.rpc('increment_viewer_count', { p_stream_key: key }).catch(() => {});
+      supabase.rpc('increment_viewer_count', { p_stream_key: key }).then(() => {});
 
       // Fetch initial stream data (viewer count + host info)
       supabase
@@ -356,7 +356,7 @@ export default function LiveStream() {
 
       return () => {
         supabase.removeChannel(channel);
-        supabase.rpc('decrement_viewer_count', { p_stream_key: key }).catch(() => {});
+        supabase.rpc('decrement_viewer_count', { p_stream_key: key }).then(() => {});
       };
     }
   }, [creatorName, effectiveStreamId, isBroadcast, user?.id]);

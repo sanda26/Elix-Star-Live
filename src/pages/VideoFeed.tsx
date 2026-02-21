@@ -24,8 +24,15 @@ export default function VideoFeed() {
   const [activeIndex, setActiveIndex] = useState(0);
   const [liveStreams, setLiveStreams] = useState<LiveStreamCard[]>([]);
   const [liveLoading, setLiveLoading] = useState(true);
+  const removedKeysRef = useRef<Set<string>>(new Set());
 
   const { videos, fetchVideos, loading: videosLoading } = useVideoStore();
+
+  const removeLiveStream = useCallback((streamKey: string) => {
+    removedKeysRef.current.add(streamKey);
+    setLiveStreams(prev => prev.filter(s => s.streamKey !== streamKey));
+    setTimeout(() => removedKeysRef.current.delete(streamKey), 30000);
+  }, []);
 
   const fetchLiveStreams = useCallback(async () => {
     try {
@@ -47,16 +54,19 @@ export default function VideoFeed() {
         : { data: [] };
       const profileMap = new Map((profiles || []).map((p: any) => [p.user_id, p]));
 
-      setLiveStreams((data as any[]).map((s: any) => {
-        const p: any = profileMap.get(s.user_id);
-        return {
-          streamKey: s.stream_key || s.id,
-          name: p?.display_name || p?.username || s.title || 'Creator',
-          avatar: p?.avatar_url || s.thumbnail_url,
-          viewers: s.viewer_count || 0,
-          title: s.title || undefined,
-        };
-      }));
+      const removed = removedKeysRef.current;
+      setLiveStreams((data as any[])
+        .filter((s: any) => !removed.has(s.stream_key) && !removed.has(s.id))
+        .map((s: any) => {
+          const p: any = profileMap.get(s.user_id);
+          return {
+            streamKey: s.stream_key || s.id,
+            name: p?.display_name || p?.username || s.title || 'Creator',
+            avatar: p?.avatar_url || s.thumbnail_url,
+            viewers: s.viewer_count || 0,
+            title: s.title || undefined,
+          };
+        }));
     } catch {
       setLiveStreams([]);
     }
@@ -72,11 +82,11 @@ export default function VideoFeed() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'live_streams' }, (payload: any) => {
         const row = payload.new;
         if (row && row.is_live === false) {
-          setLiveStreams(prev => prev.filter(s => s.streamKey !== row.stream_key && s.streamKey !== row.id));
+          removeLiveStream(row.stream_key || row.id);
         }
         if (payload.eventType === 'DELETE' && payload.old) {
           const old = payload.old;
-          setLiveStreams(prev => prev.filter(s => s.streamKey !== old.stream_key && s.streamKey !== old.id));
+          removeLiveStream(old.stream_key || old.id);
         }
         fetchLiveStreams();
       })
@@ -88,7 +98,7 @@ export default function VideoFeed() {
       supabase.removeChannel(chan);
       clearInterval(poll);
     };
-  }, [fetchLiveStreams, fetchVideos]);
+  }, [fetchLiveStreams, fetchVideos, removeLiveStream]);
 
   useEffect(() => {
     if (location.pathname === '/feed') {
@@ -188,9 +198,7 @@ export default function VideoFeed() {
                   viewers={item.stream.viewers}
                   title={item.stream.title}
                   isActive={activeIndex === index}
-                  onStreamEnded={() => {
-                    setLiveStreams(prev => prev.filter(s => s.streamKey !== item.stream.streamKey));
-                  }}
+                  onStreamEnded={() => removeLiveStream(item.stream.streamKey)}
                 />
               </div>
             </div>

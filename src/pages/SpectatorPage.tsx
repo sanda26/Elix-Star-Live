@@ -21,6 +21,7 @@ import {
   MicOff,
   Camera,
   CameraOff,
+  Keyboard,
 } from 'lucide-react';
 import { GiftPanel } from '../components/GiftPanel';
 import { GIFTS } from '../lib/gifts';
@@ -75,6 +76,8 @@ export default function SpectatorPage() {
   const [shareContacts, setShareContacts] = useState<{ id: string; name: string; avatar: string }[]>([]);
 
   const [joinRequestSent, setJoinRequestSent] = useState(false);
+  const [showChatInput, setShowChatInput] = useState(false);
+  const chatInputRef = useRef<HTMLInputElement>(null);
 
   const [userLevel, setUserLevel] = useState(user?.level || 1);
   const [userXP, setUserXP] = useState(0);
@@ -813,31 +816,78 @@ export default function SpectatorPage() {
           </div>
         </div>
 
-        {/* CHAT OVERLAY */}
+        {/* CREATOR'S CHAT — spectator sees stream chat (read-only) */}
         <div className="flex-1 relative z-10 pointer-events-none">
-          <div className="absolute bottom-0 left-0 right-0 max-h-[40vh] pointer-events-auto px-3 pb-2">
+          <div className="absolute bottom-0 left-0 right-0 max-h-[40vh] pointer-events-none px-3 pb-2">
             <ChatOverlay
               messages={messages}
               variant="overlay"
               compact
-              isModerator={isModerator}
-              onDeleteMessage={(msgId) => {
-                setMessages(prev => prev.filter(m => m.id !== msgId));
-              }}
-              onBlockUser={(username) => {
-                setMessages(prev => prev.filter(m => m.username !== username));
-                showToast(`@${username} blocked from chat`);
-              }}
+              isModerator={false}
             />
           </div>
         </div>
 
-        {/* BOTTOM BAR — same as LiveStream panel */}
+        {/* BOTTOM BAR — buttons only */}
         <div className="flex-none pointer-events-auto bg-transparent px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-2 min-h-[50px] relative z-[90]">
-          <div className="flex items-center gap-3 translate-y-[4px]">
-            {!currentGift ? (
-              <form onSubmit={handleSendMessage} className="flex-1 flex items-center gap-2 bg-[#13151A]/40 backdrop-blur-md rounded-full px-4 py-2 border border-white/10 h-10 min-w-0">
+          <div className="flex items-center justify-center gap-3 translate-y-[4px]">
+            {/* Keyboard icon — opens chat input */}
+            <button
+              type="button"
+              title="Type a message"
+              onClick={() => {
+                setShowChatInput(true);
+                setTimeout(() => chatInputRef.current?.focus(), 100);
+              }}
+              className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform"
+            >
+              <Keyboard size={20} className="text-[#C9A96E]" />
+            </button>
+
+            {/* Request co-host */}
+            {isCoHosting ? (
+              <div className="h-10 px-3 rounded-full bg-[#C9A96E]/20 border border-[#C9A96E]/40 flex items-center justify-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-[#C9A96E] animate-pulse" />
+                <span className="text-[#C9A96E] text-[10px] font-bold">Co-hosting</span>
+              </div>
+            ) : !joinRequestSent ? (
+              <button type="button" title="Request co-host" onClick={() => sendJoinRequest('cohost')} className="w-10 h-10 rounded-full bg-[#C9A96E] flex items-center justify-center shadow-lg active:scale-95 transition-transform">
+                <UserPlus size={20} className="text-black" />
+              </button>
+            ) : (
+              <div className="w-10 h-10 rounded-full bg-[#13151A] border border-green-500/40 flex items-center justify-center">
+                <Check size={20} className="text-green-400" />
+              </div>
+            )}
+
+            {/* Gift */}
+            <button type="button" title="Send gift" onClick={() => setShowGiftPanel(true)} className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform">
+              <Gift size={20} className="text-[#C9A96E]" />
+            </button>
+
+            {/* Share */}
+            <button type="button" title="Share" onClick={() => setShowSharePanel(true)} className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform">
+              <Share2 size={20} className="text-[#C9A96E]" />
+            </button>
+
+            {/* More (3 dots) */}
+            <button type="button" title="More options" onClick={() => setIsMoreMenuOpen(true)} className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform">
+              <MoreVertical size={20} className="text-[#C9A96E]" />
+            </button>
+          </div>
+        </div>
+
+        {/* CHAT INPUT OVERLAY — appears when keyboard icon is tapped */}
+        {showChatInput && (
+          <div className="fixed inset-0 z-[100000] flex flex-col justify-end pointer-events-none max-w-[480px] mx-auto">
+            <div className="absolute inset-0 bg-black/40 pointer-events-auto" onClick={() => setShowChatInput(false)} />
+            <div className="pointer-events-auto relative z-10 px-3 pb-[max(12px,env(safe-area-inset-bottom))]">
+              <form
+                onSubmit={(e) => { handleSendMessage(e); setShowChatInput(false); }}
+                className="flex items-center gap-2 bg-[#13151A]/95 backdrop-blur-md rounded-full px-4 py-2 border border-[#C9A96E]/40 h-12"
+              >
                 <input
+                  ref={chatInputRef}
                   type="text"
                   inputMode="text"
                   enterKeyHint="send"
@@ -848,41 +898,13 @@ export default function SpectatorPage() {
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                 />
-                <button type="submit" className="text-white hover:text-white/80 transition flex-shrink-0" title="Send">
-                  <Send size={18} />
+                <button type="submit" className="text-[#C9A96E] hover:text-[#C9A96E]/80 transition flex-shrink-0" title="Send">
+                  <Send size={20} />
                 </button>
               </form>
-            ) : (
-              <div className="flex-1" />
-            )}
-
-            <div className="flex items-center justify-end gap-3 flex-shrink-0">
-              {isCoHosting ? (
-                <div className="h-10 px-3 rounded-full bg-[#C9A96E]/20 border border-[#C9A96E]/40 flex items-center justify-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-[#C9A96E] animate-pulse" />
-                  <span className="text-[#C9A96E] text-[10px] font-bold">Co-hosting</span>
-                </div>
-              ) : !joinRequestSent ? (
-                <button type="button" title="Request co-host" onClick={() => sendJoinRequest('cohost')} className="w-10 h-10 rounded-full bg-[#C9A96E] flex items-center justify-center shadow-lg active:scale-95 transition-transform">
-                  <UserPlus size={20} className="text-black" />
-                </button>
-              ) : (
-                <div className="w-10 h-10 rounded-full bg-[#13151A] border border-green-500/40 flex items-center justify-center">
-                  <Check size={20} className="text-green-400" />
-                </div>
-              )}
-              <button type="button" title="Send gift" onClick={() => setShowGiftPanel(true)} className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg">
-                <Gift size={20} className="text-[#C9A96E]" />
-              </button>
-              <button type="button" title="Share" onClick={() => setShowSharePanel(true)} className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform">
-                <Share2 size={20} className="text-[#C9A96E]" />
-              </button>
-              <button type="button" title="More options" onClick={() => setIsMoreMenuOpen(true)} className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg">
-                <MoreVertical size={20} className="text-[#C9A96E]" />
-              </button>
             </div>
           </div>
-        </div>
+        )}
 
         {/* GIFT ANIMATION OVERLAY */}
         <GiftAnimationOverlay streamId={effectiveStreamId} />

@@ -74,6 +74,13 @@ export default function VideoFeed() {
   }, []);
 
   useEffect(() => {
+    supabase
+      .from('live_streams')
+      .update({ is_live: false, viewer_count: 0 })
+      .eq('is_live', true)
+      .eq('viewer_count', 0)
+      .then(() => {});
+
     fetchLiveStreams();
     fetchVideos();
 

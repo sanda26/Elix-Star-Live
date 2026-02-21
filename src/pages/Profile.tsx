@@ -158,6 +158,8 @@ export default function Profile() {
           } as ProfileData;
         }
 
+        data.followers_count = 0;
+        data.following_count = 0;
         try {
           const [{ count: followersCount }, { count: followingCount }] = await Promise.all([
             supabase.from('followers').select('*', { count: 'exact', head: true }).eq('following_id', displayUserId),
@@ -167,6 +169,7 @@ export default function Profile() {
           data.following_count = followingCount ?? 0;
         } catch (_) {}
 
+        data.likes_count = 0;
         try {
           const { data: userVideos } = await supabase
             .from('videos')
@@ -179,8 +182,6 @@ export default function Profile() {
               .select('*', { count: 'exact', head: true })
               .in('video_id', videoIds);
             data.likes_count = totalLikes ?? 0;
-          } else {
-            data.likes_count = 0;
           }
         } catch (_) {}
 

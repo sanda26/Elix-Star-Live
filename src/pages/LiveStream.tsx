@@ -1105,8 +1105,9 @@ export default function LiveStream() {
   }, [isBattleJoiner, user?.id, effectiveStreamId]);
 
   // Battle room channel: sync battle state + WebRTC signaling between host and joiner
+  // Only subscribe if broadcaster or actual battle joiner
   useEffect(() => {
-    if (!effectiveStreamId) return;
+    if (!effectiveStreamId || (!isBroadcast && !isBattleJoiner)) return;
     const chan = supabase.channel(`battle_room_${effectiveStreamId}`);
     const rtcConfig: RTCConfiguration = { iceServers: [
       { urls: 'stun:stun.l.google.com:19302' },
@@ -1196,7 +1197,7 @@ export default function LiveStream() {
 
     chan.on('broadcast', { event: 'battle_state' }, (msg: any) => {
       const payload = msg.payload;
-      if (payload.state === 'IN_BATTLE' && !isBroadcast) {
+      if (payload.state === 'IN_BATTLE' && isBattleJoiner) {
         setBattleState('IN_BATTLE');
         setIsBattleMode(true);
         setBattleTime(300);
@@ -1205,7 +1206,7 @@ export default function LiveStream() {
         setOpponentScore(0);
         showToast('Battle started!');
       }
-      if (payload.state === 'ENDED') {
+      if (payload.state === 'ENDED' && isBattleModeRef.current) {
         setBattleState('ENDED');
         if (battlePeerRef.current) { battlePeerRef.current.close(); battlePeerRef.current = null; }
         if (!isBroadcast) {
@@ -1223,7 +1224,7 @@ export default function LiveStream() {
       supabase.removeChannel(chan);
       if (battlePeerRef.current) { battlePeerRef.current.close(); battlePeerRef.current = null; }
     };
-  }, [effectiveStreamId, isBroadcast]);
+  }, [effectiveStreamId, isBroadcast, isBattleJoiner]);
   const [liveFilterCss, setLiveFilterCss] = useState('none');
   const [battleTime, setBattleTime] = useState(300); // 5 minutes
   const [myScore, setMyScore] = useState(0);

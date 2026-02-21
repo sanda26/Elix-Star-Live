@@ -68,8 +68,8 @@ class WebSocketService {
     this.ws = new WebSocket(`${wsUrl}/live/${roomId}?token=${encodeURIComponent(token)}`);
 
     this.ws.onopen = () => {
-
       this.reconnectAttempts = 0;
+      this.handleMessage({ event: 'connected', data: {}, timestamp: new Date().toISOString() });
     };
 
     this.ws.onmessage = (event) => {

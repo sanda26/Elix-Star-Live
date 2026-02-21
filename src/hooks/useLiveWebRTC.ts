@@ -251,6 +251,11 @@ export function useLiveWebRTC({ roomId, localUserId, localStream, enabled }: Use
   useEffect(() => {
     if (!enabled || !roomId || !localUserId) return;
 
+    const handleConnected = () => {
+      joinRoom();
+    };
+
+    websocket.on('connected', handleConnected);
     websocket.on('rtc_join', handleRtcJoin);
     websocket.on('rtc_leave', handleRtcLeave);
     websocket.on('rtc_offer', handleRtcOffer);
@@ -260,6 +265,7 @@ export function useLiveWebRTC({ roomId, localUserId, localStream, enabled }: Use
     joinRoom();
 
     return () => {
+      websocket.off('connected', handleConnected);
       websocket.off('rtc_join', handleRtcJoin);
       websocket.off('rtc_leave', handleRtcLeave);
       websocket.off('rtc_offer', handleRtcOffer);

@@ -14,7 +14,7 @@ export type WebSocketEvent =
   | 'gift_sent'
   | 'big_gift_queue_update'
   | 'leaderboard_update'
-  // Battle events
+  // Battle events (server-controlled)
   | 'battle_invite'
   | 'battle_accepted'
   | 'battle_declined'
@@ -22,6 +22,12 @@ export type WebSocketEvent =
   | 'battle_score_update'
   | 'battle_ended'
   | 'booster_activated'
+  | 'battle_created'
+  | 'battle_state_sync'
+  | 'battle_countdown'
+  | 'battle_tick'
+  | 'battle_score'
+  | 'battle_error'
   // WebRTC signaling events
   | 'rtc_offer'
   | 'rtc_answer'

@@ -1514,6 +1514,8 @@ export default function LiveStream() {
   const toggleBattle = useCallback(() => {
     if (isBattleMode) {
       endBattleCleanup();
+      // Tell server to end battle
+      websocket.send('battle_end', {});
       const params = new URLSearchParams(location.search);
       if (params.has('battle')) {
         params.delete('battle');
@@ -1541,7 +1543,9 @@ export default function LiveStream() {
     battleScoreTapWindowRef.current = { windowStart: 0, count: 0 };
     battleTripleTapRef.current = { target: null, lastTapAt: 0, count: 0 };
     setIsFindCreatorsOpen(true);
-  }, [isBattleMode, location.search, location.pathname, navigate, endBattleCleanup]);
+    // Tell server to create battle session
+    websocket.send('battle_create', { hostName: creatorName });
+  }, [isBattleMode, location.search, location.pathname, navigate, endBattleCleanup, creatorName]);
 
   // No auto-start - user must press Match to begin
 
@@ -2171,11 +2175,69 @@ export default function LiveStream() {
       }
     };
 
+    // Server-controlled battle events
+    const handleBattleStateSync = (data: any) => {
+      if (!mounted) return;
+      if (data.status === 'WAITING' || data.status === 'COUNTDOWN') {
+        setIsBattleMode(true);
+        setBattleState('INVITING');
+      } else if (data.status === 'ACTIVE') {
+        setIsBattleMode(true);
+        setBattleState('IN_BATTLE');
+      } else if (data.status === 'ENDED') {
+        setBattleState('ENDED');
+      }
+      setMyScore(data.hostScore || 0);
+      setOpponentScore(data.opponentScore || 0);
+      setBattleTime(data.timeLeft ?? 300);
+      if (data.opponentName) {
+        setBattleSlots(prev => {
+          const next = [...prev];
+          next[0] = { userId: data.opponentUserId || '', name: data.opponentName, status: 'accepted', avatar: '' };
+          return next;
+        });
+      }
+    };
+
+    const handleBattleTick = (data: any) => {
+      if (!mounted) return;
+      setBattleTime(data.timeLeft ?? 0);
+      setMyScore(data.hostScore ?? 0);
+      setOpponentScore(data.opponentScore ?? 0);
+    };
+
+    const handleBattleScore = (data: any) => {
+      if (!mounted) return;
+      setMyScore(data.hostScore ?? 0);
+      setOpponentScore(data.opponentScore ?? 0);
+    };
+
+    const handleBattleCountdown = (data: any) => {
+      if (!mounted) return;
+      setBattleCountdown(data.count ?? null);
+      if (data.count <= 0) setBattleCountdown(null);
+    };
+
+    const handleBattleEnded = (data: any) => {
+      if (!mounted) return;
+      setBattleState('ENDED');
+      setMyScore(data.hostScore ?? 0);
+      setOpponentScore(data.opponentScore ?? 0);
+      if (data.winner === 'host') setBattleWinner('me');
+      else if (data.winner === 'opponent') setBattleWinner('opponent');
+      else setBattleWinner('draw' as any);
+    };
+
     websocket.on('room_state', handleRoomState);
     websocket.on('user_joined', handleUserJoined);
     websocket.on('user_left', handleUserLeft);
     websocket.on('chat_message', handleChatMessage);
     websocket.on('gift_sent', handleGiftSent);
+    websocket.on('battle_state_sync', handleBattleStateSync);
+    websocket.on('battle_tick', handleBattleTick);
+    websocket.on('battle_score', handleBattleScore);
+    websocket.on('battle_countdown', handleBattleCountdown);
+    websocket.on('battle_ended', handleBattleEnded);
 
     connect();
 
@@ -2186,6 +2248,11 @@ export default function LiveStream() {
       websocket.off('user_left', handleUserLeft);
       websocket.off('chat_message', handleChatMessage);
       websocket.off('gift_sent', handleGiftSent);
+      websocket.off('battle_state_sync', handleBattleStateSync);
+      websocket.off('battle_tick', handleBattleTick);
+      websocket.off('battle_score', handleBattleScore);
+      websocket.off('battle_countdown', handleBattleCountdown);
+      websocket.off('battle_ended', handleBattleEnded);
       websocket.disconnect();
     };
   }, [effectiveStreamId, user?.id]);
@@ -2346,10 +2413,12 @@ export default function LiveStream() {
       websocket.send('gift_sent', {
         giftId: gift.id,
         giftName: gift.name,
+        coins: gift.coins,
         level: newLevel,
         avatar: giftMsg.avatar,
         video: gift.video || null,
         transactionId: `${user?.id || 'anon'}-${Date.now()}`,
+        battleTarget: isBattleMode ? giftTarget : undefined,
       });
 
       // Handle Combo Logic

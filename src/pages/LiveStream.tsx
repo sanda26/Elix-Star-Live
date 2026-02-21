@@ -3481,29 +3481,8 @@ export default function LiveStream() {
           )}
 
           {isBroadcast && (
-            <div className="flex items-center gap-3 pointer-events-auto translate-y-[12px]">
-              {!currentGift ? (
-                <form onSubmit={handleSendMessage} className="flex-1 flex items-center gap-2 bg-[#13151A]/40 backdrop-blur-md rounded-full px-4 py-2 border border-white/10 h-10 min-w-0">
-                  <input
-                    type="text"
-                    inputMode="text"
-                    enterKeyHint="send"
-                    autoComplete="off"
-                    autoCorrect="off"
-                    placeholder="Say something..."
-                    className="bg-transparent text-white text-sm outline-none flex-1 placeholder:text-white/40 min-w-0"
-                    value={inputValue}
-                    onChange={(e) => setInputValue(e.target.value)}
-                  />
-                  <button type="submit" className="text-white hover:text-white/80 transition flex-shrink-0" title="Send">
-                    <Send size={18} />
-                  </button>
-                </form>
-              ) : (
-                <div className="flex-1" />
-              )}
-
-              <div className="flex items-center justify-end gap-3 flex-shrink-0">
+            <div className="flex items-center justify-center gap-3 pointer-events-auto translate-y-[12px]">
+              <div className="flex items-center justify-center gap-3 flex-shrink-0">
               {isBattleMode && battleWinner && (
                 <button 
                   type="button" 

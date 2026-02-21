@@ -96,6 +96,8 @@ type LiveViewer = {
 
 
 
+type BattleState = 'LIVE_SOLO' | 'INVITING' | 'IN_BATTLE' | 'ENDED';
+
 export default function LiveStream() {
   const { streamId } = useParams();
   const navigate = useNavigate();
@@ -572,6 +574,15 @@ export default function LiveStream() {
               return next;
             });
             showToast(`@${acceptedName} joined the battle!`);
+            // Transition to IN_BATTLE and broadcast state to all participants
+            setBattleState('IN_BATTLE');
+            setBattleTime(300);
+            setBattleCountdown(3);
+            supabase.channel(`battle_room_${effectiveStreamId}`).send({
+              type: 'broadcast',
+              event: 'battle_state',
+              payload: { state: 'IN_BATTLE', hostName: myCreatorName, hostAvatar: myAvatar },
+            }).then(() => {});
           }
         }
       )
@@ -604,7 +615,7 @@ export default function LiveStream() {
       }).then(() => {});
     } catch { /* fire-and-forget */ }
     showToast(`Joining @${invite.hostName}'s battle...`);
-    window.location.href = `/live/${invite.streamKey}`;
+    window.location.href = `/live/${invite.streamKey}?battle=1`;
   };
 
   const declineBattleInvite = async () => {
@@ -966,7 +977,75 @@ export default function LiveStream() {
   }, []);
 
   // Battle Mode State
+  const [battleState, setBattleState] = useState<BattleState>('LIVE_SOLO');
   const [isBattleMode, setIsBattleMode] = useState(false);
+  const isBattleJoiner = !isBroadcast && new URLSearchParams(location.search).get('battle') === '1';
+
+  // If joining as battle participant, immediately enter battle mode and start camera
+  useEffect(() => {
+    if (!isBattleJoiner) return;
+    setBattleState('IN_BATTLE');
+    setIsBattleMode(true);
+    setBattleTime(300);
+    setBattleCountdown(3);
+    setMyScore(0);
+    setOpponentScore(0);
+    // Put the host in the opponent slot so the joiner sees them
+    setBattleSlots(prev => {
+      const next = [...prev];
+      next[0] = { userId: effectiveStreamId, name: hostName || creatorName || 'Host', status: 'accepted', avatar: hostAvatar || myAvatar || '' };
+      return next;
+    });
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'user' },
+          audio: { echoCancellation: true, noiseSuppression: true },
+        });
+        if (cancelled) { stream.getTracks().forEach(t => t.stop()); return; }
+        cameraStreamRef.current = stream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          videoRef.current.play().catch(() => {});
+        }
+      } catch {
+        showToast('Camera access denied');
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [isBattleJoiner]);
+
+  // Battle room channel: sync battle state between host and joiner
+  useEffect(() => {
+    if (!effectiveStreamId) return;
+    const chan = supabase.channel(`battle_room_${effectiveStreamId}`);
+    chan.on('broadcast', { event: 'battle_state' }, (msg: any) => {
+      const payload = msg.payload;
+      if (payload.state === 'IN_BATTLE' && !isBroadcast) {
+        setBattleState('IN_BATTLE');
+        setIsBattleMode(true);
+        setBattleTime(300);
+        setBattleCountdown(3);
+        setMyScore(0);
+        setOpponentScore(0);
+        showToast('Battle started!');
+      }
+      if (payload.state === 'ENDED') {
+        setBattleState('ENDED');
+        if (!isBroadcast) {
+          showToast('Battle ended!');
+          setTimeout(() => {
+            setBattleState('LIVE_SOLO');
+            setIsBattleMode(false);
+          }, 3000);
+        }
+      }
+    });
+    chan.subscribe();
+    return () => { supabase.removeChannel(chan); };
+  }, [effectiveStreamId, isBroadcast]);
   const [liveFilterCss, setLiveFilterCss] = useState('none');
   const [battleTime, setBattleTime] = useState(300); // 5 minutes
   const [myScore, setMyScore] = useState(0);
@@ -1217,34 +1296,45 @@ export default function LiveStream() {
     }
   }, [isBattleMode, battleTime, battleWinner, battleCountdown, myScore, opponentScore, player3Score, player4Score, determine4PlayerWinner]);
 
+  const endBattleCleanup = useCallback(() => {
+    setIsBattleMode(false);
+    setBattleState('LIVE_SOLO');
+    setBattleTime(300);
+    setBattleWinner(null);
+    setBattleCountdown(null);
+    reachedThresholdsRef.current.clear();
+    battleFreeTapUsedRef.current = false;
+    spectatorTapPointsRef.current = 0;
+    setSpectatorTapsUsed(0);
+    battleScoreTapWindowRef.current = { windowStart: 0, count: 0 };
+    battleTripleTapRef.current = { target: null, lastTapAt: 0, count: 0 };
+    setMiniProfile(null);
+    setSpeedChallengeActive(false);
+    setSpeedChallengeCountdown(null);
+    setSpeedChallengeTime(10);
+    setSpeedChallengeTaps({ me: 0, opponent: 0, player3: 0, player4: 0 });
+    setSpeedChallengeResult(null);
+    setSpeedMultiplier(1);
+    setBattleSlots([
+      { userId: '', name: '', status: 'empty', avatar: '' },
+      { userId: '', name: '', status: 'empty', avatar: '' },
+      { userId: '', name: '', status: 'empty', avatar: '' },
+    ]);
+    inviteTimersRef.current.forEach(t => clearTimeout(t));
+    inviteTimersRef.current = [];
+    setIsFindCreatorsOpen(false);
+    setCreatorQuery('');
+    // Broadcast battle_end to all participants
+    supabase.channel(`battle_room_${effectiveStreamId}`).send({
+      type: 'broadcast',
+      event: 'battle_state',
+      payload: { state: 'ENDED' },
+    }).then(() => {});
+  }, [effectiveStreamId]);
+
   const toggleBattle = useCallback(() => {
     if (isBattleMode) {
-      setIsBattleMode(false);
-      setBattleTime(300);
-      setBattleWinner(null);
-      setBattleCountdown(null);
-      reachedThresholdsRef.current.clear();
-      battleFreeTapUsedRef.current = false;
-      spectatorTapPointsRef.current = 0;
-      setSpectatorTapsUsed(0);
-      battleScoreTapWindowRef.current = { windowStart: 0, count: 0 };
-      battleTripleTapRef.current = { target: null, lastTapAt: 0, count: 0 };
-      setMiniProfile(null);
-      setSpeedChallengeActive(false);
-      setSpeedChallengeCountdown(null);
-      setSpeedChallengeTime(10);
-      setSpeedChallengeTaps({ me: 0, opponent: 0, player3: 0, player4: 0 });
-      setSpeedChallengeResult(null);
-      setSpeedMultiplier(1);
-      setBattleSlots([
-        { userId: '', name: '', status: 'empty', avatar: '' },
-        { userId: '', name: '', status: 'empty', avatar: '' },
-        { userId: '', name: '', status: 'empty', avatar: '' },
-      ]);
-      inviteTimersRef.current.forEach(t => clearTimeout(t));
-      inviteTimersRef.current = [];
-      setIsFindCreatorsOpen(false);
-      setCreatorQuery('');
+      endBattleCleanup();
       const params = new URLSearchParams(location.search);
       if (params.has('battle')) {
         params.delete('battle');
@@ -1252,7 +1342,8 @@ export default function LiveStream() {
       }
       return;
     }
-    // Enter battle mode but DON'T start countdown yet - wait for invites
+    // Enter battle mode -> INVITING state
+    setBattleState('INVITING');
     setIsBattleMode(true);
     setBattleTime(0);
     setMyScore(0);
@@ -1264,15 +1355,14 @@ export default function LiveStream() {
     setShowGiftPanel(false);
     setBattleGifterCoins({});
     setPlayerGifters({});
-    setBattleCountdown(null); // Don't start countdown until all accept
+    setBattleCountdown(null);
     battleFreeTapUsedRef.current = false;
     spectatorTapPointsRef.current = 0;
     setSpectatorTapsUsed(0);
     battleScoreTapWindowRef.current = { windowStart: 0, count: 0 };
     battleTripleTapRef.current = { target: null, lastTapAt: 0, count: 0 };
-    // Open invite panel
     setIsFindCreatorsOpen(true);
-  }, [isBattleMode, location.search, location.pathname, navigate]);
+  }, [isBattleMode, location.search, location.pathname, navigate, endBattleCleanup]);
 
   // No auto-start - user must press Match to begin
 
@@ -1781,14 +1871,14 @@ export default function LiveStream() {
 
   // Re-attach camera stream to videoRef when battle mode toggles (the <video> element changes)
   useEffect(() => {
-    if (!isBroadcast) return;
+    if (!isBroadcast && !isBattleJoiner) return;
     const stream = cameraStreamRef.current;
     if (!stream || !videoRef.current) return;
     if (videoRef.current.srcObject !== stream) {
       videoRef.current.srcObject = stream;
       videoRef.current.play().catch(() => {});
     }
-  }, [isBattleMode, isBroadcast]);
+  }, [isBattleMode, isBroadcast, isBattleJoiner]);
 
   useEffect(() => {
     const stream = cameraStreamRef.current;
@@ -3158,7 +3248,7 @@ export default function LiveStream() {
       <div className="bottom-zone flex-none pointer-events-auto bg-transparent px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-2 min-h-[50px] flex items-center fixed bottom-0 left-0 right-0 z-[90] justify-center">
         <div className="w-full max-w-[480px] mx-auto">
           {/* Spectator Input & Actions — same icon style as creator bar */}
-          {!isBroadcast && (
+          {!isBroadcast && !isBattleJoiner && (
             <div className="flex items-center gap-3 pointer-events-auto translate-y-[12px]">
               {!currentGift ? (
                 <form onSubmit={handleSendMessage} className="flex-1 flex items-center gap-2 bg-[#13151A]/40 backdrop-blur-md rounded-full px-4 py-2 border border-white/10 h-10 min-w-0">
@@ -3204,7 +3294,7 @@ export default function LiveStream() {
             </div>
           )}
 
-          {isBroadcast && (
+          {(isBroadcast || isBattleJoiner) && (
             <div className="flex items-center gap-3 pointer-events-auto translate-y-[12px]">
               {!currentGift ? (
                 <form onSubmit={handleSendMessage} className="flex-1 flex items-center gap-2 bg-[#13151A]/40 backdrop-blur-md rounded-full px-4 py-2 border border-white/10 h-10 min-w-0">

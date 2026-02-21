@@ -107,6 +107,7 @@ export default function LiveStream() {
   const opponentVideoRef = useRef<HTMLVideoElement>(null);
   const player3VideoRef = useRef<HTMLVideoElement>(null);
   const player4VideoRef = useRef<HTMLVideoElement>(null);
+  const battlePeerRef = useRef<RTCPeerConnection | null>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const cameraStreamRef = useRef<MediaStream | null>(null);
   const [viewerHasStream, setViewerHasStream] = useState(false);
@@ -1038,27 +1039,90 @@ export default function LiveStream() {
       // Announce arrival to host via broadcast
       const myName = user?.username || user?.name || 'Player';
       const myAv = user?.avatar || '';
-      supabase.channel(`battle_room_${effectiveStreamId}`).send({
+      const battleChan = supabase.channel(`battle_room_${effectiveStreamId}`);
+      battleChan.send({
         type: 'broadcast',
         event: 'joiner_arrived',
         payload: { userId: user?.id, name: myName, avatar: myAv },
       }).then(() => {});
+
+      // Create WebRTC offer after a short delay (let host set up peer)
+      setTimeout(async () => {
+        if (cancelled) return;
+        const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }] };
+        if (battlePeerRef.current) { battlePeerRef.current.close(); }
+        const pc = new RTCPeerConnection(rtcConfig);
+        battlePeerRef.current = pc;
+
+        pc.onicecandidate = (e) => {
+          if (e.candidate) {
+            battleChan.send({ type: 'broadcast', event: 'rtc_ice', payload: { candidate: e.candidate.toJSON(), from: 'joiner' } }).then(() => {});
+          }
+        };
+        pc.ontrack = (e) => {
+          if (opponentVideoRef.current && e.streams[0]) {
+            opponentVideoRef.current.srcObject = e.streams[0];
+            opponentVideoRef.current.play().catch(() => {});
+          }
+        };
+
+        const camStream = cameraStreamRef.current;
+        if (camStream) {
+          camStream.getTracks().forEach(t => pc.addTrack(t, camStream));
+        }
+
+        try {
+          const offer = await pc.createOffer();
+          await pc.setLocalDescription(offer);
+          battleChan.send({ type: 'broadcast', event: 'rtc_offer', payload: { sdp: offer } }).then(() => {});
+        } catch {}
+      }, 1500);
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      if (battlePeerRef.current) { battlePeerRef.current.close(); battlePeerRef.current = null; }
+    };
   }, [isBattleJoiner, user?.id, effectiveStreamId]);
 
-  // Battle room channel: sync battle state between host and joiner
+  // Battle room channel: sync battle state + WebRTC signaling between host and joiner
   useEffect(() => {
     if (!effectiveStreamId) return;
     const chan = supabase.channel(`battle_room_${effectiveStreamId}`);
+    const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }] };
 
-    // Host receives joiner arrival → update slot to show their avatar
-    chan.on('broadcast', { event: 'joiner_arrived' }, (msg: any) => {
+    const setupPeer = (isOfferer: boolean) => {
+      if (battlePeerRef.current) { battlePeerRef.current.close(); }
+      const pc = new RTCPeerConnection(rtcConfig);
+      battlePeerRef.current = pc;
+
+      pc.onicecandidate = (e) => {
+        if (e.candidate) {
+          chan.send({ type: 'broadcast', event: 'rtc_ice', payload: { candidate: e.candidate.toJSON(), from: isBroadcast ? 'host' : 'joiner' } }).then(() => {});
+        }
+      };
+
+      pc.ontrack = (e) => {
+        if (opponentVideoRef.current && e.streams[0]) {
+          opponentVideoRef.current.srcObject = e.streams[0];
+          opponentVideoRef.current.play().catch(() => {});
+        }
+      };
+
+      const stream = cameraStreamRef.current;
+      if (stream) {
+        stream.getTracks().forEach(t => pc.addTrack(t, stream));
+      }
+
+      return pc;
+    };
+
+    // Host receives joiner arrival → create peer and wait for offer
+    chan.on('broadcast', { event: 'joiner_arrived' }, async (msg: any) => {
       if (!isBroadcast) return;
       const { userId, name, avatar } = msg.payload;
       setBattleSlots(prev => {
         const next = [...prev];
-        const idx = next.findIndex(s => (s.userId === userId) || (s.status === 'invited') || (s.status === 'accepted' && !s.avatar));
+        const idx = next.findIndex(s => (s.userId === userId) || (s.status === 'invited') || (s.status === 'accepted'));
         if (idx !== -1) {
           next[idx] = { userId, name: name || next[idx].name, status: 'accepted', avatar: avatar || next[idx].avatar };
         } else {
@@ -1070,10 +1134,43 @@ export default function LiveStream() {
         return next;
       });
       showToast(`@${name} connected!`);
-      // Confirm battle is active
       setBattleState('IN_BATTLE');
       setBattleTime(300);
       setBattleCountdown(3);
+      setupPeer(false);
+    });
+
+    // WebRTC: receive offer (host side)
+    chan.on('broadcast', { event: 'rtc_offer' }, async (msg: any) => {
+      if (!isBroadcast) return;
+      const pc = battlePeerRef.current || setupPeer(false);
+      try {
+        await pc.setRemoteDescription(new RTCSessionDescription(msg.payload.sdp));
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        chan.send({ type: 'broadcast', event: 'rtc_answer', payload: { sdp: answer } }).then(() => {});
+      } catch {}
+    });
+
+    // WebRTC: receive answer (joiner side)
+    chan.on('broadcast', { event: 'rtc_answer' }, async (msg: any) => {
+      if (isBroadcast) return;
+      const pc = battlePeerRef.current;
+      if (!pc) return;
+      try {
+        await pc.setRemoteDescription(new RTCSessionDescription(msg.payload.sdp));
+      } catch {}
+    });
+
+    // WebRTC: receive ICE candidates
+    chan.on('broadcast', { event: 'rtc_ice' }, async (msg: any) => {
+      const fromHost = msg.payload.from === 'host';
+      if ((isBroadcast && fromHost) || (!isBroadcast && !fromHost)) return;
+      const pc = battlePeerRef.current;
+      if (!pc) return;
+      try {
+        await pc.addIceCandidate(new RTCIceCandidate(msg.payload.candidate));
+      } catch {}
     });
 
     chan.on('broadcast', { event: 'battle_state' }, (msg: any) => {
@@ -1089,6 +1186,7 @@ export default function LiveStream() {
       }
       if (payload.state === 'ENDED') {
         setBattleState('ENDED');
+        if (battlePeerRef.current) { battlePeerRef.current.close(); battlePeerRef.current = null; }
         if (!isBroadcast) {
           showToast('Battle ended!');
           setTimeout(() => {
@@ -1098,8 +1196,12 @@ export default function LiveStream() {
         }
       }
     });
+
     chan.subscribe();
-    return () => { supabase.removeChannel(chan); };
+    return () => {
+      supabase.removeChannel(chan);
+      if (battlePeerRef.current) { battlePeerRef.current.close(); battlePeerRef.current = null; }
+    };
   }, [effectiveStreamId, isBroadcast]);
   const [liveFilterCss, setLiveFilterCss] = useState('none');
   const [battleTime, setBattleTime] = useState(300); // 5 minutes
@@ -2832,8 +2934,8 @@ export default function LiveStream() {
                     >
                       {battleSlots[0].status === 'accepted' ? (
                         <div className="w-full h-full relative bg-[#13151A]">
-                          <video ref={opponentVideoRef} className="w-full h-full object-cover" autoPlay playsInline muted style={opponentVideoRef.current?.srcObject ? {} : { display: 'none' }} />
-                          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+                          <video ref={opponentVideoRef} className="w-full h-full object-cover absolute inset-0 z-10" autoPlay playsInline muted />
+                          <div className="absolute inset-0 z-0 flex flex-col items-center justify-center gap-2">
                             {battleSlots[0].avatar ? (
                               <img src={battleSlots[0].avatar} alt={battleSlots[0].name} className="w-16 h-16 rounded-full border-2 border-[#C9A96E] object-cover" />
                             ) : (
@@ -2844,7 +2946,7 @@ export default function LiveStream() {
                             <span className="text-white text-xs font-bold">{battleSlots[0].name}</span>
                             <div className="flex items-center gap-1">
                               <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                              <span className="text-green-400 text-[10px] font-bold">JOINED</span>
+                              <span className="text-green-400 text-[10px] font-bold">Connecting...</span>
                             </div>
                           </div>
                         </div>

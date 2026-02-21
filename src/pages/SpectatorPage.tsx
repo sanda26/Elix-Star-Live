@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { showToast } from '../lib/toast';
 import {
   Send,
@@ -17,6 +17,10 @@ import {
   Eye,
   MessageCircle,
   Flag,
+  Mic,
+  MicOff,
+  Camera,
+  CameraOff,
 } from 'lucide-react';
 import { GiftPanel } from '../components/GiftPanel';
 import { GIFTS } from '../lib/gifts';
@@ -28,6 +32,7 @@ import { useAuthStore } from '../store/useAuthStore';
 import { supabase } from '../lib/supabase';
 import ReportModal from '../components/ReportModal';
 import { websocket } from '../lib/websocket';
+import { useLiveWebRTC } from '../hooks/useLiveWebRTC';
 
 type LiveMessage = {
   id: string;
@@ -44,6 +49,7 @@ type LiveMessage = {
 export default function SpectatorPage() {
   const { streamId } = useParams<{ streamId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const user = useAuthStore((s) => s.user);
   const updateUser = useAuthStore((s) => s.updateUser);
 
@@ -81,6 +87,216 @@ export default function SpectatorPage() {
 
   const [hasJoinedToday, setHasJoinedToday] = useState(false);
   const [myHeartCount, setMyHeartCount] = useState(0);
+
+  // ═══════════════════════════════════════════════════
+  // CO-HOST STATE
+  // ═══════════════════════════════════════════════════
+  type PendingCoHostInvite = {
+    notifId: string;
+    hostName: string;
+    hostAvatar: string;
+    streamKey: string;
+    hostUserId: string;
+  };
+  const [pendingCoHostInvite, setPendingCoHostInvite] = useState<PendingCoHostInvite | null>(null);
+  const [isCoHosting, setIsCoHosting] = useState(false);
+  const [coHostStream, setCoHostStream] = useState<MediaStream | null>(null);
+  const myVideoRef = useRef<HTMLVideoElement>(null);
+  const [isMicMuted, setIsMicMuted] = useState(false);
+  const [isCamOff, setIsCamOff] = useState(false);
+
+  const isCoHostFromUrl = new URLSearchParams(location.search).get('cohost') === '1';
+
+  // If arrived via ?cohost=1, auto-start co-hosting
+  useEffect(() => {
+    if (!isCoHostFromUrl || !user?.id || isCoHosting) return;
+    startCoHosting();
+  }, [isCoHostFromUrl, user?.id]);
+
+  const startCoHosting = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'user' },
+        audio: { echoCancellation: true, noiseSuppression: true },
+      });
+      setCoHostStream(stream);
+      setIsCoHosting(true);
+
+      if (myVideoRef.current) {
+        myVideoRef.current.srcObject = stream;
+        myVideoRef.current.play().catch(() => {});
+      }
+
+      // Announce presence to host via Supabase broadcast
+      const chan = supabase.channel(`cohost_presence_${effectiveStreamId}`);
+      chan.subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          chan.send({
+            type: 'broadcast',
+            event: 'cohost_joined',
+            payload: {
+              userId: user?.id,
+              name: user?.username || user?.name || viewerName,
+              avatar: user?.avatar || viewerAvatar,
+            },
+          });
+        }
+      });
+
+      showToast('You are now co-hosting!');
+      setMessages(prev => [...prev, {
+        id: `cohost-${Date.now()}`,
+        username: 'System',
+        text: 'You joined as co-host',
+        isSystem: true,
+      }]);
+    } catch {
+      showToast('Camera access denied');
+    }
+  };
+
+  const stopCoHosting = () => {
+    if (coHostStream) {
+      coHostStream.getTracks().forEach(t => t.stop());
+      setCoHostStream(null);
+    }
+    setIsCoHosting(false);
+    setIsMicMuted(false);
+    setIsCamOff(false);
+  };
+
+  const toggleMic = () => {
+    if (!coHostStream) return;
+    const audioTrack = coHostStream.getAudioTracks()[0];
+    if (audioTrack) {
+      audioTrack.enabled = isMicMuted;
+      setIsMicMuted(!isMicMuted);
+    }
+  };
+
+  const toggleCam = () => {
+    if (!coHostStream) return;
+    const videoTrack = coHostStream.getVideoTracks()[0];
+    if (videoTrack) {
+      videoTrack.enabled = isCamOff;
+      setIsCamOff(!isCamOff);
+    }
+  };
+
+  // Listen for incoming co-host invites
+  useEffect(() => {
+    if (!user?.id) return;
+    const chan = supabase
+      .channel(`spectator_cohost_invite_${user.id}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
+        (payload: any) => {
+          const row = payload.new;
+          if (row?.type === 'cohost_invite') {
+            setPendingCoHostInvite({
+              notifId: row.id,
+              hostName: row.data?.host_name || 'Someone',
+              hostAvatar: row.data?.host_avatar || '',
+              streamKey: row.data?.stream_key || '',
+              hostUserId: row.data?.actor_id || '',
+            });
+          }
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(chan); };
+  }, [user?.id]);
+
+  const acceptCoHostInvite = async () => {
+    if (!pendingCoHostInvite || !user?.id) return;
+    const invite = pendingCoHostInvite;
+    setPendingCoHostInvite(null);
+
+    if (!invite.streamKey) {
+      showToast('Invalid invite — missing stream key');
+      return;
+    }
+
+    try {
+      const myUsername = user.username || user.name || viewerName;
+      supabase.from('notifications').update({ is_read: true }).eq('id', invite.notifId).then(() => {});
+      supabase.from('notifications').insert({
+        user_id: invite.hostUserId,
+        type: 'cohost_accepted',
+        title: 'Co-Host Accepted',
+        body: `@${myUsername} accepted your co-host invite!`,
+        data: {
+          actor_id: user.id,
+          accepted_name: myUsername,
+          accepted_avatar: user.avatar || viewerAvatar,
+          stream_key: invite.streamKey,
+        },
+      }).then(() => {});
+    } catch {}
+
+    // If already on this stream, start co-hosting in-place
+    if (invite.streamKey === effectiveStreamId) {
+      await startCoHosting();
+    } else {
+      showToast(`Joining @${invite.hostName}'s stream...`);
+      window.location.href = `/watch/${invite.streamKey}?cohost=1`;
+    }
+  };
+
+  const declineCoHostInvite = async () => {
+    if (!pendingCoHostInvite) return;
+    try {
+      await supabase.from('notifications').update({ is_read: true }).eq('id', pendingCoHostInvite.notifId);
+    } catch {}
+    setPendingCoHostInvite(null);
+  };
+
+  // Cleanup co-host camera on unmount
+  useEffect(() => {
+    return () => {
+      if (coHostStream) {
+        coHostStream.getTracks().forEach(t => t.stop());
+      }
+    };
+  }, [coHostStream]);
+
+  // Attach co-host stream to my video ref
+  useEffect(() => {
+    if (isCoHosting && coHostStream && myVideoRef.current) {
+      myVideoRef.current.srcObject = coHostStream;
+      myVideoRef.current.play().catch(() => {});
+    }
+  }, [isCoHosting, coHostStream]);
+
+  // WebRTC: receive broadcaster's live camera stream (+ send co-host stream if co-hosting)
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [hasStream, setHasStream] = useState(false);
+
+  const { remotePeers, error: webrtcError } = useLiveWebRTC({
+    roomId: effectiveStreamId,
+    localUserId: user?.id || '',
+    localStream: coHostStream,
+    enabled: !!effectiveStreamId && !!user?.id,
+  });
+
+  useEffect(() => {
+    if (remotePeers.length === 0) return;
+    const broadcasterPeer = remotePeers[0];
+    if (videoRef.current && broadcasterPeer.stream) {
+      if (videoRef.current.srcObject !== broadcasterPeer.stream) {
+        videoRef.current.srcObject = broadcasterPeer.stream;
+        videoRef.current.play().catch(() => {});
+        setHasStream(true);
+      }
+    }
+  }, [remotePeers]);
+
+  useEffect(() => {
+    if (webrtcError) {
+      showToast(`Connection error: ${webrtcError}`);
+    }
+  }, [webrtcError]);
 
   // Fetch host profile
   useEffect(() => {
@@ -152,9 +368,12 @@ export default function SpectatorPage() {
     }
   }, [user?.id, effectiveStreamId]);
 
-  // Viewer count realtime
+  // Viewer count: increment on join, decrement on leave + realtime updates
   useEffect(() => {
     if (!effectiveStreamId) return;
+
+    supabase.rpc('increment_viewer_count', { p_stream_key: effectiveStreamId }).then(() => {});
+
     const chan = supabase
       .channel(`spectator_viewers_${effectiveStreamId}`)
       .on('postgres_changes', {
@@ -170,8 +389,95 @@ export default function SpectatorPage() {
         }
       })
       .subscribe();
-    return () => { supabase.removeChannel(chan); };
+
+    return () => {
+      supabase.removeChannel(chan);
+      supabase.rpc('decrement_viewer_count', { p_stream_key: effectiveStreamId }).then(() => {});
+    };
   }, [effectiveStreamId, navigate]);
+
+  // WebSocket: connect to room for real-time chat, gifts, join/leave
+  useEffect(() => {
+    if (!effectiveStreamId || !user?.id) return;
+
+    let mounted = true;
+
+    const connect = async () => {
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token || '';
+      if (!token || !mounted) return;
+      websocket.connect(effectiveStreamId, token);
+    };
+
+    const handleUserJoined = (data: any) => {
+      if (!mounted) return;
+      if (data.user_id === user?.id) return;
+      const joinName = data.username || 'User';
+      setMessages(prev => [...prev, {
+        id: `join-${Date.now()}`,
+        username: joinName,
+        text: 'joined the stream',
+        isSystem: true,
+        level: data.level || 1,
+        avatar: data.avatar_url || '',
+      }]);
+      setViewerCount(prev => prev + 1);
+    };
+
+    const handleUserLeft = (data: any) => {
+      if (!mounted) return;
+      setViewerCount(prev => Math.max(0, prev - 1));
+    };
+
+    const handleChatMessage = (data: any) => {
+      if (!mounted) return;
+      if (data.user_id === user?.id) return;
+      const msg: LiveMessage = {
+        id: `ws-${Date.now()}-${Math.random()}`,
+        username: data.username || 'User',
+        text: data.text || '',
+        level: data.level || 1,
+        avatar: data.avatar || '',
+      };
+      setMessages(prev => [...prev, msg]);
+    };
+
+    const handleGiftSent = (data: any) => {
+      if (!mounted) return;
+      if (data.user_id === user?.id) return;
+      const giftDef = GIFTS.find(g => g.id === data.giftId);
+      if (giftDef) {
+        const msg: LiveMessage = {
+          id: `gift-ws-${Date.now()}-${Math.random()}`,
+          username: data.username || 'User',
+          text: `sent ${giftDef.name}`,
+          level: data.level || 1,
+          avatar: data.avatar || '',
+          isGift: true,
+        };
+        setMessages(prev => [...prev, msg]);
+        if (giftDef.video) {
+          setGiftQueue(prev => [...prev, giftDef.video]);
+        }
+      }
+    };
+
+    websocket.on('user_joined', handleUserJoined);
+    websocket.on('user_left', handleUserLeft);
+    websocket.on('chat_message', handleChatMessage);
+    websocket.on('gift_sent', handleGiftSent);
+
+    connect();
+
+    return () => {
+      mounted = false;
+      websocket.off('user_joined', handleUserJoined);
+      websocket.off('user_left', handleUserLeft);
+      websocket.off('chat_message', handleChatMessage);
+      websocket.off('gift_sent', handleGiftSent);
+      websocket.disconnect();
+    };
+  }, [effectiveStreamId, user?.id]);
 
   // Fetch share contacts
   useEffect(() => {
@@ -299,18 +605,24 @@ export default function SpectatorPage() {
     });
   };
 
-  // Send join request
+  // Send join request (co-host or battle)
   const sendJoinRequest = async (type: 'cohost' | 'battle') => {
     if (!user?.id || !effectiveStreamId) return;
-    const { data: stream } = await supabase
-      .from('live_streams')
-      .select('user_id')
-      .eq('stream_key', effectiveStreamId)
-      .maybeSingle();
-    if (!stream?.user_id) { showToast('Stream not found'); return; }
+
+    let targetUserId = hostUserId;
+    if (!targetUserId) {
+      const { data: stream } = await supabase
+        .from('live_streams')
+        .select('user_id')
+        .eq('stream_key', effectiveStreamId)
+        .maybeSingle();
+      if (!stream?.user_id) { showToast('Stream not found'); return; }
+      targetUserId = stream.user_id;
+    }
+
     const myName = user.username || user.name || 'User';
     await supabase.from('notifications').insert({
-      user_id: stream.user_id,
+      user_id: targetUserId,
       type: 'join_request',
       title: type === 'cohost' ? 'Co-Host Request' : 'Battle Request',
       body: `@${myName} wants to ${type === 'cohost' ? 'co-host' : 'battle'}!`,
@@ -335,19 +647,111 @@ export default function SpectatorPage() {
     <div className="fixed inset-0 bg-[#0A0B0E] flex justify-center">
       <div className="relative w-full max-w-[480px] h-full bg-[#13151A] overflow-hidden flex flex-col">
 
-        {/* FULL SCREEN VIDEO AREA — black background, this is where the live stream renders */}
+        {/* FULL SCREEN VIDEO AREA — live stream via WebRTC */}
         <div className="absolute inset-0 z-0 bg-[#13151A]">
-          <div className="w-full h-full flex items-center justify-center">
-            <div className="w-24 h-24 rounded-full border-[3px] border-red-500/40 overflow-hidden">
-              {hostAvatar ? (
-                <img src={hostAvatar} alt="" className="w-full h-full object-cover" />
-              ) : (
-                <div className="w-full h-full bg-[#C9A96E]/20 flex items-center justify-center">
-                  <span className="text-[#C9A96E] font-bold text-3xl">{hostName.slice(0, 1).toUpperCase()}</span>
+          {isCoHosting ? (
+            /* SPLIT SCREEN: host on top, co-host (me) on bottom */
+            <div className="w-full h-full flex flex-col">
+              <div className="flex-1 relative bg-black overflow-hidden">
+                <video
+                  ref={videoRef}
+                  className="w-full h-full object-cover"
+                  playsInline
+                  autoPlay
+                  style={{ opacity: hasStream ? 1 : 0, transition: 'opacity 0.4s ease' }}
+                />
+                {!hasStream && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-[#13151A]">
+                    <div className="w-16 h-16 rounded-full border-[3px] border-red-500/40 overflow-hidden">
+                      {hostAvatar ? (
+                        <img src={hostAvatar} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full bg-[#C9A96E]/20 flex items-center justify-center">
+                          <span className="text-[#C9A96E] font-bold text-2xl">{hostName.slice(0, 1).toUpperCase()}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+                <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-sm">
+                  <span className="text-white text-[10px] font-bold">{hostName}</span>
+                </div>
+              </div>
+              <div className="flex-1 relative bg-black overflow-hidden border-t-2 border-[#C9A96E]/30">
+                <video
+                  ref={myVideoRef}
+                  className="w-full h-full object-cover"
+                  playsInline
+                  autoPlay
+                  muted
+                  style={{ transform: 'scaleX(-1)', opacity: isCamOff ? 0 : 1, transition: 'opacity 0.3s ease' }}
+                />
+                {isCamOff && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-[#13151A]">
+                    <CameraOff size={32} className="text-white/30" />
+                  </div>
+                )}
+                <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-sm">
+                  <span className="text-white text-[10px] font-bold">You</span>
+                </div>
+                {/* Co-host controls: mic, cam, leave */}
+                <div className="absolute top-2 right-2 flex items-center gap-2 z-[5]">
+                  <button
+                    type="button"
+                    title={isMicMuted ? 'Unmute mic' : 'Mute mic'}
+                    onClick={toggleMic}
+                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${isMicMuted ? 'bg-red-500/80' : 'bg-black/50 backdrop-blur-sm'}`}
+                  >
+                    {isMicMuted ? <MicOff size={14} className="text-white" /> : <Mic size={14} className="text-white" />}
+                  </button>
+                  <button
+                    type="button"
+                    title={isCamOff ? 'Turn on camera' : 'Turn off camera'}
+                    onClick={toggleCam}
+                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${isCamOff ? 'bg-red-500/80' : 'bg-black/50 backdrop-blur-sm'}`}
+                  >
+                    {isCamOff ? <CameraOff size={14} className="text-white" /> : <Camera size={14} className="text-white" />}
+                  </button>
+                  <button
+                    type="button"
+                    title="Leave co-host"
+                    onClick={stopCoHosting}
+                    className="w-8 h-8 rounded-full bg-red-500 flex items-center justify-center"
+                  >
+                    <X size={14} className="text-white" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* NORMAL FULL SCREEN: host video only */
+            <>
+              <video
+                ref={videoRef}
+                className="absolute inset-0 w-full h-full object-cover"
+                playsInline
+                autoPlay
+                style={{ opacity: hasStream ? 1 : 0, transition: 'opacity 0.4s ease' }}
+              />
+              {!hasStream && (
+                <div className="w-full h-full flex flex-col items-center justify-center gap-4">
+                  <div className="w-24 h-24 rounded-full border-[3px] border-red-500/40 overflow-hidden">
+                    {hostAvatar ? (
+                      <img src={hostAvatar} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full bg-[#C9A96E]/20 flex items-center justify-center">
+                        <span className="text-[#C9A96E] font-bold text-3xl">{hostName.slice(0, 1).toUpperCase()}</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-[#C9A96E] border-t-transparent rounded-full animate-spin" />
+                    <span className="text-white/60 text-sm">Connecting to stream...</span>
+                  </div>
                 </div>
               )}
-            </div>
-          </div>
+            </>
+          )}
         </div>
 
         {/* TOP BAR */}
@@ -443,8 +847,13 @@ export default function SpectatorPage() {
 
             {/* Action buttons */}
             <div className="flex items-center justify-end gap-3 flex-shrink-0">
-              {/* Request co-host */}
-              {!joinRequestSent ? (
+              {/* Request co-host / Co-hosting indicator */}
+              {isCoHosting ? (
+                <div className="h-10 px-3 rounded-full bg-[#C9A96E]/20 border border-[#C9A96E]/40 flex items-center justify-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-[#C9A96E] animate-pulse" />
+                  <span className="text-[#C9A96E] text-[10px] font-bold">Co-hosting</span>
+                </div>
+              ) : !joinRequestSent ? (
                 <button
                   type="button"
                   title="Request co-host"
@@ -654,6 +1063,53 @@ export default function SpectatorPage() {
             videoId={hostUserId}
             contentType="live"
           />
+        )}
+
+        {/* INCOMING CO-HOST INVITE BANNER */}
+        {pendingCoHostInvite && (
+          <div className="fixed inset-0 z-[100002] flex flex-col justify-end pointer-events-none max-w-[480px] mx-auto">
+            <div className="absolute inset-0 bg-black/40 pointer-events-auto" onClick={() => declineCoHostInvite()} />
+            <div className="pointer-events-auto relative z-10">
+              <div className="bg-[#1C1E24]/95 backdrop-blur-md rounded-t-2xl border-t border-[#C9A96E]/30 shadow-2xl p-4 pb-safe">
+                <div className="flex justify-center mb-3">
+                  <div className="w-10 h-1 bg-white/20 rounded-full" />
+                </div>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-14 h-14 rounded-full border-2 border-[#C9A96E]/50 overflow-hidden bg-[#13151A] flex-shrink-0">
+                    {pendingCoHostInvite.hostAvatar ? (
+                      <img src={pendingCoHostInvite.hostAvatar} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-[#C9A96E] font-bold text-lg">
+                        {pendingCoHostInvite.hostName.slice(0, 1).toUpperCase()}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white font-bold text-base">Co-Host Invite</p>
+                    <p className="text-white/60 text-sm truncate">
+                      <span className="text-[#C9A96E]">@{pendingCoHostInvite.hostName}</span> wants you to co-host!
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); declineCoHostInvite(); }}
+                    className="flex-1 py-3 rounded-xl bg-white/5 border border-white/10 text-white/70 text-sm font-bold active:scale-95 transition-all"
+                  >
+                    Decline
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); acceptCoHostInvite(); }}
+                    className="flex-1 py-3 rounded-xl bg-[#C9A96E] text-black text-sm font-bold active:scale-95 transition-all shadow-lg shadow-[#C9A96E]/20"
+                  >
+                    Accept
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>

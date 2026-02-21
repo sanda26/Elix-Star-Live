@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Eye } from 'lucide-react';
 import EnhancedVideoPlayer from '../components/EnhancedVideoPlayer';
+import LivePreviewCard from '../components/LivePreviewCard';
 import { useVideoStore } from '../store/useVideoStore';
 import { useSafetyStore } from '../store/useSafetyStore';
 import { supabase } from '../lib/supabase';
@@ -104,13 +104,28 @@ export default function VideoFeed() {
 
   useEffect(() => {
     fetchLiveStreams();
+
+    // Realtime: instantly react when streams go live or end
     const chan = supabase
       .channel('feed_live_streams')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'live_streams' }, () => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'live_streams' }, (payload: any) => {
+        const row = payload.new;
+        // Stream ended → immediately remove it from feed
+        if (row && row.is_live === false && row.stream_key) {
+          setLiveStreams(prev => prev.filter(s => s.streamKey !== row.stream_key && s.streamKey !== row.id));
+        }
+        // Any change → also do a full re-fetch to catch new lives
         fetchLiveStreams();
       })
       .subscribe();
-    return () => { supabase.removeChannel(chan); };
+
+    // Polling fallback: refresh every 10s in case realtime misses an event
+    const poll = setInterval(fetchLiveStreams, 10000);
+
+    return () => {
+      supabase.removeChannel(chan);
+      clearInterval(poll);
+    };
   }, []);
 
   const [loopCount, setLoopCount] = useState(1);
@@ -201,15 +216,22 @@ export default function VideoFeed() {
     };
   }, []);
 
-  // Auto-navigate into live stream when spectator scrolls to a live card
+  // When a live stream ends and its card is removed, adjust activeIndex so the user
+  // doesn't get stuck on an empty slot or an out-of-bounds index
+  const prevFeedLengthRef = useRef(feedItemsWithLive.length);
   useEffect(() => {
-    const currentItem = feedItemsWithLive[activeIndex];
-    if (!currentItem || currentItem.kind !== 'live') return;
-    const timer = setTimeout(() => {
-      navigate(`/watch/${currentItem.stream.streamKey}`);
-    }, 1200);
-    return () => clearTimeout(timer);
-  }, [activeIndex, feedItemsWithLive, navigate]);
+    const prevLen = prevFeedLengthRef.current;
+    const curLen = feedItemsWithLive.length;
+    prevFeedLengthRef.current = curLen;
+
+    if (curLen < prevLen && activeIndex >= curLen && curLen > 0) {
+      setActiveIndex(curLen - 1);
+      const container = containerRef.current;
+      if (container) {
+        container.scrollTo({ top: (curLen - 1) * container.clientHeight, behavior: 'smooth' });
+      }
+    }
+  }, [feedItemsWithLive.length, activeIndex]);
 
   return (
     <div 
@@ -268,65 +290,14 @@ export default function VideoFeed() {
               style={{ margin: 0, gap: 0 }}
             >
               {item.kind === 'live' ? (
-                <button
-                  type="button"
-                  onClick={() => navigate(`/watch/${item.stream.streamKey}`)}
-                  className="w-full h-full relative bg-[#0A0B0E] overflow-hidden group"
-                >
-                  {/* Animated gradient background */}
-                  <div className="absolute inset-0 animate-pulse" style={{
-                    background: 'radial-gradient(ellipse at 50% 40%, rgba(239,68,68,0.15) 0%, rgba(201,169,110,0.08) 40%, transparent 70%)',
-                    animationDuration: '2s',
-                  }} />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/40" />
-
-                  {/* Pulsing ring behind avatar */}
-                  <div className="absolute inset-0 flex flex-col items-center justify-center z-10 gap-5">
-                    <div className="relative">
-                      <div className="absolute -inset-3 rounded-full border-2 border-red-500/40 animate-ping" style={{ animationDuration: '2s' }} />
-                      <div className="absolute -inset-6 rounded-full border border-red-500/20 animate-ping" style={{ animationDuration: '3s' }} />
-                      <div className="w-28 h-28 rounded-full border-[3px] border-red-500 overflow-hidden shadow-[0_0_40px_rgba(239,68,68,0.5)] relative z-10">
-                        {item.stream.avatar ? (
-                          <img src={item.stream.avatar} alt="" className="w-full h-full object-cover" />
-                        ) : (
-                          <div className="w-full h-full bg-[#C9A96E]/20 flex items-center justify-center">
-                            <span className="text-[#C9A96E] font-bold text-4xl">{item.stream.name.slice(0, 1).toUpperCase()}</span>
-                          </div>
-                        )}
-                      </div>
-                      <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1 px-3 py-1 rounded-full bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.6)]">
-                        <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
-                        <span className="text-white text-[11px] font-extrabold uppercase tracking-wider">Live</span>
-                      </div>
-                    </div>
-
-                    <div className="text-center px-6 mt-2">
-                      <p className="text-white font-bold text-xl mb-1">{item.stream.name}</p>
-                      {item.stream.title && (
-                        <p className="text-white/50 text-sm mb-2">{item.stream.title}</p>
-                      )}
-                      <div className="flex items-center justify-center gap-1.5 text-white/60">
-                        <Eye size={14} />
-                        <span className="text-xs font-semibold">
-                          {item.stream.viewers >= 1000 ? (item.stream.viewers / 1000).toFixed(1) + 'K' : item.stream.viewers} watching
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Joining indicator */}
-                    {activeIndex === index && (
-                      <div className="flex items-center gap-2 mt-3">
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        <span className="text-white/80 text-sm font-medium">Joining stream...</span>
-                      </div>
-                    )}
-                    {activeIndex !== index && (
-                      <div className="mt-3 px-8 py-3 rounded-full bg-red-500/90 shadow-[0_0_20px_rgba(239,68,68,0.3)] group-active:scale-95 transition-transform">
-                        <span className="text-white font-bold text-sm tracking-wide">Tap to Watch</span>
-                      </div>
-                    )}
-                  </div>
-                </button>
+                <LivePreviewCard
+                  streamKey={item.stream.streamKey}
+                  name={item.stream.name}
+                  avatar={item.stream.avatar}
+                  viewers={item.stream.viewers}
+                  title={item.stream.title}
+                  isActive={activeIndex === index}
+                />
               ) : (
                 <EnhancedVideoPlayer
                   videoId={item.videoId}

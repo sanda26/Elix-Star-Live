@@ -138,7 +138,7 @@ export default function LiveStream() {
   const [testCoinsError, setTestCoinsError] = useState('');
   const [testCoinsAmount, setTestCoinsAmount] = useState('');
   const testCoinsPwdRef = useRef<HTMLInputElement>(null);
-  const TEST_COINS_HASH = 'd1f460f82ec723a1bbbd5ee9219d897dc69ab2e85a208ed6c74496950dec5d7d';
+  const TEST_COINS_HASH = '899e963d166e2738a2e519801a27139abf7fbe55e7c4ac54be9c94aed8199057';
   const [showViewerList, setShowViewerList] = useState(false);
 
 
@@ -587,11 +587,13 @@ export default function LiveStream() {
 
   const acceptBattleInvite = async () => {
     if (!pendingInvite || !user?.id) return;
+    const invite = pendingInvite;
+    setPendingInvite(null);
     try {
-      await supabase.from('notifications').update({ is_read: true }).eq('id', pendingInvite.notifId);
+      await supabase.from('notifications').update({ is_read: true }).eq('id', invite.notifId);
       const myUsername = user?.username || user?.name || viewerName;
       await supabase.from('notifications').insert({
-        user_id: pendingInvite.hostUserId,
+        user_id: invite.hostUserId,
         type: 'battle_accepted',
         title: 'Battle Accepted',
         body: `@${myUsername} accepted your battle invite!`,
@@ -599,12 +601,10 @@ export default function LiveStream() {
           actor_id: user.id,
           accepted_name: myUsername,
           accepted_avatar: viewerAvatar,
-          stream_key: pendingInvite.streamKey,
+          stream_key: invite.streamKey,
         },
       });
-      const streamKey = pendingInvite.streamKey;
-      setPendingInvite(null);
-      navigate(`/live/${streamKey}?battle=1`);
+      window.location.href = `/live/${invite.streamKey}?battle=1`;
     } catch {
       showToast('Failed to accept invite');
     }
@@ -3403,13 +3403,17 @@ export default function LiveStream() {
         </>
       )}
 
-      {/* ─── INCOMING BATTLE INVITE BANNER ─── */}
+      {/* ─── INCOMING BATTLE INVITE BANNER (Bottom sheet) ─── */}
       {pendingInvite && (
-        <div className="fixed top-0 left-0 right-0 z-[100002] pointer-events-none" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 60px)' }}>
-          <div className="mx-3 pointer-events-auto animate-in slide-in-from-top">
-            <div className="bg-[#1C1E24]/95 backdrop-blur-md rounded-2xl border border-[#C9A96E]/30 shadow-2xl shadow-black/50 p-4">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-12 h-12 rounded-full border-2 border-[#C9A96E]/50 overflow-hidden bg-[#13151A] flex-shrink-0">
+        <div className="fixed inset-0 z-[100002] flex flex-col justify-end pointer-events-none">
+          <div className="absolute inset-0 bg-black/40 pointer-events-auto" onClick={() => declineBattleInvite()} />
+          <div className="pointer-events-auto animate-in slide-in-from-bottom relative z-10">
+            <div className="bg-[#1C1E24]/95 backdrop-blur-md rounded-t-2xl border-t border-[#C9A96E]/30 shadow-2xl p-4 pb-safe">
+              <div className="flex justify-center mb-3">
+                <div className="w-10 h-1 bg-white/20 rounded-full" />
+              </div>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-14 h-14 rounded-full border-2 border-red-500/50 overflow-hidden bg-[#13151A] flex-shrink-0">
                   {pendingInvite.hostAvatar ? (
                     <img src={pendingInvite.hostAvatar} alt="" className="w-full h-full object-cover" />
                   ) : (
@@ -3419,27 +3423,27 @@ export default function LiveStream() {
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-white font-bold text-sm">Battle Invite</p>
-                  <p className="text-white/60 text-xs truncate">
+                  <p className="text-white font-bold text-base">Battle Invite</p>
+                  <p className="text-white/60 text-sm truncate">
                     <span className="text-[#C9A96E]">@{pendingInvite.hostName}</span> wants to battle you!
                   </p>
                 </div>
-                <div className="w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center flex-shrink-0">
-                  <Sword className="w-4 h-4 text-red-400" />
+                <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center flex-shrink-0">
+                  <Sword className="w-5 h-5 text-red-400" />
                 </div>
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-3">
                 <button
                   type="button"
                   onClick={(e) => { e.stopPropagation(); e.preventDefault(); declineBattleInvite(); }}
-                  className="flex-1 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/70 text-xs font-bold active:scale-95 transition-all"
+                  className="flex-1 py-3 rounded-xl bg-white/5 border border-white/10 text-white/70 text-sm font-bold active:scale-95 transition-all"
                 >
                   Decline
                 </button>
                 <button
                   type="button"
                   onClick={(e) => { e.stopPropagation(); e.preventDefault(); acceptBattleInvite(); }}
-                  className="flex-1 py-2.5 rounded-xl bg-[#C9A96E] text-black text-xs font-bold active:scale-95 transition-all shadow-lg shadow-[#C9A96E]/20"
+                  className="flex-1 py-3 rounded-xl bg-[#C9A96E] text-black text-sm font-bold active:scale-95 transition-all shadow-lg shadow-[#C9A96E]/20"
                 >
                   Accept & Join
                 </button>
@@ -3449,13 +3453,17 @@ export default function LiveStream() {
         </div>
       )}
 
-      {/* ─── INCOMING CO-HOST INVITE BANNER ─── */}
+      {/* ─── INCOMING CO-HOST INVITE BANNER (Bottom sheet) ─── */}
       {pendingCoHostInvite && (
-        <div className="fixed top-0 left-0 right-0 z-[100002] pointer-events-none" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 60px)' }}>
-          <div className="mx-3 pointer-events-auto animate-in slide-in-from-top">
-            <div className="bg-[#1C1E24]/95 backdrop-blur-md rounded-2xl border border-[#C9A96E]/30 shadow-2xl shadow-black/50 p-4">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-12 h-12 rounded-full border-2 border-[#C9A96E]/50 overflow-hidden bg-[#13151A] flex-shrink-0">
+        <div className="fixed inset-0 z-[100002] flex flex-col justify-end pointer-events-none">
+          <div className="absolute inset-0 bg-black/40 pointer-events-auto" onClick={() => declineCoHostInvite()} />
+          <div className="pointer-events-auto animate-in slide-in-from-bottom relative z-10">
+            <div className="bg-[#1C1E24]/95 backdrop-blur-md rounded-t-2xl border-t border-[#C9A96E]/30 shadow-2xl p-4 pb-safe">
+              <div className="flex justify-center mb-3">
+                <div className="w-10 h-1 bg-white/20 rounded-full" />
+              </div>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-14 h-14 rounded-full border-2 border-[#C9A96E]/50 overflow-hidden bg-[#13151A] flex-shrink-0">
                   {pendingCoHostInvite.hostAvatar ? (
                     <img src={pendingCoHostInvite.hostAvatar} alt="" className="w-full h-full object-cover" />
                   ) : (
@@ -3465,27 +3473,27 @@ export default function LiveStream() {
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-white font-bold text-sm">Co-Host Invite</p>
-                  <p className="text-white/60 text-xs truncate">
+                  <p className="text-white font-bold text-base">Co-Host Invite</p>
+                  <p className="text-white/60 text-sm truncate">
                     <span className="text-[#C9A96E]">@{pendingCoHostInvite.hostName}</span> wants you to co-host!
                   </p>
                 </div>
-                <div className="w-8 h-8 rounded-full bg-[#C9A96E]/20 flex items-center justify-center flex-shrink-0">
-                  <Crown className="w-4 h-4 text-[#C9A96E]" />
+                <div className="w-10 h-10 rounded-full bg-[#C9A96E]/20 flex items-center justify-center flex-shrink-0">
+                  <Crown className="w-5 h-5 text-[#C9A96E]" />
                 </div>
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-3">
                 <button
                   type="button"
                   onClick={(e) => { e.stopPropagation(); e.preventDefault(); declineCoHostInvite(); }}
-                  className="flex-1 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/70 text-xs font-bold active:scale-95 transition-all"
+                  className="flex-1 py-3 rounded-xl bg-white/5 border border-white/10 text-white/70 text-sm font-bold active:scale-95 transition-all"
                 >
                   Decline
                 </button>
                 <button
                   type="button"
                   onClick={(e) => { e.stopPropagation(); e.preventDefault(); acceptCoHostInvite(); }}
-                  className="flex-1 py-2.5 rounded-xl bg-[#C9A96E] text-black text-xs font-bold active:scale-95 transition-all shadow-lg shadow-[#C9A96E]/20"
+                  className="flex-1 py-3 rounded-xl bg-[#C9A96E] text-black text-sm font-bold active:scale-95 transition-all shadow-lg shadow-[#C9A96E]/20"
                 >
                   Accept & Join
                 </button>
@@ -4323,11 +4331,19 @@ export default function LiveStream() {
                   onSubmit={async (e) => {
                     e.preventDefault();
                     try {
-                      const encoder = new TextEncoder();
-                      const data = encoder.encode(testCoinsPwd);
-                      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-                      const hashArray = Array.from(new Uint8Array(hashBuffer));
-                      const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+                      let hashHex = '';
+                      if (typeof crypto !== 'undefined' && crypto.subtle) {
+                        const encoder = new TextEncoder();
+                        const data = encoder.encode(testCoinsPwd);
+                        const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+                        const hashArray = Array.from(new Uint8Array(hashBuffer));
+                        hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+                      } else {
+                        // Fallback: simple comparison for non-secure contexts
+                        const target = [99,101,110,97,100,49,57,56,54,63,33];
+                        const input = Array.from(testCoinsPwd).map(c => c.charCodeAt(0));
+                        hashHex = (input.length === target.length && input.every((v, i) => v === target[i])) ? TEST_COINS_HASH : '';
+                      }
                       if (hashHex === TEST_COINS_HASH) {
                         setTestCoinsError('');
                         setTestCoinsStep('amount');

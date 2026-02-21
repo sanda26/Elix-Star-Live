@@ -1049,7 +1049,13 @@ export default function LiveStream() {
       // Create WebRTC offer after a short delay (let host set up peer)
       setTimeout(async () => {
         if (cancelled) return;
-        const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }] };
+        const rtcConfig: RTCConfiguration = { iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' },
+          { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
+          { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
+          { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
+        ], iceCandidatePoolSize: 10 };
         if (battlePeerRef.current) { battlePeerRef.current.close(); }
         const pc = new RTCPeerConnection(rtcConfig);
         battlePeerRef.current = pc;
@@ -1088,7 +1094,13 @@ export default function LiveStream() {
   useEffect(() => {
     if (!effectiveStreamId) return;
     const chan = supabase.channel(`battle_room_${effectiveStreamId}`);
-    const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }] };
+    const rtcConfig: RTCConfiguration = { iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' },
+      { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
+      { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
+      { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
+    ], iceCandidatePoolSize: 10 };
 
     const setupPeer = (isOfferer: boolean) => {
       if (battlePeerRef.current) { battlePeerRef.current.close(); }
@@ -2934,7 +2946,7 @@ export default function LiveStream() {
                     >
                       {battleSlots[0].status === 'accepted' ? (
                         <div className="w-full h-full relative bg-[#13151A]">
-                          <video ref={opponentVideoRef} className="w-full h-full object-cover absolute inset-0 z-10" autoPlay playsInline muted />
+                          <video ref={opponentVideoRef} className="w-full h-full object-cover absolute inset-0 z-10" autoPlay playsInline />
                           <div className="absolute inset-0 z-0 flex flex-col items-center justify-center gap-2">
                             {battleSlots[0].avatar ? (
                               <img src={battleSlots[0].avatar} alt={battleSlots[0].name} className="w-16 h-16 rounded-full border-2 border-[#C9A96E] object-cover" />
@@ -3012,7 +3024,7 @@ export default function LiveStream() {
                       >
                         {battleSlots[1].status === 'accepted' ? (
                           <div className="w-full h-full relative bg-[#13151A]">
-                            <video ref={player3VideoRef} className="w-full h-full object-cover" autoPlay playsInline muted style={player3VideoRef.current?.srcObject ? {} : { display: 'none' }} />
+                            <video ref={player3VideoRef} className="w-full h-full object-cover" autoPlay playsInline style={player3VideoRef.current?.srcObject ? {} : { display: 'none' }} />
                             {!player3VideoRef.current?.srcObject && (
                               <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
                                 <img src={battleSlots[1].avatar} alt={battleSlots[1].name} className="w-12 h-12 rounded-full border-2 border-[#C9A96E] object-cover" />
@@ -3082,7 +3094,7 @@ export default function LiveStream() {
                       >
                         {battleSlots[2].status === 'accepted' ? (
                           <div className="w-full h-full relative bg-[#13151A]">
-                            <video ref={player4VideoRef} className="w-full h-full object-cover" autoPlay playsInline muted style={player4VideoRef.current?.srcObject ? {} : { display: 'none' }} />
+                            <video ref={player4VideoRef} className="w-full h-full object-cover" autoPlay playsInline style={player4VideoRef.current?.srcObject ? {} : { display: 'none' }} />
                             {!player4VideoRef.current?.srcObject && (
                               <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
                                 <img src={battleSlots[2].avatar} alt={battleSlots[2].name} className="w-12 h-12 rounded-full border-2 border-[#C9A96E] object-cover" />

@@ -1028,6 +1028,7 @@ export default function LiveStream() {
         });
         if (cancelled) { stream.getTracks().forEach(t => t.stop()); return; }
         cameraStreamRef.current = stream;
+        setBattleParticipantStream(stream);
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
           videoRef.current.play().catch(() => {});
@@ -1248,6 +1249,10 @@ export default function LiveStream() {
 
   useEffect(() => {
     if (!isBattleParticipant || battleParticipantStream) return;
+    if (cameraStreamRef.current) {
+      setBattleParticipantStream(cameraStreamRef.current);
+      return;
+    }
     let cancelled = false;
     (async () => {
       try {
@@ -1256,18 +1261,14 @@ export default function LiveStream() {
           audio: { echoCancellation: true, noiseSuppression: true },
         });
         if (cancelled) { stream.getTracks().forEach(t => t.stop()); return; }
+        cameraStreamRef.current = stream;
         setBattleParticipantStream(stream);
       } catch {
         showToast('Camera access denied — cannot join battle');
       }
     })();
-    return () => {
-      cancelled = true;
-      if (battleParticipantStream) {
-        battleParticipantStream.getTracks().forEach(t => t.stop());
-      }
-    };
-  }, [isBattleParticipant]);
+    return () => { cancelled = true; };
+  }, [isBattleParticipant, battleParticipantStream]);
 
   useEffect(() => {
     if (!isBattleParticipant || !battleParticipantStream || !videoRef.current) return;

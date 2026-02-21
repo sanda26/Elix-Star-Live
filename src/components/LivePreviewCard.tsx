@@ -12,6 +12,7 @@ interface LivePreviewCardProps {
   viewers: number;
   title?: string;
   isActive: boolean;
+  onStreamEnded?: () => void;
 }
 
 export default function LivePreviewCard({
@@ -21,6 +22,7 @@ export default function LivePreviewCard({
   viewers,
   title,
   isActive,
+  onStreamEnded,
 }: LivePreviewCardProps) {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
@@ -75,6 +77,10 @@ export default function LivePreviewCard({
       return;
     }
     const peer = remotePeers[0];
+    if (peer.state === 'failed' || peer.state === 'disconnected') {
+      onStreamEnded?.();
+      return;
+    }
     if (peer.stream && videoRef.current) {
       if (videoRef.current.srcObject !== peer.stream) {
         videoRef.current.srcObject = peer.stream;
@@ -82,7 +88,16 @@ export default function LivePreviewCard({
         setHasStream(true);
       }
     }
-  }, [remotePeers]);
+  }, [remotePeers, onStreamEnded]);
+
+  // Timeout: if no video after 15s, assume stream is dead
+  useEffect(() => {
+    if (!isActive || !wsConnected || hasStream) return;
+    const timeout = setTimeout(() => {
+      if (!hasStream) onStreamEnded?.();
+    }, 15000);
+    return () => clearTimeout(timeout);
+  }, [isActive, wsConnected, hasStream, onStreamEnded]);
 
   const handleTap = () => {
     websocket.disconnect();

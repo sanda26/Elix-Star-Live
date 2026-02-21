@@ -82,7 +82,7 @@ export default function VideoFeed() {
       })
       .subscribe();
 
-    const poll = setInterval(fetchLiveStreams, 8000);
+    const poll = setInterval(fetchLiveStreams, 5000);
 
     return () => {
       supabase.removeChannel(chan);
@@ -188,6 +188,9 @@ export default function VideoFeed() {
                   viewers={item.stream.viewers}
                   title={item.stream.title}
                   isActive={activeIndex === index}
+                  onStreamEnded={() => {
+                    setLiveStreams(prev => prev.filter(s => s.streamKey !== item.stream.streamKey));
+                  }}
                 />
               </div>
             </div>

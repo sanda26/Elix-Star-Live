@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Eye } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { supabase } from '../lib/supabase';
 
@@ -211,95 +210,69 @@ export default function LivePreviewCard({
     <button
       type="button"
       onClick={handleTap}
-      className="w-full h-full relative bg-[#0A0B0E] overflow-hidden group"
+      className="w-full h-full relative bg-black overflow-hidden"
+      title="Tap to join live"
     >
-      {/* Live video background */}
+      {/* Full-screen live video */}
       <video
         ref={videoRef}
         className="absolute inset-0 w-full h-full object-cover"
         playsInline
         muted
         autoPlay
-        style={{ opacity: hasStream ? 1 : 0, transition: 'opacity 0.5s ease' }}
+        style={{ opacity: hasStream ? 1 : 0, transition: 'opacity 0.4s ease' }}
       />
 
-      {/* Fallback: animated gradient + avatar when no stream yet */}
+      {/* Loading state: avatar + spinner while connecting */}
       {!hasStream && (
-        <>
-          <div className="absolute inset-0 animate-pulse" style={{
-            background: 'radial-gradient(ellipse at 50% 40%, rgba(239,68,68,0.15) 0%, rgba(201,169,110,0.08) 40%, transparent 70%)',
-            animationDuration: '2s',
-          }} />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/40" />
-          <div className="absolute inset-0 flex flex-col items-center justify-center z-10 gap-5">
-            <div className="relative">
-              <div className="absolute -inset-3 rounded-full border-2 border-red-500/40 animate-ping" style={{ animationDuration: '2s' }} />
-              <div className="absolute -inset-6 rounded-full border border-red-500/20 animate-ping" style={{ animationDuration: '3s' }} />
-              <div className="w-28 h-28 rounded-full border-[3px] border-red-500 overflow-hidden shadow-[0_0_40px_rgba(239,68,68,0.5)] relative z-10">
-                {avatar ? (
-                  <img src={avatar} alt="" className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full bg-[#C9A96E]/20 flex items-center justify-center">
-                    <span className="text-[#C9A96E] font-bold text-4xl">{name.slice(0, 1).toUpperCase()}</span>
-                  </div>
-                )}
-              </div>
-            </div>
-            {connecting && (
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                <span className="text-white/80 text-sm font-medium">Connecting...</span>
-              </div>
-            )}
-          </div>
-        </>
-      )}
-
-      {/* Overlay gradient on top of live video */}
-      {hasStream && (
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/30 z-[1]" />
-      )}
-
-      {/* LIVE badge - always visible */}
-      <div className="absolute top-[calc(var(--safe-top,0px)+60px)] left-3 z-[5] flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-500/90 shadow-[0_0_15px_rgba(239,68,68,0.5)]">
-        <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
-        <span className="text-white text-[11px] font-extrabold uppercase tracking-wider">Live</span>
-      </div>
-
-      {/* Bottom info overlay - always visible */}
-      <div className="absolute bottom-4 left-0 right-0 z-[5] px-4">
-        <div className="flex items-end justify-between">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <div className="w-10 h-10 rounded-full border-2 border-red-500/60 overflow-hidden flex-shrink-0">
-                {avatar ? (
-                  <img src={avatar} alt="" className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full bg-[#C9A96E]/20 flex items-center justify-center">
-                    <span className="text-[#C9A96E] font-bold text-sm">{name.slice(0, 1).toUpperCase()}</span>
-                  </div>
-                )}
-              </div>
-              <div className="min-w-0">
-                <p className="text-white font-bold text-sm truncate">{name}</p>
-                {title && (
-                  <p className="text-white/50 text-xs truncate">{title}</p>
-                )}
-              </div>
-            </div>
-            <div className="flex items-center gap-1.5 text-white/60 ml-12">
-              <Eye size={12} />
-              <span className="text-[11px] font-semibold">
-                {viewers >= 1000 ? (viewers / 1000).toFixed(1) + 'K' : viewers} watching
-              </span>
+        <div className="absolute inset-0 bg-black flex flex-col items-center justify-center z-10 gap-4">
+          <div className="relative">
+            <div className="absolute -inset-2 rounded-full border-2 border-red-500/50 animate-ping" style={{ animationDuration: '2s' }} />
+            <div className="w-24 h-24 rounded-full border-[3px] border-red-500 overflow-hidden shadow-[0_0_30px_rgba(239,68,68,0.4)] relative z-10">
+              {avatar ? (
+                <img src={avatar} alt="" className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full bg-[#1a1a2e] flex items-center justify-center">
+                  <span className="text-[#C9A96E] font-bold text-3xl">{name.slice(0, 1).toUpperCase()}</span>
+                </div>
+              )}
             </div>
           </div>
+          <p className="text-white font-semibold text-base">{name}</p>
+          {connecting && (
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 border-2 border-white/60 border-t-transparent rounded-full animate-spin" />
+              <span className="text-white/60 text-sm">Connecting...</span>
+            </div>
+          )}
+        </div>
+      )}
 
-          {/* Tap to join indicator */}
-          <div className="px-5 py-2.5 rounded-full bg-red-500/90 shadow-[0_0_20px_rgba(239,68,68,0.3)] group-active:scale-95 transition-transform flex-shrink-0">
-            <span className="text-white font-bold text-xs tracking-wide">Tap to Watch</span>
+      {/* Subtle gradient at bottom for text readability */}
+      <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-black/70 via-black/30 to-transparent z-[2] pointer-events-none" />
+
+      {/* Bottom overlay: TikTok-style LIVE badges + creator info */}
+      <div className="absolute bottom-16 left-0 right-0 z-[5] px-4">
+        {/* Badges row */}
+        <div className="flex items-center gap-2 mb-2">
+          <div className="flex items-center gap-1 px-2.5 py-1 rounded bg-red-500/90">
+            <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+            <span className="text-white text-[11px] font-bold">LIVE now</span>
+          </div>
+          <div className="px-2.5 py-1 rounded bg-white/15 backdrop-blur-sm">
+            <span className="text-white text-[11px] font-semibold">
+              {viewers >= 1000 ? (viewers / 1000).toFixed(1) + 'K' : viewers} viewers
+            </span>
           </div>
         </div>
+
+        {/* Creator name */}
+        <p className="text-white font-bold text-[15px] drop-shadow-lg">{name}</p>
+
+        {/* Stream title / description */}
+        {title && (
+          <p className="text-white/80 text-[13px] mt-0.5 drop-shadow-md line-clamp-2">{title}</p>
+        )}
       </div>
     </button>
   );

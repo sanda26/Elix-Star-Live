@@ -757,37 +757,49 @@ export default function SpectatorPage() {
         {/* TOP BAR */}
         <div className="relative z-[110] pointer-events-none">
           <div className="px-3" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 6px)' }}>
-            <div className="flex items-start justify-between gap-2">
+            <div className="flex items-center justify-between gap-2">
               {/* Left: Creator info */}
-              <div className="pointer-events-auto flex flex-col gap-2">
-                <div className="flex items-center gap-0 -ml-1">
-                  <div
-                    className="relative z-10 flex-shrink-0 cursor-pointer active:scale-95 transition-transform"
-                    onClick={() => navigate(`/profile/${hostUserId}`)}
-                  >
-                    <AvatarRing src={hostAvatar} alt={hostName} size={56} />
-                  </div>
-                  <div
-                    className="flex flex-col justify-center -ml-4 pl-6 pr-4 h-9 rounded-full border border-[#C9A96E]/60 bg-[#13151A]/80 min-w-[120px]"
-                    style={{ borderTopLeftRadius: 0, borderBottomLeftRadius: 0, boxShadow: '0 0 8px rgba(201,169,110,0.25)' }}
-                  >
-                    <span className="text-white text-[10px] font-bold truncate max-w-[140px] leading-tight">{hostName}</span>
-                    <div className="flex items-center gap-1 -mt-0.5">
-                      <Heart className="w-2 h-2 text-[#FF2D55]" strokeWidth={2.5} fill="#FF2D55" />
-                      <span className="text-white/70 text-[8px] font-bold tabular-nums">{activeLikes.toLocaleString()}</span>
-                    </div>
-                  </div>
+              <div className="pointer-events-auto flex items-center gap-0 -ml-1 flex-shrink min-w-0">
+                <div
+                  className="relative z-10 flex-shrink-0 cursor-pointer active:scale-95 transition-transform"
+                  onClick={() => navigate(`/profile/${hostUserId}`)}
+                >
+                  <AvatarRing src={hostAvatar} alt={hostName} size={44} />
                 </div>
-
-                {/* Viewer count */}
-                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#13151A]/60 border border-white/10 w-fit">
-                  <Eye size={10} className="text-white/50" />
-                  <span className="text-white/60 text-[9px] font-semibold">{viewerCount}</span>
+                <div
+                  className="flex flex-col justify-center -ml-3 pl-5 pr-3 h-8 rounded-full border border-[#C9A96E]/60 bg-[#13151A]/80 min-w-0"
+                  style={{ borderTopLeftRadius: 0, borderBottomLeftRadius: 0, boxShadow: '0 0 8px rgba(201,169,110,0.25)' }}
+                >
+                  <span className="text-white text-[11px] font-bold truncate max-w-[100px] leading-tight">{hostName}</span>
+                  <div className="flex items-center gap-1 -mt-0.5">
+                    <Heart className="w-2.5 h-2.5 text-[#FF2D55]" strokeWidth={2.5} fill="#FF2D55" />
+                    <span className="text-white/70 text-[8px] font-bold tabular-nums">{activeLikes.toLocaleString()}</span>
+                  </div>
                 </div>
               </div>
 
-              {/* Right: Close / Leave button */}
-              <div className="pointer-events-auto flex items-center gap-2 mt-1">
+              {/* Right: Viewer avatars + count + close */}
+              <div className="pointer-events-auto flex items-center gap-2 flex-shrink-0">
+                {/* Viewer avatar stack */}
+                <div className="flex items-center">
+                  <div className="flex -space-x-2">
+                    {[hostAvatar, viewerAvatar].filter(Boolean).slice(0, 3).map((av, i) => (
+                      <div key={i} className="w-7 h-7 rounded-full border-2 border-[#0A0B0E] overflow-hidden bg-[#1a1a2e]">
+                        <img src={av} alt="" className="w-full h-full object-cover" />
+                      </div>
+                    ))}
+                    {viewerCount > 3 && (
+                      <div className="w-7 h-7 rounded-full border-2 border-[#0A0B0E] bg-[#1a1a2e] flex items-center justify-center">
+                        <span className="text-white/60 text-[8px] font-bold">+{viewerCount - 3}</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="ml-1.5 px-2 py-0.5 rounded-full bg-[#13151A]/70">
+                    <span className="text-white text-[11px] font-bold tabular-nums">
+                      {viewerCount >= 1000 ? (viewerCount / 1000).toFixed(1) + 'K' : viewerCount}
+                    </span>
+                  </div>
+                </div>
                 <button
                   type="button"
                   title="Leave stream"
@@ -820,10 +832,9 @@ export default function SpectatorPage() {
           </div>
         </div>
 
-        {/* BOTTOM BAR */}
+        {/* BOTTOM BAR — same as LiveStream panel */}
         <div className="flex-none pointer-events-auto bg-transparent px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-2 min-h-[50px] relative z-[90]">
           <div className="flex items-center gap-3 translate-y-[4px]">
-            {/* Chat input */}
             {!currentGift ? (
               <form onSubmit={handleSendMessage} className="flex-1 flex items-center gap-2 bg-[#13151A]/40 backdrop-blur-md rounded-full px-4 py-2 border border-white/10 h-10 min-w-0">
                 <input
@@ -845,21 +856,14 @@ export default function SpectatorPage() {
               <div className="flex-1" />
             )}
 
-            {/* Action buttons */}
             <div className="flex items-center justify-end gap-3 flex-shrink-0">
-              {/* Request co-host / Co-hosting indicator */}
               {isCoHosting ? (
                 <div className="h-10 px-3 rounded-full bg-[#C9A96E]/20 border border-[#C9A96E]/40 flex items-center justify-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-[#C9A96E] animate-pulse" />
                   <span className="text-[#C9A96E] text-[10px] font-bold">Co-hosting</span>
                 </div>
               ) : !joinRequestSent ? (
-                <button
-                  type="button"
-                  title="Request co-host"
-                  onClick={() => sendJoinRequest('cohost')}
-                  className="w-10 h-10 rounded-full bg-[#C9A96E] flex items-center justify-center shadow-lg active:scale-95 transition-transform"
-                >
+                <button type="button" title="Request co-host" onClick={() => sendJoinRequest('cohost')} className="w-10 h-10 rounded-full bg-[#C9A96E] flex items-center justify-center shadow-lg active:scale-95 transition-transform">
                   <UserPlus size={20} className="text-black" />
                 </button>
               ) : (
@@ -867,28 +871,13 @@ export default function SpectatorPage() {
                   <Check size={20} className="text-green-400" />
                 </div>
               )}
-              <button
-                type="button"
-                title="Send gift"
-                onClick={() => setShowGiftPanel(true)}
-                className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg"
-              >
+              <button type="button" title="Send gift" onClick={() => setShowGiftPanel(true)} className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg">
                 <Gift size={20} className="text-[#C9A96E]" />
               </button>
-              <button
-                type="button"
-                title="Share"
-                onClick={() => setShowSharePanel(true)}
-                className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform"
-              >
+              <button type="button" title="Share" onClick={() => setShowSharePanel(true)} className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform">
                 <Share2 size={20} className="text-[#C9A96E]" />
               </button>
-              <button
-                type="button"
-                title="More options"
-                onClick={() => setIsMoreMenuOpen(true)}
-                className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg"
-              >
+              <button type="button" title="More options" onClick={() => setIsMoreMenuOpen(true)} className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg">
                 <MoreVertical size={20} className="text-[#C9A96E]" />
               </button>
             </div>

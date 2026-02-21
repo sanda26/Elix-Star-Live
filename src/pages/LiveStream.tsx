@@ -3102,75 +3102,49 @@ export default function LiveStream() {
       {/* BOTTOM ZONE: INPUT (Fixed) - Moved out to ensure top z-index */}
       <div className="bottom-zone flex-none pointer-events-auto bg-transparent px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-2 min-h-[50px] flex items-center fixed bottom-0 left-0 right-0 z-[90] justify-center">
         <div className="w-full max-w-[480px] mx-auto">
-          {/* Spectator Input & Actions */}
+          {/* Spectator Input & Actions — same icon style as creator bar */}
           {!isBroadcast && (
-            <div className="flex items-center gap-2 w-full relative">
-              {/* Emoji Picker Panel */}
-              {showEmojiPicker && (
-                <div className="absolute bottom-full left-0 mb-2 w-64 bg-[#1C1E24] border border-white/10 rounded-xl shadow-xl overflow-hidden pointer-events-auto z-[250]">
-                  <div className="grid grid-cols-6 gap-2 p-2 max-h-48 overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
-                    {EMOJI_LIST.map((emoji, i) => (
-                      <button
-                        key={i}
-                        type="button"
-                        onClick={() => {
-                          setInputValue(prev => prev + emoji);
-                          setShowEmojiPicker(false);
-                        }}
-                        className="text-xl hover:bg-white/10 rounded p-1 transition"
-                      >
-                        {emoji}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Input Form */}
-              <form onSubmit={handleSendMessage} className="flex-1 flex items-center gap-2 bg-[#13151A]/40 backdrop-blur-md rounded-full px-3 py-1.5 border border-white/10 h-10 relative z-keyboard pointer-events-auto">
-                <button
-                  type="button"
-                  onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                  className={`text-white/60 hover:text-white transition flex-shrink-0 ${showEmojiPicker ? 'text-white' : ''}`}
-                >
-                  <Smile size={20} />
-                </button>
-                <input 
-                    type="text" 
+            <div className="flex items-center gap-3 pointer-events-auto translate-y-[12px]">
+              {!currentGift ? (
+                <form onSubmit={handleSendMessage} className="flex-1 flex items-center gap-2 bg-[#13151A]/40 backdrop-blur-md rounded-full px-4 py-2 border border-white/10 h-10 min-w-0">
+                  <input
+                    type="text"
                     inputMode="text"
                     enterKeyHint="send"
                     autoComplete="off"
                     autoCorrect="off"
-                    placeholder="Say something..." 
+                    placeholder="Say something..."
                     className="bg-transparent text-white text-sm outline-none flex-1 placeholder:text-white/40 min-w-0"
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
-                    onFocus={() => setShowEmojiPicker(false)}
-                />
-                <button type="submit" className="text-white hover:text-white/80 transition flex-shrink-0" title="Send">
+                  />
+                  <button type="submit" className="text-white hover:text-white/80 transition flex-shrink-0" title="Send">
                     <Send size={18} />
-                </button>
-              </form>
-              
-              <div className="flex items-center gap-2 flex-shrink-0 pointer-events-auto">
-                <button type="button" onClick={() => setIsMoreMenuOpen(true)} className="w-9 h-9 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform">
-                  <MoreVertical size={16} className="text-[#C9A96E]" />
-                </button>
-                {!joinRequestSent ? (
-                  <button type="button" onClick={() => sendJoinRequest('cohost')} className="w-9 h-9 rounded-full bg-[#C9A96E] flex items-center justify-center shadow-lg active:scale-95 transition-transform">
-                    <UserPlus size={16} className="text-black" />
                   </button>
-                ) : (
-                  <div className="w-9 h-9 rounded-full bg-[#13151A] border border-green-500/40 flex items-center justify-center">
-                    <Check size={16} className="text-green-400" />
-                  </div>
-                )}
-                <button type="button" onClick={() => setShowGiftPanel(true)} className="w-9 h-9 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform">
-                  <Gift size={16} className="text-[#C9A96E]" />
+                </form>
+              ) : (
+                <div className="flex-1" />
+              )}
+
+              <div className="flex items-center justify-end gap-3 flex-shrink-0">
+              {!joinRequestSent ? (
+                <button type="button" onClick={() => sendJoinRequest('cohost')} className="w-10 h-10 rounded-full bg-[#C9A96E] flex items-center justify-center shadow-lg active:scale-95 transition-transform">
+                  <UserPlus size={20} className="text-black" />
                 </button>
-                <button type="button" onPointerDown={(e) => { handleLikeTap(e); }} className="w-9 h-9 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform">
-                  <Heart size={16} fill="#FF2D55" className="text-[#FF2D55]" />
-                </button>
+              ) : (
+                <div className="w-10 h-10 rounded-full bg-[#13151A] border border-green-500/40 flex items-center justify-center">
+                  <Check size={20} className="text-green-400" />
+                </div>
+              )}
+              <button type="button" onClick={() => { setGiftTarget('me'); setShowGiftPanel(true); }} className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg">
+                <Gift size={20} className="text-[#C9A96E]" />
+              </button>
+              <button type="button" onClick={() => setShowSharePanel(true)} className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform">
+                <Share2 size={20} className="text-[#C9A96E]" />
+              </button>
+              <button type="button" onClick={() => setIsMoreMenuOpen(true)} className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg">
+                <MoreVertical size={20} className="text-[#C9A96E]" />
+              </button>
               </div>
             </div>
           )}

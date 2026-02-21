@@ -604,8 +604,16 @@ export default function LiveStream() {
           stream_key: invite.streamKey,
         },
       });
-      window.location.href = `/live/${invite.streamKey}?battle=1`;
-    } catch {
+      if (!invite.streamKey) {
+        showToast('Invalid invite — missing stream key');
+        return;
+      }
+      showToast(`Joining @${invite.hostName}'s battle...`);
+      setTimeout(() => {
+        window.location.href = `/live/${invite.streamKey}?battle=1`;
+      }, 300);
+    } catch (err) {
+      console.error('Battle accept error:', err);
       showToast('Failed to accept invite');
     }
   };
@@ -758,13 +766,16 @@ export default function LiveStream() {
           stream_key: invite.streamKey,
         },
       });
-      const target = `/live/${invite.streamKey}?cohost=1`;
-      if (effectiveStreamId === invite.streamKey) {
-        navigate(target, { replace: true });
-      } else {
-        window.location.href = target;
+      if (!invite.streamKey) {
+        showToast('Invalid invite — missing stream key');
+        return;
       }
-    } catch {
+      showToast(`Joining @${invite.hostName}'s stream as co-host...`);
+      setTimeout(() => {
+        window.location.href = `/live/${invite.streamKey}?cohost=1`;
+      }, 300);
+    } catch (err) {
+      console.error('Co-host accept error:', err);
       showToast('Failed to accept co-host invite');
     }
   };

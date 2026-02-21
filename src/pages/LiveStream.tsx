@@ -991,6 +991,8 @@ export default function LiveStream() {
   // Battle Mode State
   const [battleState, setBattleState] = useState<BattleState>('LIVE_SOLO');
   const [isBattleMode, setIsBattleMode] = useState(false);
+  const isBattleModeRef = useRef(false);
+  useEffect(() => { isBattleModeRef.current = isBattleMode; }, [isBattleMode]);
   const isBattleJoiner = !isBroadcast && new URLSearchParams(location.search).get('battle') === '1';
 
   // If joining as battle participant, immediately enter battle mode and start camera
@@ -1140,20 +1142,15 @@ export default function LiveStream() {
       return pc;
     };
 
-    // Host receives joiner arrival → create peer and wait for offer
+    // Host receives joiner arrival → only process if host is already in battle mode
     chan.on('broadcast', { event: 'joiner_arrived' }, async (msg: any) => {
-      if (!isBroadcast) return;
+      if (!isBroadcast || !isBattleModeRef.current) return;
       const { userId, name, avatar } = msg.payload;
       setBattleSlots(prev => {
         const next = [...prev];
-        const idx = next.findIndex(s => (s.userId === userId) || (s.status === 'invited') || (s.status === 'accepted'));
+        const idx = next.findIndex(s => (s.userId === userId) || (s.status === 'invited'));
         if (idx !== -1) {
           next[idx] = { userId, name: name || next[idx].name, status: 'accepted', avatar: avatar || next[idx].avatar };
-        } else {
-          const emptyIdx = next.findIndex(s => s.status === 'empty');
-          if (emptyIdx !== -1) {
-            next[emptyIdx] = { userId, name, status: 'accepted', avatar };
-          }
         }
         return next;
       });
@@ -1164,9 +1161,9 @@ export default function LiveStream() {
       setupPeer(false);
     });
 
-    // WebRTC: receive offer (host side)
+    // WebRTC: receive offer (host side) — only when in battle
     chan.on('broadcast', { event: 'rtc_offer' }, async (msg: any) => {
-      if (!isBroadcast) return;
+      if (!isBroadcast || !isBattleModeRef.current) return;
       const pc = battlePeerRef.current || setupPeer(false);
       try {
         await pc.setRemoteDescription(new RTCSessionDescription(msg.payload.sdp));

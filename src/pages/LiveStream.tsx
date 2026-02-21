@@ -65,6 +65,7 @@ type LiveMessage = {
   avatar?: string;
   isSystem?: boolean;
   membershipIcon?: string;
+  isMod?: boolean;
 };
 
 type UniverseTickerMessage = {
@@ -140,7 +141,7 @@ export default function LiveStream() {
   const testCoinsPwdRef = useRef<HTMLInputElement>(null);
   const TEST_COINS_HASH = '899e963d166e2738a2e519801a27139abf7fbe55e7c4ac54be9c94aed8199057';
   const [showViewerList, setShowViewerList] = useState(false);
-
+  const [moderators, setModerators] = useState<Set<string>>(new Set());
 
   const [isMicMuted, setIsMicMuted] = useState(false);
   const [isChatVisible, setIsChatVisible] = useState(true);
@@ -2196,6 +2197,7 @@ export default function LiveStream() {
           text: inputValue,
           level: userLevel,
           avatar: isBroadcast ? myAvatar : viewerAvatar,
+          isMod: isBroadcast || moderators.has(user?.id || ''),
       };
       setMessages(prev => [...prev, newMsg]);
 
@@ -3092,9 +3094,15 @@ export default function LiveStream() {
               <ChatOverlay
                 messages={messages}
                 variant="panel"
+                isModerator={isBroadcast || moderators.has(user?.id || '')}
                 onLike={() => addLiveLikes(1)}
                 onHeartSpawn={(cx, cy) => handleLikeTap()}
                 onProfileTap={(username) => openMiniProfile(username)}
+                onDeleteMessage={(msgId) => setMessages(prev => prev.filter(m => m.id !== msgId))}
+                onBlockUser={(username) => {
+                  setMessages(prev => prev.filter(m => m.username !== username));
+                  showToast(`@${username} blocked from chat`);
+                }}
               />
             )}
           </div>
@@ -3771,7 +3779,7 @@ export default function LiveStream() {
                 </div>
               </div>
 
-              <div className="mt-5 grid grid-cols-5 gap-2">
+              <div className="mt-5 grid grid-cols-4 gap-2">
                 <button type="button" onClick={async () => {
                   if (!user?.id || !miniProfile) return;
                   try {
@@ -3805,16 +3813,36 @@ export default function LiveStream() {
                 <button type="button" onClick={handleShare} className="h-9 rounded-lg bg-white/10 text-white text-[11px] font-bold hover:bg-white/20 active:scale-95 transition-all">
                   Share
                 </button>
-                <button type="button" onClick={async () => {
-                  if (!user?.id || !miniProfile) return;
-                  try {
-                    await supabase.from('blocked_users').upsert({ blocker_id: user.id, blocked_id: miniProfile.id }, { onConflict: 'blocker_id,blocked_id' });
-                    closeMiniProfile();
-                  } catch {}
-                }} className="h-9 rounded-lg bg-red-950/50 text-red-400 text-[11px] font-bold border border-red-900/50 hover:bg-red-900/50 active:scale-95 transition-all">
-                  Block
-                </button>
               </div>
+              {/* Moderator actions — only creator and mods see these */}
+              {(isBroadcast || (miniProfile?.id && moderators.has(user?.id || ''))) && miniProfile?.id && miniProfile.id !== user?.id && (
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  {isBroadcast && (
+                    <button type="button" onClick={() => {
+                      if (!miniProfile?.id) return;
+                      setModerators(prev => {
+                        const next = new Set(prev);
+                        if (next.has(miniProfile.id!)) { next.delete(miniProfile.id!); showToast(`@${miniProfile.username} removed as moderator`); }
+                        else { next.add(miniProfile.id!); showToast(`@${miniProfile.username} is now a moderator`); }
+                        return next;
+                      });
+                      closeMiniProfile();
+                    }} className={`h-9 rounded-lg text-[11px] font-bold active:scale-95 transition-all ${miniProfile?.id && moderators.has(miniProfile.id) ? 'bg-purple-950/50 text-purple-400 border border-purple-900/50' : 'bg-purple-600 text-white'}`}>
+                      {miniProfile?.id && moderators.has(miniProfile.id) ? 'Remove Mod' : 'Make Mod'}
+                    </button>
+                  )}
+                  <button type="button" onClick={async () => {
+                    if (!user?.id || !miniProfile) return;
+                    try {
+                      await supabase.from('blocked_users').upsert({ blocker_id: user.id, blocked_id: miniProfile.id }, { onConflict: 'blocker_id,blocked_id' });
+                      showToast(`@${miniProfile.username} blocked`);
+                      closeMiniProfile();
+                    } catch {}
+                  }} className="h-9 rounded-lg bg-red-950/50 text-red-400 text-[11px] font-bold border border-red-900/50 hover:bg-red-900/50 active:scale-95 transition-all">
+                    Block
+                  </button>
+                </div>
+              )}
             </motion.div>
           </div>
         )}

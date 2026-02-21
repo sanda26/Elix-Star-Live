@@ -1,5 +1,6 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { LevelBadge } from './LevelBadge';
+import { Trash2, Ban, Shield } from 'lucide-react';
 
 interface Message {
   id: string;
@@ -10,6 +11,7 @@ interface Message {
   isSystem?: boolean;
   avatar?: string;
   membershipIcon?: string;
+  isMod?: boolean;
 }
 
 interface ChatOverlayProps {
@@ -17,17 +19,36 @@ interface ChatOverlayProps {
   variant?: 'panel' | 'overlay';
   compact?: boolean;
   className?: string;
+  isModerator?: boolean;
   onLike?: () => void;
   onHeartSpawn?: (clientX: number, clientY: number) => void;
   onProfileTap?: (username: string) => void;
+  onDeleteMessage?: (messageId: string) => void;
+  onBlockUser?: (username: string) => void;
 }
 
-export function ChatOverlay({ messages, variant = 'panel', compact = false, className, onLike, onHeartSpawn, onProfileTap }: ChatOverlayProps) {
+export function ChatOverlay({ messages, variant = 'panel', compact = false, className, isModerator = false, onLike, onHeartSpawn, onProfileTap, onDeleteMessage, onBlockUser }: ChatOverlayProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
+  const [activeModMenu, setActiveModMenu] = useState<string | null>(null);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  const startLongPress = (msgId: string) => {
+    if (!isModerator) return;
+    longPressTimer.current = setTimeout(() => {
+      setActiveModMenu(msgId);
+    }, 500);
+  };
+
+  const cancelLongPress = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  };
 
   const containerStyle: React.CSSProperties = {
     display: 'flex',
@@ -47,8 +68,8 @@ export function ChatOverlay({ messages, variant = 'panel', compact = false, clas
     WebkitFontSmoothing: 'antialiased',
     MozOsxFontSmoothing: 'grayscale',
     pointerEvents: 'none',
-    alignItems: 'flex-start', // Align messages to the left
-    zIndex: 90, // Explicitly set z-index lower than video gift (100)
+    alignItems: 'flex-start',
+    zIndex: 90,
   };
 
   const scrollStyle: React.CSSProperties = {
@@ -61,7 +82,7 @@ export function ChatOverlay({ messages, variant = 'panel', compact = false, clas
     msOverflowStyle: 'none',
     paddingLeft: '0px',
     marginLeft: '0px',
-    alignItems: 'flex-start', // Align children to the left
+    alignItems: 'flex-start',
     width: '100%',
     pointerEvents: 'auto',
   };
@@ -76,8 +97,14 @@ export function ChatOverlay({ messages, variant = 'panel', compact = false, clas
         style={scrollStyle}
       >
         {messages.map((msg) => (
-          <div key={msg.id} className="flex items-center gap-2 animate-in slide-in-from-left-2 duration-200">
-            {/* Level Icon with Avatar - Fixed size container but allows overflow for bar */}
+          <div
+            key={msg.id}
+            className="flex items-center gap-2 animate-in slide-in-from-left-2 duration-200 relative"
+            onPointerDown={() => startLongPress(msg.id)}
+            onPointerUp={cancelLongPress}
+            onPointerLeave={cancelLongPress}
+            onPointerCancel={cancelLongPress}
+          >
             <div 
               className="flex-shrink-0 cursor-pointer relative z-10"
               onClick={(e) => {
@@ -88,9 +115,14 @@ export function ChatOverlay({ messages, variant = 'panel', compact = false, clas
               <LevelBadge level={msg.level || 1} size={28} layout="fixed" avatar={msg.avatar} />
             </div>
             
-            {/* Content Container - Auto arrange name and text */}
             <div className="flex flex-col min-w-0 justify-center">
               <div className="flex items-center gap-1.5 flex-wrap">
+                {msg.isMod && (
+                  <div className="bg-purple-600/80 px-1 py-0.5 rounded flex items-center gap-0.5 flex-shrink-0">
+                    <Shield size={8} className="text-white" />
+                    <span className="text-white text-[7px] font-bold uppercase">MOD</span>
+                  </div>
+                )}
                 <span 
                     className="text-white font-bold text-[13px] leading-tight cursor-pointer hover:underline whitespace-nowrap" 
                     onClick={() => onProfileTap?.(msg.username)}
@@ -98,7 +130,6 @@ export function ChatOverlay({ messages, variant = 'panel', compact = false, clas
                   {msg.username}
                 </span>
                 
-                {/* Membership Icon in Chat */}
                 {msg.membershipIcon && (
                   <div className="bg-[#C9A96E] px-1.5 py-0.5 rounded-full flex items-center gap-1 border border-white/10 shadow-sm inline-flex align-middle">
                     <img src={msg.membershipIcon} alt="Member" className="w-3 h-3 object-contain" />
@@ -111,6 +142,42 @@ export function ChatOverlay({ messages, variant = 'panel', compact = false, clas
                 </span>
               </div>
             </div>
+
+            {activeModMenu === msg.id && isModerator && (
+              <div className="absolute left-12 -top-1 z-50 flex items-center gap-1 bg-[#1C1E24] border border-white/20 rounded-lg px-1 py-1 shadow-xl pointer-events-auto">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDeleteMessage?.(msg.id);
+                    setActiveModMenu(null);
+                  }}
+                  className="flex items-center gap-1 px-2 py-1.5 rounded-md hover:bg-white/10 active:scale-95 transition-all"
+                >
+                  <Trash2 size={12} className="text-red-400" />
+                  <span className="text-red-400 text-[10px] font-bold">Delete</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onBlockUser?.(msg.username);
+                    setActiveModMenu(null);
+                  }}
+                  className="flex items-center gap-1 px-2 py-1.5 rounded-md hover:bg-white/10 active:scale-95 transition-all"
+                >
+                  <Ban size={12} className="text-orange-400" />
+                  <span className="text-orange-400 text-[10px] font-bold">Block</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); setActiveModMenu(null); }}
+                  className="px-2 py-1.5 rounded-md hover:bg-white/10 text-white/50 text-[10px] font-bold"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
           </div>
         ))}
         <div ref={bottomRef} />

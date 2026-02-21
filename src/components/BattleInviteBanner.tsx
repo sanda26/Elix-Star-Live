@@ -96,7 +96,7 @@ export function BattleInviteBanner() {
 
     const queryParam = invite.type === 'cohost' ? '?cohost=1' : '?battle=1';
     showToast(`Joining @${invite.hostName}'s stream...`);
-    navigate(`/live/${invite.streamKey}${queryParam}`, { replace: true });
+    window.location.href = `/live/${invite.streamKey}${queryParam}`;
   };
 
   const declineInvite = async () => {

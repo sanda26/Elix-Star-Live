@@ -3710,7 +3710,7 @@ export default function LiveStream() {
                     <div className="text-white/70 text-[12px] font-bold">
                       {typeof miniProfile.level === 'number' ? (
                         <span className="inline-flex items-center gap-2">
-                          <LevelBadge level={miniProfile.level} size={16} layout="fixed" />
+                          <LevelBadge level={miniProfile.level} size={16} layout="fixed" avatar={miniProfile.avatar} />
                           <span>Level {miniProfile.level}</span>
                         </span>
                       ) : (

@@ -5,6 +5,7 @@ import { useAuthStore } from '../store/useAuthStore';
 import { supabase } from '../lib/supabase';
 import { uploadAvatar } from '../lib/avatarUpload';
 import { AvatarRing } from '../components/AvatarRing';
+import { LevelBadge } from '../components/LevelBadge';
 import { trackEvent } from '../lib/analytics';
 import ReportModal from '../components/ReportModal';
 
@@ -554,6 +555,11 @@ export default function Profile() {
             )}
           </div>
           <span className="text-[13px] text-white font-medium">@{displayUsername}</span>
+          {(profileData?.level ?? 0) > 0 && (
+            <div className="mt-2">
+              <LevelBadge level={profileData?.level || 1} size={28} layout="fixed" avatar={displayAvatar} />
+            </div>
+          )}
         </div>
 
 

@@ -535,7 +535,7 @@ export default function EnhancedVideoPlayer({
       {/* Bottom Info Area - Same Layout with Subtle Luxury */}
       <div className="absolute z-[10] left-4 bottom-[120px] md:bottom-[150px] w-[70%] pb-4 pointer-events-none">
         <div className="flex items-center gap-2 mb-2">
-          <LevelBadge level={video.user.level ?? 1} size={10} layout="fixed" />
+          <LevelBadge level={video.user.level ?? 1} size={10} layout="fixed" avatar={video.user.avatar} />
           <h3 className="text-white font-bold text-shadow-md">{video.user.username}</h3>
           {video.user.isVerified && (
             <div className="w-4 h-4 bg-[#C9A96E] rounded-full flex items-center justify-center">

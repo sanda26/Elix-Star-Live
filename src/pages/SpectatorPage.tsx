@@ -59,6 +59,7 @@ export default function SpectatorPage() {
   const [hostName, setHostName] = useState('Creator');
   const [hostAvatar, setHostAvatar] = useState('');
   const [hostUserId, setHostUserId] = useState('');
+  const [streamIsLive, setStreamIsLive] = useState<boolean | null>(null);
   const [viewerCount, setViewerCount] = useState(0);
   const [activeLikes, setActiveLikes] = useState(0);
 
@@ -309,10 +310,15 @@ export default function SpectatorPage() {
     (async () => {
       const { data: stream } = await supabase
         .from('live_streams')
-        .select('user_id, title, viewer_count')
+        .select('user_id, title, viewer_count, is_live')
         .eq('stream_key', effectiveStreamId)
         .maybeSingle();
-      if (stream?.user_id) {
+      if (!stream) {
+        setStreamIsLive(false);
+        return;
+      }
+      setStreamIsLive(!!stream.is_live);
+      if (stream.user_id) {
         setHostUserId(stream.user_id);
         setViewerCount(stream.viewer_count || 0);
         const { data: profile } = await supabase
@@ -647,6 +653,27 @@ export default function SpectatorPage() {
   const handleLikeTap = () => {
     setActiveLikes(prev => prev + 1);
   };
+
+  if (streamIsLive === false) {
+    return (
+      <div className="fixed inset-0 bg-[#0A0B0E] flex justify-center">
+        <div className="relative w-full max-w-[480px] h-full bg-[#13151A] flex flex-col items-center justify-center gap-4 p-6">
+          <div className="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center">
+            <span className="text-3xl">📡</span>
+          </div>
+          <h2 className="text-white font-bold text-lg">Stream offline</h2>
+          <p className="text-white/50 text-sm text-center">This stream has ended or is not available right now.</p>
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="mt-2 px-6 py-2.5 rounded-lg bg-[#C9A96E] text-black font-semibold"
+          >
+            Go back
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 bg-[#0A0B0E] flex justify-center">

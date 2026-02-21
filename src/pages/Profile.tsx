@@ -8,6 +8,7 @@ import { AvatarRing } from '../components/AvatarRing';
 import { LevelBadge } from '../components/LevelBadge';
 import { trackEvent } from '../lib/analytics';
 import ReportModal from '../components/ReportModal';
+import { useVideoStore } from '../store/useVideoStore';
 
 interface Video {
   id: string;
@@ -291,8 +292,9 @@ export default function Profile() {
   const toggleFollow = async () => {
     if (!user?.id || !displayUserId || isOwnProfile) return;
 
+    const wasFollowing = isFollowing;
     try {
-      if (isFollowing) {
+      if (wasFollowing) {
         await supabase
           .from('followers')
           .delete()
@@ -306,9 +308,21 @@ export default function Profile() {
         setIsFollowing(true);
         trackEvent('user_follow', { target_user_id: displayUserId });
       }
+      // Sync video store so feed reflects the change without refresh
+      const videoStore = useVideoStore.getState();
+      const currentFollowing = videoStore.followingUsers;
+      const updatedFollowing = wasFollowing
+        ? currentFollowing.filter((id: string) => id !== displayUserId)
+        : [...currentFollowing, displayUserId];
+      useVideoStore.setState({
+        followingUsers: updatedFollowing,
+        videos: videoStore.videos.map(v =>
+          v.user.id === displayUserId ? { ...v, isFollowing: !wasFollowing } : v
+        ),
+      });
       loadProfile();
-    } catch (error) {
-
+    } catch {
+      setIsFollowing(wasFollowing);
     }
   };
 

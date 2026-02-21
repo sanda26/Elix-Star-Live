@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { X, UserPlus, UserMinus, MessageCircle, MoreHorizontal, Flag } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useVideoStore } from '../store/useVideoStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { supabase } from '../lib/supabase';
+import { showToast } from '../lib/toast';
 import { AvatarRing } from './AvatarRing';
 
 interface LikeUser {
@@ -76,6 +78,7 @@ export default function EnhancedLikesModal({ isOpen, onClose, videoId, likes }: 
   const [filter, setFilter] = useState<'all' | 'following' | 'followers'>('all');
   
   const { toggleFollow } = useVideoStore();
+  const navigate = useNavigate();
   const { user: currentUser } = useAuthStore();
   
   const isOwnProfile = currentUser?.id === 'current_user'; // Adjust as needed
@@ -101,12 +104,32 @@ export default function EnhancedLikesModal({ isOpen, onClose, videoId, likes }: 
   };
 
   const handleMessage = (user: LikeUser) => {
+    onClose();
+    navigate(`/inbox/${user.id}`);
   };
 
-  const handleReportUser = (user: LikeUser) => {
+  const handleReportUser = async (user: LikeUser) => {
+    const me = (await supabase.auth.getUser()).data.user;
+    if (!me) { showToast('Please sign in'); return; }
+    const { error } = await supabase.from('reports').insert({
+      reporter_id: me.id, target_type: 'user', target_id: user.id, reason: 'inappropriate',
+    });
+    if (error) showToast('Failed to report');
+    else showToast('User reported');
   };
 
-  const handleBlockUser = (user: LikeUser) => {
+  const handleBlockUser = async (user: LikeUser) => {
+    const me = (await supabase.auth.getUser()).data.user;
+    if (!me) { showToast('Please sign in'); return; }
+    const token = (await supabase.auth.getSession()).data.session?.access_token;
+    if (!token) return;
+    const res = await fetch('/api/block-user', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ blockedUserId: user.id }),
+    });
+    if (res.ok) { showToast('User blocked'); onClose(); }
+    else showToast('Failed to block user');
   };
 
   const formatNumber = (num: number) => {

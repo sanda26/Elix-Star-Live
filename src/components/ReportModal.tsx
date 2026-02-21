@@ -213,19 +213,14 @@ export default function ReportModal({ isOpen, onClose, videoId, contentType, con
     <div className="fixed inset-0 z-modals flex items-end justify-center">
       <div className="absolute inset-0 bg-black/60 pointer-events-auto" onClick={onClose} />
 
-      <div className="relative w-full max-w-[480px] z-10 bg-[#1C1E24] rounded-t-2xl p-4 pb-safe flex flex-col gap-1 shadow-2xl border-2 border-b-0 border-[#C9A96E] pointer-events-auto h-[40dvh] max-h-[40dvh] overflow-y-auto no-scrollbar" style={{ marginBottom: '90px', boxShadow: '0 -4px 30px rgba(201,169,110,0.25)' }}>
+      <div className="relative w-full max-w-[480px] z-10 bg-[#1C1E24]/95 backdrop-blur-md rounded-t-2xl p-4 pb-safe flex flex-col gap-1 shadow-2xl border-t border-[#C9A96E]/20 pointer-events-auto h-[40vh] max-h-[40vh] overflow-y-auto no-scrollbar">
         <div className="flex justify-center mb-2">
           <div className="w-10 h-1 bg-white/20 rounded-full" />
         </div>
 
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0">
-            <Flag className="w-4 h-4 text-white" />
-            <h3 className="text-white font-bold whitespace-nowrap">Report {getContentTypeLabel()}</h3>
-          </div>
-          <button type="button" onClick={onClose} className="text-white/70 hover:text-white text-sm font-semibold">
-            Close
-          </button>
+        <div className="flex items-center gap-1.5 mb-1">
+          <Flag className="w-3.5 h-3.5 text-red-400" strokeWidth={1.8} />
+          <h3 className="text-white font-bold text-[13px] whitespace-nowrap">Report {getContentTypeLabel()}</h3>
         </div>
 
         {contentType === 'video' && (
@@ -233,31 +228,18 @@ export default function ReportModal({ isOpen, onClose, videoId, contentType, con
             type="button"
             onClick={handleDelete}
             disabled={isDeletingVideo || !canDelete}
-            className="w-full px-4 py-3 flex items-center justify-between text-[#EF4444] hover:brightness-125 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full px-3 py-2 flex items-center gap-2.5 text-red-400 hover:bg-red-500/10 rounded-lg transition-colors disabled:opacity-40"
           >
-            <div className="flex items-center gap-3">
-              <AlertTriangle className="w-5 h-5" strokeWidth={2} />
-              <span className="font-semibold">
-                {isDeletingVideo
-                  ? 'Delete (deleting...)'
-                  : !authUserId
-                    ? 'Delete (sign in)'
-                    : canDelete
-                      ? 'Delete'
-                      : 'Delete (owner)'}
-              </span>
-            </div>
+            <AlertTriangle className="w-3.5 h-3.5" strokeWidth={1.8} />
+            <span className="text-xs font-semibold">
+              {isDeletingVideo ? 'Deleting...' : canDelete ? 'Delete' : 'Delete (owner only)'}
+            </span>
           </button>
         )}
 
-        <div className="mt-1 px-1">
-          <div className="text-white text-sm font-semibold mb-1">Why are you reporting this {getContentTypeLabel()}?</div>
-          <div className="text-white/40 text-xs leading-snug">
-            Your report helps us understand what violates our community guidelines.
-          </div>
-        </div>
+        <p className="text-white/35 text-[10px] leading-snug px-0.5 mb-1">Select a reason below.</p>
 
-        <div className="mt-3 flex flex-col gap-1">
+        <div className="flex flex-col gap-0.5">
           {reportReasons.map((reason) => {
             const IconComponent = reason.icon;
             const selected = selectedReason === reason.id;
@@ -266,20 +248,17 @@ export default function ReportModal({ isOpen, onClose, videoId, contentType, con
                 key={reason.id}
                 type="button"
                 onClick={() => setSelectedReason(reason.id)}
-                className={`w-full px-4 py-3 flex items-center justify-between border rounded-xl transition-colors ${selected ? 'border-[#C9A96E]/60 bg-white/5' : 'border-white/10 hover:bg-white/5'}`}
+                className={`w-full px-3 py-2 flex items-center justify-between rounded-lg transition-colors ${selected ? 'bg-[#C9A96E]/10' : 'hover:bg-white/[0.03]'}`}
               >
-                <div className="flex items-start gap-3 min-w-0">
-                  <div className={`w-9 h-9 rounded-full bg-[#13151A] border border-[#C9A96E]/40 flex items-center justify-center flex-shrink-0 ${reason.color}`}>
-                    <IconComponent className="w-4 h-4" />
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className={`w-7 h-7 rounded-full bg-[#13151A] border flex items-center justify-center flex-shrink-0 ${selected ? 'border-[#C9A96E]/50' : 'border-white/10'}`}>
+                    <IconComponent className="w-3.5 h-3.5" strokeWidth={1.8} />
                   </div>
-                  <div className="min-w-0 text-left">
-                    <div className="text-white/90 text-sm font-semibold truncate">{reason.title}</div>
-                    <div className="text-white/40 text-xs leading-snug">{reason.description}</div>
-                  </div>
+                  <span className="text-white/80 text-xs font-medium truncate">{reason.title}</span>
                 </div>
-                <div className={`w-5 h-5 rounded-full border flex items-center justify-center flex-shrink-0 ${selected ? 'border-[#C9A96E] bg-[#C9A96E]' : 'border-white/30'}`}>
+                <div className={`w-4 h-4 rounded-full border flex items-center justify-center flex-shrink-0 ${selected ? 'border-[#C9A96E] bg-[#C9A96E]' : 'border-white/20'}`}>
                   {selected && (
-                    <svg className="w-3 h-3 text-black" fill="currentColor" viewBox="0 0 20 20">
+                    <svg className="w-2.5 h-2.5 text-black" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
                   )}
@@ -289,37 +268,20 @@ export default function ReportModal({ isOpen, onClose, videoId, contentType, con
           })}
         </div>
 
-        <div className="mt-3">
-          <label className="text-white text-xs font-semibold mb-1 block">Additional details (optional)</label>
-          <textarea
-            value={additionalDetails}
-            onChange={(e) => setAdditionalDetails(e.target.value)}
-            placeholder="Provide more context..."
-            className="w-full bg-[#13151A]/40 border border-white/10 text-white rounded-xl p-3 text-sm focus:outline-none focus:border-white/20 resize-none leading-snug"
-            rows={3}
-            maxLength={500}
-          />
-          <div className="text-right text-white/40 text-xs mt-1">
-            {additionalDetails.length}/500
-          </div>
-        </div>
+        <textarea
+          value={additionalDetails}
+          onChange={(e) => setAdditionalDetails(e.target.value)}
+          placeholder="Additional details (optional)..."
+          className="w-full bg-[#13151A]/40 border border-white/10 text-white rounded-lg p-2.5 text-xs focus:outline-none focus:border-white/20 resize-none leading-snug mt-2"
+          rows={2}
+          maxLength={500}
+        />
 
-        <div className="mt-2 bg-white/5 rounded-xl p-3 border border-white/10">
-          <div className="flex items-start gap-2">
-            <div className="w-4 h-4 bg-[#C9A96E]/20 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-              <div className="w-2 h-2 bg-[#C9A96E] rounded-full" />
-            </div>
-            <div className="text-white/60 text-xs leading-snug">
-              <span className="text-white font-semibold">Your privacy matters.</span> The person you're reporting won't know who reported them.
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-3 flex gap-2">
+        <div className="mt-2 flex gap-2">
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 py-3 bg-white/10 text-white font-semibold rounded-xl hover:bg-white/15 transition-colors"
+            className="flex-1 py-2.5 bg-white/5 text-white/70 font-semibold text-xs rounded-lg hover:bg-white/10 transition-colors"
           >
             Cancel
           </button>
@@ -327,9 +289,9 @@ export default function ReportModal({ isOpen, onClose, videoId, contentType, con
             type="button"
             onClick={handleSubmit}
             disabled={isSubmitting || !selectedReason}
-            className="flex-1 py-3 bg-[#C9A96E] text-black font-extrabold rounded-xl hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed transition"
+            className="flex-1 py-2.5 bg-[#C9A96E] text-black font-bold text-xs rounded-lg hover:brightness-110 disabled:opacity-40 transition"
           >
-            {isSubmitting ? 'Submitting...' : 'Submit Report'}
+            {isSubmitting ? 'Submitting...' : 'Submit'}
           </button>
         </div>
       </div>

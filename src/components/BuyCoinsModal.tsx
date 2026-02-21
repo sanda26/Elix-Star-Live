@@ -29,6 +29,7 @@ export const BuyCoinsModal: React.FC<BuyCoinsModalProps> = ({ isOpen, onClose, o
   const [nativeLoading, setNativeLoading] = useState<string | null>(null);
   const isNative = platform.isNative;
   const loading = false;
+  const [customAmount, setCustomAmount] = useState('');
 
   useEffect(() => {
     if (isOpen && isNative) {
@@ -92,116 +93,108 @@ export const BuyCoinsModal: React.FC<BuyCoinsModalProps> = ({ isOpen, onClose, o
     setShowPaymentElement(false);
   };
 
+  if (!isOpen) return null;
+
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[430px] z-[950]" onPointerDown={(e) => e.stopPropagation()}>
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 rounded-full bg-[#13151A] border border-[#C9A96E]/40 flex items-center justify-center">
-            <Coins className="text-white" size={20} />
+    <>
+      <div className="fixed inset-0 bg-black/40 pointer-events-auto" style={{ zIndex: 99998 }} onClick={onClose} />
+      <div className="fixed bottom-0 left-0 right-0 z-[999999] pointer-events-auto max-w-[480px] mx-auto">
+        <div className="bg-[#1C1E24]/95 backdrop-blur-md rounded-t-2xl h-[40vh] flex flex-col shadow-2xl border-t border-[#C9A96E]/20 overflow-hidden">
+          <div className="flex justify-center pt-2 pb-1">
+            <div className="w-10 h-1 bg-white/20 rounded-full" />
           </div>
-          <div>
-            <h2 className="text-white font-bold text-lg">Recharge Coins</h2>
-            <p className="text-white/60 text-xs">Secure Payment</p>
+
+          <div className="flex items-center gap-1.5 px-4 pb-2 flex-shrink-0">
+            <Coins className="w-3.5 h-3.5 text-[#C9A96E]" strokeWidth={1.8} />
+            <span className="text-white font-bold text-[13px]">Recharge Coins</span>
+          </div>
+
+          <div className="flex-1 overflow-y-auto px-4 pb-4">
+            {isNative ? (
+              <div className="space-y-2">
+                {nativeProducts.map((product) => (
+                  <button
+                    key={product.id}
+                    onClick={() => handleNativePurchase(product)}
+                    disabled={nativeLoading === product.id}
+                    className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg bg-white/[0.03] border border-white/10 hover:bg-[#C9A96E]/10 transition-colors active:scale-[0.98] disabled:opacity-50"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-full bg-[#13151A] border border-[#C9A96E]/30 flex items-center justify-center">
+                        <Sparkles className="w-3.5 h-3.5 text-[#C9A96E]" strokeWidth={1.8} />
+                      </div>
+                      <div className="text-left">
+                        <p className="text-white text-xs font-semibold">{product.title}</p>
+                        {product.price && <p className="text-white/40 text-[10px]">{product.price}</p>}
+                      </div>
+                    </div>
+                    <span className="text-[#C9A96E] text-[10px] font-bold">{nativeLoading === product.id ? 'Processing...' : `${product.coins} coins`}</span>
+                  </button>
+                ))}
+              </div>
+            ) : !showPaymentElement ? (
+              <div className="space-y-2">
+                {STRIPE_CONFIG.coinPackages.map((coinPackage) => (
+                  <button
+                    key={coinPackage.id}
+                    onClick={() => handlePackageSelect(coinPackage)}
+                    disabled={loading}
+                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg border transition-colors active:scale-[0.98] ${
+                      selectedPackage.id === coinPackage.id
+                        ? 'bg-[#C9A96E]/10 border-[#C9A96E]/50'
+                        : 'bg-white/[0.03] border-white/10 hover:bg-[#C9A96E]/10'
+                    }`}
+                  >
+                    <div className="text-left">
+                      <p className="text-white text-xs font-semibold">{coinPackage.label}</p>
+                      <p className="text-white/40 text-[10px]">£{coinPackage.price.toFixed(2)}</p>
+                    </div>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${selectedPackage.id === coinPackage.id ? 'bg-[#C9A96E] text-black' : 'bg-white/10 text-white/70'}`}>
+                      {coinPackage.coins} coins
+                    </span>
+                  </button>
+                ))}
+                {/* Custom amount */}
+                <div className="flex items-center gap-2 mt-3 px-1">
+                  <div className="flex-1 flex items-center gap-2 bg-white/[0.03] border border-white/10 rounded-lg px-3 py-2">
+                    <Coins className="w-3.5 h-3.5 text-[#C9A96E] flex-shrink-0" strokeWidth={1.8} />
+                    <input
+                      type="number"
+                      min="1"
+                      placeholder="Custom amount..."
+                      value={customAmount}
+                      onChange={(e) => setCustomAmount(e.target.value)}
+                      className="bg-transparent text-white text-xs outline-none flex-1 placeholder:text-white/25 min-w-0"
+                    />
+                  </div>
+                  <button
+                    onClick={() => {
+                      const amt = parseInt(customAmount);
+                      if (!amt || amt < 1) { showToast('Enter a valid amount'); return; }
+                      const price = Math.round(amt * 0.0035 * 100) / 100;
+                      handlePackageSelect({ id: `coins_custom_${amt}`, coins: amt, price, label: `${amt.toLocaleString()} Coins` });
+                    }}
+                    className="px-3 py-2 rounded-lg bg-[#C9A96E] text-black text-[10px] font-bold active:scale-95 transition-transform flex-shrink-0"
+                  >
+                    Buy
+                  </button>
+                </div>
+                <p className="text-white/30 text-[10px] text-center pt-2">Secure payment powered by Stripe</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <button onClick={handleBackToPackages} className="text-[#C9A96E] text-xs font-semibold active:scale-95">← Back</button>
+                <p className="text-white/50 text-[10px]">{selectedPackage.label} — £{selectedPackage.price.toFixed(2)}</p>
+                <StripePaymentElement
+                  coinPackage={selectedPackage}
+                  onSuccess={handlePaymentSuccess}
+                  onError={handlePaymentError}
+                />
+              </div>
+            )}
           </div>
         </div>
-
-        {/* Native IAP (iOS / Android) */}
-        {isNative ? (
-          <div className="space-y-3">
-            {nativeProducts.map((product) => (
-              <Button
-                key={product.id}
-                variant="outline"
-                className="w-full justify-between h-auto py-3 border-white/10 hover:border-[#C9A96E]/50 bg-white/5 hover:bg-white/10"
-                onClick={() => handleNativePurchase(product)}
-                disabled={nativeLoading === product.id}
-              >
-                <div className="flex items-center gap-3">
-                  <Sparkles className="w-4 h-4 text-[#C9A96E]" />
-                  <div className="text-left">
-                    <div className="font-semibold text-white">{product.title}</div>
-                    {product.price && (
-                      <div className="text-sm text-white/60">{product.price}</div>
-                    )}
-                  </div>
-                </div>
-                <Badge variant="secondary" className="bg-white/10 text-white">
-                  {nativeLoading === product.id ? 'Processing…' : `${product.coins} coins`}
-                </Badge>
-              </Button>
-            ))}
-          </div>
-        ) : !showPaymentElement ? (
-          /* Web — Stripe package selection */
-          <div className="space-y-4">
-            <div className="text-center text-sm text-white/60 mb-4">
-              Choose a coin package to continue
-            </div>
-            
-            <div className="grid gap-3">
-              {STRIPE_CONFIG.coinPackages.map((coinPackage) => (
-                <Button
-                  key={coinPackage.id}
-                  variant={selectedPackage.id === coinPackage.id ? 'default' : 'outline'}
-                  className={`w-full justify-between h-auto py-3 relative border-white/10 hover:border-[#C9A96E]/50 transition-colors ${
-                    selectedPackage.id === coinPackage.id 
-                      ? 'bg-[#C9A96E]/10 border-[#C9A96E] text-white hover:bg-[#C9A96E]/20' 
-                      : 'bg-white/5 hover:bg-white/10'
-                  }`}
-                  onClick={() => handlePackageSelect(coinPackage)}
-                  disabled={loading}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="text-left">
-                      <div className="font-semibold text-white">{coinPackage.label}</div>
-                      <div className="text-sm opacity-75">${coinPackage.price}</div>
-                    </div>
-                  </div>
-                  <Badge 
-                    variant="secondary" 
-                    className={`ml-2 ${selectedPackage.id === coinPackage.id ? 'bg-[#C9A96E] text-black' : 'bg-white/10 text-white'}`}
-                  >
-                    {coinPackage.coins} coins
-                  </Badge>
-                </Button>
-              ))}
-            </div>
-
-            <div className="flex items-center justify-center gap-2 text-sm text-white/60 mt-4">
-              <CreditCard className="h-4 w-4" />
-              <span>Secure payment powered by Stripe</span>
-            </div>
-
-            <div className="flex items-center justify-center gap-2 text-xs text-white/50">
-              <Smartphone className="h-3 w-3" />
-              <span>Apple Pay & Google Pay supported</span>
-            </div>
-          </div>
-        ) : (
-          /* Web — Stripe payment element */
-          <div className="space-y-4">
-            <div className="flex items-center justify-between mb-4">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleBackToPackages}
-                className="text-white hover:text-white/80 hover:bg-[#C9A96E]/10"
-              >
-                ← Back to packages
-              </Button>
-              <div className="text-sm font-medium">
-                {selectedPackage.label} - ${selectedPackage.price}
-              </div>
-            </div>
-
-            <StripePaymentElement
-              coinPackage={selectedPackage}
-              onSuccess={handlePaymentSuccess}
-              onError={handlePaymentError}
-            />
-          </div>
-        )}
-      </DialogContent>
-    </Dialog>
+      </div>
+    </>
   );
 };

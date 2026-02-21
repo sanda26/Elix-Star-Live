@@ -280,13 +280,16 @@ export default function PurchaseCoins() {
             <FeatureItem text="Support the community and help creators grow" />
           </div>
 
-          {/* Terms */}
-          <p className="text-xs text-white/40 text-center mt-6 px-4">
+          {/* No-refund policy */}
+          <div className="bg-white/5 border border-white/10 rounded-xl p-4 mt-6">
+            <p className="text-xs text-white/60 text-center font-semibold mb-1">All coin purchases are final and non-refundable.</p>
+            <p className="text-[10px] text-white/40 text-center">Coins have no real-world monetary value. Once purchased, coins cannot be returned, exchanged, or transferred. Gifts sent to creators are final. Prices may vary by platform.</p>
+          </div>
+          <p className="text-xs text-white/40 text-center mt-3 px-4">
             By purchasing, you agree to our{' '}
-            <a href="/terms" className="text-white underline">Terms of Service</a>{' '}
+            <span className="text-white underline cursor-pointer" onClick={() => navigate('/terms')}>Terms of Service</span>{' '}
             and{' '}
-            <a href="/privacy" className="text-white underline">Privacy Policy</a>.
-            Purchases are non-refundable except as required by law.
+            <span className="text-white underline cursor-pointer" onClick={() => navigate('/privacy')}>Privacy Policy</span>.
           </p>
         </div>
       </div>

@@ -188,6 +188,8 @@ async function verifyAndCreditPurchase(
   }
 }
 
+// Apple/Google store compliance: re-delivers unfinished transactions only.
+// This does NOT refund coins or reverse purchases. All purchases are final.
 export async function restorePurchases(): Promise<void> {
   if (!platform.isNative) return;
 

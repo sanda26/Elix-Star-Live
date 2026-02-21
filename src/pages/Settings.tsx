@@ -103,13 +103,13 @@ export default function Settings() {
             icon={<Moon className="w-5 h-5" />}
             label="Dark Mode"
             value="Always On"
-            onClick={() => showToast('Dark mode is always on')}
+            onClick={() => showToast('Dark mode is always on. This app uses dark theme by default.')}
           />
           <SettingItem
             icon={<Globe className="w-5 h-5" />}
             label="Language"
             value="English"
-            onClick={() => showToast('Language: English')}
+            onClick={() => showToast('English is the only supported language for now.')}
           />
         </Section>
 
@@ -119,7 +119,7 @@ export default function Settings() {
             icon={<Video className="w-5 h-5" />}
             label="Video Quality"
             value="Auto"
-            onClick={() => showToast('Video quality is set to Auto')}
+            onClick={() => showToast('Video quality adjusts automatically based on your connection.')}
           />
           <SettingItem
             icon={<Heart className="w-5 h-5" />}

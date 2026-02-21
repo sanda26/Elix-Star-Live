@@ -45,7 +45,7 @@ export default function Inbox() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [followers, setFollowers] = useState<FollowerProfile[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [activeFilter, setActiveFilter] = useState<'main' | 'requests' | 'unread' | 'starred'>('main');
+  const [activeFilter, setActiveFilter] = useState<'main' | 'requests' | 'unread' | 'starred' | 'activity'>('main');
 
   const loadCurrentUser = async () => {
     const { data } = await supabase.auth.getUser();
@@ -193,6 +193,7 @@ export default function Inbox() {
             <button onClick={() => setActiveFilter('requests')} className={`px-4 py-1.5 rounded text-xs font-bold whitespace-nowrap border text-white ${activeFilter === 'requests' ? 'bg-[#13151A] border-gold-metallic' : 'bg-[#13151A] border-[#d4af37]/30'}`}>Requests</button>
             <button onClick={() => setActiveFilter('unread')} className={`px-4 py-1.5 rounded text-xs font-bold whitespace-nowrap border text-white ${activeFilter === 'unread' ? 'bg-[#13151A] border-gold-metallic' : 'bg-[#13151A] border-[#d4af37]/30'}`}>Unread</button>
             <button onClick={() => setActiveFilter('starred')} className={`px-4 py-1.5 rounded text-xs font-bold whitespace-nowrap border text-white ${activeFilter === 'starred' ? 'bg-[#13151A] border-gold-metallic' : 'bg-[#13151A] border-[#d4af37]/30'}`}>Starred</button>
+            <button onClick={() => setActiveFilter('activity')} className={`px-4 py-1.5 rounded text-xs font-bold whitespace-nowrap border text-white ${activeFilter === 'activity' ? 'bg-[#13151A] border-gold-metallic' : 'bg-[#13151A] border-[#d4af37]/30'}`}>Activity</button>
             <div className="ml-auto stroke-gold-metallic">
                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line><line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line><line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line><line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line><line x1="17" y1="16" x2="23" y2="16"></line></svg>
             </div>
@@ -216,19 +217,53 @@ export default function Inbox() {
                 </div>
             </button>
 
-            {/* Activity */}
-            <button onClick={() => navigate('/profile')} className="flex items-center gap-3 w-full text-left">
+            {/* Activity - opens Activity list (likes, comments) */}
+            <button onClick={() => setActiveFilter('activity')} className="flex items-center gap-3 w-full text-left">
                 <div className="w-12 h-12 rounded-full bg-gradient-to-b from-[#f5e6a3] to-[#b8922e] flex items-center justify-center">
                     <Heart className="w-6 h-6 text-[#13151A]" fill="#13151A" />
                 </div>
                 <div className="flex-1 min-w-0">
                     <h3 className="font-bold text-sm text-gold-metallic">Activity</h3>
                     <p className="text-white text-xs truncate">
-                      {notifications.find(n => n.type === 'like' || n.type === 'comment')?.body || 'No recent activity'}
+                      {notifications.filter(n => n.type === 'like' || n.type === 'comment').length
+                        ? `${notifications.filter(n => n.type === 'like' || n.type === 'comment').length} likes & comments`
+                        : 'No recent activity'}
                     </p>
                 </div>
             </button>
             </>
+            )}
+
+            {/* Activity list - likes & comments */}
+            {activeFilter === 'activity' && (
+              <>
+                {notifications.filter(n => n.type === 'like' || n.type === 'comment').length === 0 ? (
+                  <div className="py-8 text-center text-white/50 text-sm">No likes or comments yet.</div>
+                ) : (
+                  notifications.filter(n => n.type === 'like' || n.type === 'comment').map(notif => (
+                    <button
+                      key={notif.id}
+                      onClick={() => {
+                        const url = notif.action_url || notif.rawData?.action_url;
+                        if (url) navigate(url);
+                      }}
+                      className="flex items-center gap-3 w-full text-left"
+                    >
+                      <div className="w-12 h-12 rounded-full bg-[#13151A] border border-[#C9A96E]/40 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                        {(notif.image_url || notif.rawData?.avatar_url) ? (
+                          <img src={notif.image_url || notif.rawData?.avatar_url} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <Heart className="w-5 h-5 text-[#C9A96E]" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-bold text-sm text-gold-metallic">{notif.title}</h3>
+                        <p className="text-white text-xs truncate">{notif.body || (notif.type === 'like' ? 'Liked your video' : 'Commented on your video')}</p>
+                      </div>
+                    </button>
+                  ))
+                )}
+              </>
             )}
 
             {/* Battle Invites */}
@@ -278,7 +313,7 @@ export default function Inbox() {
                                             });
                                         }
                                         setNotifications(prev => prev.filter(n => n.id !== notif.id));
-                                        if (streamKey) navigate(`/watch/${streamKey}`);
+                                        if (streamKey) navigate(`/live/${streamKey}?battle=1`);
                                     } catch {
                                         showToast('Failed to accept');
                                     }
@@ -320,6 +355,11 @@ export default function Inbox() {
                     <span className="text-[10px] text-white">21h</span>
                 </button>
             ))}
+
+             {/* Starred empty state */}
+             {activeFilter === 'starred' && (
+               <div className="py-8 text-center text-white/50 text-sm">No starred messages yet.</div>
+             )}
 
              {/* Shop Notification */}
              {notifications.filter(n => n.type === 'shop').map(notif => (

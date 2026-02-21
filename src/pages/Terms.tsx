@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { platform } from '../lib/platform';
 
 export default function Terms() {
   const navigate = useNavigate();
@@ -72,13 +73,45 @@ export default function Terms() {
             </ul>
           </Section>
 
-          <Section title="6. Virtual Currency & Gifts">
+          <Section title="6. Virtual Currency, Gifts & Refund Policy">
+            <p className="mb-2">The following refund rules apply to all purchases made within Elix Star Live:</p>
+
+            <h4 className="font-semibold text-white/90 mt-3 mb-1">6.1 Coins</h4>
             <ul className="list-disc pl-5 space-y-1">
-              <li>Coins are virtual currency purchased through Apple In-App Purchase (iOS), Google Play Billing (Android), or Stripe (web).</li>
+              <li>{platform.isIOS ? 'Coins are virtual currency purchased through the App Store (in-app purchase).' : 'Coins are virtual currency purchased through Apple In-App Purchase (iOS), Google Play Billing (Android), or Stripe (web).'}</li>
               <li>Coins have no real-world monetary value and cannot be exchanged for cash.</li>
-              <li>All coin purchases are final and non-refundable, except as required by applicable law.</li>
-              <li>Gifts sent to creators are converted to coins in the creator's account.</li>
+              <li><strong>All coin purchases are final and non-refundable.</strong> Once coins are purchased, they cannot be returned, reversed, or restored. No exceptions except as required by applicable law.</li>
+              <li>Prices may vary by platform.</li>
               <li>We reserve the right to modify coin pricing, bonuses, and availability at any time.</li>
+            </ul>
+
+            <h4 className="font-semibold text-white/90 mt-3 mb-1">6.2 Gifts & Creator Earnings</h4>
+            <ul className="list-disc pl-5 space-y-1">
+              <li><strong>Gifts sent to creators are final and cannot be undone.</strong> Once a gift is sent during a live stream, the transaction is permanent. Coins spent on gifts cannot be recovered.</li>
+              <li>Gifts sent to creators are converted to earnings in the creator's account.</li>
+              <li>Earnings are calculated after applicable fees.</li>
+              <li>Creator earnings are held for a minimum period before becoming available for withdrawal.</li>
+            </ul>
+
+            <h4 className="font-semibold text-white/90 mt-3 mb-1">6.3 Subscriptions</h4>
+            <ul className="list-disc pl-5 space-y-1">
+              <li><strong>{platform.isIOS ? 'Subscriptions are managed by the App Store and are non-refundable.' : 'Subscriptions are managed by the App Store (iOS), Google Play (Android), or Stripe (web) and are non-refundable.'}</strong></li>
+              <li>You may cancel future renewals at any time through your store settings or account page. Cancellation takes effect at the end of the current billing period.</li>
+              <li>If a store provider issues a refund for a subscription, access to subscription benefits will be revoked immediately.</li>
+            </ul>
+
+            <h4 className="font-semibold text-white/90 mt-3 mb-1">6.4 Shop Items</h4>
+            <ul className="list-disc pl-5 space-y-1">
+              <li>Digital shop items (badges, frames, boosts, and other virtual goods) may be eligible for a refund if the item has not been used or activated and the request is made within 14 days of purchase.</li>
+              <li>Refunded items will be revoked from your account. Coins will be restored to your balance.</li>
+              <li>Items that have been used, activated, or applied are not eligible for refund.</li>
+              <li>Refund requests are reviewed on a case-by-case basis. We reserve the right to deny refunds in cases of abuse or fraud.</li>
+            </ul>
+
+            <h4 className="font-semibold text-white/90 mt-3 mb-1">6.5 Chargebacks & Fraud</h4>
+            <ul className="list-disc pl-5 space-y-1">
+              <li>If a platform provider (Apple, Google, Stripe) issues a chargeback or refund on your behalf, we may suspend or terminate accounts involved in fraudulent or abusive purchase behaviour.</li>
+              <li>Forced refunds from store providers will result in revocation of the associated benefits or items.</li>
             </ul>
           </Section>
 

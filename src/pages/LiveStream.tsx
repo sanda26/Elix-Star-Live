@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { showToast } from '../lib/toast';
+import { platform } from '../lib/platform';
 import {
   Send,
   Search,
@@ -136,6 +137,10 @@ export default function LiveStream() {
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [showModerationWarning, setShowModerationWarning] = useState(false);
+  const [showSpectatorChatInput, setShowSpectatorChatInput] = useState(false);
+  const spectatorChatInputRef = useRef<HTMLInputElement>(null);
+  const [moderationWarningMessage, setModerationWarningMessage] = useState('');
   const [showTestCoinsModal, setShowTestCoinsModal] = useState(false);
   const [testCoinsStep, setTestCoinsStep] = useState<'password' | 'amount'>('password');
   const [testCoinsPwd, setTestCoinsPwd] = useState('');
@@ -147,6 +152,7 @@ export default function LiveStream() {
   const [moderators, setModerators] = useState<Set<string>>(new Set());
 
   const [isMicMuted, setIsMicMuted] = useState(false);
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
   const [isChatVisible, setIsChatVisible] = useState(true);
   const [isLiveSettingsOpen, setIsLiveSettingsOpen] = useState(false);
   const [viewerCount, setViewerCount] = useState(0);
@@ -518,7 +524,7 @@ export default function LiveStream() {
           slot_index: slotIndex,
         },
       });
-      showToast(`Invite sent to @${creator.username}!`);
+      // invite sent silently — button changes to "Invited"
     } catch {
       showToast('Failed to send invite');
     }
@@ -544,13 +550,26 @@ export default function LiveStream() {
         (payload: any) => {
           const row = payload.new;
           if (row?.type === 'battle_invite') {
+            const inviterId = row.data?.actor_id || '';
+            const inviterName = row.data?.host_name || 'Someone';
+            const inviterAvatar = row.data?.host_avatar || '';
             setPendingInvite({
               notifId: row.id,
-              hostName: row.data?.host_name || 'Someone',
-              hostAvatar: row.data?.host_avatar || '',
+              hostName: inviterName,
+              hostAvatar: inviterAvatar,
               streamKey: row.data?.stream_key || '',
-              hostUserId: row.data?.actor_id || '',
+              hostUserId: inviterId,
             });
+            setBattleSlots(prev => {
+              if (prev.some(s => s.userId === inviterId)) return prev;
+              const next = [...prev];
+              const emptyIdx = next.findIndex(s => s.status === 'empty');
+              if (emptyIdx !== -1) {
+                next[emptyIdx] = { userId: inviterId, name: inviterName, status: 'pending_accept' as any, avatar: inviterAvatar };
+              }
+              return next;
+            });
+            setIsFindCreatorsOpen(true);
           }
           if (row?.type === 'battle_accepted' && isBroadcast) {
             const acceptedUserId = row.data?.actor_id || '';
@@ -712,7 +731,7 @@ export default function LiveStream() {
           stream_key: effectiveStreamId,
         },
       });
-      showToast(`Co-host invite sent to @${creator.name}!`);
+      // invite sent silently — button changes to "Invited"
     } catch {
       showToast('Failed to send co-host invite');
     }
@@ -728,13 +747,28 @@ export default function LiveStream() {
         (payload: any) => {
           const row = payload.new;
           if (row?.type === 'cohost_invite') {
+            const inviterId = row.data?.actor_id || '';
+            const inviterName = row.data?.host_name || 'Someone';
+            const inviterAvatar = row.data?.host_avatar || '';
+            const inviteStreamKey = row.data?.stream_key || '';
             setPendingCoHostInvite({
               notifId: row.id,
-              hostName: row.data?.host_name || 'Someone',
-              hostAvatar: row.data?.host_avatar || '',
-              streamKey: row.data?.stream_key || '',
-              hostUserId: row.data?.actor_id || '',
+              hostName: inviterName,
+              hostAvatar: inviterAvatar,
+              streamKey: inviteStreamKey,
+              hostUserId: inviterId,
             });
+            if (!coHosts.some(h => h.userId === inviterId)) {
+              setCoHosts(prev => [...prev, {
+                id: `invite-${row.id}`,
+                userId: inviterId,
+                name: inviterName,
+                avatar: inviterAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(inviterName)}&background=121212&color=C9A96E`,
+                status: 'pending_accept' as any,
+                isMuted: false,
+              }]);
+            }
+            setIsInviteHostOpen(true);
           }
           if (row?.type === 'cohost_accepted' && isBroadcast) {
             const acceptedUserId = row.data?.actor_id || '';
@@ -823,7 +857,7 @@ export default function LiveStream() {
       },
     });
     setJoinRequestSent(true);
-    showToast('Request sent!');
+    // request sent silently — button changes to "Sent"
   };
 
   useEffect(() => {
@@ -836,13 +870,41 @@ export default function LiveStream() {
         (payload: any) => {
           const row = payload.new;
           if (row?.type === 'join_request') {
+            const reqName = row.data?.requester_name || 'Someone';
+            const reqAvatar = row.data?.requester_avatar || '';
+            const reqId = row.data?.actor_id || '';
+            const reqType = row.data?.request_type === 'battle' ? 'battle' : 'cohost';
             setPendingJoinRequest({
               notifId: row.id,
-              requesterName: row.data?.requester_name || 'Someone',
-              requesterAvatar: row.data?.requester_avatar || '',
-              requesterId: row.data?.actor_id || '',
-              type: row.data?.request_type === 'battle' ? 'battle' : 'cohost',
+              requesterName: reqName,
+              requesterAvatar: reqAvatar,
+              requesterId: reqId,
+              type: reqType,
             });
+            if (reqType === 'cohost') {
+              if (!coHosts.some(h => h.userId === reqId)) {
+                setCoHosts(prev => [...prev, {
+                  id: `req-${row.id}`,
+                  userId: reqId,
+                  name: reqName,
+                  avatar: reqAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(reqName)}&background=121212&color=C9A96E`,
+                  status: 'pending_accept' as any,
+                  isMuted: false,
+                }]);
+              }
+              setIsInviteHostOpen(true);
+            } else {
+              setBattleSlots(prev => {
+                if (prev.some(s => s.userId === reqId)) return prev;
+                const next = [...prev];
+                const emptyIdx = next.findIndex(s => s.status === 'empty');
+                if (emptyIdx !== -1) {
+                  next[emptyIdx] = { userId: reqId, name: reqName, status: 'pending_accept' as any, avatar: reqAvatar };
+                }
+                return next;
+              });
+              setIsFindCreatorsOpen(true);
+            }
           }
         }
       )
@@ -992,16 +1054,15 @@ export default function LiveStream() {
   const [battleState, setBattleState] = useState<BattleState>('LIVE_SOLO');
   const [isBattleMode, setIsBattleMode] = useState(false);
   const isBattleModeRef = useRef(false);
+  const battleEndedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => { isBattleModeRef.current = isBattleMode; }, [isBattleMode]);
   const isBattleJoiner = !isBroadcast && new URLSearchParams(location.search).get('battle') === '1';
 
-  // If joining as battle participant, immediately enter battle mode and start camera
+  // If joining as battle participant, enter battle mode and start camera (server drives timer/countdown)
   useEffect(() => {
     if (!isBattleJoiner || !user?.id) return;
-    setBattleState('IN_BATTLE');
     setIsBattleMode(true);
-    setBattleTime(300);
-    setBattleCountdown(3);
+    setBattleState('INVITING');
     setMyScore(0);
     setOpponentScore(0);
 
@@ -1041,6 +1102,7 @@ export default function LiveStream() {
         });
         if (cancelled) { stream.getTracks().forEach(t => t.stop()); return; }
         cameraStreamRef.current = stream;
+        setCameraStream(stream);
         setBattleParticipantStream(stream);
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
@@ -1143,7 +1205,7 @@ export default function LiveStream() {
       return pc;
     };
 
-    // Host receives joiner arrival → only process if host is already in battle mode
+    // Host receives joiner arrival → update slot UI, server drives state transitions
     chan.on('broadcast', { event: 'joiner_arrived' }, async (msg: any) => {
       if (!isBroadcast || !isBattleModeRef.current) return;
       const { userId, name, avatar } = msg.payload;
@@ -1156,9 +1218,6 @@ export default function LiveStream() {
         return next;
       });
       showToast(`@${name} connected!`);
-      setBattleState('IN_BATTLE');
-      setBattleTime(300);
-      setBattleCountdown(3);
       setupPeer(false);
     });
 
@@ -1195,27 +1254,12 @@ export default function LiveStream() {
       } catch {}
     });
 
+    // Battle state transitions are now driven by server WS events (battle_state_sync, battle_countdown, battle_ended)
+    // Keep Supabase broadcast only for WebRTC signaling and ENDED cleanup
     chan.on('broadcast', { event: 'battle_state' }, (msg: any) => {
       const payload = msg.payload;
-      if (payload.state === 'IN_BATTLE' && isBattleJoiner) {
-        setBattleState('IN_BATTLE');
-        setIsBattleMode(true);
-        setBattleTime(300);
-        setBattleCountdown(3);
-        setMyScore(0);
-        setOpponentScore(0);
-        showToast('Battle started!');
-      }
       if (payload.state === 'ENDED' && isBattleModeRef.current) {
-        setBattleState('ENDED');
         if (battlePeerRef.current) { battlePeerRef.current.close(); battlePeerRef.current = null; }
-        if (!isBroadcast) {
-          showToast('Battle ended!');
-          setTimeout(() => {
-            setBattleState('LIVE_SOLO');
-            setIsBattleMode(false);
-          }, 3000);
-        }
       }
     });
 
@@ -1271,6 +1315,7 @@ export default function LiveStream() {
         });
         if (cancelled) { stream.getTracks().forEach(t => t.stop()); return; }
         cameraStreamRef.current = stream;
+        setCameraStream(stream);
         setBattleParticipantStream(stream);
       } catch {
         showToast('Camera access denied — cannot join battle');
@@ -1285,7 +1330,7 @@ export default function LiveStream() {
     videoRef.current.play().catch(() => {});
   }, [isBattleParticipant, battleParticipantStream]);
 
-  const localStreamForWebRTC = isBroadcast ? cameraStreamRef.current : battleParticipantStream;
+  const localStreamForWebRTC = isBroadcast ? cameraStream : battleParticipantStream;
   const isRegularViewer = !isBroadcast && !isBattleParticipant;
   const webrtcEnabled = isBroadcast || isBattleParticipant || isRegularViewer;
   const { remotePeers, error: webrtcError } = useLiveWebRTC({
@@ -1376,6 +1421,7 @@ export default function LiveStream() {
   const [_battleGifterCoins, setBattleGifterCoins] = useState<Record<string, number>>({});
   // Track top gifters per player: { 'me': { 'username': coins }, 'opponent': {...}, ... }
   const [playerGifters, setPlayerGifters] = useState<Record<string, Record<string, number>>>({});
+  const [gifterAvatars, setGifterAvatars] = useState<Record<string, string>>({});
   const [lastGifts, setLastGifts] = useState<{ opponent: string | null; player3: string | null; player4: string | null }>({ opponent: null, player3: null, player4: null });
   const [floatingHearts, setFloatingHearts] = useState<
     Array<{ id: string; x: number; y: number; dx: number; rot: number; size: number; color: string; username?: string; avatar?: string }>
@@ -1451,29 +1497,7 @@ export default function LiveStream() {
     return red > blue ? 'me' : 'opponent';
   }, [myScore, opponentScore, player3Score, player4Score]);
 
-  useEffect(() => {
-    if (!isBattleMode || battleTime <= 0) return;
-    const interval = setInterval(() => {
-      setBattleTime(prev => {
-        if (prev <= 1) return 0;
-        return prev - 1;
-      });
-      // Scores only change from real taps (max 5 per user per match)
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [isBattleMode, battleTime]);
-
-  // Determine winner when battle time reaches 0
-  useEffect(() => {
-    if (isBattleMode && battleTime === 0 && !battleWinner && battleCountdown === null) {
-      // Only determine winner if the battle was actually started (scores exist)
-      const totalScore = myScore + opponentScore + player3Score + player4Score;
-      if (totalScore > 0) {
-        const winner = determine4PlayerWinner();
-        setBattleWinner(winner);
-      }
-    }
-  }, [isBattleMode, battleTime, battleWinner, battleCountdown, myScore, opponentScore, player3Score, player4Score, determine4PlayerWinner]);
+  // Timer, scoring, and winner are all server-driven via battle_tick, battle_score, battle_ended
 
   const endBattleCleanup = useCallback(() => {
     setIsBattleMode(false);
@@ -1549,24 +1573,7 @@ export default function LiveStream() {
 
   // No auto-start - user must press Match to begin
 
-  useEffect(() => {
-    if (!isBattleMode) return;
-    if (battleCountdown == null) return;
-
-    const tick = window.setInterval(() => {
-      setBattleCountdown((prev) => {
-        if (prev == null) return null;
-        if (prev <= 1) {
-          window.clearInterval(tick);
-          setBattleTime(300);
-          return null;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => window.clearInterval(tick);
-  }, [isBattleMode, battleCountdown]);
+  // Countdown is server-driven via battle_countdown events
 
   const _startBattleWithCreator = (creatorId: string, creatorName: string) => {
     setOpponentCreatorName(creatorName);
@@ -1657,11 +1664,11 @@ export default function LiveStream() {
     }
   }, [isBattleMode, battleTime, battleWinner]);
 
-  const addBattleGifterCoins = (username: string, coins: number, target?: string) => {
+  const addBattleGifterCoins = (username: string, coins: number, target?: string, avatar?: string) => {
     if (!isBattleMode) return;
     if (!username || coins <= 0) return;
     setBattleGifterCoins((prev) => ({ ...prev, [username]: (prev[username] ?? 0) + coins }));
-    // Track per-player gifters
+    if (avatar) setGifterAvatars(prev => ({ ...prev, [username]: avatar }));
     const playerTarget = target || giftTarget;
     setPlayerGifters(prev => {
       const playerRecord = { ...(prev[playerTarget] || {}) };
@@ -1679,7 +1686,7 @@ export default function LiveStream() {
       .map(([name, coins]) => ({
         name,
         coins,
-        avatar: `https://ui-avatars.com/api/?name=&background=121212&color=C9A96E`,
+        avatar: gifterAvatars[name] || activeViewers.find(v => v.username === name || v.displayName === name)?.avatar || '',
       }));
   };
 
@@ -1972,6 +1979,7 @@ export default function LiveStream() {
       if (!current) return;
       current.getTracks().forEach((t) => t.stop());
       cameraStreamRef.current = null;
+      setCameraStream(null);
     };
 
     const start = async () => {
@@ -1986,6 +1994,7 @@ export default function LiveStream() {
         if (cached) {
           keepStreamAliveOnCleanup = true;
           cameraStreamRef.current = cached;
+          setCameraStream(cached);
           cached.getAudioTracks().forEach((t) => (t.enabled = !isMicMuted));
           if (videoRef.current) {
             videoRef.current.srcObject = cached;
@@ -2024,6 +2033,7 @@ export default function LiveStream() {
         }
 
         cameraStreamRef.current = stream;
+        setCameraStream(stream);
         stream.getAudioTracks().forEach((t) => (t.enabled = !isMicMuted));
 
         // Set camera zoom to minimum for widest view
@@ -2106,6 +2116,11 @@ export default function LiveStream() {
         lastVisitDaysAgo: 0,
       }));
       setActiveViewers(viewers);
+
+      // Opponent: once connected to the room, tell the server we're joining the battle
+      if (isBattleJoiner) {
+        websocket.send('battle_join', { opponentName: user?.username || user?.name || 'Player' });
+      }
     };
 
     const handleUserJoined = (data: any) => {
@@ -2172,18 +2187,24 @@ export default function LiveStream() {
           isGift: true,
         };
         setMessages(prev => [...prev, msg]);
+        addBattleGifterCoins(data.username || 'User', giftDef.coins, data.battleTarget, data.avatar || '');
       }
     };
 
-    // Server-controlled battle events
+    // Server-controlled battle events — single source of truth
     const handleBattleStateSync = (data: any) => {
       if (!mounted) return;
-      if (data.status === 'WAITING' || data.status === 'COUNTDOWN') {
+      if (data.status === 'WAITING') {
         setIsBattleMode(true);
         setBattleState('INVITING');
+      } else if (data.status === 'COUNTDOWN') {
+        setIsBattleMode(true);
+        setBattleState('INVITING');
+        setBattleCountdown(3);
       } else if (data.status === 'ACTIVE') {
         setIsBattleMode(true);
         setBattleState('IN_BATTLE');
+        setBattleCountdown(null);
       } else if (data.status === 'ENDED') {
         setBattleState('ENDED');
       }
@@ -2220,12 +2241,25 @@ export default function LiveStream() {
 
     const handleBattleEnded = (data: any) => {
       if (!mounted) return;
+      if (battleEndedTimeoutRef.current) {
+        clearTimeout(battleEndedTimeoutRef.current);
+        battleEndedTimeoutRef.current = null;
+      }
       setBattleState('ENDED');
       setMyScore(data.hostScore ?? 0);
       setOpponentScore(data.opponentScore ?? 0);
       if (data.winner === 'host') setBattleWinner('me');
       else if (data.winner === 'opponent') setBattleWinner('opponent');
       else setBattleWinner('draw' as any);
+      // Dismiss battle overlay after 5s so user isn't stuck on result screen
+      battleEndedTimeoutRef.current = setTimeout(() => {
+        battleEndedTimeoutRef.current = null;
+        if (mounted) {
+          setIsBattleMode(false);
+          setBattleWinner(null);
+          setBattleState('LIVE_SOLO');
+        }
+      }, 5000);
     };
 
     websocket.on('room_state', handleRoomState);
@@ -2239,10 +2273,33 @@ export default function LiveStream() {
     websocket.on('battle_countdown', handleBattleCountdown);
     websocket.on('battle_ended', handleBattleEnded);
 
+    const handleModerationWarning = (data: { message?: string }) => {
+      if (!mounted) return;
+      setModerationWarningMessage(data?.message || 'Your stream may violate our safety guidelines. Please avoid dangerous or illegal activity.');
+      setShowModerationWarning(true);
+    };
+    const handleModerationPause = (data: { message?: string }) => {
+      if (!mounted) return;
+      showToast(data?.message || 'Stream paused for safety. Please review our community guidelines.');
+      navigate(-1);
+    };
+    const handleModerationSuspend = (data: { message?: string }) => {
+      if (!mounted) return;
+      showToast(data?.message || 'Your account is under review. Contact support if you have questions.');
+      navigate('/');
+    };
+    websocket.on('moderation_warning', handleModerationWarning);
+    websocket.on('moderation_pause', handleModerationPause);
+    websocket.on('moderation_suspend', handleModerationSuspend);
+
     connect();
 
     return () => {
       mounted = false;
+      if (battleEndedTimeoutRef.current) {
+        clearTimeout(battleEndedTimeoutRef.current);
+        battleEndedTimeoutRef.current = null;
+      }
       websocket.off('room_state', handleRoomState);
       websocket.off('user_joined', handleUserJoined);
       websocket.off('user_left', handleUserLeft);
@@ -2253,9 +2310,78 @@ export default function LiveStream() {
       websocket.off('battle_score', handleBattleScore);
       websocket.off('battle_countdown', handleBattleCountdown);
       websocket.off('battle_ended', handleBattleEnded);
+      websocket.off('moderation_warning', handleModerationWarning);
+      websocket.off('moderation_pause', handleModerationPause);
+      websocket.off('moderation_suspend', handleModerationSuspend);
       websocket.disconnect();
     };
-  }, [effectiveStreamId, user?.id]);
+  }, [effectiveStreamId, user?.id, navigate]);
+
+  // AI moderation: periodic frame check when broadcasting (flag + assist, all actions logged)
+  const moderationIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  useEffect(() => {
+    if (!isBroadcast || !user?.id || !effectiveStreamId) return;
+
+    const captureFrame = (): string | null => {
+      const video = videoRef.current;
+      if (!video?.srcObject || video.readyState < 2) return null;
+      try {
+        const w = video.videoWidth;
+        const h = video.videoHeight;
+        if (!w || !h) return null;
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.min(w, 640);
+        canvas.height = Math.min(h, (640 * h) / w);
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return null;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+        const base64 = dataUrl.split(',')[1];
+        return base64 || null;
+      } catch {
+        return null;
+      }
+    };
+
+    const runCheck = async () => {
+      const base64 = captureFrame();
+      if (!base64) return;
+      try {
+        const { data: session } = await supabase.auth.getSession();
+        const token = session.session?.access_token;
+        if (!token) return;
+        const res = await fetch('/api/live/moderation/check', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ stream_key: effectiveStreamId, image_base64: base64 }),
+        });
+        if (!res.ok) return;
+        const json = await res.json();
+        const action = json?.action;
+        const message = json?.message || '';
+        if (action === 'warning') {
+          setModerationWarningMessage(message);
+          setShowModerationWarning(true);
+        } else if (action === 'pause') {
+          showToast(message);
+          navigate(-1);
+        } else if (action === 'suspend') {
+          showToast(message);
+          navigate('/');
+        }
+      } catch {
+        // ignore
+      }
+    };
+
+    moderationIntervalRef.current = setInterval(runCheck, 30000);
+    return () => {
+      if (moderationIntervalRef.current) {
+        clearInterval(moderationIntervalRef.current);
+        moderationIntervalRef.current = null;
+      }
+    };
+  }, [isBroadcast, user?.id, effectiveStreamId, navigate]);
 
   const [giftQueue, setGiftQueue] = useState<string[]>([]);
   const [isPlayingGift, setIsPlayingGift] = useState(false);
@@ -2320,12 +2446,14 @@ export default function LiveStream() {
           const { data, error } = await supabase.rpc('send_stream_gift', {
             p_stream_key: effectiveStreamId,
             p_gift_id: gift.id,
+            p_channel: platform.name,
           });
 
           if (error) {
             const msg = typeof error.message === 'string' ? error.message : '';
-            if (msg.includes('insufficient_funds')) {
+            if (msg.includes('insufficient_funds') || msg.includes('Insufficient coins') || msg.includes('frozen')) {
               setShowGiftPanel(false);
+              if (msg.includes('frozen')) showToast('Account is frozen. Contact support.');
               return;
             }
             setCoinBalance(prev => Math.max(0, prev - gift.coins));
@@ -2380,7 +2508,7 @@ export default function LiveStream() {
       setSessionContribution(prev => prev + gift.coins);
 
       maybeEnqueueUniverse(gift.name, viewerName);
-      addBattleGifterCoins(viewerName, gift.coins);
+      addBattleGifterCoins(viewerName, gift.coins, undefined, user?.avatar || '');
 
       // Rose trigger for Speed Challenge
       if (gift.name.toLowerCase().includes('rose')) {
@@ -2471,6 +2599,7 @@ export default function LiveStream() {
           const { data, error } = await supabase.rpc('send_stream_gift', {
             p_stream_key: effectiveStreamId,
             p_gift_id: lastSentGift.id,
+            p_channel: platform.name,
           });
 
           if (error) {
@@ -2501,7 +2630,7 @@ export default function LiveStream() {
       setSessionContribution(prev => prev + lastSentGift.coins);
 
       maybeEnqueueUniverse(lastSentGift.name, viewerName);
-      addBattleGifterCoins(viewerName, lastSentGift.coins);
+      addBattleGifterCoins(viewerName, lastSentGift.coins, undefined, user?.avatar || '');
 
       // Rose trigger for Speed Challenge
       if (lastSentGift.name.toLowerCase().includes('rose')) {
@@ -2569,6 +2698,7 @@ export default function LiveStream() {
       if (cameraStreamRef.current) {
         cameraStreamRef.current.getTracks().forEach((track) => track.stop());
         cameraStreamRef.current = null;
+        setCameraStream(null);
       }
       clearCachedCameraStream();
       navigate('/feed', { replace: true });
@@ -2884,8 +3014,8 @@ export default function LiveStream() {
           </div>
         )}
 
-        {/* Battle Split Screen Overlay - Shows ONLY when in battle mode */}
-        {isBattleMode && (
+        {/* Battle Split Screen Overlay - Only on live/watch routes so it never appears on profile or other pages */}
+        {isBattleMode && (location.pathname.startsWith('/live') || location.pathname.startsWith('/watch')) && (
           <div
             className={`absolute inset-0 z-[80] flex flex-col ${isBroadcast ? 'pointer-events-none' : ''}`}
             style={{ paddingTop: isBroadcast ? '90px' : '90px', paddingBottom: isBroadcast ? '305px' : undefined }}
@@ -3244,14 +3374,23 @@ export default function LiveStream() {
 
               {/* MVP Circles - outside below battle frame, 3 left + 3 right */}
             <div className="w-full px-3 py-2 flex items-center justify-between flex-none pointer-events-none mt-1 relative z-30">
-              {/* Left side - top gifters for P1 */}
+              {/* Left side - top gifters for P1, fallback to spectator avatars */}
               <div className="flex items-center -space-x-1.5 pointer-events-auto" onClick={() => setShowViewerList(true)}>
-                {[['#FFD700'], ['#C0C0C0'], ['#CD7F32']].map(([c], i) => {
+                {[0, 1, 2].map((i) => {
                   const g = getTopGifters('me')[i];
-                  return g ? (
-                    <div key={i} style={{ zIndex: 3 - i }}><AvatarRing src={g.avatar} alt={g.name} size={36} /></div>
-                  ) : (
-                    <div key={i} style={{ zIndex: 3 - i }}><AvatarRing src="/Icons/elix-logo.png" alt="" size={36} /></div>
+                  const fallbackViewer = activeViewers[i];
+                  const src = g?.avatar || fallbackViewer?.avatar || '';
+                  const alt = g?.name || fallbackViewer?.displayName || '';
+                  const isMvp = i === 0 && battleWinner && g;
+                  return (
+                    <div key={i} style={{ zIndex: 3 - i }} className="relative">
+                      <AvatarRing src={src} alt={alt} size={36} />
+                      {isMvp && (
+                        <div className="absolute -top-2 -right-1 bg-[#C9A96E] rounded-full w-5 h-5 flex items-center justify-center border border-black shadow-lg z-10">
+                          <Crown size={10} className="text-black" />
+                        </div>
+                      )}
+                    </div>
                   );
                 })}
               </div>
@@ -3267,14 +3406,23 @@ export default function LiveStream() {
                 </div>
               )}
 
-              {/* Right side - top gifters for P2 */}
+              {/* Right side - top gifters for P2, fallback to spectator avatars */}
               <div className="flex items-center -space-x-1.5 pointer-events-auto" onClick={() => setShowViewerList(true)}>
-                {[['#FFD700'], ['#C0C0C0'], ['#CD7F32']].map(([c], i) => {
+                {[0, 1, 2].map((i) => {
                   const g = getTopGifters('opponent')[i];
-                  return g ? (
-                    <div key={i} style={{ zIndex: 3 - i }}><AvatarRing src={g.avatar} alt={g.name} size={36} /></div>
-                  ) : (
-                    <div key={i} style={{ zIndex: 3 - i }}><AvatarRing src="/Icons/elix-logo.png" alt="" size={36} /></div>
+                  const fallbackViewer = activeViewers[3 + i];
+                  const src = g?.avatar || fallbackViewer?.avatar || '';
+                  const alt = g?.name || fallbackViewer?.displayName || '';
+                  const isMvp = i === 0 && battleWinner && g;
+                  return (
+                    <div key={i} style={{ zIndex: 3 - i }} className="relative">
+                      <AvatarRing src={src} alt={alt} size={36} />
+                      {isMvp && (
+                        <div className="absolute -top-2 -right-1 bg-[#C9A96E] rounded-full w-5 h-5 flex items-center justify-center border border-black shadow-lg z-10">
+                          <Crown size={10} className="text-black" />
+                        </div>
+                      )}
+                    </div>
                   );
                 })}
               </div>
@@ -3500,33 +3648,19 @@ export default function LiveStream() {
       {/* BOTTOM ZONE: INPUT (Fixed) - Moved out to ensure top z-index */}
       <div className="bottom-zone flex-none pointer-events-auto bg-transparent px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-2 min-h-[50px] flex items-center fixed bottom-0 left-0 right-0 z-[90] justify-center">
         <div className="w-full max-w-[480px] mx-auto">
-          {/* Spectator / Battle Joiner Input & Actions */}
+          {/* Spectator bottom bar: keyboard, request co-host, gift, 3 dots */}
           {!isBroadcast && (
-            <div className="flex items-center gap-3 pointer-events-auto translate-y-[12px]">
-              {!currentGift ? (
-                <form onSubmit={handleSendMessage} className="flex-1 flex items-center gap-2 bg-[#13151A]/40 backdrop-blur-md rounded-full px-4 py-2 border border-white/10 h-10 min-w-0">
-                  <input
-                    type="text"
-                    inputMode="text"
-                    enterKeyHint="send"
-                    autoComplete="off"
-                    autoCorrect="off"
-                    placeholder="Say something..."
-                    className="bg-transparent text-white text-sm outline-none flex-1 placeholder:text-white/40 min-w-0"
-                    value={inputValue}
-                    onChange={(e) => setInputValue(e.target.value)}
-                  />
-                  <button type="submit" className="text-white hover:text-white/80 transition flex-shrink-0" title="Send">
-                    <Send size={18} />
-                  </button>
-                </form>
-              ) : (
-                <div className="flex-1" />
-              )}
-
-              <div className="flex items-center justify-end gap-3 flex-shrink-0">
+            <div className="flex items-center justify-center gap-3 pointer-events-auto translate-y-[12px]">
+              <button
+                type="button"
+                title="Type a message"
+                onClick={() => setShowSpectatorChatInput(true)}
+                className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform"
+              >
+                <MessageCircle size={20} className="text-[#C9A96E]" />
+              </button>
               {!joinRequestSent ? (
-                <button type="button" onClick={() => sendJoinRequest('cohost')} className="w-10 h-10 rounded-full bg-[#C9A96E] flex items-center justify-center shadow-lg active:scale-95 transition-transform">
+                <button type="button" title="Request co-host" onClick={() => sendJoinRequest('cohost')} className="w-10 h-10 rounded-full bg-[#C9A96E] flex items-center justify-center shadow-lg active:scale-95 transition-transform">
                   <UserPlus size={20} className="text-black" />
                 </button>
               ) : (
@@ -3534,16 +3668,15 @@ export default function LiveStream() {
                   <Check size={20} className="text-green-400" />
                 </div>
               )}
-              <button type="button" onClick={() => { setGiftTarget('me'); setShowGiftPanel(true); }} className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg">
+              <button type="button" title="Send gift" onClick={() => { setGiftTarget('me'); setShowGiftPanel(true); }} className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform">
                 <Gift size={20} className="text-[#C9A96E]" />
               </button>
-              <button type="button" onClick={() => setShowSharePanel(true)} className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform">
+              <button type="button" title="Share" onClick={() => setShowSharePanel(true)} className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform">
                 <Share2 size={20} className="text-[#C9A96E]" />
               </button>
-              <button type="button" onClick={() => setIsMoreMenuOpen(true)} className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg">
+              <button type="button" title="More options" onClick={() => setIsMoreMenuOpen(true)} className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform">
                 <MoreVertical size={20} className="text-[#C9A96E]" />
               </button>
-              </div>
             </div>
           )}
 
@@ -3595,12 +3728,42 @@ export default function LiveStream() {
         </div>
       </div>
 
+      {/* Spectator chat input overlay — appears when keyboard icon is tapped */}
+      {showSpectatorChatInput && !isBroadcast && (
+        <div className="fixed inset-0 z-[100000] flex flex-col justify-end pointer-events-none max-w-[480px] mx-auto">
+          <div className="absolute inset-0 bg-black/40 pointer-events-auto" onClick={() => setShowSpectatorChatInput(false)} />
+          <div className="pointer-events-auto relative z-10 px-3 pb-[max(12px,env(safe-area-inset-bottom))]">
+            <form
+              onSubmit={(e) => { handleSendMessage(e); setShowSpectatorChatInput(false); }}
+              className="flex items-center gap-2 bg-[#13151A]/95 backdrop-blur-md rounded-full px-4 py-2 border border-[#C9A96E]/40 h-12"
+            >
+              <input
+                ref={spectatorChatInputRef}
+                type="text"
+                inputMode="text"
+                enterKeyHint="send"
+                autoComplete="off"
+                autoCorrect="off"
+                autoFocus
+                placeholder="Say something..."
+                className="bg-transparent text-white text-sm outline-none flex-1 placeholder:text-white/40 min-w-0"
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+              />
+              <button type="submit" className="text-[#C9A96E] hover:text-[#C9A96E]/80 transition flex-shrink-0" title="Send">
+                <Send size={20} />
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* ═══ INVITE HOST PANEL (Multi-Host, up to 12) ═══ */}
       {isInviteHostOpen && (
         <div className="fixed inset-0 z-[99999] flex flex-col justify-end max-w-[480px] mx-auto" style={{ height: '100%' }}>
           <div className="absolute inset-0 bg-black/40 pointer-events-auto" onClick={() => { (document.activeElement as HTMLElement)?.blur(); setIsInviteHostOpen(false); setHostSearchQuery(''); }} />
           <div
-            className="bg-[#1C1E24]/95 backdrop-blur-md rounded-t-2xl max-h-[65vh] flex flex-col shadow-2xl border-t border-[#C9A96E]/20 pointer-events-auto w-full relative z-10 overflow-hidden pb-safe"
+            className="bg-[#1C1E24]/95 backdrop-blur-md rounded-t-2xl h-[40vh] flex flex-col shadow-2xl border-t border-[#C9A96E]/20 pointer-events-auto w-full relative z-10 overflow-hidden pb-safe"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Drag handle */}
@@ -3608,40 +3771,27 @@ export default function LiveStream() {
               <div className="w-10 h-1 bg-white/20 rounded-full" />
             </div>
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
-              <div className="flex items-center gap-2">
-                <Crown className="w-5 h-5 text-white" />
-                <span className="text-white font-bold text-sm">Invite Co-Hosts</span>
-                <span className="text-white/40 text-xs">({coHosts.length}/{MAX_CO_HOSTS})</span>
+            <div className="flex items-center justify-between px-4 py-2">
+              <div className="flex items-center gap-1.5">
+                <Crown className="w-3.5 h-3.5 text-[#C9A96E]" strokeWidth={1.8} />
+                <span className="text-white font-bold text-[13px]">Invite Co-Hosts</span>
+                <span className="text-white/30 text-[10px]">({coHosts.length}/{MAX_CO_HOSTS})</span>
               </div>
-              <button onClick={() => { (document.activeElement as HTMLElement)?.blur(); setIsInviteHostOpen(false); setHostSearchQuery(''); }} className="w-8 h-8 rounded-full bg-[#13151A] border border-[#C9A96E]/40 flex items-center justify-center">
-                <X size={16} className="text-[#C9A96E]" />
-              </button>
             </div>
 
             {/* Current Co-Hosts */}
             {coHosts.length > 0 && (
-              <div className="px-4 py-3 border-b border-white/10">
-                <p className="text-white/60 text-xs font-bold uppercase tracking-wider mb-2">Current Hosts ({coHosts.length})</p>
-                <div className="flex gap-3 overflow-x-auto no-scrollbar">
+              <div className="px-4 py-2 border-b border-white/5 flex-shrink-0">
+                <div className="flex gap-2.5 overflow-x-auto no-scrollbar">
                   {coHosts.map(host => (
-                    <div key={host.id} className="flex flex-col items-center gap-1 min-w-[60px]">
+                    <div key={host.id} className="flex flex-col items-center gap-0.5 min-w-[48px]">
                       <div className="relative">
-                        <AvatarRing src={host.avatar} alt={host.name} size={48} />
-                        <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-[#1a1a1a] ${
+                        <AvatarRing src={host.avatar} alt={host.name} size={32} />
+                        <div className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border border-[#1a1a1a] ${
                           host.status === 'live' ? 'bg-[#C9A96E]' : host.status === 'accepted' ? 'bg-[#C9A96E]/60' : 'bg-[#C9A96E]/30 animate-pulse'
                         }`} />
-                        <button
-                          onClick={() => removeCoHost(host.id)}
-                          className="absolute -top-1 -left-1 w-4 h-4 rounded-full bg-red-500 flex items-center justify-center"
-                        >
-                          <X size={10} className="text-black" />
-                        </button>
                       </div>
-                      <span className="text-white text-[10px] truncate w-14 text-center">{host.name}</span>
-                      <span className="text-white/40 text-[8px] uppercase font-bold">
-                        {host.status === 'live' ? '● LIVE' : host.status === 'accepted' ? 'Joining...' : 'Invited'}
-                      </span>
+                      <span className="text-white/50 text-[9px] truncate w-11 text-center">{host.name}</span>
                     </div>
                   ))}
                 </div>
@@ -3649,95 +3799,78 @@ export default function LiveStream() {
             )}
 
             {/* Search */}
-            <div className="px-4 py-3">
-              <div className="flex items-center gap-2 bg-white/5 rounded-xl px-3 py-2 border border-white/10">
-                <Search className="w-4 h-4 text-white/50" strokeWidth={2} />
+            <div className="px-4 py-2 flex-shrink-0">
+              <div className="flex items-center gap-2 bg-white/[0.03] rounded-lg px-3 py-1.5 border border-white/10">
+                <Search className="w-3.5 h-3.5 text-white/30" strokeWidth={1.8} />
                 <input
                   type="text"
-                  placeholder="Search creators to invite..."
-                  className="bg-transparent text-white text-sm outline-none flex-1 placeholder:text-white/30"
+                  placeholder="Search creators..."
+                  className="bg-transparent text-white text-xs outline-none flex-1 placeholder:text-white/25"
                   value={hostSearchQuery}
                   onChange={(e) => setHostSearchQuery(e.target.value)}
                 />
               </div>
             </div>
 
-            {/* Creator List */}
-            <div className="flex-1 overflow-y-auto px-4 pb-4">
+            {/* Creator List — scrollable */}
+            <div className="flex-1 overflow-y-auto px-4 pb-3">
               {filteredHostCreators.length === 0 ? (
                 <div className="text-center text-white/30 text-sm py-8">No creators found</div>
               ) : (
-                <div className="space-y-2">
-                  {liveHostCreators.length > 0 && (
-                    <>
-                      <div className="flex items-center gap-2 pt-1 pb-1">
-                        <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                        <span className="text-white/60 text-[10px] font-bold uppercase tracking-wider">Live Now ({liveHostCreators.length})</span>
-                      </div>
-                      {liveHostCreators.map(creator => (
-                        <button
-                          key={creator.id || creator.name}
-                          onClick={() => {
-                            inviteCoHost({ id: creator.id, name: creator.name, avatar: creator.avatar });
-                          }}
-                          disabled={coHosts.length >= MAX_CO_HOSTS}
-                          className="w-full flex items-center gap-3 p-3 rounded-xl bg-red-500/10 border border-red-500/20 hover:bg-[#C9A96E]/10 transition-all active:scale-[0.98] disabled:opacity-30"
-                        >
-                          <div className="relative">
-                            <AvatarRing src={creator.avatar} alt={creator.name} size={40} />
-                            <div className="absolute -bottom-0.5 -right-0.5 px-1 py-0.5 bg-red-500 rounded text-[7px] font-black text-white leading-none">LIVE</div>
+                <div className="space-y-0.5">
+                  {[...liveHostCreators, ...offlineHostCreators].map(creator => {
+                    const hostEntry = coHosts.find(h => h.userId === creator.id);
+                    const status = hostEntry?.status;
+                    const isLive = liveHostCreators.some(c => c.id === creator.id);
+                    return (
+                      <button
+                        key={creator.id || creator.name}
+                        onClick={() => !status && inviteCoHost({ id: creator.id, name: creator.name, avatar: creator.avatar })}
+                        disabled={!!status || coHosts.length >= MAX_CO_HOSTS}
+                        className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-white/[0.03] transition-colors active:scale-[0.98] disabled:opacity-80"
+                      >
+                        <div className="relative flex-shrink-0">
+                          <AvatarRing src={creator.avatar} alt={creator.name} size={30} />
+                          {isLive && <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-red-500 rounded-full border border-[#1C1E24]" />}
+                        </div>
+                        <p className="flex-1 text-left text-white text-xs font-semibold truncate min-w-0">{creator.name || creator.username}</p>
+                        {status === 'live' ? (
+                          <div className="px-2 py-1 rounded-full bg-green-500/20 border border-green-500/40 flex items-center gap-0.5 flex-shrink-0">
+                            <Check size={9} className="text-green-400" />
+                            <span className="text-green-400 text-[9px] font-bold">Joined</span>
                           </div>
-                          <div className="flex-1 text-left">
-                            <p className="text-white text-sm font-bold">@{creator.username}</p>
-                            {(creator as any).streamTitle ? (
-                              <p className="text-white/50 text-[10px] truncate">{(creator as any).streamTitle}</p>
-                            ) : null}
-                            <div className="flex items-center gap-2">
-                              <span className="text-red-400 text-xs font-semibold">Currently Live</span>
-                              {(creator as any).viewerCount > 0 && (
-                                <span className="text-white/40 text-[10px]">• {(creator as any).viewerCount} watching</span>
-                              )}
+                        ) : status === 'accepted' ? (
+                          <div className="px-2 py-1 rounded-full bg-[#C9A96E]/20 border border-[#C9A96E]/40 flex items-center gap-0.5 flex-shrink-0">
+                            <span className="text-[#C9A96E] text-[9px] font-bold">Joining...</span>
+                          </div>
+                        ) : status === ('pending_accept' as any) ? (
+                          <div className="flex items-center gap-1 flex-shrink-0">
+                            <div
+                              className="px-2 py-1 rounded-full bg-red-500/20 border border-red-500/30 flex items-center gap-0.5 active:scale-95 transition-transform cursor-pointer"
+                              onClick={(e) => { e.stopPropagation(); if (pendingJoinRequest && pendingJoinRequest.requesterId === hostEntry?.userId) { declineJoinRequest(); } else { declineCoHostInvite(); } setCoHosts(prev => prev.filter(h => h.userId !== hostEntry?.userId)); }}
+                            >
+                              <span className="text-red-400 text-[9px] font-bold">Reject</span>
+                            </div>
+                            <div
+                              className="px-2.5 py-1 rounded-full bg-green-500 flex items-center gap-0.5 active:scale-95 transition-transform cursor-pointer"
+                              onClick={(e) => { e.stopPropagation(); if (pendingJoinRequest && pendingJoinRequest.requesterId === hostEntry?.userId) { acceptJoinRequest(); } else { acceptCoHostInvite(); } }}
+                            >
+                              <span className="text-black text-[9px] font-bold">Join</span>
                             </div>
                           </div>
-                          <div className="px-3 py-1.5 rounded-full bg-[#C9A96E] flex items-center gap-1">
-                            <UserPlus size={12} className="text-black" />
-                            <span className="text-black text-xs font-bold">Invite</span>
+                        ) : status === 'invited' ? (
+                          <div className="px-2 py-1 rounded-full bg-white/5 border border-white/20 flex items-center gap-0.5 flex-shrink-0">
+                            <span className="text-white/50 text-[9px] font-bold">Invited</span>
                           </div>
-                        </button>
-                      ))}
-                    </>
-                  )}
-                  {offlineHostCreators.length > 0 && (
-                    <>
-                      {liveHostCreators.length > 0 && (
-                        <div className="flex items-center gap-2 pt-2 pb-1">
-                          <span className="text-white/40 text-[10px] font-bold uppercase tracking-wider">Other Creators</span>
-                        </div>
-                      )}
-                      {offlineHostCreators.map(creator => (
-                        <button
-                          key={creator.id || creator.name}
-                          onClick={() => {
-                            inviteCoHost({ id: creator.id, name: creator.name, avatar: creator.avatar });
-                          }}
-                          disabled={coHosts.length >= MAX_CO_HOSTS}
-                          className="w-full flex items-center gap-3 p-3 rounded-xl bg-white/5 hover:bg-[#C9A96E]/10 transition-all active:scale-[0.98] disabled:opacity-30"
-                        >
-                          <div className="relative">
-                            <AvatarRing src={creator.avatar} alt={creator.name} size={40} />
+                        ) : (
+                          <div className="px-2 py-1 rounded-full bg-[#C9A96E] flex items-center gap-0.5 flex-shrink-0">
+                            <UserPlus size={9} className="text-black" />
+                            <span className="text-black text-[9px] font-bold">Invite</span>
                           </div>
-                          <div className="flex-1 text-left">
-                            <p className="text-white text-sm font-bold">{creator.name}</p>
-                            <p className="text-white/40 text-xs">Creator</p>
-                          </div>
-                          <div className="px-3 py-1.5 rounded-full bg-[#C9A96E] flex items-center gap-1">
-                            <UserPlus size={12} className="text-black" />
-                            <span className="text-black text-xs font-bold">Invite</span>
-                          </div>
-                        </button>
-                      ))}
-                    </>
-                  )}
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -3759,103 +3892,9 @@ export default function LiveStream() {
         </>
       )}
 
-      {/* ─── INCOMING JOIN REQUEST BANNER (Creator sees this) ─── */}
-      {pendingJoinRequest && isBroadcast && (
-        <div className="fixed inset-0 z-[100002] flex flex-col justify-end pointer-events-none max-w-[480px] mx-auto">
-          <div className="absolute inset-0 bg-black/40 pointer-events-auto" onClick={() => declineJoinRequest()} />
-          <div className="pointer-events-auto animate-in slide-in-from-bottom relative z-10">
-            <div className="bg-[#1C1E24]/95 backdrop-blur-md rounded-t-2xl border-t border-[#C9A96E]/30 shadow-2xl p-4 pb-safe">
-              <div className="flex justify-center mb-3">
-                <div className="w-10 h-1 bg-white/20 rounded-full" />
-              </div>
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-12 h-12 rounded-full border-2 border-[#C9A96E]/50 overflow-hidden bg-[#13151A] flex-shrink-0">
-                  {pendingJoinRequest.requesterAvatar ? (
-                    <img src={pendingJoinRequest.requesterAvatar} alt="" className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-[#C9A96E] font-bold text-lg">
-                      {pendingJoinRequest.requesterName.slice(0, 1).toUpperCase()}
-                    </div>
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-white font-bold text-sm truncate">
-                    {pendingJoinRequest.type === 'cohost' ? 'Co-Host Request' : 'Battle Request'}
-                  </p>
-                  <p className="text-white/60 text-xs">
-                    <span className="text-[#C9A96E]">@{pendingJoinRequest.requesterName}</span> wants to {pendingJoinRequest.type === 'cohost' ? 'co-host' : 'battle'}
-                  </p>
-                </div>
-                <div className="w-8 h-8 rounded-full bg-[#C9A96E]/20 flex items-center justify-center flex-shrink-0">
-                  {pendingJoinRequest.type === 'cohost' ? (
-                    <Crown className="w-4 h-4 text-[#C9A96E]" />
-                  ) : (
-                    <Sword className="w-4 h-4 text-red-400" />
-                  )}
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <button type="button" onClick={(e) => { e.stopPropagation(); e.preventDefault(); declineJoinRequest(); }} className="flex-1 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/70 text-xs font-bold active:scale-95 transition-all pointer-events-auto">
-                  Decline
-                </button>
-                <button type="button" onClick={(e) => { e.stopPropagation(); e.preventDefault(); acceptJoinRequest(); }} className="flex-1 py-2.5 rounded-xl bg-[#C9A96E] text-black text-xs font-bold active:scale-95 transition-all shadow-lg shadow-[#C9A96E]/20 pointer-events-auto">
-                  Accept
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Join requests now handled inline in co-host / battle invite panels */}
 
-      {/* ─── INCOMING BATTLE INVITE BANNER (Bottom sheet) ─── */}
-      {pendingInvite && (
-        <div className="fixed inset-0 z-[100002] flex flex-col justify-end pointer-events-none max-w-[480px] mx-auto">
-          <div className="absolute inset-0 bg-black/40 pointer-events-auto" onClick={() => declineBattleInvite()} />
-          <div className="pointer-events-auto animate-in slide-in-from-bottom relative z-10">
-            <div className="bg-[#1C1E24]/95 backdrop-blur-md rounded-t-2xl border-t border-[#C9A96E]/30 shadow-2xl p-4 pb-safe">
-              <div className="flex justify-center mb-3">
-                <div className="w-10 h-1 bg-white/20 rounded-full" />
-              </div>
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-14 h-14 rounded-full border-2 border-red-500/50 overflow-hidden bg-[#13151A] flex-shrink-0">
-                  {pendingInvite.hostAvatar ? (
-                    <img src={pendingInvite.hostAvatar} alt="" className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-[#C9A96E] font-bold text-lg">
-                      {pendingInvite.hostName.slice(0, 1).toUpperCase()}
-                    </div>
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-white font-bold text-base">Battle Invite</p>
-                  <p className="text-white/60 text-sm truncate">
-                    <span className="text-[#C9A96E]">@{pendingInvite.hostName}</span> wants to battle you!
-                  </p>
-                </div>
-                <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center flex-shrink-0">
-                  <Sword className="w-5 h-5 text-red-400" />
-                </div>
-              </div>
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); e.preventDefault(); declineBattleInvite(); }}
-                  className="flex-1 py-3 rounded-xl bg-white/5 border border-white/10 text-white/70 text-sm font-bold active:scale-95 transition-all"
-                >
-                  Decline
-                </button>
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); e.preventDefault(); acceptBattleInvite(); }}
-                  className="flex-1 py-3 rounded-xl bg-[#C9A96E] text-black text-sm font-bold active:scale-95 transition-all shadow-lg shadow-[#C9A96E]/20"
-                >
-                  Accept & Join
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Battle invite is now handled inline in the invite creators panel */}
 
       {/* ─── INCOMING CO-HOST INVITE BANNER (Bottom sheet) ─── */}
       {pendingCoHostInvite && (
@@ -3919,7 +3958,7 @@ export default function LiveStream() {
             }}
           />
           <div
-            className="bg-[#1C1E24]/95 backdrop-blur-md rounded-t-2xl h-[50vh] max-h-[50vh] flex flex-col shadow-2xl border-t border-[#C9A96E]/20 pointer-events-auto w-full relative z-10 overflow-y-auto no-scrollbar pb-safe"
+            className="bg-[#1C1E24]/95 backdrop-blur-md rounded-t-2xl h-[40vh] flex flex-col shadow-2xl border-t border-[#C9A96E]/20 pointer-events-auto w-full relative z-10 overflow-hidden pb-safe"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Drag handle */}
@@ -3927,62 +3966,25 @@ export default function LiveStream() {
               <div className="w-10 h-1 bg-white/20 rounded-full" />
             </div>
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
-              <div className="flex items-center gap-2">
-                <Users className="w-4 h-4 text-[#C9A96E]" strokeWidth={2} />
-                <span className="text-white font-bold text-sm">Invite Creators</span>
+            <div className="flex items-center px-4 py-2 flex-shrink-0">
+              <div className="flex items-center gap-1.5">
+                <Users className="w-3.5 h-3.5 text-[#C9A96E]" strokeWidth={1.8} />
+                <span className="text-white font-bold text-[13px]">Invite Creators</span>
               </div>
             </div>
 
             {/* Search */}
-            <div className="px-4 py-3">
-              <div className="flex items-center gap-3 px-3 h-10 rounded-xl bg-[#13151A]/50 border border-white/10 focus-within:border-[#C9A96E]/50 transition-colors">
-                <Search className="w-4 h-4 text-white/50" strokeWidth={2} />
+            <div className="px-4 py-1 flex-shrink-0">
+              <div className="flex items-center gap-1.5 bg-white/[0.03] rounded-md px-2.5 py-1 border border-white/10">
+                <Search className="w-3 h-3 text-white/25" strokeWidth={1.5} />
                 <input
                   value={creatorQuery}
                   onChange={(e) => setCreatorQuery(e.target.value)}
-                  placeholder="Search creators..."
-                  className="flex-1 bg-transparent outline-none text-white text-sm placeholder:text-white/30"
+                  placeholder="Search..."
+                  className="flex-1 bg-transparent outline-none text-white text-[11px] placeholder:text-white/20"
                 />
               </div>
             </div>
-
-            {/* Invited Players Status */}
-            {anySlotFilled && (
-              <div className="px-4 pb-2">
-                <div className="bg-white/5 rounded-xl p-3 border border-white/10">
-                  <p className="text-white/50 text-[10px] font-bold uppercase tracking-wider mb-2">Lobby Status</p>
-                  <div className="flex gap-3">
-                    {battleSlots.map((slot, i) => (
-                      <div key={i} className="flex flex-col items-center gap-1">
-                        {slot.status === 'empty' ? (
-                          <div className="w-10 h-10 rounded-full border border-dashed border-[#C9A96E]/30 flex items-center justify-center bg-[#13151A]">
-                            <span className="text-white/30 text-lg">+</span>
-                          </div>
-                        ) : (
-                          <div className="relative">
-                            <AvatarRing src={slot.avatar} alt={slot.name} size={40} />
-                            {slot.status === 'invited' && (
-                              <div className="absolute inset-0 rounded-full flex items-center justify-center bg-[#13151A]/40">
-                                <div className="w-4 h-4 border-2 border-[#C9A96E] border-t-transparent rounded-full animate-spin" />
-                              </div>
-                            )}
-                            {slot.status === 'accepted' && (
-                              <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-[#C9A96E] rounded-full flex items-center justify-center border-2 border-black">
-                                <span className="text-white text-[8px] font-bold">✓</span>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                        <span className="text-white/60 text-[9px] font-bold truncate max-w-[50px]">
-                          {slot.status === 'empty' ? `Slot ${i + 1}` : `@${slot.name}`}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
 
             {/* Creator list */}
             <div className="flex-1 overflow-y-auto px-2" style={{ scrollbarWidth: 'none' }}>
@@ -3991,53 +3993,53 @@ export default function LiveStream() {
                   const slotStatus = battleSlots.find(s => s.userId === c.id)?.status;
                   const isInvited = slotStatus === 'invited';
                   const isAccepted = slotStatus === 'accepted';
+                  const isPendingAccept = slotStatus === ('pending_accept' as any);
                   const allFull = battleSlots.every(s => s.status !== 'empty');
 
                   return (
-                    <div
+                    <button
                       key={c.id}
-                      className="px-3 py-2 flex items-center justify-between hover:bg-white/5 rounded-xl transition-colors"
+                      onClick={() => !slotStatus && !allFull && inviteCreatorToSlot(c.id)}
+                      disabled={!!slotStatus || allFull}
+                      className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-white/[0.03] transition-colors active:scale-[0.98] disabled:opacity-80"
                     >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="relative">
-                          <AvatarRing src={c.avatar} alt={c.username} size={40} />
-                          {c.isLive && (
-                            <div className="absolute -bottom-0.5 -right-0.5 px-1 py-0.5 bg-red-500 rounded text-[7px] font-black text-white leading-none">LIVE</div>
-                          )}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-white text-sm font-bold truncate">@{c.username}</p>
-                          {c.name !== c.username && (
-                            <p className="text-white/40 text-[10px] font-medium truncate">{c.name}</p>
-                          )}
-                          <p className="text-white/50 text-[10px] font-medium">{c.followers} followers</p>
-                        </div>
+                      <div className="relative flex-shrink-0">
+                        <AvatarRing src={c.avatar} alt={c.name} size={30} />
+                        {c.isLive && <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-red-500 rounded-full border border-[#1C1E24]" />}
                       </div>
+                      <p className="flex-1 text-left text-white text-xs font-semibold truncate min-w-0">{c.name || c.username}</p>
 
                       {isAccepted ? (
-                        <span className="px-3 py-1 bg-[#C9A96E]/20 text-white text-[10px] font-bold rounded-full border border-[#C9A96E]/30">
-                          Joined ✓
-                        </span>
+                        <div className="px-2 py-1 rounded-full bg-green-500/20 border border-green-500/40 flex items-center gap-0.5 flex-shrink-0">
+                          <Check size={9} className="text-green-400" />
+                          <span className="text-green-400 text-[9px] font-bold">Joined</span>
+                        </div>
+                      ) : isPendingAccept ? (
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <div
+                            className="px-2 py-1 rounded-full bg-red-500/20 border border-red-500/30 flex items-center gap-0.5 active:scale-95 transition-transform cursor-pointer"
+                            onClick={(e) => { e.stopPropagation(); if (pendingInvite) { declineBattleInvite(); } else if (pendingJoinRequest) { declineJoinRequest(); } setBattleSlots(prev => prev.map(s => s.userId === c.id ? { userId: '', name: '', status: 'empty' as const, avatar: '' } : s)); }}
+                          >
+                            <span className="text-red-400 text-[9px] font-bold">Reject</span>
+                          </div>
+                          <div
+                            className="px-2.5 py-1 rounded-full bg-green-500 flex items-center gap-0.5 active:scale-95 transition-transform cursor-pointer"
+                            onClick={(e) => { e.stopPropagation(); if (pendingInvite) { acceptBattleInvite(); } else if (pendingJoinRequest) { acceptJoinRequest(); } }}
+                          >
+                            <span className="text-black text-[9px] font-bold">Join</span>
+                          </div>
+                        </div>
                       ) : isInvited ? (
-                        <span className="px-3 py-1 bg-[#C9A96E]/20 text-white text-[10px] font-bold rounded-full border border-[#C9A96E]/30 flex items-center gap-1.5">
-                          <div className="w-2 h-2 border border-[#C9A96E] border-t-transparent rounded-full animate-spin" />
-                          Sent
-                        </span>
+                        <div className="px-2 py-1 rounded-full bg-white/5 border border-white/20 flex items-center gap-0.5 flex-shrink-0">
+                          <span className="text-white/50 text-[9px] font-bold">Invited</span>
+                        </div>
                       ) : (
-                        <button
-                          type="button"
-                          onClick={() => inviteCreatorToSlot(c.id)}
-                          disabled={allFull}
-                          className={`px-4 py-1.5 text-[11px] font-bold rounded-full transition-all active:scale-95 ${
-                            allFull 
-                              ? 'bg-white/5 text-white/30 cursor-not-allowed' 
-                              : 'bg-[#C9A96E] hover:bg-[#B8943F] text-white shadow-lg shadow-[#C9A96E]/20'
-                          }`}
-                        >
-                          Invite
-                        </button>
+                        <div className="px-2 py-1 rounded-full bg-[#C9A96E] flex items-center gap-0.5 flex-shrink-0">
+                          <UserPlus size={9} className="text-black" />
+                          <span className="text-black text-[9px] font-bold">Invite</span>
+                        </div>
                       )}
-                    </div>
+                    </button>
                   );
                 })}
 
@@ -4058,31 +4060,23 @@ export default function LiveStream() {
               </div>
             </div>
 
-            {/* Status bar & Start Button */}
-            {battleSlots.some(s => s.status !== 'empty') && (
-              <div className="p-4 border-t border-white/10 bg-[#1C1E24]">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-white/50 text-xs font-bold">
-                    Match Status
-                  </span>
-                  <span className="text-white text-xs font-bold">
-                    {battleSlots.filter(s => s.status === 'accepted').length} Ready <span className="text-white/30">•</span> {battleSlots.filter(s => s.status === 'invited').length} Waiting
-                  </span>
-                </div>
-                
-                {battleSlots.some(s => s.status === 'accepted') && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setBattleCountdown(3);
-                      setIsFindCreatorsOpen(false);
-                    }}
-                    className="w-full py-3 bg-[#C9A96E] hover:bg-[#B8943F] text-white text-sm font-black rounded-xl shadow-lg active:scale-95 transition-all uppercase tracking-widest flex items-center justify-center gap-2"
-                  >
-                    <span>Start Match</span>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                  </button>
-                )}
+            {/* Start Match Button */}
+            {battleSlots.some(s => s.status === 'accepted') && (
+              <div className="px-4 py-2 flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsFindCreatorsOpen(false);
+                    setBattleState('IN_BATTLE');
+                    setBattleTime(300);
+                    setBattleCountdown(3);
+                    websocket.send('battle_create', { hostName: myCreatorName });
+                  }}
+                  className="w-full py-2.5 bg-[#C9A96E] text-black text-xs font-bold rounded-lg shadow-lg active:scale-95 transition-all flex items-center justify-center gap-1.5"
+                >
+                  <Sword size={14} />
+                  <span>Start Match</span>
+                </button>
               </div>
             )}
           </div>
@@ -4219,89 +4213,59 @@ export default function LiveStream() {
 
       {/* ═══ VIEWER LIST PANEL ═══ */}
       {showViewerList && (
-        <div className="fixed inset-0 z-[99999] flex flex-col bg-[#0A0B0E]/95 backdrop-blur-sm max-w-[480px] mx-auto">
-          <div className="flex-1 flex flex-col w-full">
-
-            {/* Header */}
-            <div className="flex items-center justify-between px-4 pt-[calc(env(safe-area-inset-top,0px)+10px)] pb-2">
-              <div className="flex items-center gap-2.5">
-                <button onClick={() => setShowViewerList(false)} className="p-1" title="Close">
-                  <img src="/Icons/Gold power buton.png" alt="Close" className="w-5 h-5" />
-                </button>
-                <span className="text-white font-bold text-base">Spectators</span>
-                <span className="text-white/30 text-xs font-medium">{formatCountShort(viewerCount)} watching</span>
+        <>
+          <div
+            className="fixed inset-0 bg-black/40 pointer-events-auto"
+            style={{ zIndex: 99998 }}
+            onClick={() => setShowViewerList(false)}
+          />
+          <div className="fixed bottom-0 left-0 right-0 z-[999999] pointer-events-auto max-w-[480px] mx-auto">
+            <div className="bg-[#1C1E24]/95 backdrop-blur-md rounded-t-2xl h-[40vh] flex flex-col shadow-2xl border-t border-[#C9A96E]/20 overflow-hidden">
+              <div className="flex justify-center pt-3 pb-1">
+                <div className="w-10 h-1 bg-white/20 rounded-full" />
+              </div>
+              <div className="flex items-center justify-between px-4 pb-2">
+                <h3 className="text-white font-bold text-sm">Spectators</h3>
+                <div className="flex items-center gap-1">
+                  <Users size={12} className="text-white/50" />
+                  <span className="text-white/60 text-xs font-semibold">{formatCountShort(viewerCount)}</span>
+                </div>
+              </div>
+              <div className="flex-1 overflow-y-auto no-scrollbar px-4 pb-4">
+                {activeViewers.length > 0 ? (
+                  activeViewers.map((v, i) => (
+                    <button
+                      key={v.id}
+                      type="button"
+                      className="flex items-center gap-3 w-full py-2.5 active:bg-white/5 rounded-xl transition-colors"
+                      onClick={() => { setMiniProfile({ id: v.id, username: v.displayName, avatar: v.avatar, level: v.level ?? null }); setShowViewerList(false); }}
+                    >
+                      <span className="text-white/30 text-xs font-bold w-5 text-right">{i + 1}</span>
+                      <div className="w-10 h-10 rounded-full border-2 border-[#C9A96E]/30 overflow-hidden bg-[#13151A] flex-shrink-0">
+                        {v.avatar ? (
+                          <img src={v.avatar} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <span className="text-[#C9A96E] font-bold text-sm">{v.displayName.slice(0, 1).toUpperCase()}</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0 text-left">
+                        <p className="text-white text-sm font-semibold truncate">{v.displayName}</p>
+                        <p className="text-white/40 text-[10px] font-medium">Level {v.level}</p>
+                      </div>
+                    </button>
+                  ))
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-full text-center">
+                    <Users className="w-7 h-7 text-white/10 mb-2" />
+                    <p className="text-white/50 text-sm">No spectators yet</p>
+                  </div>
+                )}
               </div>
             </div>
-
-            {/* Grid */}
-            <div className="flex-1 overflow-y-auto px-1 pb-[env(safe-area-inset-bottom,20px)]">
-              {activeViewers.length > 0 ? (
-                <div className="grid grid-cols-2 gap-1">
-                  {activeViewers
-                    .map((v, idx) => ({ ...v, rank: idx }))
-                    .map((v) => (
-                      <button
-                        key={v.id}
-                        type="button"
-                        onClick={() => { setMiniProfile({ id: v.id, username: v.displayName, avatar: v.avatar, level: v.level ?? null }); setShowViewerList(false); }}
-                        className="relative overflow-hidden aspect-[3/4] active:scale-[0.97] transition-transform"
-                      >
-                        {v.avatar ? (
-                          <img src={v.avatar} alt="" className="absolute inset-0 w-full h-full object-cover" />
-                        ) : (
-                          <div className="absolute inset-0 bg-gradient-to-br from-[#1a1c22] to-[#0e1015] flex items-center justify-center">
-                            <div className="w-14 h-14 rounded-full bg-[#C9A96E]/10 border border-[#C9A96E]/20 flex items-center justify-center">
-                              <span className="text-[#C9A96E] font-bold text-xl">{v.displayName.slice(0, 1).toUpperCase()}</span>
-                            </div>
-                          </div>
-                        )}
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-
-                        {/* Rank + Level badges */}
-                        <div className="absolute top-2 left-2 flex items-center gap-1">
-                          {v.rank < 10 && (
-                            <span className="px-1.5 py-0.5 rounded bg-[#C9A96E] text-black text-[9px] font-extrabold">#{v.rank + 1}</span>
-                          )}
-                          <span className="px-1.5 py-0.5 rounded bg-black/50 text-white/80 text-[9px] font-semibold">LVL {v.level}</span>
-                        </div>
-
-                        {/* Country */}
-                        {v.country && (
-                          <div className="absolute top-2 right-2">
-                            <span className="text-white/60 text-[10px]">{v.country}</span>
-                          </div>
-                        )}
-
-                        {/* Name at bottom */}
-                        <div className="absolute bottom-0 left-0 right-0 p-2.5">
-                          <div className="flex items-center gap-2">
-                            <div className="w-7 h-7 rounded-full border-2 border-[#C9A96E]/40 overflow-hidden flex-shrink-0 bg-[#1a1c22]">
-                              {v.avatar ? (
-                                <img src={v.avatar} alt="" className="w-full h-full object-cover" />
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center text-white/60 text-[10px] font-bold">
-                                  {v.displayName.slice(0, 1).toUpperCase()}
-                                </div>
-                              )}
-                            </div>
-                            <p className="text-white font-bold text-xs truncate">{v.displayName}</p>
-                          </div>
-                        </div>
-                      </button>
-                    ))}
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center h-full pb-20 text-center">
-                  <div className="w-16 h-16 rounded-full bg-white/[0.02] border border-white/5 flex items-center justify-center mb-4">
-                    <Users className="w-7 h-7 text-white/10" />
-                  </div>
-                  <p className="text-white/50 font-bold text-sm">No spectators yet</p>
-                  <p className="text-white/25 text-xs mt-1">Share this stream to get viewers</p>
-                </div>
-              )}
-            </div>
           </div>
-        </div>
+        </>
       )}
       
       
@@ -4472,6 +4436,7 @@ export default function LiveStream() {
                         <span>Subscribe Now</span>
                       )}
                     </button>
+                    <p className="text-[8px] text-white/30 text-center mt-1.5">Non-refundable. Cancel anytime in store settings.</p>
                   </div>
                 </div>
 
@@ -4581,7 +4546,7 @@ export default function LiveStream() {
             className="fixed bottom-0 left-0 right-0 z-[99999] pointer-events-auto max-w-[480px] mx-auto"
           >
           <div
-            className="bg-[#1C1E24]/95 rounded-t-2xl p-3 pb-safe max-h-[55vh] overflow-y-auto no-scrollbar shadow-2xl w-full"
+            className="bg-[#1C1E24]/95 rounded-t-2xl p-3 pb-safe h-[40vh] overflow-y-auto no-scrollbar shadow-2xl w-full border-t border-[#C9A96E]/20"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Drag handle */}
@@ -4589,138 +4554,75 @@ export default function LiveStream() {
               <div className="w-10 h-1 bg-white/20 rounded-full" />
             </div>
 
-            {/* Header */}
-            <div className="flex items-center gap-2 mb-2">
-              <Settings2 className="w-4 h-4 text-[#C9A96E]" />
-              <span className="text-white font-bold text-sm">More Options</span>
-            </div>
+            {/* Content — luxury compact grid */}
+            <div className="grid grid-cols-4 gap-y-4 gap-x-2 pt-1 pb-2 px-1">
 
-            {/* Content */}
-            <div className="flex flex-col gap-0.5">
-
-              {/* Test Coins - for gifting tests */}
-              <button
-                type="button"
-                onClick={() => {
-                  setShowTestCoinsModal(true);
-                  setTestCoinsStep('password');
-                  setTestCoinsPwd('');
-                  setTestCoinsError('');
-                  setTestCoinsAmount('');
-                  setIsMoreMenuOpen(false);
-                }}
-                className="w-full px-4 py-3 flex items-center gap-3 text-white hover:bg-[#C9A96E]/10 rounded-xl transition-colors"
-              >
-                <div className="w-8 h-8 rounded-full bg-[#13151A] flex items-center justify-center border border-[#C9A96E]/40">
-                  <Coins className="w-4 h-4 text-[#C9A96E]" strokeWidth={2} />
+              <button type="button" onClick={() => { setShowTestCoinsModal(true); setTestCoinsStep('password'); setTestCoinsPwd(''); setTestCoinsError(''); setTestCoinsAmount(''); setIsMoreMenuOpen(false); }} className="flex flex-col items-center gap-1.5 active:scale-95 transition-transform">
+                <div className="w-11 h-11 rounded-full bg-[#13151A] flex items-center justify-center border border-[#C9A96E]/30 shadow-[0_0_8px_rgba(201,169,110,0.1)]">
+                  <Coins className="w-[18px] h-[18px] text-[#C9A96E]" strokeWidth={1.8} />
                 </div>
-                <span className="text-sm font-bold">Test Coins</span>
+                <span className="text-[10px] font-semibold text-white/70">Test Coins</span>
               </button>
 
-              {/* Share Button */}
-              <button
-                type="button"
-                onClick={() => { setShowSharePanel(true); setIsMoreMenuOpen(false); }}
-                className="w-full px-4 py-3 flex items-center gap-3 text-white hover:bg-[#C9A96E]/10 rounded-xl transition-colors"
-              >
-                <div className="w-8 h-8 rounded-full bg-[#13151A] flex items-center justify-center border border-[#C9A96E]/40">
-                  <Share2 className="w-4 h-4 text-[#C9A96E]" strokeWidth={2} />
+              <button type="button" onClick={() => { setShowSharePanel(true); setIsMoreMenuOpen(false); }} className="flex flex-col items-center gap-1.5 active:scale-95 transition-transform">
+                <div className="w-11 h-11 rounded-full bg-[#13151A] flex items-center justify-center border border-[#C9A96E]/30 shadow-[0_0_8px_rgba(201,169,110,0.1)]">
+                  <Share2 className="w-[18px] h-[18px] text-[#C9A96E]" strokeWidth={1.8} />
                 </div>
-                <span className="text-sm font-bold">Share</span>
+                <span className="text-[10px] font-semibold text-white/70">Share</span>
+              </button>
+
+              <button type="button" disabled={!isBroadcast} onClick={() => { flipCamera(); setIsMoreMenuOpen(false); }} className="flex flex-col items-center gap-1.5 active:scale-95 transition-transform disabled:opacity-40">
+                <div className="w-11 h-11 rounded-full bg-[#13151A] flex items-center justify-center border border-[#C9A96E]/30 shadow-[0_0_8px_rgba(201,169,110,0.1)]">
+                  <RefreshCw className="w-[18px] h-[18px] text-[#C9A96E]" strokeWidth={1.8} />
+                </div>
+                <span className="text-[10px] font-semibold text-white/70">Flip</span>
+              </button>
+
+              <button type="button" disabled={!isBroadcast} onClick={() => { toggleMic(); setIsMoreMenuOpen(false); }} className="flex flex-col items-center gap-1.5 active:scale-95 transition-transform disabled:opacity-40">
+                <div className="w-11 h-11 rounded-full bg-[#13151A] flex items-center justify-center border border-[#C9A96E]/30 shadow-[0_0_8px_rgba(201,169,110,0.1)]">
+                  {isMicMuted ? <MicOff className="w-[18px] h-[18px] text-[#C9A96E]" strokeWidth={1.8} /> : <Mic className="w-[18px] h-[18px] text-[#C9A96E]" strokeWidth={1.8} />}
+                </div>
+                <span className="text-[10px] font-semibold text-white/70">{isMicMuted ? 'Unmute' : 'Mute'}</span>
+              </button>
+
+              <button type="button" onClick={() => { setIsLiveSettingsOpen(true); setIsMoreMenuOpen(false); }} className="flex flex-col items-center gap-1.5 active:scale-95 transition-transform">
+                <div className="w-11 h-11 rounded-full bg-[#13151A] flex items-center justify-center border border-[#C9A96E]/30 shadow-[0_0_8px_rgba(201,169,110,0.1)]">
+                  <Settings2 className="w-[18px] h-[18px] text-[#C9A96E]" strokeWidth={1.8} />
+                </div>
+                <span className="text-[10px] font-semibold text-white/70">Settings</span>
+              </button>
+
+              <button type="button" onClick={() => { setIsChatVisible((v) => !v); setIsMoreMenuOpen(false); }} className="flex flex-col items-center gap-1.5 active:scale-95 transition-transform">
+                <div className="w-11 h-11 rounded-full bg-[#13151A] flex items-center justify-center border border-[#C9A96E]/30 shadow-[0_0_8px_rgba(201,169,110,0.1)]">
+                  <MessageCircle className="w-[18px] h-[18px] text-[#C9A96E]" strokeWidth={1.8} />
+                </div>
+                <span className="text-[10px] font-semibold text-white/70">{isChatVisible ? 'Hide Chat' : 'Show Chat'}</span>
+              </button>
+
+              <button type="button" onClick={() => { setIsReportModalOpen(true); setIsMoreMenuOpen(false); }} className="flex flex-col items-center gap-1.5 active:scale-95 transition-transform">
+                <div className="w-11 h-11 rounded-full bg-[#13151A] flex items-center justify-center border border-red-500/30 shadow-[0_0_8px_rgba(239,68,68,0.1)]">
+                  <Flag className="w-[18px] h-[18px] text-red-400" strokeWidth={1.8} />
+                </div>
+                <span className="text-[10px] font-semibold text-red-400/70">Report</span>
               </button>
 
               {isBattleMode && battleWinner && isBroadcast && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setBattleTime(300);
-                    setMyScore(0);
-                    setOpponentScore(0);
-                    setPlayer3Score(0);
-                    setPlayer4Score(0);
-                    setBattleWinner(null);
-                    setBattleCountdown(3);
-                    reachedThresholdsRef.current.clear();
-                    setIsMoreMenuOpen(false);
-                  }}
-                  className="w-full px-4 py-3 flex items-center gap-3 text-white hover:bg-[#C9A96E]/10 rounded-xl transition-colors"
-                >
-                  <div className="w-8 h-8 rounded-full bg-[#13151A] flex items-center justify-center border border-[#C9A96E]/40">
-                    <RefreshCw className="w-4 h-4 text-[#C9A96E]" strokeWidth={2} />
+                <button type="button" onClick={() => { setBattleTime(300); setMyScore(0); setOpponentScore(0); setPlayer3Score(0); setPlayer4Score(0); setBattleWinner(null); setBattleCountdown(3); reachedThresholdsRef.current.clear(); setIsMoreMenuOpen(false); }} className="flex flex-col items-center gap-1.5 active:scale-95 transition-transform">
+                  <div className="w-11 h-11 rounded-full bg-[#13151A] flex items-center justify-center border border-[#C9A96E]/30 shadow-[0_0_8px_rgba(201,169,110,0.1)]">
+                    <RefreshCw className="w-[18px] h-[18px] text-[#C9A96E]" strokeWidth={1.8} />
                   </div>
-                  <span className="text-sm font-bold">Rematch</span>
+                  <span className="text-[10px] font-semibold text-white/70">Rematch</span>
                 </button>
               )}
-              
+
               {isBattleMode && isBroadcast && !battleWinner && battleTime > 0 && (
-                <button
-                  type="button"
-                  onClick={() => { startSpeedChallenge(); setIsMoreMenuOpen(false); }}
-                  className="w-full px-4 py-3 flex items-center gap-3 text-white hover:bg-[#C9A96E]/10 rounded-xl transition-colors"
-                >
-                  <div className="w-8 h-8 rounded-full bg-[#13151A] flex items-center justify-center border border-[#C9A96E]/40">
-                    <Zap className="w-4 h-4 text-[#C9A96E]" strokeWidth={2} />
+                <button type="button" onClick={() => { startSpeedChallenge(); setIsMoreMenuOpen(false); }} className="flex flex-col items-center gap-1.5 active:scale-95 transition-transform">
+                  <div className="w-11 h-11 rounded-full bg-[#13151A] flex items-center justify-center border border-[#C9A96E]/30 shadow-[0_0_8px_rgba(201,169,110,0.1)]">
+                    <Zap className="w-[18px] h-[18px] text-[#C9A96E]" strokeWidth={1.8} />
                   </div>
-                  <span className="text-sm font-bold">Start Speed Challenge</span>
+                  <span className="text-[10px] font-semibold text-white/70">Speed</span>
                 </button>
               )}
-
-              <button
-                type="button"
-                disabled={!isBroadcast}
-                onClick={() => { flipCamera(); setIsMoreMenuOpen(false); }}
-                className="w-full px-4 py-3 flex items-center gap-3 text-white disabled:opacity-50 hover:bg-[#C9A96E]/10 rounded-xl transition-colors"
-              >
-                <div className="w-8 h-8 rounded-full bg-[#13151A] flex items-center justify-center border border-[#C9A96E]/40">
-                  <RefreshCw className="w-4 h-4 text-[#C9A96E]" strokeWidth={2} />
-                </div>
-                <span className="text-sm font-bold">Flip camera</span>
-              </button>
-
-              <button
-                type="button"
-                disabled={!isBroadcast}
-                onClick={() => { toggleMic(); setIsMoreMenuOpen(false); }}
-                className="w-full px-4 py-3 flex items-center gap-3 text-white disabled:opacity-50 hover:bg-[#C9A96E]/10 rounded-xl transition-colors"
-              >
-                <div className="w-8 h-8 rounded-full bg-[#13151A] flex items-center justify-center border border-[#C9A96E]/40">
-                  {isMicMuted ? <MicOff className="w-4 h-4 text-[#C9A96E]" strokeWidth={2} /> : <Mic className="w-4 h-4 text-[#C9A96E]" strokeWidth={2} />}
-                </div>
-                <span className="text-sm font-bold">{isMicMuted ? 'Unmute mic' : 'Mute mic'}</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => { setIsLiveSettingsOpen(true); setIsMoreMenuOpen(false); }}
-                className="w-full px-4 py-3 flex items-center gap-3 text-white hover:bg-[#C9A96E]/10 rounded-xl transition-colors"
-              >
-                <div className="w-8 h-8 rounded-full bg-[#13151A] flex items-center justify-center border border-[#C9A96E]/40">
-                  <Settings2 className="w-4 h-4 text-[#C9A96E]" strokeWidth={2} />
-                </div>
-                <span className="text-sm font-bold">Live settings</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => { setIsChatVisible((v) => !v); setIsMoreMenuOpen(false); }}
-                className="w-full px-4 py-3 flex items-center gap-3 text-white hover:bg-[#C9A96E]/10 rounded-xl transition-colors"
-              >
-                <div className="w-8 h-8 rounded-full bg-[#13151A] flex items-center justify-center border border-[#C9A96E]/40">
-                  <MessageCircle className="w-4 h-4 text-[#C9A96E]" strokeWidth={2} />
-                </div>
-                <span className="text-sm font-bold">{isChatVisible ? 'Hide chat' : 'Show chat'}</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => { setIsReportModalOpen(true); setIsMoreMenuOpen(false); }}
-                className="w-full px-4 py-3 flex items-center gap-3 text-white hover:bg-[#C9A96E]/10 rounded-xl transition-colors"
-              >
-                <div className="w-8 h-8 rounded-full bg-[#13151A] flex items-center justify-center border border-[#C9A96E]/40">
-                  <Flag className="w-4 h-4 text-[#C9A96E]" strokeWidth={2} />
-                </div>
-                <span className="text-sm font-bold">Report</span>
-              </button>
 
             </div>
           </div>
@@ -4994,100 +4896,46 @@ export default function LiveStream() {
             onClick={() => setShowSharePanel(false)}
           />
           <div className="fixed bottom-0 left-0 right-0 z-[99999] pointer-events-auto max-w-[480px] mx-auto">
-          <div className="bg-[#1C1E24]/95 rounded-t-2xl p-4 pb-safe flex flex-col gap-1 shadow-2xl w-full max-h-[40vh] overflow-y-auto no-scrollbar">
-            <div className="flex justify-center mb-2">
+          <div className="bg-[#1C1E24]/95 backdrop-blur-md rounded-t-2xl p-3 pb-safe flex flex-col shadow-2xl w-full h-[40vh] overflow-hidden border-t border-[#C9A96E]/20">
+            <div className="flex justify-center pt-1 pb-2">
               <div className="w-10 h-1 bg-white/20 rounded-full" />
             </div>
-            
-            <div className="flex items-center justify-between gap-2">
-              <h3 className="text-white font-bold whitespace-nowrap">Share to</h3>
-              <div className="flex-none w-[120px] bg-white/5 rounded-lg px-2 py-1.5 flex items-center gap-2">
-                 <Search className="w-3.5 h-3.5 text-white/30" />
-                 <input 
-                   value={shareQuery}
-                   onChange={(e) => setShareQuery(e.target.value)}
-                   placeholder="Search..."
-                   className="bg-transparent text-white text-xs outline-none w-full placeholder:text-white/20"
-                 />
-              </div>
-            </div>
-            
-            {/* Followers List - populated from real data */}
-            <div className="w-full overflow-hidden shrink-0">
-              <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar items-center">
-                {creators.filter(c => c.name.toLowerCase().includes(shareQuery.toLowerCase())).map((u) => (
-                  <button 
-                    key={u.id} 
-                    className="flex flex-col items-center gap-1 min-w-[56px] active:scale-95 transition-transform"
-                    onClick={() => {
-                      setShowSharePanel(false);
-                    }}
-                  >
-                    <div className="relative">
-                      <AvatarRing src={u.avatar} alt={u.name} size={48} />
-                      <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-[#FF2D55] rounded-full flex items-center justify-center border-2 border-[#1a1a1a]">
-                        <Send size={7} className="text-white" />
-                      </div>
-                    </div>
-                    <span className="text-white text-[9px] font-bold truncate max-w-[56px]">{u.name}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
 
-            {/* Social Row */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar shrink-0">
-              {[
-                { name: 'WhatsApp', color: '#25D366', icon: <MessageCircle size={24} /> },
-                { name: 'Facebook', color: '#1877F2', icon: <Share2 size={24} /> },
-                { name: 'Instagram', color: '#E4405F', icon: <Share2 size={24} /> },
-                { name: 'GitHub', color: '#333333', icon: <Github size={24} /> },
-                { name: 'Copy Link', color: '#C9A96E', icon: <Copy size={24} /> },
-                { name: 'Message', color: '#00C853', icon: <MessageCircle size={24} /> },
-              ].map((item) => (
-                <button 
-                  key={item.name}
-                  onClick={() => {
-                    if (item.name === 'Copy Link') {
-                       const shareUrl = `https://app.com/live/${effectiveStreamId}`;
-                       navigator.clipboard.writeText(shareUrl);
-                       showToast('Link copied!');
-                    }
-                    setShowSharePanel(false);
-                  }}
-                  className="flex flex-col items-center gap-1 min-w-[60px]"
+            {/* Followers row */}
+            <div className="flex gap-3 overflow-x-auto pb-3 no-scrollbar flex-shrink-0">
+              {creators.filter(c => c.name.toLowerCase().includes(shareQuery.toLowerCase())).map((u) => (
+                <button
+                  key={u.id}
+                  className="flex flex-col items-center gap-0.5 min-w-[48px] active:scale-95 transition-transform"
+                  onClick={() => setShowSharePanel(false)}
                 >
-                  <div 
-                    className="w-12 h-12 rounded-full flex items-center justify-center text-white shadow-lg"
-                    style={{ backgroundColor: item.color }}
-                  >
-                    {item.icon}
-                  </div>
-                  <span className="text-white/70 text-[10px]">{item.name}</span>
+                  <AvatarRing src={u.avatar} alt={u.name} size={36} />
+                  <span className="text-white/60 text-[9px] font-medium truncate w-12 text-center">{u.name}</span>
                 </button>
               ))}
             </div>
 
-            {/* Actions Row */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar shrink-0">
+            {/* Share options — all gold circles, small */}
+            <div className="grid grid-cols-4 gap-y-4 gap-x-2 pt-1 flex-1 overflow-y-auto">
               {[
-                { name: 'Promote', color: '#C9A96E', icon: <TrendingUp size={24} className="text-white" />, action: () => { if (navigator.share) navigator.share({ title: 'Watch my LIVE on Elix!', url: window.location.href }); } },
-                { name: 'Report', color: '#EF4444', icon: <AlertTriangle size={24} className="text-white" />, action: () => setIsReportModalOpen(true) },
-                { name: 'Add Story', color: '#3B82F6', icon: <PlusCircle size={24} className="text-white" />, action: () => navigate('/create') },
-                { name: 'Settings', color: '#6B7280', icon: <Settings2 size={24} className="text-white" />, action: () => setIsLiveSettingsOpen(true) },
+                { name: 'WhatsApp', icon: <MessageCircle className="w-[18px] h-[18px] text-[#C9A96E]" strokeWidth={1.8} />, action: () => { window.open(`https://wa.me/?text=${encodeURIComponent('Watch my LIVE on Elix! ' + window.location.href)}`); setShowSharePanel(false); } },
+                { name: 'Facebook', icon: <Share2 className="w-[18px] h-[18px] text-[#C9A96E]" strokeWidth={1.8} />, action: () => { window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}`); setShowSharePanel(false); } },
+                { name: 'Copy Link', icon: <Copy className="w-[18px] h-[18px] text-[#C9A96E]" strokeWidth={1.8} />, action: () => { navigator.clipboard.writeText(`https://app.com/live/${effectiveStreamId}`); showToast('Link copied!'); setShowSharePanel(false); } },
+                { name: 'Message', icon: <Send className="w-[18px] h-[18px] text-[#C9A96E]" strokeWidth={1.8} />, action: () => { window.open(`sms:?body=${encodeURIComponent('Watch my LIVE on Elix! ' + window.location.href)}`); setShowSharePanel(false); } },
+                { name: 'Promote', icon: <TrendingUp className="w-[18px] h-[18px] text-[#C9A96E]" strokeWidth={1.8} />, action: () => { if (navigator.share) navigator.share({ title: 'Watch my LIVE on Elix!', url: window.location.href }); setShowSharePanel(false); } },
+                { name: 'Report', icon: <Flag className="w-[18px] h-[18px] text-red-400" strokeWidth={1.8} />, action: () => { setIsReportModalOpen(true); setShowSharePanel(false); } },
+                { name: 'Story', icon: <PlusCircle className="w-[18px] h-[18px] text-[#C9A96E]" strokeWidth={1.8} />, action: () => { navigate('/create'); setShowSharePanel(false); } },
+                { name: 'Settings', icon: <Settings2 className="w-[18px] h-[18px] text-[#C9A96E]" strokeWidth={1.8} />, action: () => { setIsLiveSettingsOpen(true); setShowSharePanel(false); } },
               ].map((item) => (
-                <button 
+                <button
                   key={item.name}
-                  onClick={() => {
-                    item.action();
-                    setShowSharePanel(false);
-                  }}
-                  className="flex flex-col items-center gap-1 min-w-[60px]"
+                  onClick={item.action}
+                  className="flex flex-col items-center gap-1.5 active:scale-95 transition-transform"
                 >
-                  <div className="w-12 h-12 rounded-full bg-[#13151A] flex items-center justify-center border border-[#C9A96E]/40">
+                  <div className="w-11 h-11 rounded-full bg-[#13151A] flex items-center justify-center border border-[#C9A96E]/30 shadow-[0_0_8px_rgba(201,169,110,0.1)]">
                     {item.icon}
                   </div>
-                  <span className="text-white/70 text-[10px]">{item.name}</span>
+                  <span className="text-[10px] font-semibold text-white/70">{item.name}</span>
                 </button>
               ))}
             </div>
@@ -5103,6 +4951,26 @@ export default function LiveStream() {
         videoId={effectiveStreamId || ''}
         contentType="live"
       />
+
+      {/* Moderation warning (AI flag + assist; first detection only) */}
+      {showModerationWarning && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/70">
+          <div className="bg-[#1C1E24] border border-white/10 rounded-xl p-6 max-w-sm w-full shadow-xl">
+            <div className="flex items-center gap-2 mb-3">
+              <AlertTriangle className="w-6 h-6 text-amber-500 flex-shrink-0" />
+              <h3 className="font-semibold text-white">Safety reminder</h3>
+            </div>
+            <p className="text-white/80 text-sm mb-4">{moderationWarningMessage}</p>
+            <button
+              type="button"
+              onClick={() => { setShowModerationWarning(false); setModerationWarningMessage(''); }}
+              className="w-full py-2.5 rounded-lg bg-[#C9A96E] text-black font-semibold"
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Combo Button Overlay - Moved to top-most layer */}
       <AnimatePresence>

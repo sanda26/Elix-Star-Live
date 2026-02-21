@@ -51,6 +51,18 @@ export default function Support() {
     try {
       const { data: userData } = await supabase.auth.getUser();
 
+      const { error } = await supabase.from('reports').insert({
+        reporter_id: userData.user?.id || null,
+        target_type: 'support',
+        target_id: 'support_ticket',
+        reason: subject,
+        details: `Email: ${email}\n\n${message}`,
+      });
+
+      if (error) {
+        showToast('Failed to submit. Please try again.');
+        return;
+      }
 
       trackEvent('support_ticket_submit', {
         subject,
@@ -61,8 +73,7 @@ export default function Support() {
       setTimeout(() => {
         navigate(-1);
       }, 2000);
-    } catch (error) {
-
+    } catch {
       showToast('Failed to submit. Please try again.');
     } finally {
       setLoading(false);

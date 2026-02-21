@@ -34,10 +34,14 @@ export type WebSocketEvent =
   | 'rtc_ice_candidate'
   | 'rtc_join'
   | 'rtc_leave'
-  // Moderation events
+  // Moderation events (AI safety: warning → pause → suspend)
   | 'user_muted'
   | 'user_kicked'
-  | 'user_banned';
+  | 'user_banned'
+  | 'moderation_warning'
+  | 'moderation_pause'
+  | 'moderation_suspend'
+  | 'room_full';
 
 export interface WebSocketMessage {
   event: WebSocketEvent;

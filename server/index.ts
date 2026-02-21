@@ -22,6 +22,22 @@ import {
   handleTrackInteraction,
   handleGetVideoScore,
 } from './routes/feed';
+import {
+  handleGetCreatorBalance,
+  handleGetCreatorEarnings,
+  handleCreatorWithdraw,
+  handleGetCreatorPayouts,
+  handleSetPayoutMethod,
+  handleGetPayoutMethods,
+  handleAdminListPayouts,
+  handleAdminApprovePayout,
+  handleAdminRejectPayout,
+  handleAdminChargeback,
+  handleShopBuy,
+  handleShopRefund,
+  handleShopPurchases,
+} from './routes/payout';
+import { handleLiveModerationCheck } from './routes/moderation';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -62,6 +78,7 @@ app.post('/api/analytics', handleAnalytics);
 app.post('/api/block-user', handleBlockUser);
 app.post('/api/delete-account', handleDeleteAccount);
 app.post('/api/report', handleReport);
+app.post('/api/live/moderation/check', handleLiveModerationCheck);
 app.post('/api/send-notification', handleSendNotification);
 app.post('/api/verify-purchase', handleVerifyPurchase);
 
@@ -70,6 +87,54 @@ app.get('/api/feed/foryou', handleForYouFeed);
 app.post('/api/feed/track-view', handleTrackView);
 app.post('/api/feed/track-interaction', handleTrackInteraction);
 app.get('/api/feed/score/:videoId', handleGetVideoScore);
+
+// No-refund enforcement: block any coin refund/restore/reverse attempts
+app.post('/api/refund', (_req, res) => res.status(403).json({ error: 'All coin purchases are final and non-refundable.' }));
+app.post('/api/restore-coins', (_req, res) => res.status(403).json({ error: 'All coin purchases are final and non-refundable.' }));
+app.post('/api/reverse-gift', (_req, res) => res.status(403).json({ error: 'Gifts are final and cannot be reversed.' }));
+app.post('/api/cancel-purchase', (_req, res) => res.status(403).json({ error: 'All coin purchases are final and non-refundable.' }));
+
+// Creator Payout API
+app.get('/api/creator/balance', handleGetCreatorBalance);
+app.get('/api/creator/earnings', handleGetCreatorEarnings);
+app.post('/api/creator/withdraw', handleCreatorWithdraw);
+app.get('/api/creator/payouts', handleGetCreatorPayouts);
+app.post('/api/creator/payout-method', handleSetPayoutMethod);
+app.get('/api/creator/payout-methods', handleGetPayoutMethods);
+
+// Admin Payout API
+app.get('/api/admin/payouts', handleAdminListPayouts);
+app.post('/api/admin/payout/:id/approve', handleAdminApprovePayout);
+app.post('/api/admin/payout/:id/reject', handleAdminRejectPayout);
+app.post('/api/admin/chargeback', handleAdminChargeback);
+
+// Admin Account Management
+app.post('/api/admin/unfreeze/:userId', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader?.startsWith('Bearer ')) return res.status(401).json({ error: 'Unauthorized' });
+    const token = authHeader.slice(7);
+    const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '';
+    const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+    const { createClient } = await import('@supabase/supabase-js');
+    const adminClient = createClient(supabaseUrl, supabaseKey, {
+      global: { headers: { Authorization: `Bearer ${token}` } },
+    });
+    const { data, error } = await adminClient.rpc('admin_unfreeze_account', {
+      p_user_id: req.params.userId,
+      p_note: req.body.note || null,
+    });
+    if (error) return res.status(400).json({ error: error.message });
+    return res.json(data);
+  } catch (err: any) {
+    return res.status(500).json({ error: 'Unfreeze failed' });
+  }
+});
+
+// Shop Item Purchase & Refund API
+app.post('/api/shop/buy', handleShopBuy);
+app.post('/api/shop/refund', handleShopRefund);
+app.get('/api/shop/purchases', handleShopPurchases);
 
 // Runtime env.js endpoint for VITE_ variables
 app.get('/env.js', (_req, res) => {
@@ -279,25 +344,6 @@ function startBattleTimer(roomId: string) {
       endBattle(roomId);
     }
   }, 1000);
-}
-
-function addBattleScore(roomId: string, scorerUserId: string, points: number) {
-  const session = battles.get(roomId);
-  if (!session || session.status !== 'ACTIVE') return;
-
-  if (scorerUserId === session.hostUserId || scorerUserId !== session.opponentUserId) {
-    // Gift sent TO host (viewer supporting host) or host's own side
-    session.hostScore += points;
-  } else {
-    session.opponentScore += points;
-  }
-
-  broadcastToRoom(roomId, 'battle_score', {
-    hostScore: session.hostScore,
-    opponentScore: session.opponentScore,
-    lastScorer: scorerUserId === session.hostUserId ? 'host' : 'opponent',
-    points,
-  });
 }
 
 function addBattleScoreForTarget(roomId: string, target: 'host' | 'opponent', points: number) {
@@ -621,6 +667,20 @@ wss.on('connection', async (ws: WebSocket, req) => {
         }
       }
 
+      // End battle if host or opponent disconnects
+      const battleRoomId = userBattleRoom.get(client.userId);
+      if (battleRoomId) {
+        const battle = battles.get(battleRoomId);
+        if (battle && battle.status !== 'ENDED') {
+          const isHost = battle.hostUserId === client.userId;
+          const isOpponent = battle.opponentUserId === client.userId;
+          if (isHost || isOpponent) {
+            console.log(`Battle participant ${isHost ? 'host' : 'opponent'} disconnected, ending battle in room ${battleRoomId}`);
+            endBattle(battleRoomId);
+          }
+        }
+      }
+
       clients.delete(ws);
     } catch (err) {
       console.error('Error in close handler:', err);
@@ -629,12 +689,25 @@ wss.on('connection', async (ws: WebSocket, req) => {
 });
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
+// WebSocket rate limiter: per-user per-event
+const wsRateLimits = new Map<string, number[]>();
+function wsRateCheck(userId: string, event: string, maxPerWindow: number, windowMs: number): boolean {
+  const key = `${userId}:${event}`;
+  const now = Date.now();
+  const timestamps = (wsRateLimits.get(key) || []).filter(t => now - t < windowMs);
+  if (timestamps.length >= maxPerWindow) return false;
+  timestamps.push(now);
+  wsRateLimits.set(key, timestamps);
+  return true;
+}
+
 async function handleMessage(client: Client, event: string, data: any) {
   if (!data) data = {};
   
   try {
     switch (event) {
       case 'chat_message':
+        if (!wsRateCheck(client.userId, 'chat', 10, 10_000)) break; // max 10 msgs / 10s
         broadcastToRoom(client.roomId, 'chat_message', {
           ...data,
           user_id: client.userId,
@@ -644,6 +717,7 @@ async function handleMessage(client: Client, event: string, data: any) {
         break;
 
       case 'gift_sent': {
+        if (!wsRateCheck(client.userId, 'gift', 5, 5_000)) break; // max 5 gifts / 5s
         const { transactionId } = data;
         
         if (transactionId && processedTransactions.has(transactionId)) {
@@ -774,10 +848,6 @@ async function handleMessage(client: Client, event: string, data: any) {
         break;
       }
 
-      case 'battle_score_update':
-        broadcastToRoom(client.roomId, 'battle_score_update', data);
-        break;
-
       case 'booster_activated':
         broadcastToRoom(client.roomId, 'booster_activated', {
           ...data,
@@ -785,20 +855,12 @@ async function handleMessage(client: Client, event: string, data: any) {
         });
         break;
 
-      case 'battle_invite': {
-        const targetRoom = data.challenger_stream_id;
-        if (targetRoom) broadcastToRoom(targetRoom, 'battle_invite', data);
-        break;
-      }
-
-      case 'battle_accepted':
-      case 'battle_declined': {
-        const hostRoom = data.host_stream_id;
-        if (hostRoom) broadcastToRoom(hostRoom, event, data);
-        break;
-      }
-
       case 'rtc_join': {
+        const room = rooms.get(client.roomId);
+        if (room && room.size > 15) {
+          sendToClient(client, 'room_full', { message: 'Live is full. Try again later.' });
+          break;
+        }
         broadcastToRoom(client.roomId, 'rtc_join', {
           user_id: client.userId,
           username: client.username,
@@ -939,6 +1001,28 @@ async function updateViewerCount(roomId: string) {
     console.error('Failed to update viewer count:', error);
   }
 }
+
+// WebSocket heartbeat: detect and clean up ghost connections every 30s
+const HEARTBEAT_INTERVAL = 30_000;
+const aliveClients = new WeakSet<WebSocket>();
+
+const heartbeatTimer = setInterval(() => {
+  wss.clients.forEach((ws) => {
+    if (!aliveClients.has(ws)) {
+      ws.terminate();
+      return;
+    }
+    aliveClients.delete(ws);
+    ws.ping();
+  });
+}, HEARTBEAT_INTERVAL);
+
+wss.on('connection', (ws) => {
+  aliveClients.add(ws);
+  ws.on('pong', () => { aliveClients.add(ws); });
+});
+
+wss.on('close', () => { clearInterval(heartbeatTimer); });
 
 // Start server
 console.log('Starting server...');

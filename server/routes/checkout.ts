@@ -61,30 +61,47 @@ export async function createCheckoutSession(req: Request, res: Response) {
       return res.status(429).json({ error: 'Too many requests', retryAfter: rateCheck.retryAfter });
     }
 
-    // Server-side price lookup — NEVER trust client-supplied prices
+    // Server-side price lookup in GBP — NEVER trust client-supplied prices
+    // Rate: £3,500 per 1,000,000 coins (£0.0035/coin)
     const SERVER_COIN_PACKAGES: Record<string, { coins: number; price: number; label: string }> = {
-      coins_100:  { coins: 100,  price: 0.99,  label: '100 Coins' },
-      coins_500:  { coins: 500,  price: 4.99,  label: '500 Coins' },
-      coins_1000: { coins: 1000, price: 9.99,  label: '1,000 Coins' },
-      coins_5000: { coins: 5000, price: 49.99, label: '5,000 Coins' },
+      coins_10:      { coins: 10,      price: 0.05,    label: '10 Coins' },
+      coins_50:      { coins: 50,      price: 0.18,    label: '50 Coins' },
+      coins_100:     { coins: 100,     price: 0.35,    label: '100 Coins' },
+      coins_500:     { coins: 500,     price: 1.75,    label: '500 Coins' },
+      coins_1000:    { coins: 1000,    price: 3.50,    label: '1,000 Coins' },
+      coins_2000:    { coins: 2000,    price: 7.00,    label: '2,000 Coins' },
+      coins_5000:    { coins: 5000,    price: 17.50,   label: '5,000 Coins' },
+      coins_10000:   { coins: 10000,   price: 35.00,   label: '10K Coins' },
+      coins_20000:   { coins: 20000,   price: 70.00,   label: '20K Coins' },
+      coins_50000:   { coins: 50000,   price: 175.00,  label: '50K Coins' },
+      coins_100000:  { coins: 100000,  price: 350.00,  label: '100K Coins' },
+      coins_500000:  { coins: 500000,  price: 1750.00, label: '500K Coins' },
+      coins_1000000: { coins: 1000000, price: 3500.00, label: '1M Coins' },
     };
 
-    const verifiedPackage = SERVER_COIN_PACKAGES[coinPackage.id];
+    // Support custom amounts: coins_custom_XXXX
+    let verifiedPackage = SERVER_COIN_PACKAGES[coinPackage.id];
+    if (!verifiedPackage && coinPackage.id?.startsWith('coins_custom_')) {
+      const customCoins = parseInt(coinPackage.id.replace('coins_custom_', ''));
+      if (customCoins > 0 && customCoins <= 10000000) {
+        verifiedPackage = { coins: customCoins, price: Math.round(customCoins * 0.0035 * 100) / 100, label: `${customCoins.toLocaleString()} Coins` };
+      }
+    }
     if (!verifiedPackage) {
       return res.status(400).json({ error: 'Invalid coin package id' });
     }
 
-    // Create Checkout Session with server-verified price
+    // Stripe checkout — WEB ONLY (iOS/Android use Apple IAP / Google Play)
     const origin = req.headers.origin || 'http://localhost:3000';
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [
         {
           price_data: {
-            currency: 'usd',
+            currency: 'gbp',
             product_data: {
               name: verifiedPackage.label,
-              description: `${verifiedPackage.coins} coins for ElixStarLive`,
+              description: `${verifiedPackage.coins} coins for Elix Star Live`,
             },
             unit_amount: Math.round(verifiedPackage.price * 100),
           },
@@ -131,25 +148,41 @@ export async function createPaymentIntent(req: Request, res: Response) {
       return res.status(429).json({ error: 'Too many requests', retryAfter: rateCheck.retryAfter });
     }
 
-    // Server-side price lookup — NEVER trust client-supplied amounts
+    // Server-side price lookup in GBP — NEVER trust client-supplied amounts
+    // Same packages as checkout session — WEB ONLY (iOS/Android use store billing)
     const SERVER_COIN_PACKAGES: Record<string, { coins: number; price: number; label: string }> = {
-      coins_100:  { coins: 100,  price: 0.99,  label: '100 Coins' },
-      coins_500:  { coins: 500,  price: 4.99,  label: '500 Coins' },
-      coins_1000: { coins: 1000, price: 9.99,  label: '1,000 Coins' },
-      coins_5000: { coins: 5000, price: 49.99, label: '5,000 Coins' },
+      coins_10:      { coins: 10,      price: 0.05,    label: '10 Coins' },
+      coins_50:      { coins: 50,      price: 0.18,    label: '50 Coins' },
+      coins_100:     { coins: 100,     price: 0.35,    label: '100 Coins' },
+      coins_500:     { coins: 500,     price: 1.75,    label: '500 Coins' },
+      coins_1000:    { coins: 1000,    price: 3.50,    label: '1,000 Coins' },
+      coins_2000:    { coins: 2000,    price: 7.00,    label: '2,000 Coins' },
+      coins_5000:    { coins: 5000,    price: 17.50,   label: '5,000 Coins' },
+      coins_10000:   { coins: 10000,   price: 35.00,   label: '10K Coins' },
+      coins_20000:   { coins: 20000,   price: 70.00,   label: '20K Coins' },
+      coins_50000:   { coins: 50000,   price: 175.00,  label: '50K Coins' },
+      coins_100000:  { coins: 100000,  price: 350.00,  label: '100K Coins' },
+      coins_500000:  { coins: 500000,  price: 1750.00, label: '500K Coins' },
+      coins_1000000: { coins: 1000000, price: 3500.00, label: '1M Coins' },
     };
 
-    const verifiedPackage = SERVER_COIN_PACKAGES[coinPackage.id];
+    let verifiedPackage = SERVER_COIN_PACKAGES[coinPackage.id];
+    if (!verifiedPackage && coinPackage.id?.startsWith('coins_custom_')) {
+      const customCoins = parseInt(coinPackage.id.replace('coins_custom_', ''));
+      if (customCoins > 0 && customCoins <= 10000000) {
+        verifiedPackage = { coins: customCoins, price: Math.round(customCoins * 0.0035 * 100) / 100, label: `${customCoins.toLocaleString()} Coins` };
+      }
+    }
     if (!verifiedPackage) {
       return res.status(400).json({ error: 'Invalid coin package id' });
     }
 
     const verifiedAmountCents = Math.round(verifiedPackage.price * 100);
 
-    // Create Payment Intent with server-verified amount
+    // Create Payment Intent — WEB ONLY, GBP
     const paymentIntent = await stripe.paymentIntents.create({
       amount: verifiedAmountCents,
-      currency: 'usd',
+      currency: 'gbp',
       metadata: {
         coinPackageId: coinPackage.id,
         coins: verifiedPackage.coins.toString(),

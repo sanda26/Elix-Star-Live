@@ -153,16 +153,32 @@ export const useVideoStore = create<VideoStore>()(
           }
 
           let likedIds: string[] = [];
+          let followedUserIds: string[] = [];
+          let savedIds: string[] = [];
+          let blockedUserIds: string[] = [];
           try {
             const { data: { user } } = await supabase.auth.getUser();
             if (user) {
-              const { data: likes } = await supabase.from('likes').select('video_id').eq('user_id', user.id);
+              const [{ data: likes }, { data: follows }, { data: saves }, { data: blocks }] = await Promise.all([
+                supabase.from('likes').select('video_id').eq('user_id', user.id),
+                supabase.from('followers').select('following_id').eq('follower_id', user.id),
+                supabase.from('saved_videos').select('video_id').eq('user_id', user.id),
+                supabase.from('blocked_users').select('blocked_id').eq('blocker_id', user.id),
+              ]);
               likedIds = likes?.map((r: { video_id: string }) => r.video_id) ?? [];
+              followedUserIds = follows?.map((r: { following_id: string }) => r.following_id) ?? [];
+              savedIds = saves?.map((r: { video_id: string }) => r.video_id) ?? [];
+              blockedUserIds = blocks?.map((r: { blocked_id: string }) => r.blocked_id) ?? [];
             }
           } catch {}
           const likedSet = new Set(likedIds);
+          const followedSet = new Set(followedUserIds);
+          const savedSet = new Set(savedIds);
+          const blockedSet = new Set(blockedUserIds);
 
-          const mappedVideos: Video[] = data.map((v: any) => {
+          const mappedVideos: Video[] = data
+            .filter((v: any) => !blockedSet.has(v.user_id))
+            .map((v: any) => {
             const p = profilesMap[v.user_id] || {};
             const uname = p.username || 'user';
             
@@ -194,8 +210,8 @@ export const useVideoStore = create<VideoStore>()(
               createdAt: v.created_at,
               location: 'For You',
               isLiked: likedSet.has(v.id),
-              isSaved: false,
-              isFollowing: false,
+              isSaved: savedSet.has(v.id),
+              isFollowing: followedSet.has(v.user_id),
               comments: [],
               quality: 'auto',
               privacy: v.is_public ? 'public' : 'private'
@@ -207,7 +223,7 @@ export const useVideoStore = create<VideoStore>()(
           const toPrepend = existing.filter((v) => !fetchedIds.has(v.id));
           const merged = toPrepend.length ? [...toPrepend, ...mappedVideos] : mappedVideos;
 
-          set({ videos: merged, likedVideos: likedIds, loading: false });
+          set({ videos: merged, likedVideos: likedIds, followingUsers: followedUserIds, savedVideos: savedIds, loading: false });
         } catch (err) {
           set({ loading: false });
         }
@@ -340,32 +356,50 @@ export const useVideoStore = create<VideoStore>()(
         return videos.filter(video => likedVideos.includes(video.id));
       },
 
-      // Save actions
-      toggleSave: (videoId) => set((state) => {
+      // Save actions — persist to Supabase
+      toggleSave: async (videoId) => {
+        const state = get();
         const video = state.videos.find(v => v.id === videoId);
-        if (!video) return state;
+        if (!video) return;
 
-        const isSaved = video.isSaved;
-        const newSavedVideos = isSaved 
+        const wasSaved = video.isSaved;
+        const newSavedVideos = wasSaved
           ? state.savedVideos.filter(id => id !== videoId)
           : [...state.savedVideos, videoId];
 
-        return {
-          videos: state.videos.map(v => 
-            v.id === videoId 
-              ? { 
-                  ...v, 
-                  isSaved: !isSaved,
-                  stats: {
-                    ...v.stats,
-                    saves: isSaved ? v.stats.saves - 1 : v.stats.saves + 1
-                  }
+        set({
+          videos: state.videos.map(v =>
+            v.id === videoId
+              ? {
+                  ...v,
+                  isSaved: !wasSaved,
+                  stats: { ...v.stats, saves: wasSaved ? v.stats.saves - 1 : v.stats.saves + 1 }
                 }
               : v
           ),
-          savedVideos: newSavedVideos
-        };
-      }),
+          savedVideos: newSavedVideos,
+        });
+
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) return;
+          if (wasSaved) {
+            await supabase.from('saved_videos').delete().eq('user_id', user.id).eq('video_id', videoId);
+          } else {
+            await supabase.from('saved_videos').insert({ user_id: user.id, video_id: videoId });
+          }
+        } catch {
+          // Revert on failure
+          set({
+            videos: get().videos.map(v =>
+              v.id === videoId
+                ? { ...v, isSaved: wasSaved, stats: { ...v.stats, saves: wasSaved ? v.stats.saves + 1 : v.stats.saves - 1 } }
+                : v
+            ),
+            savedVideos: wasSaved ? [...get().savedVideos, videoId] : get().savedVideos.filter(id => id !== videoId),
+          });
+        }
+      },
 
       getSavedVideos: () => {
         const { videos, savedVideos } = get();

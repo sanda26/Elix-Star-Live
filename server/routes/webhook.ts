@@ -58,8 +58,11 @@ export async function handleStripeWebhook(req: Request, res: Response) {
     } else {
       if (sig && webhookSecret) {
         event = stripe.webhooks.constructEvent(rawBody, sig, webhookSecret);
+      } else if (webhookSecret) {
+        // Secret is set but no signature — reject (possible tampering)
+        return res.status(400).json({ error: "Missing Stripe signature" });
       } else {
-        console.warn("[stripe-webhook] Non-production: Skipping signature verification");
+        console.warn("[stripe-webhook] DEV ONLY: No webhook secret configured, skipping signature check");
         event = JSON.parse(rawBody.toString("utf8"));
       }
     }
@@ -78,6 +81,16 @@ export async function handleStripeWebhook(req: Request, res: Response) {
       case "payment_intent.succeeded": {
         const paymentIntent = event.data.object as Stripe.PaymentIntent;
         await handlePaymentIntentSucceeded(paymentIntent);
+        break;
+      }
+      case "charge.refunded": {
+        const charge = event.data.object as Stripe.Charge;
+        await handleChargeRefunded(charge);
+        break;
+      }
+      case "charge.dispute.created": {
+        const dispute = event.data.object as Stripe.Dispute;
+        await handleChargeDispute(dispute);
         break;
       }
       default:
@@ -217,5 +230,117 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
       status: "success",
       stripe_payment_intent_id: paymentIntent.id,
     });
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CHARGEBACK / REFUND HANDLING
+// Coins are non-refundable. We do NOT restore coins to the user.
+// We only: (1) log the event, (2) mark purchase as REFUNDED,
+// (3) reverse PENDING creator earnings only (never claw back paid).
+// ═══════════════════════════════════════════════════════════════
+
+async function handleChargeRefunded(charge: Stripe.Charge) {
+  const paymentIntentId = typeof charge.payment_intent === "string"
+    ? charge.payment_intent
+    : (charge.payment_intent as any)?.id;
+
+  console.warn(`[CHARGEBACK] Charge refunded: ${charge.id}, PI: ${paymentIntentId}`);
+
+  const supabase = getSupabase();
+
+  // Mark the purchase as refunded (do NOT restore coins)
+  if (paymentIntentId) {
+    await supabase
+      .from("coin_transactions")
+      .update({ status: "refunded" })
+      .eq("stripe_payment_intent_id", paymentIntentId);
+
+    await supabase
+      .from("purchases")
+      .update({ status: "refunded" })
+      .or(`provider_id.eq.${charge.id},provider_id.eq.${paymentIntentId}`);
+  }
+
+  // Find gift transactions from this user in the refund window and reverse pending earnings
+  const userId = charge.metadata?.userId;
+  if (userId) {
+    // Record chargeback + auto-freeze if threshold reached
+    const { data: abuseResult } = await supabase.rpc("record_chargeback", {
+      p_user_id: userId,
+      p_reason: "stripe_charge_refunded",
+    });
+    if (abuseResult?.frozen) {
+      console.warn(`[CHARGEBACK] Account ${userId} AUTO-FROZEN after ${abuseResult.chargeback_count} chargebacks`);
+    }
+
+    const { data: recentGifts } = await supabase
+      .from("gift_transactions")
+      .select("id")
+      .eq("sender_id", userId)
+      .gte("created_at", new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString())
+      .order("created_at", { ascending: false });
+
+    if (recentGifts) {
+      for (const gift of recentGifts) {
+        await supabase.rpc("reverse_pending_earning", { p_gift_tx_id: gift.id });
+      }
+      console.warn(`[CHARGEBACK] Reversed pending earnings for ${recentGifts.length} gift(s) from user ${userId}`);
+    }
+  }
+}
+
+async function handleChargeDispute(dispute: Stripe.Dispute) {
+  const chargeId = typeof dispute.charge === "string"
+    ? dispute.charge
+    : (dispute.charge as any)?.id;
+
+  console.warn(`[DISPUTE] Charge disputed: ${chargeId}, reason: ${dispute.reason}`);
+
+  const supabase = getSupabase();
+
+  // Mark purchase as disputed
+  if (chargeId) {
+    await supabase
+      .from("purchases")
+      .update({ status: "disputed" })
+      .eq("provider_id", chargeId);
+  }
+
+  // Same logic: reverse only pending creator earnings
+  const paymentIntent = typeof dispute.payment_intent === "string"
+    ? dispute.payment_intent
+    : (dispute.payment_intent as any)?.id;
+
+  if (paymentIntent) {
+    const { data: tx } = await supabase
+      .from("coin_transactions")
+      .select("user_id")
+      .eq("stripe_payment_intent_id", paymentIntent)
+      .single();
+
+    if (tx?.user_id) {
+      // Record chargeback + auto-freeze if threshold reached
+      const { data: abuseResult } = await supabase.rpc("record_chargeback", {
+        p_user_id: tx.user_id,
+        p_reason: "stripe_dispute",
+      });
+      if (abuseResult?.frozen) {
+        console.warn(`[DISPUTE] Account ${tx.user_id} AUTO-FROZEN after ${abuseResult.chargeback_count} chargebacks`);
+      }
+
+      const { data: recentGifts } = await supabase
+        .from("gift_transactions")
+        .select("id")
+        .eq("sender_id", tx.user_id)
+        .gte("created_at", new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString());
+
+      if (recentGifts) {
+        for (const gift of recentGifts) {
+          await supabase.rpc("reverse_pending_earning", { p_gift_tx_id: gift.id });
+        }
+        console.warn(`[DISPUTE] Reversed pending earnings for ${recentGifts.length} gift(s)`);
+      }
+    }
   }
 }

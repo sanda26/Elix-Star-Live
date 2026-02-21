@@ -47,6 +47,24 @@ interface UseLiveWebRTCOptions {
   enabled: boolean;
 }
 
+const MAX_PEERS = 15;
+
+const BITRATE_CAP = 1_200_000; // 1.2 Mbps — good quality without overloading mobile
+
+async function capSenderBitrate(pc: RTCPeerConnection) {
+  for (const sender of pc.getSenders()) {
+    if (sender.track?.kind !== 'video') continue;
+    try {
+      const params = sender.getParameters();
+      if (!params.encodings || params.encodings.length === 0) {
+        params.encodings = [{}];
+      }
+      params.encodings[0].maxBitrate = BITRATE_CAP;
+      await sender.setParameters(params);
+    } catch { /* not all browsers support this */ }
+  }
+}
+
 export function useLiveWebRTC({ roomId, localUserId, localStream, enabled }: UseLiveWebRTCOptions) {
   const peersRef = useRef<Map<string, PeerEntry>>(new Map());
   const [remotePeers, setRemotePeers] = useState<RemotePeer[]>([]);
@@ -112,13 +130,17 @@ export function useLiveWebRTC({ roomId, localUserId, localStream, enabled }: Use
       const e = peersRef.current.get(remoteUserId);
       if (!e) return;
       const s = pc.connectionState;
-      if (s === 'connected') e.state = 'connected';
-      else if (s === 'disconnected') e.state = 'disconnected';
-      else if (s === 'failed') {
-        e.state = 'failed';
-        setError(`Connection to peer failed`);
+      if (s === 'connected') {
+        e.state = 'connected';
+      } else if (s === 'failed' || s === 'closed') {
+        pc.close();
+        peersRef.current.delete(remoteUserId);
+        setError(s === 'failed' ? 'Connection to peer failed' : null);
+      } else if (s === 'disconnected') {
+        e.state = 'disconnected';
+      } else {
+        e.state = 'connecting';
       }
-      else e.state = 'connecting';
       updateRemotePeers();
     };
 
@@ -139,6 +161,7 @@ export function useLiveWebRTC({ roomId, localUserId, localStream, enabled }: Use
             target_user_id: remoteUserId,
             sdp: offer,
           });
+          await capSenderBitrate(pc);
         } catch (err) {
           setError('Failed to create offer');
         }
@@ -164,6 +187,7 @@ export function useLiveWebRTC({ roomId, localUserId, localStream, enabled }: Use
     const remoteUserId = data.user_id;
     if (remoteUserId === localUserIdRef.current) return;
     if (peersRef.current.has(remoteUserId)) return;
+    if (peersRef.current.size >= MAX_PEERS) return;
     createPeerConnection(remoteUserId, true);
   }, [createPeerConnection]);
 
@@ -198,6 +222,7 @@ export function useLiveWebRTC({ roomId, localUserId, localStream, enabled }: Use
         target_user_id: fromUserId,
         sdp: answer,
       });
+      await capSenderBitrate(entry.pc);
       await flushIceCandidates(fromUserId);
     } catch (err) {
       setError('Failed to handle offer');
@@ -255,22 +280,42 @@ export function useLiveWebRTC({ roomId, localUserId, localStream, enabled }: Use
       joinRoom();
     };
 
+    let roomFullReceived = false;
+    const retryTimerIds: ReturnType<typeof setTimeout>[] = [];
+
+    const handleRoomFull = (data: any) => {
+      roomFullReceived = true;
+      retryTimerIds.forEach(clearTimeout);
+      setError(data?.message || 'Live is full (max 15 viewers). Try again later.');
+    };
+
     websocket.on('connected', handleConnected);
     websocket.on('rtc_join', handleRtcJoin);
     websocket.on('rtc_leave', handleRtcLeave);
     websocket.on('rtc_offer', handleRtcOffer);
     websocket.on('rtc_answer', handleRtcAnswer);
     websocket.on('rtc_ice_candidate', handleRtcIceCandidate);
+    websocket.on('room_full', handleRoomFull);
 
     joinRoom();
 
+    // Retry rtc_join if no peers connect (handles race where
+    // broadcaster wasn't ready). Stops if room_full was received.
+    retryTimerIds.push(
+      setTimeout(() => { if (!roomFullReceived && peersRef.current.size === 0) joinRoom(); }, 5000),
+      setTimeout(() => { if (!roomFullReceived && peersRef.current.size === 0) joinRoom(); }, 12000),
+      setTimeout(() => { if (!roomFullReceived && peersRef.current.size === 0) joinRoom(); }, 25000),
+    );
+
     return () => {
+      retryTimerIds.forEach(clearTimeout);
       websocket.off('connected', handleConnected);
       websocket.off('rtc_join', handleRtcJoin);
       websocket.off('rtc_leave', handleRtcLeave);
       websocket.off('rtc_offer', handleRtcOffer);
       websocket.off('rtc_answer', handleRtcAnswer);
       websocket.off('rtc_ice_candidate', handleRtcIceCandidate);
+      websocket.off('room_full', handleRoomFull);
       leaveRoom();
     };
   }, [enabled, localStream, roomId, localUserId, handleRtcJoin, handleRtcLeave, handleRtcOffer, handleRtcAnswer, handleRtcIceCandidate, joinRoom, leaveRoom]);

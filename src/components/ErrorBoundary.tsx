@@ -25,7 +25,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    if (import.meta.env.DEV) console.error('ErrorBoundary caught error:', error, errorInfo);
+    console.error('ErrorBoundary caught error:', error, errorInfo);
     
     this.setState({
       error,
@@ -72,13 +72,13 @@ export class ErrorBoundary extends Component<Props, State> {
               We're sorry for the inconvenience. Please try reloading the page.
             </p>
 
-            {import.meta.env.DEV && this.state.error && (
+            {this.state.error && (
               <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-left">
                 <p className="text-sm font-mono text-red-400 mb-2">{this.state.error.message}</p>
                 {this.state.errorInfo && (
                   <details className="text-xs text-white/40">
                     <summary className="cursor-pointer mb-2">Stack trace</summary>
-                    <pre className="whitespace-pre-wrap overflow-x-auto">
+                    <pre className="whitespace-pre-wrap overflow-x-auto max-h-40 overflow-y-auto">
                       {this.state.errorInfo.componentStack}
                     </pre>
                   </details>

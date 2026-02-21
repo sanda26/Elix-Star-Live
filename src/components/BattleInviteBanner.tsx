@@ -59,46 +59,44 @@ export function BattleInviteBanner() {
     return () => { supabase.removeChannel(chan); };
   }, [user?.id, isOnLiveStream]);
 
-  const acceptInvite = async () => {
+  const acceptInvite = () => {
     if (!pendingInvite || !user?.id) return;
+    const invite = pendingInvite;
+    setPendingInvite(null);
+
+    if (!invite.streamKey) {
+      showToast('Invalid invite — missing stream key');
+      return;
+    }
+
+    const myUsername = user?.username || user?.name || 'User';
+
     try {
-      await supabase.from('notifications').update({ is_read: true }).eq('id', pendingInvite.notifId);
+      supabase.from('notifications').update({ is_read: true }).eq('id', invite.notifId).then(() => {});
 
-      const myProfile = await supabase
-        .from('profiles')
-        .select('username, avatar_url')
-        .eq('user_id', user.id)
-        .single();
-
-      const myUsername = myProfile.data?.username || user?.username || user?.name || 'User';
-      const myAvatarUrl = myProfile.data?.avatar_url || '';
-
-      const acceptType = pendingInvite.type === 'cohost' ? 'cohost_accepted' : 'battle_accepted';
-      const acceptTitle = pendingInvite.type === 'cohost' ? 'Co-Host Accepted' : 'Battle Accepted';
-      const acceptBody = pendingInvite.type === 'cohost'
+      const acceptType = invite.type === 'cohost' ? 'cohost_accepted' : 'battle_accepted';
+      const acceptTitle = invite.type === 'cohost' ? 'Co-Host Accepted' : 'Battle Accepted';
+      const acceptBody = invite.type === 'cohost'
         ? `@${myUsername} accepted your co-host invite!`
         : `@${myUsername} accepted your battle invite!`;
 
-      await supabase.from('notifications').insert({
-        user_id: pendingInvite.hostUserId,
+      supabase.from('notifications').insert({
+        user_id: invite.hostUserId,
         type: acceptType,
         title: acceptTitle,
         body: acceptBody,
         data: {
           actor_id: user.id,
           accepted_name: myUsername,
-          accepted_avatar: myAvatarUrl,
-          stream_key: pendingInvite.streamKey,
+          accepted_avatar: '',
+          stream_key: invite.streamKey,
         },
-      });
+      }).then(() => {});
+    } catch { /* fire-and-forget */ }
 
-      const streamKey = pendingInvite.streamKey;
-      const queryParam = pendingInvite.type === 'cohost' ? '?cohost=1' : '?battle=1';
-      setPendingInvite(null);
-      navigate(`/live/${streamKey}${queryParam}`);
-    } catch {
-      showToast('Failed to accept invite');
-    }
+    const queryParam = invite.type === 'cohost' ? '?cohost=1' : '?battle=1';
+    showToast(`Joining @${invite.hostName}'s stream...`);
+    navigate(`/live/${invite.streamKey}${queryParam}`, { replace: true });
   };
 
   const declineInvite = async () => {

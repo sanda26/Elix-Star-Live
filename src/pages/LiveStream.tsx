@@ -257,34 +257,27 @@ export default function LiveStream() {
         if (data.level != null) setUserLevel(Number(data.level));
         if (data.xp != null) setUserXP(Number(data.xp));
         if (data.level != null) updateUser({ level: Number(data.level) });
-      }
-
-      if (error) {
         return;
       }
 
-      const { error: insertError } = await supabase
-        .from('profiles')
-        .insert({ user_id: user.id, coins: 0, level: 1, xp: 0 });
+      if (error) return;
 
-      if (insertError) {
-        const code = (insertError as unknown as { code?: string }).code;
-        const msg = insertError.message.toLowerCase();
-        if (code !== '23505' && !msg.includes('duplicate') && !msg.includes('already exists')) {
-          return;
-        }
-      }
-      const retry = await supabase
+      await supabase
+        .from('profiles')
+        .upsert({ user_id: user.id, coins: 0, level: 1, xp: 0 }, { onConflict: 'user_id', ignoreDuplicates: true });
+
+      if (cancelled) return;
+      const { data: retryData } = await supabase
         .from('profiles')
         .select('coins,level,xp')
         .eq('user_id', user.id)
         .maybeSingle();
 
-      if (!cancelled && retry.data?.coins != null) {
-        setCoinBalance(Number(retry.data.coins));
-        if (retry.data.level != null) setUserLevel(Number(retry.data.level));
-        if (retry.data.xp != null) setUserXP(Number(retry.data.xp));
-        if (retry.data.level != null) updateUser({ level: Number(retry.data.level) });
+      if (!cancelled && retryData?.coins != null) {
+        setCoinBalance(Number(retryData.coins));
+        if (retryData.level != null) setUserLevel(Number(retryData.level));
+        if (retryData.xp != null) setUserXP(Number(retryData.xp));
+        if (retryData.level != null) updateUser({ level: Number(retryData.level) });
       }
     };
 
@@ -589,10 +582,14 @@ export default function LiveStream() {
     if (!pendingInvite || !user?.id) return;
     const invite = pendingInvite;
     setPendingInvite(null);
+    if (!invite.streamKey) {
+      showToast('Invalid invite — missing stream key');
+      return;
+    }
     try {
-      await supabase.from('notifications').update({ is_read: true }).eq('id', invite.notifId);
       const myUsername = user?.username || user?.name || viewerName;
-      await supabase.from('notifications').insert({
+      supabase.from('notifications').update({ is_read: true }).eq('id', invite.notifId).then(() => {});
+      supabase.from('notifications').insert({
         user_id: invite.hostUserId,
         type: 'battle_accepted',
         title: 'Battle Accepted',
@@ -603,19 +600,10 @@ export default function LiveStream() {
           accepted_avatar: viewerAvatar,
           stream_key: invite.streamKey,
         },
-      });
-      if (!invite.streamKey) {
-        showToast('Invalid invite — missing stream key');
-        return;
-      }
-      showToast(`Joining @${invite.hostName}'s battle...`);
-      setTimeout(() => {
-        window.location.href = `/live/${invite.streamKey}?battle=1`;
-      }, 300);
-    } catch (err) {
-      console.error('Battle accept error:', err);
-      showToast('Failed to accept invite');
-    }
+      }).then(() => {});
+    } catch { /* fire-and-forget */ }
+    showToast(`Joining @${invite.hostName}'s battle...`);
+    navigate(`/live/${invite.streamKey}?battle=1`, { replace: true });
   };
 
   const declineBattleInvite = async () => {
@@ -751,10 +739,14 @@ export default function LiveStream() {
     if (!pendingCoHostInvite || !user?.id) return;
     const invite = pendingCoHostInvite;
     setPendingCoHostInvite(null);
+    if (!invite.streamKey) {
+      showToast('Invalid invite — missing stream key');
+      return;
+    }
     try {
-      await supabase.from('notifications').update({ is_read: true }).eq('id', invite.notifId);
       const myUsername = user?.username || user?.name || viewerName;
-      await supabase.from('notifications').insert({
+      supabase.from('notifications').update({ is_read: true }).eq('id', invite.notifId).then(() => {});
+      supabase.from('notifications').insert({
         user_id: invite.hostUserId,
         type: 'cohost_accepted',
         title: 'Co-Host Accepted',
@@ -765,19 +757,10 @@ export default function LiveStream() {
           accepted_avatar: viewerAvatar,
           stream_key: invite.streamKey,
         },
-      });
-      if (!invite.streamKey) {
-        showToast('Invalid invite — missing stream key');
-        return;
-      }
-      showToast(`Joining @${invite.hostName}'s stream as co-host...`);
-      setTimeout(() => {
-        window.location.href = `/live/${invite.streamKey}?cohost=1`;
-      }, 300);
-    } catch (err) {
-      console.error('Co-host accept error:', err);
-      showToast('Failed to accept co-host invite');
-    }
+      }).then(() => {});
+    } catch { /* fire-and-forget */ }
+    showToast(`Joining @${invite.hostName}'s stream as co-host...`);
+    navigate(`/live/${invite.streamKey}?cohost=1`, { replace: true });
   };
 
   const declineCoHostInvite = async () => {
@@ -3252,7 +3235,7 @@ export default function LiveStream() {
 
       {/* ═══ INVITE HOST PANEL (Multi-Host, up to 12) ═══ */}
       {isInviteHostOpen && (
-        <div className="fixed inset-0 z-[99999] flex flex-col justify-end" style={{ height: '100%' }}>
+        <div className="fixed inset-0 z-[99999] flex flex-col justify-end max-w-[480px] mx-auto" style={{ height: '100%' }}>
           <div className="absolute inset-0 bg-black/40 pointer-events-auto" onClick={() => { (document.activeElement as HTMLElement)?.blur(); setIsInviteHostOpen(false); setHostSearchQuery(''); }} />
           <div
             className="bg-[#1C1E24]/95 backdrop-blur-md rounded-t-2xl max-h-[65vh] flex flex-col shadow-2xl border-t border-[#C9A96E]/20 pointer-events-auto w-full relative z-10 overflow-hidden pb-safe"
@@ -3408,7 +3391,7 @@ export default function LiveStream() {
             style={{ zIndex: 99998 }}
             onClick={() => setShowRankingPanel(false)}
           />
-          <div className="fixed bottom-0 left-0 right-0 z-[99999] pointer-events-auto">
+          <div className="fixed bottom-0 left-0 right-0 z-[99999] pointer-events-auto max-w-[480px] mx-auto">
             <RankingPanel onClose={() => setShowRankingPanel(false)} />
           </div>
         </>
@@ -3416,7 +3399,7 @@ export default function LiveStream() {
 
       {/* ─── INCOMING BATTLE INVITE BANNER (Bottom sheet) ─── */}
       {pendingInvite && (
-        <div className="fixed inset-0 z-[100002] flex flex-col justify-end pointer-events-none">
+        <div className="fixed inset-0 z-[100002] flex flex-col justify-end pointer-events-none max-w-[480px] mx-auto">
           <div className="absolute inset-0 bg-black/40 pointer-events-auto" onClick={() => declineBattleInvite()} />
           <div className="pointer-events-auto animate-in slide-in-from-bottom relative z-10">
             <div className="bg-[#1C1E24]/95 backdrop-blur-md rounded-t-2xl border-t border-[#C9A96E]/30 shadow-2xl p-4 pb-safe">
@@ -3466,7 +3449,7 @@ export default function LiveStream() {
 
       {/* ─── INCOMING CO-HOST INVITE BANNER (Bottom sheet) ─── */}
       {pendingCoHostInvite && (
-        <div className="fixed inset-0 z-[100002] flex flex-col justify-end pointer-events-none">
+        <div className="fixed inset-0 z-[100002] flex flex-col justify-end pointer-events-none max-w-[480px] mx-auto">
           <div className="absolute inset-0 bg-black/40 pointer-events-auto" onClick={() => declineCoHostInvite()} />
           <div className="pointer-events-auto animate-in slide-in-from-bottom relative z-10">
             <div className="bg-[#1C1E24]/95 backdrop-blur-md rounded-t-2xl border-t border-[#C9A96E]/30 shadow-2xl p-4 pb-safe">
@@ -3516,7 +3499,7 @@ export default function LiveStream() {
 
       {/* MODALS & OVERLAYS */}
       {isFindCreatorsOpen && (
-        <div className="fixed inset-0 z-[99999] flex flex-col justify-end" style={{ height: '100%' }}>
+        <div className="fixed inset-0 z-[99999] flex flex-col justify-end max-w-[480px] mx-auto" style={{ height: '100%' }}>
           <div 
             className="absolute inset-0 bg-black/40 pointer-events-auto" 
             onClick={() => {
@@ -3806,8 +3789,8 @@ export default function LiveStream() {
 
       {/* ═══ VIEWER LIST PANEL ═══ */}
       {showViewerList && (
-        <div className="fixed inset-0 z-[99999] flex flex-col bg-[#0A0B0E]/95 backdrop-blur-sm">
-          <div className="flex-1 flex flex-col max-w-[480px] w-full mx-auto">
+        <div className="fixed inset-0 z-[99999] flex flex-col bg-[#0A0B0E]/95 backdrop-blur-sm max-w-[480px] mx-auto">
+          <div className="flex-1 flex flex-col w-full">
 
             {/* Header */}
             <div className="flex items-center justify-between px-4 pt-[calc(env(safe-area-inset-top,0px)+10px)] pb-2">
@@ -3921,7 +3904,7 @@ export default function LiveStream() {
             style={{ zIndex: 99998 }}
             onClick={() => setShowTeamStatus(false)}
           />
-          <div className="fixed bottom-0 left-0 right-0 z-[99999] pointer-events-auto">
+          <div className="fixed bottom-0 left-0 right-0 z-[99999] pointer-events-auto max-w-[480px] mx-auto">
           <div
             className="bg-[#1C1E24]/95 rounded-t-2xl p-3 pb-safe max-h-[40vh] overflow-y-auto no-scrollbar shadow-2xl w-full"
             onClick={(e) => e.stopPropagation()}
@@ -4006,7 +3989,7 @@ export default function LiveStream() {
             style={{ zIndex: 99998 }}
             onClick={() => setShowFanClub(false)}
           />
-          <div className="fixed bottom-0 left-0 right-0 z-[99999] pointer-events-auto">
+          <div className="fixed bottom-0 left-0 right-0 z-[99999] pointer-events-auto max-w-[480px] mx-auto">
           <div
             className="bg-[#1C1E24]/95 rounded-t-2xl p-3 pb-safe max-h-[40vh] overflow-y-auto no-scrollbar shadow-2xl w-full"
             onClick={(e) => e.stopPropagation()}
@@ -4165,7 +4148,7 @@ export default function LiveStream() {
             onClick={() => setIsMoreMenuOpen(false)}
           />
           <div
-            className="fixed bottom-0 left-0 right-0 z-[99999] pointer-events-auto"
+            className="fixed bottom-0 left-0 right-0 z-[99999] pointer-events-auto max-w-[480px] mx-auto"
           >
           <div
             className="bg-[#1C1E24]/95 rounded-t-2xl p-3 pb-safe max-h-[55vh] overflow-y-auto no-scrollbar shadow-2xl w-full"
@@ -4472,12 +4455,12 @@ export default function LiveStream() {
 
       {isLiveSettingsOpen && (
         <div
-          className="fixed inset-0 z-[710] bg-[#13151A] pointer-events-auto"
+          className="fixed inset-0 z-[710] bg-[#13151A] pointer-events-auto max-w-[480px] mx-auto"
           onClick={() => setIsLiveSettingsOpen(false)}
           role="button"
           tabIndex={-1}
         >
-          <div className="fixed bottom-0 left-0 right-0 px-4 pb-[calc(16px+env(safe-area-inset-bottom))] pointer-events-auto">
+          <div className="fixed bottom-0 left-0 right-0 px-4 pb-[calc(16px+env(safe-area-inset-bottom))] pointer-events-auto max-w-[480px] mx-auto">
             <div
               className="mx-auto w-full bg-[#13151A] overflow-hidden"
               onClick={(e) => e.stopPropagation()}
@@ -4554,7 +4537,7 @@ export default function LiveStream() {
             onClick={() => setShowGiftPanel(false)}
           />
           <div 
-            className="fixed bottom-0 left-0 right-0 h-[40vh] z-[999999] pointer-events-auto"
+            className="fixed bottom-0 left-0 right-0 h-[40vh] z-[999999] pointer-events-auto max-w-[480px] mx-auto"
           >
             <GiftPanel 
               onSelectGift={handleSendGift} 
@@ -4580,7 +4563,7 @@ export default function LiveStream() {
             style={{ zIndex: 99998 }}
             onClick={() => setShowSharePanel(false)}
           />
-          <div className="fixed bottom-0 left-0 right-0 z-[99999] pointer-events-auto">
+          <div className="fixed bottom-0 left-0 right-0 z-[99999] pointer-events-auto max-w-[480px] mx-auto">
           <div className="bg-[#1C1E24]/95 rounded-t-2xl p-4 pb-safe flex flex-col gap-1 shadow-2xl w-full max-h-[40vh] overflow-y-auto no-scrollbar">
             <div className="flex justify-center mb-2">
               <div className="w-10 h-1 bg-white/20 rounded-full" />

@@ -65,6 +65,11 @@ const Guidelines = lazy(() => import('./pages/Guidelines'));
 const VideoCall = lazy(() => import('./pages/VideoCall'));
 const AIStudio = lazy(() => import('./pages/AIStudio'));
 
+function LiveStreamKeyed() {
+  const loc = useLocation();
+  return <LiveStream key={loc.pathname + loc.search} />;
+}
+
 // Loading fallback for lazy-loaded routes
 function PageLoader() {
   return (
@@ -203,10 +208,10 @@ function App() {
             <Route path="/report" element={<Report />} />
             <Route path="/video/:videoId" element={<VideoView />} />
             <Route path="/live" element={<LiveDiscover />} />
-            <Route path="/live/:streamId" element={<LiveStream />} />
+            <Route path="/live/:streamId" element={<LiveStreamKeyed />} />
             <Route path="/live/start" element={<Navigate to="/live" replace />} />
-            <Route path="/live/broadcast" element={<LiveStream />} />
-            <Route path="/live/watch/:streamId" element={<LiveStream />} />
+            <Route path="/live/broadcast" element={<LiveStreamKeyed />} />
+            <Route path="/live/watch/:streamId" element={<LiveStreamKeyed />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/profile/:userId" element={<Profile />} />
             <Route path="/friends" element={<FriendsFeed />} />

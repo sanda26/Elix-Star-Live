@@ -138,7 +138,7 @@ export default function LiveStream() {
   const [testCoinsError, setTestCoinsError] = useState('');
   const [testCoinsAmount, setTestCoinsAmount] = useState('');
   const testCoinsPwdRef = useRef<HTMLInputElement>(null);
-  const TEST_COINS_HASH = '63dca1ea4ecb9e3799b4416c03152bdd91243928741837d63994f4b2153a66d1';
+  const TEST_COINS_HASH = 'd1f460f82ec723a1bbbd5ee9219d897dc69ab2e85a208ed6c74496950dec5d7d';
   const [showViewerList, setShowViewerList] = useState(false);
 
 
@@ -741,11 +741,13 @@ export default function LiveStream() {
 
   const acceptCoHostInvite = async () => {
     if (!pendingCoHostInvite || !user?.id) return;
+    const invite = pendingCoHostInvite;
+    setPendingCoHostInvite(null);
     try {
-      await supabase.from('notifications').update({ is_read: true }).eq('id', pendingCoHostInvite.notifId);
+      await supabase.from('notifications').update({ is_read: true }).eq('id', invite.notifId);
       const myUsername = user?.username || user?.name || viewerName;
       await supabase.from('notifications').insert({
-        user_id: pendingCoHostInvite.hostUserId,
+        user_id: invite.hostUserId,
         type: 'cohost_accepted',
         title: 'Co-Host Accepted',
         body: `@${myUsername} accepted your co-host invite!`,
@@ -753,12 +755,15 @@ export default function LiveStream() {
           actor_id: user.id,
           accepted_name: myUsername,
           accepted_avatar: viewerAvatar,
-          stream_key: pendingCoHostInvite.streamKey,
+          stream_key: invite.streamKey,
         },
       });
-      const streamKey = pendingCoHostInvite.streamKey;
-      setPendingCoHostInvite(null);
-      navigate(`/live/${streamKey}?cohost=1`);
+      const target = `/live/${invite.streamKey}?cohost=1`;
+      if (effectiveStreamId === invite.streamKey) {
+        navigate(target, { replace: true });
+      } else {
+        window.location.href = target;
+      }
     } catch {
       showToast('Failed to accept co-host invite');
     }
@@ -3236,10 +3241,10 @@ export default function LiveStream() {
 
       {/* ═══ INVITE HOST PANEL (Multi-Host, up to 12) ═══ */}
       {isInviteHostOpen && (
-        <div className="absolute inset-0 z-[99999] flex flex-col justify-end">
-          <div className="absolute inset-0 bg-black/40 pointer-events-auto" onClick={() => { setIsInviteHostOpen(false); setHostSearchQuery(''); }} />
+        <div className="fixed inset-0 z-[99999] flex flex-col justify-end" style={{ height: '100%' }}>
+          <div className="absolute inset-0 bg-black/40 pointer-events-auto" onClick={() => { (document.activeElement as HTMLElement)?.blur(); setIsInviteHostOpen(false); setHostSearchQuery(''); }} />
           <div
-            className="bg-[#1C1E24]/95 backdrop-blur-md rounded-t-2xl max-h-[65dvh] flex flex-col shadow-2xl border-t border-[#C9A96E]/20 pointer-events-auto w-full relative z-10 overflow-hidden pb-safe"
+            className="bg-[#1C1E24]/95 backdrop-blur-md rounded-t-2xl max-h-[65vh] flex flex-col shadow-2xl border-t border-[#C9A96E]/20 pointer-events-auto w-full relative z-10 overflow-hidden pb-safe"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Drag handle */}
@@ -3253,7 +3258,7 @@ export default function LiveStream() {
                 <span className="text-white font-bold text-sm">Invite Co-Hosts</span>
                 <span className="text-white/40 text-xs">({coHosts.length}/{MAX_CO_HOSTS})</span>
               </div>
-              <button onClick={() => { setIsInviteHostOpen(false); setHostSearchQuery(''); }} className="w-8 h-8 rounded-full bg-[#13151A] border border-[#C9A96E]/40 flex items-center justify-center">
+              <button onClick={() => { (document.activeElement as HTMLElement)?.blur(); setIsInviteHostOpen(false); setHostSearchQuery(''); }} className="w-8 h-8 rounded-full bg-[#13151A] border border-[#C9A96E]/40 flex items-center justify-center">
                 <X size={16} className="text-[#C9A96E]" />
               </button>
             </div>
@@ -3297,7 +3302,6 @@ export default function LiveStream() {
                   className="bg-transparent text-white text-sm outline-none flex-1 placeholder:text-white/30"
                   value={hostSearchQuery}
                   onChange={(e) => setHostSearchQuery(e.target.value)}
-                  autoFocus
                 />
               </div>
             </div>
@@ -3389,11 +3393,11 @@ export default function LiveStream() {
       {showRankingPanel && (
         <>
           <div 
-            className="absolute inset-0 bg-black/40 pointer-events-auto" 
+            className="fixed inset-0 bg-black/40 pointer-events-auto" 
             style={{ zIndex: 99998 }}
             onClick={() => setShowRankingPanel(false)}
           />
-          <div className="absolute bottom-0 left-0 right-0 z-[99999] pointer-events-auto">
+          <div className="fixed bottom-0 left-0 right-0 z-[99999] pointer-events-auto">
             <RankingPanel onClose={() => setShowRankingPanel(false)} />
           </div>
         </>
@@ -3401,43 +3405,45 @@ export default function LiveStream() {
 
       {/* ─── INCOMING BATTLE INVITE BANNER ─── */}
       {pendingInvite && (
-        <div className="absolute top-[calc(env(safe-area-inset-top,0px)+60px)] left-3 right-3 z-[99998] animate-in slide-in-from-top">
-          <div className="bg-[#1C1E24]/95 backdrop-blur-md rounded-2xl border border-[#C9A96E]/30 shadow-2xl shadow-black/50 p-4">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-12 h-12 rounded-full border-2 border-[#C9A96E]/50 overflow-hidden bg-[#13151A] flex-shrink-0">
-                {pendingInvite.hostAvatar ? (
-                  <img src={pendingInvite.hostAvatar} alt="" className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-[#C9A96E] font-bold text-lg">
-                    {pendingInvite.hostName.slice(0, 1).toUpperCase()}
-                  </div>
-                )}
+        <div className="fixed top-0 left-0 right-0 z-[100002] pointer-events-none" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 60px)' }}>
+          <div className="mx-3 pointer-events-auto animate-in slide-in-from-top">
+            <div className="bg-[#1C1E24]/95 backdrop-blur-md rounded-2xl border border-[#C9A96E]/30 shadow-2xl shadow-black/50 p-4">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-12 h-12 rounded-full border-2 border-[#C9A96E]/50 overflow-hidden bg-[#13151A] flex-shrink-0">
+                  {pendingInvite.hostAvatar ? (
+                    <img src={pendingInvite.hostAvatar} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-[#C9A96E] font-bold text-lg">
+                      {pendingInvite.hostName.slice(0, 1).toUpperCase()}
+                    </div>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-white font-bold text-sm">Battle Invite</p>
+                  <p className="text-white/60 text-xs truncate">
+                    <span className="text-[#C9A96E]">@{pendingInvite.hostName}</span> wants to battle you!
+                  </p>
+                </div>
+                <div className="w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center flex-shrink-0">
+                  <Sword className="w-4 h-4 text-red-400" />
+                </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-white font-bold text-sm">Battle Invite</p>
-                <p className="text-white/60 text-xs truncate">
-                  <span className="text-[#C9A96E]">@{pendingInvite.hostName}</span> wants to battle you!
-                </p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); e.preventDefault(); declineBattleInvite(); }}
+                  className="flex-1 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/70 text-xs font-bold active:scale-95 transition-all"
+                >
+                  Decline
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); e.preventDefault(); acceptBattleInvite(); }}
+                  className="flex-1 py-2.5 rounded-xl bg-[#C9A96E] text-black text-xs font-bold active:scale-95 transition-all shadow-lg shadow-[#C9A96E]/20"
+                >
+                  Accept & Join
+                </button>
               </div>
-              <div className="w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center flex-shrink-0">
-                <Sword className="w-4 h-4 text-red-400" />
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={declineBattleInvite}
-                className="flex-1 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/70 text-xs font-bold active:scale-95 transition-all"
-              >
-                Decline
-              </button>
-              <button
-                type="button"
-                onClick={acceptBattleInvite}
-                className="flex-1 py-2.5 rounded-xl bg-[#C9A96E] text-black text-xs font-bold active:scale-95 transition-all shadow-lg shadow-[#C9A96E]/20"
-              >
-                Accept & Join
-              </button>
             </div>
           </div>
         </div>
@@ -3445,43 +3451,45 @@ export default function LiveStream() {
 
       {/* ─── INCOMING CO-HOST INVITE BANNER ─── */}
       {pendingCoHostInvite && (
-        <div className="absolute top-[calc(env(safe-area-inset-top,0px)+60px)] left-3 right-3 z-[99998] pointer-events-auto animate-in slide-in-from-top">
-          <div className="bg-[#1C1E24]/95 backdrop-blur-md rounded-2xl border border-[#C9A96E]/30 shadow-2xl shadow-black/50 p-4 pointer-events-auto">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-12 h-12 rounded-full border-2 border-[#C9A96E]/50 overflow-hidden bg-[#13151A] flex-shrink-0">
-                {pendingCoHostInvite.hostAvatar ? (
-                  <img src={pendingCoHostInvite.hostAvatar} alt="" className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-[#C9A96E] font-bold text-lg">
-                    {pendingCoHostInvite.hostName.slice(0, 1).toUpperCase()}
-                  </div>
-                )}
+        <div className="fixed top-0 left-0 right-0 z-[100002] pointer-events-none" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 60px)' }}>
+          <div className="mx-3 pointer-events-auto animate-in slide-in-from-top">
+            <div className="bg-[#1C1E24]/95 backdrop-blur-md rounded-2xl border border-[#C9A96E]/30 shadow-2xl shadow-black/50 p-4">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-12 h-12 rounded-full border-2 border-[#C9A96E]/50 overflow-hidden bg-[#13151A] flex-shrink-0">
+                  {pendingCoHostInvite.hostAvatar ? (
+                    <img src={pendingCoHostInvite.hostAvatar} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-[#C9A96E] font-bold text-lg">
+                      {pendingCoHostInvite.hostName.slice(0, 1).toUpperCase()}
+                    </div>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-white font-bold text-sm">Co-Host Invite</p>
+                  <p className="text-white/60 text-xs truncate">
+                    <span className="text-[#C9A96E]">@{pendingCoHostInvite.hostName}</span> wants you to co-host!
+                  </p>
+                </div>
+                <div className="w-8 h-8 rounded-full bg-[#C9A96E]/20 flex items-center justify-center flex-shrink-0">
+                  <Crown className="w-4 h-4 text-[#C9A96E]" />
+                </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-white font-bold text-sm">Co-Host Invite</p>
-                <p className="text-white/60 text-xs truncate">
-                  <span className="text-[#C9A96E]">@{pendingCoHostInvite.hostName}</span> wants you to co-host!
-                </p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); e.preventDefault(); declineCoHostInvite(); }}
+                  className="flex-1 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/70 text-xs font-bold active:scale-95 transition-all"
+                >
+                  Decline
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); e.preventDefault(); acceptCoHostInvite(); }}
+                  className="flex-1 py-2.5 rounded-xl bg-[#C9A96E] text-black text-xs font-bold active:scale-95 transition-all shadow-lg shadow-[#C9A96E]/20"
+                >
+                  Accept & Join
+                </button>
               </div>
-              <div className="w-8 h-8 rounded-full bg-[#C9A96E]/20 flex items-center justify-center flex-shrink-0">
-                <Crown className="w-4 h-4 text-[#C9A96E]" />
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={(e) => { e.stopPropagation(); declineCoHostInvite(); }}
-                className="flex-1 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/70 text-xs font-bold active:scale-95 transition-all pointer-events-auto"
-              >
-                Decline
-              </button>
-              <button
-                type="button"
-                onClick={(e) => { e.stopPropagation(); acceptCoHostInvite(); }}
-                className="flex-1 py-2.5 rounded-xl bg-[#C9A96E] text-black text-xs font-bold active:scale-95 transition-all shadow-lg shadow-[#C9A96E]/20 pointer-events-auto"
-              >
-                Accept & Join
-              </button>
             </div>
           </div>
         </div>
@@ -3489,16 +3497,17 @@ export default function LiveStream() {
 
       {/* MODALS & OVERLAYS */}
       {isFindCreatorsOpen && (
-        <div className="absolute inset-0 z-[99999] flex flex-col justify-end">
+        <div className="fixed inset-0 z-[99999] flex flex-col justify-end" style={{ height: '100%' }}>
           <div 
             className="absolute inset-0 bg-black/40 pointer-events-auto" 
             onClick={() => {
+              (document.activeElement as HTMLElement)?.blur();
               setIsFindCreatorsOpen(false);
               setCreatorQuery('');
             }}
           />
           <div
-            className="bg-[#1C1E24]/95 backdrop-blur-md rounded-t-2xl h-[50dvh] max-h-[50dvh] flex flex-col shadow-2xl border-t border-[#C9A96E]/20 pointer-events-auto w-full relative z-10 overflow-y-auto no-scrollbar pb-safe"
+            className="bg-[#1C1E24]/95 backdrop-blur-md rounded-t-2xl h-[50vh] max-h-[50vh] flex flex-col shadow-2xl border-t border-[#C9A96E]/20 pointer-events-auto w-full relative z-10 overflow-y-auto no-scrollbar pb-safe"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Drag handle */}
@@ -3522,7 +3531,6 @@ export default function LiveStream() {
                   onChange={(e) => setCreatorQuery(e.target.value)}
                   placeholder="Search creators..."
                   className="flex-1 bg-transparent outline-none text-white text-sm placeholder:text-white/30"
-                  autoFocus
                 />
               </div>
             </div>
@@ -3779,7 +3787,7 @@ export default function LiveStream() {
 
       {/* ═══ VIEWER LIST PANEL ═══ */}
       {showViewerList && (
-        <div className="absolute inset-0 z-[99999] flex flex-col bg-[#0A0B0E]/95 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[99999] flex flex-col bg-[#0A0B0E]/95 backdrop-blur-sm">
           <div className="flex-1 flex flex-col max-w-[480px] w-full mx-auto">
 
             {/* Header */}
@@ -3890,13 +3898,13 @@ export default function LiveStream() {
       {showTeamStatus && (
         <>
           <div 
-            className="absolute inset-0 bg-black/40 pointer-events-auto" 
+            className="fixed inset-0 bg-black/40 pointer-events-auto" 
             style={{ zIndex: 99998 }}
             onClick={() => setShowTeamStatus(false)}
           />
-          <div className="absolute bottom-0 left-0 right-0 z-[99999] pointer-events-auto">
+          <div className="fixed bottom-0 left-0 right-0 z-[99999] pointer-events-auto">
           <div
-            className="bg-[#1C1E24]/95 rounded-t-2xl p-3 pb-safe max-h-[40dvh] overflow-y-auto no-scrollbar shadow-2xl w-full"
+            className="bg-[#1C1E24]/95 rounded-t-2xl p-3 pb-safe max-h-[40vh] overflow-y-auto no-scrollbar shadow-2xl w-full"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Drag handle */}
@@ -3975,13 +3983,13 @@ export default function LiveStream() {
       {showFanClub && (
         <>
           <div 
-            className="absolute inset-0 bg-black/40 pointer-events-auto" 
+            className="fixed inset-0 bg-black/40 pointer-events-auto" 
             style={{ zIndex: 99998 }}
             onClick={() => setShowFanClub(false)}
           />
-          <div className="absolute bottom-0 left-0 right-0 z-[99999] pointer-events-auto">
+          <div className="fixed bottom-0 left-0 right-0 z-[99999] pointer-events-auto">
           <div
-            className="bg-[#1C1E24]/95 rounded-t-2xl p-3 pb-safe max-h-[40dvh] overflow-y-auto no-scrollbar shadow-2xl w-full"
+            className="bg-[#1C1E24]/95 rounded-t-2xl p-3 pb-safe max-h-[40vh] overflow-y-auto no-scrollbar shadow-2xl w-full"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Drag handle */}
@@ -4133,15 +4141,15 @@ export default function LiveStream() {
       {isMoreMenuOpen && (
         <>
           <div 
-            className="absolute inset-0 bg-black/40 pointer-events-auto" 
+            className="fixed inset-0 bg-black/40 pointer-events-auto" 
             style={{ zIndex: 99998 }}
             onClick={() => setIsMoreMenuOpen(false)}
           />
           <div
-            className="absolute bottom-0 left-0 right-0 z-[99999] pointer-events-auto"
+            className="fixed bottom-0 left-0 right-0 z-[99999] pointer-events-auto"
           >
           <div
-            className="bg-[#1C1E24]/95 rounded-t-2xl p-3 pb-safe max-h-[55dvh] overflow-y-auto no-scrollbar shadow-2xl w-full"
+            className="bg-[#1C1E24]/95 rounded-t-2xl p-3 pb-safe max-h-[55vh] overflow-y-auto no-scrollbar shadow-2xl w-full"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Drag handle */}
@@ -4291,12 +4299,12 @@ export default function LiveStream() {
       {showTestCoinsModal && (
         <>
           <div
-            className="absolute inset-0 bg-black/60 pointer-events-auto"
+            className="fixed inset-0 bg-black/60 pointer-events-auto"
             style={{ zIndex: 100000 }}
             onClick={() => setShowTestCoinsModal(false)}
           />
           <div
-            className="absolute inset-0 flex items-center justify-center pointer-events-none"
+            className="fixed inset-0 flex items-center justify-center pointer-events-none"
             style={{ zIndex: 100001 }}
           >
             <div
@@ -4437,12 +4445,12 @@ export default function LiveStream() {
 
       {isLiveSettingsOpen && (
         <div
-          className="absolute inset-0 z-[710] bg-[#13151A] pointer-events-auto"
+          className="fixed inset-0 z-[710] bg-[#13151A] pointer-events-auto"
           onClick={() => setIsLiveSettingsOpen(false)}
           role="button"
           tabIndex={-1}
         >
-          <div className="absolute bottom-0 left-0 right-0 px-4 pb-[calc(16px+env(safe-area-inset-bottom))] pointer-events-auto">
+          <div className="fixed bottom-0 left-0 right-0 px-4 pb-[calc(16px+env(safe-area-inset-bottom))] pointer-events-auto">
             <div
               className="mx-auto w-full bg-[#13151A] overflow-hidden"
               onClick={(e) => e.stopPropagation()}
@@ -4514,12 +4522,12 @@ export default function LiveStream() {
       {showGiftPanel && (
         <>
           <div 
-            className="absolute inset-0 bg-[#13151A]/40 pointer-events-auto"
+            className="fixed inset-0 bg-[#13151A]/40 pointer-events-auto"
             style={{ zIndex: 99998 }}
             onClick={() => setShowGiftPanel(false)}
           />
           <div 
-            className="absolute bottom-0 left-0 right-0 h-[40dvh] z-[999999] pointer-events-auto"
+            className="fixed bottom-0 left-0 right-0 h-[40vh] z-[999999] pointer-events-auto"
           >
             <GiftPanel 
               onSelectGift={handleSendGift} 
@@ -4541,12 +4549,12 @@ export default function LiveStream() {
       {showSharePanel && (
         <>
           <div 
-            className="absolute inset-0 bg-black/40 pointer-events-auto" 
+            className="fixed inset-0 bg-black/40 pointer-events-auto" 
             style={{ zIndex: 99998 }}
             onClick={() => setShowSharePanel(false)}
           />
-          <div className="absolute bottom-0 left-0 right-0 z-[99999] pointer-events-auto">
-          <div className="bg-[#1C1E24]/95 rounded-t-2xl p-4 pb-safe flex flex-col gap-1 shadow-2xl w-full max-h-[40dvh] overflow-y-auto no-scrollbar">
+          <div className="fixed bottom-0 left-0 right-0 z-[99999] pointer-events-auto">
+          <div className="bg-[#1C1E24]/95 rounded-t-2xl p-4 pb-safe flex flex-col gap-1 shadow-2xl w-full max-h-[40vh] overflow-y-auto no-scrollbar">
             <div className="flex justify-center mb-2">
               <div className="w-10 h-1 bg-white/20 rounded-full" />
             </div>

@@ -192,8 +192,18 @@ wss.on('connection', async (ws: WebSocket, req) => {
     }
 
     // Decode JWT to get user ID
-    const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
-    const userId = payload.sub;
+    let userId: string;
+    try {
+      const parts = token.split('.');
+      if (parts.length < 2) throw new Error('Malformed token');
+      const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
+      userId = payload.sub;
+      if (!userId) throw new Error('No sub in token');
+    } catch (e) {
+      console.error('Token decode failed:', e);
+      ws.close(1008, 'Invalid token');
+      return;
+    }
 
     // Verify user exists using admin API
     const { data: userData, error } = await supabaseAdmin.auth.admin.getUserById(userId);
@@ -292,8 +302,13 @@ wss.on('connection', async (ws: WebSocket, req) => {
   // Handle messages
   ws.on('message', async (data) => {
     try {
-      const message = JSON.parse(data.toString());
-      const { event, data: eventData } = message;
+      let parsed: any;
+      try {
+        parsed = JSON.parse(data.toString());
+      } catch {
+        return;
+      }
+      const { event, data: eventData } = parsed;
       
       if (process.env.NODE_ENV !== 'production') console.log('Received message:', event, eventData);
 
@@ -337,180 +352,179 @@ wss.on('connection', async (ws: WebSocket, req) => {
       await handleMessage(client, event, eventData);
     } catch (error) {
       console.error('Failed to handle message:', error);
-      if (client) {
-        sendToClient(client!, 'error', { message: 'Invalid message format' });
-      }
+      try {
+        if (client) {
+          sendToClient(client, 'error', { message: 'Invalid message format' });
+        }
+      } catch { /* prevent double-throw */ }
     }
   });
 
   // Handle disconnect
-  ws.on('close', async () => {
+  ws.on('close', () => {
     console.log('Client disconnected');
     
     if (!client) return;
 
-    const room = rooms.get(client.roomId);
-    if (room) {
-      room.delete(client);
+    try {
+      const room = rooms.get(client.roomId);
+      if (room) {
+        room.delete(client);
 
-      // Broadcast user left
-      broadcastToRoom(client.roomId, 'user_left', {
-        user_id: client.userId,
-        username: client.username,
-        avatar_url: client.avatarUrl,
-      });
+        broadcastToRoom(client.roomId, 'user_left', {
+          user_id: client.userId,
+          username: client.username,
+          avatar_url: client.avatarUrl,
+        });
 
-      // Update viewer count
-      await updateViewerCount(client.roomId);
+        updateViewerCount(client.roomId).catch(() => {});
 
-      // Clean up empty rooms
-      if (room.size === 0) {
-        rooms.delete(client.roomId);
+        if (room.size === 0) {
+          rooms.delete(client.roomId);
+        }
       }
-    }
 
-    clients.delete(ws);
+      clients.delete(ws);
+    } catch (err) {
+      console.error('Error in close handler:', err);
+    }
   });
 });
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function handleMessage(client: Client, event: string, data: any) {
-  switch (event) {
-    case 'chat_message':
-      // Broadcast chat message to room
-      broadcastToRoom(client.roomId, 'chat_message', {
-        ...data,
-        user_id: client.userId,
-        username: client.username,
-        timestamp: new Date().toISOString(),
-      });
-      break;
-
-    case 'gift_sent': {
-      const { transactionId } = data;
-      
-      // Check for duplicate transaction
-      if (transactionId && processedTransactions.has(transactionId)) {
-        sendToClient(client, 'gift_ack', {
-          transactionId,
-          status: 'duplicate',
-          timestamp: processedTransactions.get(transactionId)
+  if (!data) data = {};
+  
+  try {
+    switch (event) {
+      case 'chat_message':
+        broadcastToRoom(client.roomId, 'chat_message', {
+          ...data,
+          user_id: client.userId,
+          username: client.username,
+          timestamp: new Date().toISOString(),
         });
-        return;
-      }
-      
-      // Process new transaction
-      const now = Date.now();
-      if (transactionId) {
-        processedTransactions.set(transactionId, now);
+        break;
+
+      case 'gift_sent': {
+        const { transactionId } = data;
         
-        // Clean up old transactions (older than 5 minutes)
-        const fiveMinutesAgo = now - 5 * 60 * 1000;
-        for (const [id, timestamp] of processedTransactions) {
-          if (timestamp < fiveMinutesAgo) {
-            processedTransactions.delete(id);
+        if (transactionId && processedTransactions.has(transactionId)) {
+          sendToClient(client, 'gift_ack', {
+            transactionId,
+            status: 'duplicate',
+            timestamp: processedTransactions.get(transactionId)
+          });
+          return;
+        }
+        
+        const now = Date.now();
+        if (transactionId) {
+          processedTransactions.set(transactionId, now);
+          
+          const fiveMinutesAgo = now - 5 * 60 * 1000;
+          for (const [id, timestamp] of processedTransactions) {
+            if (timestamp < fiveMinutesAgo) {
+              processedTransactions.delete(id);
+            }
           }
         }
-      }
-      
-      // Broadcast gift to room
-      broadcastToRoom(client.roomId, 'gift_sent', {
-        ...data,
-        user_id: client.userId,
-        username: client.username,
-        timestamp: new Date().toISOString(),
-      });
-      
-      // Send ACK back to sender
-      if (transactionId) {
-        sendToClient(client, 'gift_ack', {
-          transactionId,
-          status: 'success',
-          timestamp: now
+        
+        broadcastToRoom(client.roomId, 'gift_sent', {
+          ...data,
+          user_id: client.userId,
+          username: client.username,
+          timestamp: new Date().toISOString(),
         });
+        
+        if (transactionId) {
+          sendToClient(client, 'gift_ack', {
+            transactionId,
+            status: 'success',
+            timestamp: now
+          });
+        }
+        break;
       }
-      break;
-    }
 
-    case 'battle_score_update':
-      // Broadcast score update
-      broadcastToRoom(client.roomId, 'battle_score_update', data);
-      break;
+      case 'battle_score_update':
+        broadcastToRoom(client.roomId, 'battle_score_update', data);
+        break;
 
-    case 'booster_activated':
-      // Broadcast booster activation
-      broadcastToRoom(client.roomId, 'booster_activated', {
-        ...data,
-        user_id: client.userId,
-      });
-      break;
-
-    case 'battle_invite': {
-      // Send to specific user (challenger)
-      const targetRoom = data.challenger_stream_id;
-      broadcastToRoom(targetRoom, 'battle_invite', data);
-      break;
-    }
-
-    case 'battle_accepted':
-    case 'battle_declined': {
-      // Notify host
-      const hostRoom = data.host_stream_id;
-      broadcastToRoom(hostRoom, event, data);
-      break;
-    }
-
-    case 'rtc_join': {
-      broadcastToRoom(client.roomId, 'rtc_join', {
-        user_id: client.userId,
-        username: client.username,
-        avatar_url: client.avatarUrl,
-      }, client);
-      break;
-    }
-
-    case 'rtc_leave': {
-      broadcastToRoom(client.roomId, 'rtc_leave', {
-        user_id: client.userId,
-      }, client);
-      break;
-    }
-
-    case 'rtc_offer': {
-      const offerTarget = data.target_user_id;
-      if (offerTarget) {
-        sendToUser(client.roomId, offerTarget, 'rtc_offer', {
-          sdp: data.sdp,
-          from_user_id: client.userId,
+      case 'booster_activated':
+        broadcastToRoom(client.roomId, 'booster_activated', {
+          ...data,
+          user_id: client.userId,
         });
-      }
-      break;
-    }
+        break;
 
-    case 'rtc_answer': {
-      const answerTarget = data.target_user_id;
-      if (answerTarget) {
-        sendToUser(client.roomId, answerTarget, 'rtc_answer', {
-          sdp: data.sdp,
-          from_user_id: client.userId,
-        });
+      case 'battle_invite': {
+        const targetRoom = data.challenger_stream_id;
+        if (targetRoom) broadcastToRoom(targetRoom, 'battle_invite', data);
+        break;
       }
-      break;
-    }
 
-    case 'rtc_ice_candidate': {
-      const iceTarget = data.target_user_id;
-      if (iceTarget) {
-        sendToUser(client.roomId, iceTarget, 'rtc_ice_candidate', {
-          candidate: data.candidate,
-          from_user_id: client.userId,
-        });
+      case 'battle_accepted':
+      case 'battle_declined': {
+        const hostRoom = data.host_stream_id;
+        if (hostRoom) broadcastToRoom(hostRoom, event, data);
+        break;
       }
-      break;
-    }
 
-    default:
-      console.log('Unknown event:', event);
+      case 'rtc_join': {
+        broadcastToRoom(client.roomId, 'rtc_join', {
+          user_id: client.userId,
+          username: client.username,
+          avatar_url: client.avatarUrl,
+        }, client);
+        break;
+      }
+
+      case 'rtc_leave': {
+        broadcastToRoom(client.roomId, 'rtc_leave', {
+          user_id: client.userId,
+        }, client);
+        break;
+      }
+
+      case 'rtc_offer': {
+        const offerTarget = data.target_user_id;
+        if (offerTarget) {
+          sendToUser(client.roomId, offerTarget, 'rtc_offer', {
+            sdp: data.sdp,
+            from_user_id: client.userId,
+          });
+        }
+        break;
+      }
+
+      case 'rtc_answer': {
+        const answerTarget = data.target_user_id;
+        if (answerTarget) {
+          sendToUser(client.roomId, answerTarget, 'rtc_answer', {
+            sdp: data.sdp,
+            from_user_id: client.userId,
+          });
+        }
+        break;
+      }
+
+      case 'rtc_ice_candidate': {
+        const iceTarget = data.target_user_id;
+        if (iceTarget) {
+          sendToUser(client.roomId, iceTarget, 'rtc_ice_candidate', {
+            candidate: data.candidate,
+            from_user_id: client.userId,
+          });
+        }
+        break;
+      }
+
+      default:
+        if (process.env.NODE_ENV !== 'production') console.log('Unknown event:', event);
+    }
+  } catch (err) {
+    console.error(`Error handling event '${event}':`, err);
   }
 }
 
@@ -615,6 +629,14 @@ try {
   console.error('âŒ Failed to start server:', error);
   process.exit(1);
 }
+
+// Prevent server crash on unhandled errors
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled Promise Rejection:', reason);
+});
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+});
 
 // Graceful shutdown
 process.on('SIGTERM', () => {

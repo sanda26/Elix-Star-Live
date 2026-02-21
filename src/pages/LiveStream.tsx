@@ -633,6 +633,17 @@ export default function LiveStream() {
     setMutedPlayers(prev => ({ ...prev, [player]: !prev[player] }));
   };
 
+  useEffect(() => {
+    const map: Record<string, React.RefObject<HTMLVideoElement | null>> = {
+      opponent: opponentVideoRef,
+      player3: player3VideoRef,
+      player4: player4VideoRef,
+    };
+    for (const [key, ref] of Object.entries(map)) {
+      if (ref.current) ref.current.muted = !!mutedPlayers[key];
+    }
+  }, [mutedPlayers]);
+
   const removePlayerFromSlot = (slotIndex: number) => {
     setBattleSlots(prev => {
       const next = [...prev];
@@ -2947,7 +2958,7 @@ export default function LiveStream() {
                     >
                       {battleSlots[0].status === 'accepted' ? (
                         <div className="w-full h-full relative bg-[#13151A]">
-                          <video ref={opponentVideoRef} className="w-full h-full object-cover absolute inset-0 z-10" autoPlay playsInline />
+                          <video ref={opponentVideoRef} className="w-full h-full object-cover absolute inset-0 z-10" autoPlay playsInline muted={!!mutedPlayers['opponent']} />
                           <div className="absolute inset-0 z-0 flex flex-col items-center justify-center gap-2">
                             {battleSlots[0].avatar ? (
                               <img src={battleSlots[0].avatar} alt={battleSlots[0].name} className="w-16 h-16 rounded-full border-2 border-[#C9A96E] object-cover" />
@@ -3025,7 +3036,7 @@ export default function LiveStream() {
                       >
                         {battleSlots[1].status === 'accepted' ? (
                           <div className="w-full h-full relative bg-[#13151A]">
-                            <video ref={player3VideoRef} className="w-full h-full object-cover" autoPlay playsInline style={player3VideoRef.current?.srcObject ? {} : { display: 'none' }} />
+                            <video ref={player3VideoRef} className="w-full h-full object-cover" autoPlay playsInline muted={!!mutedPlayers['player3']} style={player3VideoRef.current?.srcObject ? {} : { display: 'none' }} />
                             {!player3VideoRef.current?.srcObject && (
                               <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
                                 <img src={battleSlots[1].avatar} alt={battleSlots[1].name} className="w-12 h-12 rounded-full border-2 border-[#C9A96E] object-cover" />
@@ -3095,7 +3106,7 @@ export default function LiveStream() {
                       >
                         {battleSlots[2].status === 'accepted' ? (
                           <div className="w-full h-full relative bg-[#13151A]">
-                            <video ref={player4VideoRef} className="w-full h-full object-cover" autoPlay playsInline style={player4VideoRef.current?.srcObject ? {} : { display: 'none' }} />
+                            <video ref={player4VideoRef} className="w-full h-full object-cover" autoPlay playsInline muted={!!mutedPlayers['player4']} style={player4VideoRef.current?.srcObject ? {} : { display: 'none' }} />
                             {!player4VideoRef.current?.srcObject && (
                               <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
                                 <img src={battleSlots[2].avatar} alt={battleSlots[2].name} className="w-12 h-12 rounded-full border-2 border-[#C9A96E] object-cover" />
@@ -3390,7 +3401,7 @@ export default function LiveStream() {
 
             {/* MIDDLE ZONE: CHAT (Scrollable) */}
             <div 
-              className="chat-zone fixed left-0 right-0 bottom-[calc(50px+max(12px,env(safe-area-inset-bottom)))] h-[25dvh] max-h-[25dvh] overflow-y-auto pointer-events-auto z-[20] bg-transparent"
+              className="chat-zone fixed left-0 right-0 bottom-[calc(50px+max(12px,env(safe-area-inset-bottom)))] h-[25dvh] max-h-[25dvh] overflow-y-auto pointer-events-auto z-[20] bg-transparent max-w-[480px] mx-auto"
               onPointerDown={(e) => {
                 e.stopPropagation();
                 if (e.target instanceof Element) {

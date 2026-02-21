@@ -88,7 +88,7 @@ export function BattleInviteBanner() {
         data: {
           actor_id: user.id,
           accepted_name: myUsername,
-          accepted_avatar: '',
+          accepted_avatar: user?.avatar || '',
           stream_key: invite.streamKey,
         },
       }).then(() => {});

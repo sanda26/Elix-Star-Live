@@ -983,22 +983,43 @@ export default function LiveStream() {
 
   // If joining as battle participant, immediately enter battle mode and start camera
   useEffect(() => {
-    if (!isBattleJoiner) return;
+    if (!isBattleJoiner || !user?.id) return;
     setBattleState('IN_BATTLE');
     setIsBattleMode(true);
     setBattleTime(300);
     setBattleCountdown(3);
     setMyScore(0);
     setOpponentScore(0);
-    // Put the host in the opponent slot so the joiner sees them
-    setBattleSlots(prev => {
-      const next = [...prev];
-      next[0] = { userId: effectiveStreamId, name: hostName || creatorName || 'Host', status: 'accepted', avatar: hostAvatar || myAvatar || '' };
-      return next;
-    });
 
     let cancelled = false;
     (async () => {
+      // Fetch host info for opponent slot
+      const { data: hostStream } = await supabase
+        .from('live_streams')
+        .select('user_id, title')
+        .eq('stream_key', effectiveStreamId)
+        .maybeSingle();
+      let hName = 'Host';
+      let hAvatar = '';
+      if (hostStream?.user_id) {
+        const { data: hProfile } = await supabase
+          .from('profiles')
+          .select('username, display_name, avatar_url')
+          .eq('user_id', hostStream.user_id)
+          .maybeSingle();
+        if (hProfile) {
+          hName = hProfile.display_name || hProfile.username || hostStream.title || 'Host';
+          hAvatar = hProfile.avatar_url || '';
+        }
+      }
+      if (cancelled) return;
+      setBattleSlots(prev => {
+        const next = [...prev];
+        next[0] = { userId: hostStream?.user_id || effectiveStreamId, name: hName, status: 'accepted', avatar: hAvatar };
+        return next;
+      });
+
+      // Start camera
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: 'user' },
@@ -1013,14 +1034,48 @@ export default function LiveStream() {
       } catch {
         showToast('Camera access denied');
       }
+
+      // Announce arrival to host via broadcast
+      const myName = user?.username || user?.name || 'Player';
+      const myAv = user?.avatar || '';
+      supabase.channel(`battle_room_${effectiveStreamId}`).send({
+        type: 'broadcast',
+        event: 'joiner_arrived',
+        payload: { userId: user?.id, name: myName, avatar: myAv },
+      }).then(() => {});
     })();
     return () => { cancelled = true; };
-  }, [isBattleJoiner]);
+  }, [isBattleJoiner, user?.id, effectiveStreamId]);
 
   // Battle room channel: sync battle state between host and joiner
   useEffect(() => {
     if (!effectiveStreamId) return;
     const chan = supabase.channel(`battle_room_${effectiveStreamId}`);
+
+    // Host receives joiner arrival → update slot to show their avatar
+    chan.on('broadcast', { event: 'joiner_arrived' }, (msg: any) => {
+      if (!isBroadcast) return;
+      const { userId, name, avatar } = msg.payload;
+      setBattleSlots(prev => {
+        const next = [...prev];
+        const idx = next.findIndex(s => (s.userId === userId) || (s.status === 'invited') || (s.status === 'accepted' && !s.avatar));
+        if (idx !== -1) {
+          next[idx] = { userId, name: name || next[idx].name, status: 'accepted', avatar: avatar || next[idx].avatar };
+        } else {
+          const emptyIdx = next.findIndex(s => s.status === 'empty');
+          if (emptyIdx !== -1) {
+            next[emptyIdx] = { userId, name, status: 'accepted', avatar };
+          }
+        }
+        return next;
+      });
+      showToast(`@${name} connected!`);
+      // Confirm battle is active
+      setBattleState('IN_BATTLE');
+      setBattleTime(300);
+      setBattleCountdown(3);
+    });
+
     chan.on('broadcast', { event: 'battle_state' }, (msg: any) => {
       const payload = msg.payload;
       if (payload.state === 'IN_BATTLE' && !isBroadcast) {
@@ -2778,16 +2833,20 @@ export default function LiveStream() {
                       {battleSlots[0].status === 'accepted' ? (
                         <div className="w-full h-full relative bg-[#13151A]">
                           <video ref={opponentVideoRef} className="w-full h-full object-cover" autoPlay playsInline muted style={opponentVideoRef.current?.srcObject ? {} : { display: 'none' }} />
-                          {!opponentVideoRef.current?.srcObject && (
-                            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+                          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+                            {battleSlots[0].avatar ? (
                               <img src={battleSlots[0].avatar} alt={battleSlots[0].name} className="w-16 h-16 rounded-full border-2 border-[#C9A96E] object-cover" />
-                              <span className="text-white text-xs font-bold">{battleSlots[0].name}</span>
-                              <div className="flex items-center gap-1">
-                                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                                <span className="text-green-400 text-[10px] font-bold">JOINED</span>
+                            ) : (
+                              <div className="w-16 h-16 rounded-full border-2 border-[#C9A96E] bg-[#1C1E24] flex items-center justify-center">
+                                <span className="text-2xl font-black text-[#C9A96E]">{(battleSlots[0].name || 'P').charAt(0).toUpperCase()}</span>
                               </div>
+                            )}
+                            <span className="text-white text-xs font-bold">{battleSlots[0].name}</span>
+                            <div className="flex items-center gap-1">
+                              <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                              <span className="text-green-400 text-[10px] font-bold">JOINED</span>
                             </div>
-                          )}
+                          </div>
                         </div>
                       ) : battleSlots[0].status === 'invited' ? (
                         <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-[#13151A]">

@@ -3247,8 +3247,8 @@ export default function LiveStream() {
       {/* BOTTOM ZONE: INPUT (Fixed) - Moved out to ensure top z-index */}
       <div className="bottom-zone flex-none pointer-events-auto bg-transparent px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-2 min-h-[50px] flex items-center fixed bottom-0 left-0 right-0 z-[90] justify-center">
         <div className="w-full max-w-[480px] mx-auto">
-          {/* Spectator Input & Actions — same icon style as creator bar */}
-          {!isBroadcast && !isBattleJoiner && (
+          {/* Spectator / Battle Joiner Input & Actions */}
+          {!isBroadcast && (
             <div className="flex items-center gap-3 pointer-events-auto translate-y-[12px]">
               {!currentGift ? (
                 <form onSubmit={handleSendMessage} className="flex-1 flex items-center gap-2 bg-[#13151A]/40 backdrop-blur-md rounded-full px-4 py-2 border border-white/10 h-10 min-w-0">
@@ -3294,7 +3294,7 @@ export default function LiveStream() {
             </div>
           )}
 
-          {(isBroadcast || isBattleJoiner) && (
+          {isBroadcast && (
             <div className="flex items-center gap-3 pointer-events-auto translate-y-[12px]">
               {!currentGift ? (
                 <form onSubmit={handleSendMessage} className="flex-1 flex items-center gap-2 bg-[#13151A]/40 backdrop-blur-md rounded-full px-4 py-2 border border-white/10 h-10 min-w-0">

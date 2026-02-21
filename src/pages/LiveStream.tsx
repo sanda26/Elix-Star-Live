@@ -604,7 +604,7 @@ export default function LiveStream() {
       }).then(() => {});
     } catch { /* fire-and-forget */ }
     showToast(`Joining @${invite.hostName}'s battle...`);
-    window.location.href = `/live/${invite.streamKey}?battle=1`;
+    window.location.href = `/live/${invite.streamKey}`;
   };
 
   const declineBattleInvite = async () => {
@@ -760,8 +760,8 @@ export default function LiveStream() {
         },
       }).then(() => {});
     } catch { /* fire-and-forget */ }
-    showToast(`Joining @${invite.hostName}'s stream as co-host...`);
-    window.location.href = `/live/${invite.streamKey}?cohost=1`;
+    showToast(`Joining @${invite.hostName}'s stream...`);
+    window.location.href = `/live/${invite.streamKey}`;
   };
 
   const declineCoHostInvite = async () => {

@@ -2900,8 +2900,7 @@ export default function LiveStream() {
           <div className="relative flex flex-col h-full pointer-events-none">
             {/* TOP AREA: Overlays (Top Bar & Floating Buttons) */}
             <div className="flex-[0_0_50dvh] relative pointer-events-none">
-              {/* Top Bar */}
-              {isBroadcast ? (
+              {/* Top Bar — always show creator layout for everyone */}
                 <div className="absolute top-0 left-0 right-0 z-[110] pointer-events-none">
                   <div className="px-3" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 2px)' }}>
                     <div className="flex items-start justify-between gap-2">
@@ -3060,99 +3059,13 @@ export default function LiveStream() {
                             <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round"><polyline points="6 9 12 15 18 9"/></svg>
                           </button>
                         </div>
-                        <button type="button" onClick={() => { if (isBattleMode) { toggleBattle(); } else { stopBroadcast(); } }} className="w-7 h-7 rounded-full flex items-center justify-center active:scale-95 transition-transform" title={isBattleMode ? 'End battle' : 'End broadcast'}>
+                        <button type="button" onClick={() => { if (!isBroadcast) { navigate('/feed', { replace: true }); } else if (isBattleMode) { toggleBattle(); } else { stopBroadcast(); } }} className="w-7 h-7 rounded-full flex items-center justify-center active:scale-95 transition-transform" title={isBroadcast ? (isBattleMode ? 'End battle' : 'End broadcast') : 'Leave'}>
                           <img src="/Icons/Gold power buton.png" alt="Close" className="w-5 h-5 object-contain" />
                         </button>
                       </div>
                     </div>
                   </div>
                 </div>
-              ) : (
-                <div className="absolute top-0 left-0 right-0 z-[110] pointer-events-none">
-                  <div className="px-3" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 4px)' }}>
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="pointer-events-auto flex items-center gap-2">
-                        {/* LUXURY CREATOR PROFILE BUTTON */}
-                        <button type="button" onClick={() => openMiniProfile(myCreatorName)} className="pr-3 pl-2 py-2 hover:scale-105 transition-all animate-luxury-fade-in">
-                          <div className="flex items-center gap-2">
-                            <div 
-                              className="relative z-10 flex-shrink-0 pointer-events-auto cursor-pointer active:scale-95 transition-transform"
-                              onClick={(e) => { e.stopPropagation(); openMiniProfile(myCreatorName); }}
-                            >
-                              <AvatarRing src={myAvatar} alt={myCreatorName} size={44} />
-                            </div>
-                            <div className="min-w-0 flex items-center gap-2">
-                              <p className="text-white font-black text-[14px] truncate max-w-[160px]">{myCreatorName}</p>
-                              <button type="button" className="flex items-center gap-1 pointer-events-auto" onPointerDown={(e) => { spawnHeartFromClient(e.clientX, e.clientY); addLiveLikes(1); }}>
-                                <Heart className="w-3.5 h-3.5 text-[#FF2D55]" strokeWidth={2.5} fill="#FF2D55" />
-                                <span className="text-white/80 text-[10px] font-bold tabular-nums">{activeLikes.toLocaleString()}</span>
-                              </button>
-                            </div>
-                              
-                              <div className="flex items-center gap-2 mt-0.5 pointer-events-auto flex-wrap">
-                                <div className="flex items-center gap-1 bg-[#13151A] rounded-full px-2 py-0.5 border border-[#C9A96E]/40 shadow-sm cursor-pointer" onClick={(e) => {
-                                   e.stopPropagation();
-                                   setShowRankingPanel(true);
-                                }}>
-                                  <Trophy className="w-2.5 h-2.5 text-[#C9A96E]" />
-                                  <span className="text-[#C9A96E] text-[9px] font-bold whitespace-nowrap">52 Weekly Ranking &gt;</span>
-                                </div>
-                                <div className="flex items-center gap-1 bg-[#13151A] rounded-full px-2 py-0.5 border border-[#C9A96E]/40 shadow-sm cursor-pointer pointer-events-auto" onClick={(e) => {
-                                   e.stopPropagation();
-                                   setShowFanClub(true);
-                                }}>
-                                  <Heart className="w-2.5 h-2.5 text-[#C9A96E] fill-[#C9A96E]" />
-                                  <span className="text-[#C9A96E] text-[9px] font-bold whitespace-nowrap">Join Super Fan</span>
-                                </div>
-                                {currentUniverse && (
-                                  <div className="flex items-center gap-1 bg-[#13151A] rounded-full px-2 py-0.5 border border-[#C9A96E]/40 shadow-sm">
-                                    <span className="text-[#C9A96E] text-[9px] font-bold whitespace-nowrap truncate max-w-[140px]">✨ {universeText} ✨</span>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                        </button>
-                        {(() => {
-                          const redCount = 0;
-                          const greyCount = 0;
-                          return (
-                            <button type="button" className="flex items-center gap-1 pointer-events-auto" onClick={(e) => { e.stopPropagation(); if (showMembershipBar) closeMembershipBar(); else openMembershipBar(); }}>
-                              <Heart className={`w-3.5 h-3.5 drop-shadow-[0_0_3px_rgba(201,169,110,0.5)] transition-colors duration-300 ${membershipHeartActive ? 'text-white' : 'text-white'}`} strokeWidth={2} fill={membershipHeartActive ? '#C9A96E' : '#C9A96E'} />
-                              <div className="flex flex-col leading-none gap-px">
-                                <span className="text-white text-[7px] font-bold tabular-nums">{redCount}</span>
-                                <span className="text-[#6B7280] text-[7px] font-bold tabular-nums">{greyCount}</span>
-                              </div>
-                            </button>
-                          );
-                        })()}
-                      </div>
-
-                      <div className="pointer-events-auto flex flex-col items-center gap-2">
-                        <div className="h-9 px-3 flex items-center gap-2 animate-luxury-fade-in">
-                          <Flame className="w-4 h-4 text-white animate-float" strokeWidth={2.5} />
-                          <span className="text-white text-xs font-black">Popular</span>
-                        </div>
-                      </div>
-
-                      <div className="pointer-events-auto flex flex-col items-end gap-2">
-                        <div className="flex items-center gap-2">
-                          <button onClick={() => setShowViewerList(prev => !prev)} className="flex items-center gap-1 bg-[#13151A]/40 backdrop-blur-sm rounded-full px-2 py-1 pointer-events-auto">
-                            <div className="flex -space-x-1 pointer-events-auto" onClick={() => setShowViewerList(prev => !prev)}>
-                              {activeViewers.slice(0, 3).map(v => (
-                                <AvatarRing key={v.id} src={v.avatar} alt="" size={20} />
-                              ))}
-                            </div>
-                            <span className="text-white text-[9px] font-bold tabular-nums">{formatCountShort(viewerCount)}</span>
-                          </button>
-                          <button type="button" onClick={() => navigate('/feed', { replace: true })} className="w-7 h-7 flex items-center justify-center active:scale-95 transition-transform" title="Leave">
-                            <img src="/Icons/Gold power buton.png" alt="Close" className="w-5 h-5 object-contain" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
 
               {/* Floating Action Buttons */}
               <div className="absolute right-3 bottom-4 z-[150] flex flex-col items-center gap-3 pointer-events-none">

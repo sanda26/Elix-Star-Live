@@ -31,7 +31,7 @@ export default function VideoFeed() {
   const removeLiveStream = useCallback((streamKey: string) => {
     removedKeysRef.current.add(streamKey);
     setLiveStreams(prev => prev.filter(s => s.streamKey !== streamKey));
-    setTimeout(() => removedKeysRef.current.delete(streamKey), 30000);
+    setTimeout(() => removedKeysRef.current.delete(streamKey), 15000);
   }, []);
 
   const fetchLiveStreams = useCallback(async () => {
@@ -74,13 +74,6 @@ export default function VideoFeed() {
   }, []);
 
   useEffect(() => {
-    supabase
-      .from('live_streams')
-      .update({ is_live: false, viewer_count: 0 })
-      .eq('is_live', true)
-      .eq('viewer_count', 0)
-      .then(() => {});
-
     fetchLiveStreams();
     fetchVideos();
 
@@ -205,7 +198,6 @@ export default function VideoFeed() {
                   viewers={item.stream.viewers}
                   title={item.stream.title}
                   isActive={activeIndex === index}
-                  onStreamEnded={() => removeLiveStream(item.stream.streamKey)}
                 />
               </div>
             </div>

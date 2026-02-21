@@ -45,7 +45,6 @@ interface LivePreviewCardProps {
   viewers: number;
   title?: string;
   isActive: boolean;
-  onStreamEnded?: () => void;
 }
 
 export default function LivePreviewCard({
@@ -55,7 +54,6 @@ export default function LivePreviewCard({
   viewers,
   title,
   isActive,
-  onStreamEnded,
 }: LivePreviewCardProps) {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
@@ -126,20 +124,21 @@ export default function LivePreviewCard({
       const ws = new WebSocket(buildWsUrl(streamKey, token));
       wsRef.current = ws;
 
-      const createPeerAndOffer = (targetUserId: string) => {
-        if (pcRef.current) return;
+      const remoteStreamRef = { current: new MediaStream() };
+
+      const ensurePeer = (targetUserId: string): RTCPeerConnection => {
+        if (pcRef.current) return pcRef.current;
 
         const pc = new RTCPeerConnection(ICE_SERVERS);
         pcRef.current = pc;
-        const remoteStream = new MediaStream();
 
         pc.addTransceiver('video', { direction: 'recvonly' });
         pc.addTransceiver('audio', { direction: 'recvonly' });
 
         pc.ontrack = (ev) => {
-          ev.streams[0]?.getTracks().forEach(t => remoteStream.addTrack(t));
+          ev.streams[0]?.getTracks().forEach(t => remoteStreamRef.current.addTrack(t));
           if (videoRef.current && mountedRef.current) {
-            videoRef.current.srcObject = remoteStream;
+            videoRef.current.srcObject = remoteStreamRef.current;
             videoRef.current.play().catch(() => {});
             setHasStream(true);
             setConnecting(false);
@@ -158,20 +157,11 @@ export default function LivePreviewCard({
         pc.onconnectionstatechange = () => {
           const s = pc.connectionState;
           if (s === 'failed' || s === 'disconnected') {
-            if (mountedRef.current) {
-              setHasStream(false);
-              onStreamEnded?.();
-            }
+            if (mountedRef.current) setHasStream(false);
           }
         };
 
-        (async () => {
-          try {
-            const offer = await pc.createOffer();
-            await pc.setLocalDescription(offer);
-            wsSend('rtc_offer', { target_user_id: targetUserId, sdp: offer });
-          } catch {}
-        })();
+        return pc;
       };
 
       const flushIce = async () => {
@@ -191,44 +181,14 @@ export default function LivePreviewCard({
           const msg = JSON.parse(event.data);
           if (cancelled) return;
 
-          if (msg.event === 'rtc_join') {
-            const remoteId = msg.data?.user_id;
-            if (remoteId && remoteId !== myUserId && !pcRef.current) {
-              createPeerAndOffer(remoteId);
-            }
-          } else if (msg.event === 'rtc_offer') {
+          if (msg.event === 'rtc_offer') {
             const fromId = msg.data?.from_user_id;
-            if (!pcRef.current) {
-              const pc = new RTCPeerConnection(ICE_SERVERS);
-              pcRef.current = pc;
-              const remoteStream = new MediaStream();
-              pc.addTransceiver('video', { direction: 'recvonly' });
-              pc.addTransceiver('audio', { direction: 'recvonly' });
-              pc.ontrack = (ev) => {
-                ev.streams[0]?.getTracks().forEach(t => remoteStream.addTrack(t));
-                if (videoRef.current && mountedRef.current) {
-                  videoRef.current.srcObject = remoteStream;
-                  videoRef.current.play().catch(() => {});
-                  setHasStream(true);
-                  setConnecting(false);
-                }
-              };
-              pc.onicecandidate = (ev) => {
-                if (ev.candidate) {
-                  wsSend('rtc_ice_candidate', { target_user_id: fromId, candidate: ev.candidate.toJSON() });
-                }
-              };
-              pc.onconnectionstatechange = () => {
-                if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') {
-                  if (mountedRef.current) { setHasStream(false); onStreamEnded?.(); }
-                }
-              };
-            }
+            const pc = ensurePeer(fromId);
             try {
-              await pcRef.current!.setRemoteDescription(new RTCSessionDescription(msg.data.sdp));
+              await pc.setRemoteDescription(new RTCSessionDescription(msg.data.sdp));
               hasRemoteDescRef.current = true;
-              const answer = await pcRef.current!.createAnswer();
-              await pcRef.current!.setLocalDescription(answer);
+              const answer = await pc.createAnswer();
+              await pc.setLocalDescription(answer);
               wsSend('rtc_answer', { target_user_id: fromId, sdp: answer });
               await flushIce();
             } catch {}
@@ -261,16 +221,21 @@ export default function LivePreviewCard({
       clearTimeout(timer);
       cleanup();
     };
-  }, [isActive, streamKey, user?.id, cleanup, wsSend, onStreamEnded]);
+  }, [isActive, streamKey, user?.id, cleanup, wsSend]);
 
-  // Timeout: if no video after 20s, stream is probably dead
+  // Retry connection if preview fails to get video after 15s
   useEffect(() => {
     if (!isActive || hasStream) return;
     const timeout = setTimeout(() => {
-      if (!hasStream && mountedRef.current) onStreamEnded?.();
-    }, 20000);
+      if (!hasStream && mountedRef.current && pcRef.current) {
+        const s = pcRef.current.connectionState;
+        if (s === 'failed' || s === 'disconnected' || s === 'closed') {
+          cleanup();
+        }
+      }
+    }, 15000);
     return () => clearTimeout(timeout);
-  }, [isActive, hasStream, onStreamEnded]);
+  }, [isActive, hasStream, cleanup]);
 
   const handleTap = () => {
     cleanup();

@@ -71,6 +71,15 @@ function LiveStreamKeyed() {
   return <LiveStream key={loc.pathname + loc.search} />;
 }
 
+function LiveStreamGuard() {
+  const loc = useLocation();
+  const params = (loc.pathname.match(/^\/live\/(.+)/) || [])[1];
+  if (params && params !== 'broadcast' && params !== 'start' && params !== 'watch' && !loc.search.includes('battle=1')) {
+    return <Navigate to={`/watch/${params}`} replace />;
+  }
+  return <LiveStreamKeyed />;
+}
+
 // Loading fallback for lazy-loaded routes
 function PageLoader() {
   return (
@@ -210,7 +219,7 @@ function App() {
             <Route path="/report" element={<Report />} />
             <Route path="/video/:videoId" element={<VideoView />} />
             <Route path="/live" element={<LiveDiscover />} />
-            <Route path="/live/:streamId" element={<LiveStreamKeyed />} />
+            <Route path="/live/:streamId" element={<LiveStreamGuard />} />
             <Route path="/live/start" element={<Navigate to="/live" replace />} />
             <Route path="/live/broadcast" element={<LiveStreamKeyed />} />
             <Route path="/live/watch/:streamId" element={<LiveStreamKeyed />} />

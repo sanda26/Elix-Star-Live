@@ -2686,7 +2686,19 @@ export default function LiveStream() {
                       className={`w-1/2 h-full overflow-hidden relative bg-[#13151A] pointer-events-auto ${is4Player ? 'border-b border-white/5' : ''}`}
                     >
                       {battleSlots[0].status === 'accepted' ? (
-                        <video ref={opponentVideoRef} className="w-full h-full object-cover" autoPlay playsInline muted />
+                        <div className="w-full h-full relative bg-[#13151A]">
+                          <video ref={opponentVideoRef} className="w-full h-full object-cover" autoPlay playsInline muted style={opponentVideoRef.current?.srcObject ? {} : { display: 'none' }} />
+                          {!opponentVideoRef.current?.srcObject && (
+                            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+                              <img src={battleSlots[0].avatar} alt={battleSlots[0].name} className="w-16 h-16 rounded-full border-2 border-[#C9A96E] object-cover" />
+                              <span className="text-white text-xs font-bold">{battleSlots[0].name}</span>
+                              <div className="flex items-center gap-1">
+                                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                                <span className="text-green-400 text-[10px] font-bold">JOINED</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       ) : battleSlots[0].status === 'invited' ? (
                         <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-[#13151A]">
                           <img src={battleSlots[0].avatar} alt={battleSlots[0].name} className="w-12 h-12 rounded-full border-2 border-[#C9A96E] opacity-60" />
@@ -2748,7 +2760,19 @@ export default function LiveStream() {
                         className="w-1/2 h-full overflow-hidden relative bg-[#13151A] pointer-events-auto border-r border-white/5"
                       >
                         {battleSlots[1].status === 'accepted' ? (
-                          <video ref={player3VideoRef} className="w-full h-full object-cover" autoPlay playsInline muted />
+                          <div className="w-full h-full relative bg-[#13151A]">
+                            <video ref={player3VideoRef} className="w-full h-full object-cover" autoPlay playsInline muted style={player3VideoRef.current?.srcObject ? {} : { display: 'none' }} />
+                            {!player3VideoRef.current?.srcObject && (
+                              <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+                                <img src={battleSlots[1].avatar} alt={battleSlots[1].name} className="w-12 h-12 rounded-full border-2 border-[#C9A96E] object-cover" />
+                                <span className="text-white text-[10px] font-bold">{battleSlots[1].name}</span>
+                                <div className="flex items-center gap-1">
+                                  <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                                  <span className="text-green-400 text-[9px] font-bold">JOINED</span>
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         ) : battleSlots[1].status === 'invited' ? (
                           <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-[#13151A]">
                             <img src={battleSlots[1].avatar} alt={battleSlots[1].name} className="w-12 h-12 rounded-full border-2 border-[#C9A96E] opacity-60" />
@@ -2806,7 +2830,19 @@ export default function LiveStream() {
                         className="w-1/2 h-full overflow-hidden relative bg-[#13151A] pointer-events-auto"
                       >
                         {battleSlots[2].status === 'accepted' ? (
-                          <video ref={player4VideoRef} className="w-full h-full object-cover" autoPlay playsInline muted />
+                          <div className="w-full h-full relative bg-[#13151A]">
+                            <video ref={player4VideoRef} className="w-full h-full object-cover" autoPlay playsInline muted style={player4VideoRef.current?.srcObject ? {} : { display: 'none' }} />
+                            {!player4VideoRef.current?.srcObject && (
+                              <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+                                <img src={battleSlots[2].avatar} alt={battleSlots[2].name} className="w-12 h-12 rounded-full border-2 border-[#C9A96E] object-cover" />
+                                <span className="text-white text-[10px] font-bold">{battleSlots[2].name}</span>
+                                <div className="flex items-center gap-1">
+                                  <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                                  <span className="text-green-400 text-[9px] font-bold">JOINED</span>
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         ) : battleSlots[2].status === 'invited' ? (
                           <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-[#13151A]">
                             <img src={battleSlots[2].avatar} alt={battleSlots[2].name} className="w-12 h-12 rounded-full border-2 border-[#C9A96E] opacity-60" />

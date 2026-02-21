@@ -3400,34 +3400,35 @@ export default function LiveStream() {
             </div>
 
             {/* MIDDLE ZONE: CHAT (Scrollable) */}
-            <div 
-              className="chat-zone fixed left-0 right-0 bottom-[calc(50px+max(12px,env(safe-area-inset-bottom)))] h-[25dvh] max-h-[25dvh] overflow-y-auto pointer-events-auto z-[20] bg-transparent max-w-[480px] mx-auto"
-              onPointerDown={(e) => {
-                e.stopPropagation();
-                if (e.target instanceof Element) {
-                  const interactive = e.target.closest('button, a, input, textarea, select, [role="button"]');
-                  if (interactive) return;
-                }
-                // Chat tap -> hearts only, never battle points
-                handleLikeTap(e);
-              }}
-            >
-            {isChatVisible && (
-              <ChatOverlay
-                messages={messages}
-                variant="panel"
-                isModerator={isBroadcast || moderators.has(user?.id || '')}
-                onLike={() => addLiveLikes(1)}
-                onHeartSpawn={(cx, cy) => handleLikeTap()}
-                onProfileTap={(username) => openMiniProfile(username)}
-                onDeleteMessage={(msgId) => setMessages(prev => prev.filter(m => m.id !== msgId))}
-                onBlockUser={(username) => {
-                  setMessages(prev => prev.filter(m => m.username !== username));
-                  showToast(`@${username} blocked from chat`);
+            <div className="chat-zone fixed left-0 right-0 bottom-[calc(50px+max(12px,env(safe-area-inset-bottom)))] z-[20] flex justify-center pointer-events-none">
+              <div 
+                className="w-full max-w-[480px] h-[25dvh] max-h-[25dvh] overflow-y-auto pointer-events-auto bg-transparent"
+                onPointerDown={(e) => {
+                  e.stopPropagation();
+                  if (e.target instanceof Element) {
+                    const interactive = e.target.closest('button, a, input, textarea, select, [role="button"]');
+                    if (interactive) return;
+                  }
+                  handleLikeTap(e);
                 }}
-              />
-            )}
-          </div>
+              >
+                {isChatVisible && (
+                  <ChatOverlay
+                    messages={messages}
+                    variant="panel"
+                    isModerator={isBroadcast || moderators.has(user?.id || '')}
+                    onLike={() => addLiveLikes(1)}
+                    onHeartSpawn={(cx, cy) => handleLikeTap()}
+                    onProfileTap={(username) => openMiniProfile(username)}
+                    onDeleteMessage={(msgId) => setMessages(prev => prev.filter(m => m.id !== msgId))}
+                    onBlockUser={(username) => {
+                      setMessages(prev => prev.filter(m => m.username !== username));
+                      showToast(`@${username} blocked from chat`);
+                    }}
+                  />
+                )}
+              </div>
+            </div>
 
       {/* BOTTOM ZONE: INPUT (Fixed) - Moved out to ensure top z-index */}
       <div className="bottom-zone flex-none pointer-events-auto bg-transparent px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-2 min-h-[50px] flex items-center fixed bottom-0 left-0 right-0 z-[90] justify-center">

@@ -1,6 +1,5 @@
 import React, { useEffect, useRef } from 'react';
 import { useSettingsStore } from '../store/useSettingsStore';
-import { pickFirstPosterCandidate } from '../lib/giftPoster';
 
 interface GiftOverlayProps {
   videoSrc: string | null;
@@ -37,43 +36,36 @@ export function GiftOverlay({ videoSrc, onEnded, isBattleMode: _isBattleMode }: 
 
   const isVideo = videoSrc.endsWith('.webm') || videoSrc.endsWith('.mp4');
 
+  const maskStyle = {
+    WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 25%)',
+    maskImage: 'linear-gradient(to bottom, transparent 0%, black 25%)',
+    WebkitMaskSize: '100% 100%',
+    maskSize: '100% 100%',
+    WebkitMaskRepeat: 'no-repeat',
+    maskRepeat: 'no-repeat',
+  };
+
   return (
-    <div className="absolute left-0 right-0 bottom-[calc(env(safe-area-inset-bottom)-10px)] z-gift-overlay pointer-events-none flex justify-center">
-      <div 
-        className="w-full h-[70vh] flex items-end justify-center overflow-hidden" 
-        style={{ 
-          WebkitMaskImage: 'linear-gradient(to top, black 0%, black 70%, transparent 100%)', 
-          maskImage: 'linear-gradient(to top, black 0%, black 70%, transparent 100%)', 
-          WebkitMaskSize: '100% 100%', 
-          maskSize: '100% 100%', 
-          WebkitMaskRepeat: 'no-repeat', 
-          maskRepeat: 'no-repeat', 
-        }} 
-      >
+    <div className="absolute inset-0 z-gift-overlay pointer-events-none overflow-hidden">
+      <div className="absolute inset-0 w-full h-full" style={maskStyle}>
         {isVideo ? (
-          <video 
-            ref={videoRef} 
-            src={videoSrc} 
-            className="w-full h-full object-cover object-top opacity-100 drop-shadow-2xl elix-overlay-in" 
-            playsInline 
-            preload="auto" 
-            muted={muteAllSounds} 
-            onEnded={onEnded} 
-            onError={() => { 
-              onEnded(); 
-            }} 
+          <video
+            ref={videoRef}
+            src={videoSrc}
+            className="absolute inset-0 w-full h-full object-cover object-top drop-shadow-2xl elix-overlay-in"
+            playsInline
+            preload="auto"
+            muted={muteAllSounds}
+            onEnded={onEnded}
+            onError={() => onEnded()}
           />
         ) : (
-          <img 
-            src={videoSrc} 
-            alt="Gift" 
-            className="w-full h-full object-cover object-top opacity-90 drop-shadow-2xl animate-bounce-small elix-overlay-in" 
-            onLoad={() => { 
-              setTimeout(onEnded, 1500); 
-            }} 
-            onError={() => { 
-              onEnded(); 
-            }} 
+          <img
+            src={videoSrc}
+            alt="Gift"
+            className="absolute inset-0 w-full h-full object-cover object-top opacity-90 drop-shadow-2xl animate-bounce-small elix-overlay-in"
+            onLoad={() => setTimeout(onEnded, 1500)}
+            onError={() => onEnded()}
           />
         )}
       </div>

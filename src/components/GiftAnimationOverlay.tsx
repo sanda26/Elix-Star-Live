@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { websocket } from '../lib/websocket';
 
 interface GiftAnimation {
@@ -15,78 +15,61 @@ interface GiftAnimationOverlayProps {
   streamId: string;
 }
 
-const MERGE_WINDOW_MS = 2000;
-const DISPLAY_DURATION_MS = 4000;
-
 export default function GiftAnimationOverlay({ streamId: _streamId }: GiftAnimationOverlayProps) {
-  const [currentGift, setCurrentGift] = useState<GiftAnimation | null>(null);
-  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [activeGifts, setActiveGifts] = useState<GiftAnimation[]>([]);
 
   useEffect(() => {
     websocket.on('gift_sent', handleGiftSent);
 
     return () => {
       websocket.off('gift_sent', handleGiftSent);
-      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
     };
   }, []);
 
-  const scheduleHide = () => {
-    if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
-    hideTimerRef.current = setTimeout(() => {
-      hideTimerRef.current = null;
-      setCurrentGift(null);
-    }, DISPLAY_DURATION_MS);
-  };
-
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleGiftSent = (data: any) => {
-    const username = data.username ?? 'Someone';
-    const giftName = data.giftName ?? data.gift_name ?? 'Gift';
-    const quantity = data.quantity ?? 1;
-    const now = Date.now();
+    const animation: GiftAnimation = {
+      id: Date.now().toString() + Math.random(),
+      username: data.username ?? 'Someone',
+      giftIcon: data.gift_icon,
+      giftName: data.giftName ?? data.gift_name ?? 'Gift',
+      creatorName: data.creator_name ?? 'Creator',
+      quantity: data.quantity ?? 1,
+      timestamp: Date.now(),
+    };
 
-    setCurrentGift(prev => {
-      const sameSenderSameGift = prev && prev.username === username && prev.giftName === giftName && now - prev.timestamp < MERGE_WINDOW_MS;
-      if (sameSenderSameGift) {
-        scheduleHide();
-        return { ...prev, quantity: prev.quantity + quantity, timestamp: now };
-      }
-      scheduleHide();
-      return {
-        id: now.toString() + Math.random(),
-        username,
-        giftIcon: data.gift_icon,
-        giftName,
-        creatorName: data.creator_name ?? 'Creator',
-        quantity,
-        timestamp: now,
-      };
-    });
+    setActiveGifts(prev => [...prev, animation]);
+
+    setTimeout(() => {
+      setActiveGifts(prev => prev.filter(g => g.id !== animation.id));
+    }, 4000);
   };
 
   return (
     <div className="fixed inset-0 pointer-events-none z-gift-animations flex justify-center">
       <div className="w-full max-w-[480px] relative">
-        {/* Single gift banner — 1cm from top only; width/bottom unchanged */}
-        <div className="absolute left-0 right-0 px-1" style={{ top: '1cm' }}>
-          {currentGift && (
-            <div className="animate-slide-in-right w-full rounded-full flex items-center gap-1.5 overflow-hidden px-2 py-0.5 bg-red-600">
-              <div className="w-4 h-4 flex-shrink-0">
-                {currentGift.giftIcon && (currentGift.giftIcon.startsWith('http') || currentGift.giftIcon.startsWith('/')) ? (
-                  <img src={currentGift.giftIcon} alt="" className="w-full h-full object-contain" />
+        {/* Gift banner — red bg, black text: "Sender sent GiftName to Creator" */}
+        <div className="absolute left-0 right-0 space-y-[2px] px-1" style={{ top: 'calc(env(safe-area-inset-top, 0px) + 68px)' }}>
+          {activeGifts.slice(-3).map(gift => (
+            <div
+              key={gift.id}
+              className="animate-slide-in-right w-full rounded-full flex items-center gap-2 overflow-hidden px-3 py-1.5 bg-red-600"
+            >
+              <div className="w-6 h-6 flex-shrink-0">
+                {gift.giftIcon && (gift.giftIcon.startsWith('http') || gift.giftIcon.startsWith('/')) ? (
+                  <img src={gift.giftIcon} alt="" className="w-full h-full object-contain" />
                 ) : (
-                  <span className="text-xs">{currentGift.giftIcon || '🎁'}</span>
+                  <span className="text-base">{gift.giftIcon || '🎁'}</span>
                 )}
               </div>
               <div className="flex-1 min-w-0 overflow-x-auto no-scrollbar">
-                <p className="text-xs font-bold text-black whitespace-nowrap leading-tight">
-                  {currentGift.username} send {currentGift.giftName} to {currentGift.creatorName}
-                  {currentGift.quantity > 1 && <span> x{currentGift.quantity}</span>}
+                <p className="text-sm font-bold text-black whitespace-nowrap leading-tight">
+                  {gift.username} send {gift.giftName} to {gift.creatorName}
+                  {gift.quantity > 1 && <span> x{gift.quantity}</span>}
                 </p>
               </div>
             </div>
-          )}
+          ))}
         </div>
       </div>
     </div>

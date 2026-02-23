@@ -38,27 +38,42 @@ export function GiftOverlay({ videoSrc, onEnded, isBattleMode: _isBattleMode }: 
   const isVideo = videoSrc.endsWith('.webm') || videoSrc.endsWith('.mp4');
 
   return (
-    <div className="absolute left-0 right-0 bottom-[calc(env(safe-area-inset-bottom)+40px)] z-gift-overlay pointer-events-none flex justify-center items-end">
-      {/* Bounded box: gift scales to fit (object-contain), no mask, no crop */}
-      <div className="w-full max-w-[min(400px,90vw)] h-[50vh] max-h-[320px] flex items-center justify-center overflow-hidden rounded-2xl">
+    <div className="absolute left-0 right-0 bottom-[calc(env(safe-area-inset-bottom)-10px)] z-gift-overlay pointer-events-none flex justify-center">
+      <div 
+        className="w-full h-[65vh] flex items-end justify-center overflow-hidden" 
+        style={{ 
+          WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 25%, black 65%, transparent 100%)',
+          maskImage: 'linear-gradient(to bottom, transparent 0%, black 25%, black 65%, transparent 100%)',
+          WebkitMaskSize: '100% 100%',
+          maskSize: '100% 100%',
+          WebkitMaskRepeat: 'no-repeat',
+          maskRepeat: 'no-repeat',
+        }}
+      >
         {isVideo ? (
-          <video
-            ref={videoRef}
-            src={videoSrc}
-            className="max-w-full max-h-full w-auto h-auto object-contain opacity-100 drop-shadow-2xl elix-overlay-in"
-            playsInline
-            preload="auto"
-            muted={muteAllSounds}
-            onEnded={onEnded}
-            onError={() => onEnded()}
+          <video 
+            ref={videoRef} 
+            src={videoSrc} 
+            className="w-full h-full object-cover object-top opacity-100 drop-shadow-2xl elix-overlay-in" 
+            playsInline 
+            preload="auto" 
+            muted={muteAllSounds} 
+            onEnded={onEnded} 
+            onError={() => { 
+              onEnded(); 
+            }} 
           />
         ) : (
-          <img
-            src={videoSrc}
-            alt="Gift"
-            className="max-w-full max-h-full w-auto h-auto object-contain opacity-90 drop-shadow-2xl animate-bounce-small elix-overlay-in"
-            onLoad={() => setTimeout(onEnded, 1500)}
-            onError={() => onEnded()}
+          <img 
+            src={videoSrc} 
+            alt="Gift" 
+            className="w-full h-full object-cover object-top opacity-90 drop-shadow-2xl animate-bounce-small elix-overlay-in" 
+            onLoad={() => { 
+              setTimeout(onEnded, 1500); 
+            }} 
+            onError={() => { 
+              onEnded(); 
+            }} 
           />
         )}
       </div>

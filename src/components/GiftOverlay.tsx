@@ -36,7 +36,6 @@ export function GiftOverlay({ videoSrc, onEnded, isBattleMode: _isBattleMode }: 
   if (!videoSrc) return null;
 
   const isVideo = videoSrc.endsWith('.webm') || videoSrc.endsWith('.mp4');
-  const poster = isVideo ? pickFirstPosterCandidate(videoSrc) : undefined;
 
   return (
     <div className="absolute left-0 right-0 bottom-[calc(env(safe-area-inset-bottom)-10px)] z-gift-overlay pointer-events-none flex justify-center">
@@ -55,7 +54,6 @@ export function GiftOverlay({ videoSrc, onEnded, isBattleMode: _isBattleMode }: 
           <video 
             ref={videoRef} 
             src={videoSrc} 
-            poster={poster} 
             className="w-full h-full object-cover object-top opacity-100 drop-shadow-2xl elix-overlay-in" 
             playsInline 
             preload="auto" 

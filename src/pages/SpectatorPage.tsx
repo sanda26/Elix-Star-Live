@@ -1067,6 +1067,8 @@ export default function SpectatorPage() {
                 onSelectGift={handleSendGift}
                 userCoins={coinBalance}
                 onRechargeSuccess={(newBalance) => { setCoinBalance(newBalance); persistTestCoinsBalance(user?.id, newBalance); }}
+                onWeeklyRanking={() => { setShowGiftPanel(false); showToast('Weekly Ranking coming soon'); }}
+                onMembership={() => { setShowGiftPanel(false); showToast('Membership coming soon'); }}
               />
             </div>
           </>

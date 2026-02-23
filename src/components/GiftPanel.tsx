@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Gift, Coins } from 'lucide-react';
+import { Gift, Coins, Trophy, Heart } from 'lucide-react';
 import { IS_STORE_BUILD } from '@/config/build';
 import { BuyCoinsModal } from './BuyCoinsModal';
 import { GIFTS } from '../lib/gifts';
@@ -8,6 +8,8 @@ interface GiftPanelProps {
   onSelectGift: (gift: typeof GIFTS[0]) => void;
   userCoins: number;
   onRechargeSuccess?: (newBalance: number) => void;
+  onWeeklyRanking?: () => void;
+  onMembership?: () => void;
 }
 
 function useInView<T extends Element>(options?: IntersectionObserverInit) {
@@ -33,7 +35,7 @@ function useInView<T extends Element>(options?: IntersectionObserverInit) {
   return { ref, inView };
 }
 
-export function GiftPanel({ onSelectGift, userCoins, onRechargeSuccess }: GiftPanelProps) {
+export function GiftPanel({ onSelectGift, userCoins, onRechargeSuccess, onWeeklyRanking, onMembership }: GiftPanelProps) {
   const [activeTab, setActiveTab] = useState<'exclusive' | 'small' | 'big'>('big');
   const [_activeGiftId, setActiveGiftId] = useState<string | null>(null);
   const [poppedGiftId, setPoppedGiftId] = useState<string | null>(null);
@@ -61,6 +63,50 @@ export function GiftPanel({ onSelectGift, userCoins, onRechargeSuccess }: GiftPa
 
   return (
     <div ref={panelRef} className="bg-[#1a1a1a]/95 rounded-t-2xl p-3 pb-safe max-h-[40dvh] overflow-y-auto no-scrollbar shadow-2xl w-full relative z-[99999]">
+      {(onWeeklyRanking || onMembership) && (
+        <div className="mb-2 -mx-3 -mt-1 elix-marquee border-b border-white/5 py-1">
+          <div className="elix-marquee__inner flex items-center gap-3">
+            {onWeeklyRanking && (
+              <div
+                className="flex items-center gap-1 bg-[#13151A] rounded-full px-2.5 py-1 border border-[#C9A96E]/40 shadow-sm cursor-pointer flex-shrink-0 active:scale-95 transition-transform"
+                onClick={onWeeklyRanking}
+              >
+                <Trophy className="w-3 h-3 text-[#C9A96E]" />
+                <span className="text-[#C9A96E] text-[9px] font-bold whitespace-nowrap">Weekly Ranking &gt;</span>
+              </div>
+            )}
+            {onMembership && (
+              <div
+                className="flex items-center gap-1 bg-[#13151A] rounded-full px-2.5 py-1 border border-[#C9A96E]/40 shadow-sm cursor-pointer flex-shrink-0 active:scale-95 transition-transform"
+                onClick={onMembership}
+              >
+                <img src="/icons/Membership.png" alt="" className="w-3.5 h-3.5 object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                <Heart className="w-3 h-3 text-[#C9A96E] fill-[#C9A96E]" />
+                <span className="text-[#C9A96E] text-[9px] font-bold whitespace-nowrap">Membership</span>
+              </div>
+            )}
+            {onWeeklyRanking && (
+              <div
+                className="flex items-center gap-1 bg-[#13151A] rounded-full px-2.5 py-1 border border-[#C9A96E]/40 shadow-sm cursor-pointer flex-shrink-0 active:scale-95 transition-transform"
+                onClick={onWeeklyRanking}
+              >
+                <Trophy className="w-3 h-3 text-[#C9A96E]" />
+                <span className="text-[#C9A96E] text-[9px] font-bold whitespace-nowrap">Weekly Ranking &gt;</span>
+              </div>
+            )}
+            {onMembership && (
+              <div
+                className="flex items-center gap-1 bg-[#13151A] rounded-full px-2.5 py-1 border border-[#C9A96E]/40 shadow-sm cursor-pointer flex-shrink-0 active:scale-95 transition-transform"
+                onClick={onMembership}
+              >
+                <img src="/icons/Membership.png" alt="" className="w-3.5 h-3.5 object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                <Heart className="w-3 h-3 text-[#C9A96E] fill-[#C9A96E]" />
+                <span className="text-[#C9A96E] text-[9px] font-bold whitespace-nowrap">Membership</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
       <div className="flex justify-between items-center mb-3">
         <h3 className="text-white font-semibold text-sm flex items-center gap-2">
           <Gift className="text-yellow-400" size={16} />

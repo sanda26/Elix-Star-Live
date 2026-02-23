@@ -40,15 +40,15 @@ export function GiftOverlay({ videoSrc, onEnded, isBattleMode: _isBattleMode }: 
   return (
     <div className="absolute left-0 right-0 bottom-[calc(env(safe-area-inset-bottom)-10px)] z-gift-overlay pointer-events-none flex justify-center">
       <div 
-        className="w-full h-[70vh] flex items-end justify-center overflow-hidden" 
+        className="w-full h-[65vh] flex items-end justify-center overflow-hidden" 
         style={{ 
-          WebkitMaskImage: 'linear-gradient(to top, black 0%, black 70%, transparent 100%)', 
-          maskImage: 'linear-gradient(to top, black 0%, black 70%, transparent 100%)', 
-          WebkitMaskSize: '100% 100%', 
-          maskSize: '100% 100%', 
-          WebkitMaskRepeat: 'no-repeat', 
-          maskRepeat: 'no-repeat', 
-        }} 
+          WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 25%, black 65%, transparent 100%)',
+          maskImage: 'linear-gradient(to bottom, transparent 0%, black 25%, black 65%, transparent 100%)',
+          WebkitMaskSize: '100% 100%',
+          maskSize: '100% 100%',
+          WebkitMaskRepeat: 'no-repeat',
+          maskRepeat: 'no-repeat',
+        }}
       >
         {isVideo ? (
           <video 

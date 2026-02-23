@@ -273,6 +273,34 @@ export function useLiveWebRTC({ roomId, localUserId, localStream, enabled }: Use
     setRemotePeers([]);
   }, []);
 
+  // When localStream becomes available (e.g. co-host camera starts after peer connections exist),
+  // add tracks to all existing peer connections and renegotiate
+  useEffect(() => {
+    if (!localStream || peersRef.current.size === 0) return;
+    peersRef.current.forEach((entry, remoteUserId) => {
+      const pc = entry.pc;
+      const senders = pc.getSenders();
+      const existingTrackIds = new Set(senders.map(s => s.track?.id).filter(Boolean));
+      let added = false;
+      localStream.getTracks().forEach(track => {
+        if (!existingTrackIds.has(track.id)) {
+          pc.addTrack(track, localStream);
+          added = true;
+        }
+      });
+      if (added) {
+        (async () => {
+          try {
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            websocket.send('rtc_offer', { target_user_id: remoteUserId, sdp: offer });
+            await capSenderBitrate(pc);
+          } catch { /* renegotiation failed */ }
+        })();
+      }
+    });
+  }, [localStream]);
+
   useEffect(() => {
     if (!enabled || !roomId || !localUserId) return;
 

@@ -27,14 +27,13 @@ export function BattleInviteBanner() {
         .select('id, type, data, created_at')
         .eq('user_id', user.id)
         .eq('is_read', false)
-        .in('type', ['battle_invite', 'cohost_invite'])
+        .in('type', ['battle_invite'])
         .gte('created_at', twoMinutesAgo)
         .order('created_at', { ascending: false })
         .limit(1);
       const row = data?.[0];
       if (row) {
         const streamKey = (row.data as any)?.stream_key || '';
-        // Verify stream is still live before showing invite
         if (streamKey) {
           const { data: stream } = await supabase
             .from('live_streams')
@@ -46,14 +45,13 @@ export function BattleInviteBanner() {
             return;
           }
         }
-        const type = row.type === 'cohost_invite' ? 'cohost' : 'battle';
         setPendingInvite({
           notifId: row.id,
           hostName: (row.data as any)?.host_name || 'Someone',
           hostAvatar: (row.data as any)?.host_avatar || '',
           streamKey,
           hostUserId: (row.data as any)?.actor_id || '',
-          type,
+          type: 'battle' as const,
         });
       }
       // Mark older stale invites as read so they don't reappear
@@ -63,7 +61,7 @@ export function BattleInviteBanner() {
           .update({ is_read: true })
           .eq('user_id', user.id)
           .eq('is_read', false)
-          .in('type', ['battle_invite', 'cohost_invite'])
+          .in('type', ['battle_invite'])
           .lt('created_at', twoMinutesAgo)
           .then(() => {});
       }
@@ -81,7 +79,7 @@ export function BattleInviteBanner() {
         { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
         async (payload: any) => {
           const row = payload.new;
-          if (row?.type === 'battle_invite' || row?.type === 'cohost_invite') {
+          if (row?.type === 'battle_invite') {
             const sk = row.data?.stream_key || '';
             if (sk) {
               const { data: stream } = await supabase
@@ -94,14 +92,13 @@ export function BattleInviteBanner() {
                 return;
               }
             }
-            const type = row.type === 'cohost_invite' ? 'cohost' : 'battle';
             setPendingInvite({
               notifId: row.id,
               hostName: row.data?.host_name || 'Someone',
               hostAvatar: row.data?.host_avatar || '',
               streamKey: sk,
               hostUserId: row.data?.actor_id || '',
-              type,
+              type: 'battle',
             });
           }
         }

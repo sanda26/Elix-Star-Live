@@ -712,7 +712,7 @@ export default function LiveStream() {
   const [hostSearchQuery, setHostSearchQuery] = useState('');
   const [featuredHostId, setFeaturedHostId] = useState<string | null>(null);
   const coHostTimersRef = useRef<NodeJS.Timeout[]>([]);
-  const MAX_CO_HOSTS = 16;
+  const MAX_CO_HOSTS = 12;
 
   const inviteCoHost = async (creator: { id: string; name: string; avatar?: string }) => {
     if (coHosts.length >= MAX_CO_HOSTS) return;
@@ -757,6 +757,26 @@ export default function LiveStream() {
         { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
         (payload: any) => {
           const row = payload.new;
+          if (row?.type === 'cohost_invite' && !isBroadcast) {
+            const inviterId = row.data?.actor_id || '';
+            const inviterName = row.data?.host_name || 'Someone';
+            const inviterAvatar = row.data?.host_avatar || '';
+            const inviteStreamKey = row.data?.stream_key || '';
+            setCoHosts(prev => {
+              if (prev.some(h => h.userId === inviterId)) return prev;
+              return [...prev, {
+                id: `host-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+                userId: inviterId,
+                name: inviterName,
+                avatar: inviterAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(inviterName)}&background=121212&color=C9A96E`,
+                status: 'pending_accept' as any,
+                isMuted: false,
+                _notifId: row.id,
+                _streamKey: inviteStreamKey,
+              }];
+            });
+            setIsInviteHostOpen(true);
+          }
           if (row?.type === 'cohost_accepted' && isBroadcast) {
             const acceptedUserId = row.data?.actor_id || '';
             const acceptedName = row.data?.accepted_name || '';
@@ -3951,13 +3971,41 @@ export default function LiveStream() {
                             <div className="flex items-center gap-1 flex-shrink-0">
                               <div
                                 className="px-2 py-1 rounded-full bg-red-500/20 border border-red-500/30 flex items-center gap-0.5 active:scale-95 transition-transform cursor-pointer"
-                                onClick={(e) => { e.stopPropagation(); if (isJoinRequester(viewer.id)) { declineJoinRequest(); } else if (hostEntry) { removeCoHost(hostEntry.id); setCoHosts(prev => prev.filter(h => h.userId !== hostEntry.userId)); } }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (isJoinRequester(viewer.id)) { declineJoinRequest(); }
+                                  else if (hostEntry) {
+                                    const nid = (hostEntry as any)._notifId;
+                                    if (nid) supabase.from('notifications').update({ is_read: true }).eq('id', nid).then(() => {});
+                                    removeCoHost(hostEntry.id);
+                                    setCoHosts(prev => prev.filter(h => h.userId !== hostEntry.userId));
+                                  }
+                                }}
                               >
                                 <span className="text-red-400 text-[9px] font-bold">Reject</span>
                               </div>
                               <div
                                 className="px-2.5 py-1 rounded-full bg-green-500 flex items-center gap-0.5 active:scale-95 transition-transform cursor-pointer"
-                                onClick={(e) => { e.stopPropagation(); if (isJoinRequester(viewer.id)) { acceptJoinRequest(); } }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (isJoinRequester(viewer.id)) { acceptJoinRequest(); }
+                                  else if (hostEntry) {
+                                    const sk = (hostEntry as any)._streamKey;
+                                    const nid = (hostEntry as any)._notifId;
+                                    const hostUid = hostEntry.userId;
+                                    if (nid) supabase.from('notifications').update({ is_read: true }).eq('id', nid).then(() => {});
+                                    const myUsername = user?.username || user?.name || 'User';
+                                    supabase.from('notifications').insert({
+                                      user_id: hostUid,
+                                      type: 'cohost_accepted',
+                                      title: 'Co-Host Accepted',
+                                      body: `@${myUsername} accepted your co-host invite!`,
+                                      data: { actor_id: user?.id, accepted_name: myUsername, accepted_avatar: user?.avatar || '', stream_key: sk },
+                                    }).then(() => {});
+                                    showToast(`Joining co-host...`);
+                                    if (sk) window.location.href = `/watch/${sk}?cohost=1`;
+                                  }
+                                }}
                               >
                                 <span className="text-black text-[9px] font-bold">Join</span>
                               </div>

@@ -25,6 +25,7 @@ import {
   Keyboard,
   Coins,
   Lock,
+  Crown,
 } from 'lucide-react';
 import { GiftPanel } from '../components/GiftPanel';
 import { GIFTS } from '../lib/gifts';
@@ -137,6 +138,31 @@ export default function SpectatorPage() {
   // ═══════════════════════════════════════════════════
   const [isCoHosting, setIsCoHosting] = useState(false);
   const [coHostStream, setCoHostStream] = useState<MediaStream | null>(null);
+  const [pendingCoHostInvite, setPendingCoHostInvite] = useState<{ notifId: string; hostName: string; hostAvatar: string; streamKey: string; hostUserId: string } | null>(null);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const chan = supabase
+      .channel(`spectator_cohost_invite_${user.id}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
+        (payload: any) => {
+          const row = payload.new;
+          if (row?.type === 'cohost_invite') {
+            setPendingCoHostInvite({
+              notifId: row.id,
+              hostName: row.data?.host_name || 'Someone',
+              hostAvatar: row.data?.host_avatar || '',
+              streamKey: row.data?.stream_key || '',
+              hostUserId: row.data?.actor_id || '',
+            });
+          }
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(chan); };
+  }, [user?.id]);
   const myVideoRef = useRef<HTMLVideoElement>(null);
   const [isMicMuted, setIsMicMuted] = useState(true);
   const [isCamOff, setIsCamOff] = useState(false);
@@ -1453,6 +1479,84 @@ export default function SpectatorPage() {
             videoId={hostUserId}
             contentType="live"
           />
+        )}
+
+        {/* CO-HOST INVITE PANEL (inline, same style as Find Creators) */}
+        {pendingCoHostInvite && (
+          <div className="fixed inset-0 z-[99999] flex flex-col justify-end max-w-[480px] mx-auto" style={{ height: '100%' }}>
+            <div className="absolute inset-0 bg-black/40 pointer-events-auto" onClick={() => {
+              supabase.from('notifications').update({ is_read: true }).eq('id', pendingCoHostInvite.notifId).then(() => {});
+              setPendingCoHostInvite(null);
+            }} />
+            <div
+              className="bg-[#1C1E24]/95 backdrop-blur-md rounded-t-2xl flex flex-col shadow-2xl border-t border-[#C9A96E]/20 pointer-events-auto w-full relative z-10 overflow-hidden pb-safe"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex justify-center pt-2 pb-1">
+                <div className="w-10 h-1 bg-white/20 rounded-full" />
+              </div>
+              <div className="flex items-center px-4 py-2 flex-shrink-0">
+                <div className="flex items-center gap-1.5">
+                  <Crown size={14} className="text-[#C9A96E]" strokeWidth={1.8} />
+                  <span className="text-white font-bold text-[13px]">Co-Host Invite</span>
+                </div>
+              </div>
+              <div className="px-4 pb-4">
+                <div className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg bg-white/[0.03]">
+                  <div className="w-10 h-10 rounded-full border-2 border-[#C9A96E]/50 overflow-hidden bg-[#13151A] flex-shrink-0">
+                    {pendingCoHostInvite.hostAvatar ? (
+                      <img src={pendingCoHostInvite.hostAvatar} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-[#C9A96E] font-bold">
+                        {pendingCoHostInvite.hostName.slice(0, 1).toUpperCase()}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0 text-left">
+                    <p className="text-white text-xs font-semibold truncate">@{pendingCoHostInvite.hostName}</p>
+                    <p className="text-white/40 text-[10px]">wants you to co-host</p>
+                  </div>
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <div
+                      className="px-2 py-1 rounded-full bg-red-500/20 border border-red-500/30 flex items-center gap-0.5 active:scale-95 transition-transform cursor-pointer"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        supabase.from('notifications').update({ is_read: true }).eq('id', pendingCoHostInvite.notifId).then(() => {});
+                        setPendingCoHostInvite(null);
+                      }}
+                    >
+                      <span className="text-red-400 text-[9px] font-bold">Reject</span>
+                    </div>
+                    <div
+                      className="px-2.5 py-1 rounded-full bg-green-500 flex items-center gap-0.5 active:scale-95 transition-transform cursor-pointer"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const invite = pendingCoHostInvite;
+                        setPendingCoHostInvite(null);
+                        supabase.from('notifications').update({ is_read: true }).eq('id', invite.notifId).then(() => {});
+                        const myUsername = user?.username || (user as any)?.name || 'User';
+                        supabase.from('notifications').insert({
+                          user_id: invite.hostUserId,
+                          type: 'cohost_accepted',
+                          title: 'Co-Host Accepted',
+                          body: `@${myUsername} accepted your co-host invite!`,
+                          data: { actor_id: user?.id, accepted_name: myUsername, accepted_avatar: (user as any)?.avatar || '', stream_key: invite.streamKey },
+                        }).then(() => {});
+                        if (invite.streamKey === effectiveStreamId) {
+                          startCoHosting();
+                        } else {
+                          showToast(`Joining @${invite.hostName}'s stream...`);
+                          window.location.href = `/watch/${invite.streamKey}?cohost=1`;
+                        }
+                      }}
+                    >
+                      <span className="text-black text-[9px] font-bold">Join</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
 
       </div>

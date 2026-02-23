@@ -1095,8 +1095,8 @@ export default function SpectatorPage() {
           </div>
         )}
 
-        {/* BOTTOM BAR — buttons in front of video, same as creator */}
-        <div className="fixed bottom-0 left-0 right-0 z-[120] pointer-events-auto flex justify-center">
+        {/* BOTTOM BAR — buttons in front of video, lifted 10mm up */}
+        <div className="fixed left-0 right-0 z-[120] pointer-events-auto flex justify-center" style={{ bottom: '10mm' }}>
           <div className="w-full max-w-[480px] px-3 pb-[max(8px,env(safe-area-inset-bottom))] pt-2 bg-transparent">
           <div className="flex items-center gap-2">
           <form
@@ -1125,6 +1125,14 @@ export default function SpectatorPage() {
               <span className="w-2 h-2 rounded-full bg-[#C9A96E] animate-pulse" />
               <span className="text-[#C9A96E] text-[8px] font-bold">Live</span>
             </div>
+          )}
+
+          {/* Co-Host — same button as live page */}
+          {!isCoHosting && (
+            <button type="button" title="Co-Host" className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg relative flex-shrink-0">
+              <span className="flex items-center justify-center w-full h-full relative z-[2]"><UserPlus size={20} className="text-[#C9A96E] shrink-0" strokeWidth={2} /></span>
+              <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-125 translate-y-0.5" />
+            </button>
           )}
 
           {/* Gift */}

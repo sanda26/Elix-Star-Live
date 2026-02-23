@@ -3161,7 +3161,7 @@ export default function LiveStream() {
                     {/* Fan Club Removed */}
                   </div>
 
-                  {/* Score Bar on top - Red vs Blue */}
+                  {/* Score Bar on top - Red vs Blue (scores only; no VS/timer inside bar) */}
                   <button
                     type="button"
                     onClick={(e) => { 
@@ -3169,10 +3169,7 @@ export default function LiveStream() {
                       if (isBroadcast) {
                         toggleBattle(); 
                       } else {
-                        // For spectators: Tap on bar -> Like
-                       spawnHeartFromClient(e.clientX, e.clientY);
-                       // Do not add live likes on battle bar tap
-                       
+                        spawnHeartFromClient(e.clientX, e.clientY);
                       }
                     }}
                     className="relative z-20 w-full h-4 overflow-hidden shadow-2xl pointer-events-auto flex-none cursor-pointer active:scale-[0.99] transition-transform"
@@ -3181,17 +3178,19 @@ export default function LiveStream() {
                       <div className="h-full transition-all duration-500 ease-out" style={{ width: `${leftPct}%`, backgroundImage: 'linear-gradient(90deg, #DC143C, #FF1744, #C41E3A)' }} />
                       <div className="h-full flex-1 transition-all duration-500 ease-out" style={{ backgroundImage: 'linear-gradient(90deg, #1E90FF, #4169E1, #0047AB)' }} />
                     </div>
-                    <div className="relative z-10 h-full flex items-center justify-between px-2">
-                      <div className="text-white font-black text-[8px] tabular-nums drop-shadow-md">{(typeof redTeamScore === 'number' && Number.isFinite(redTeamScore) ? redTeamScore : 0).toLocaleString()}</div>
-                      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-1.5">
-                        <span className="text-white text-[10px] font-black italic drop-shadow-md">VS</span>
-                        <div className="px-2 py-0.5 rounded-md bg-black/60 border border-white/90 shadow-sm">
-                          <span className="text-white text-[10px] font-black tabular-nums">{formatTime(battleTime)}</span>
-                        </div>
-                      </div>
-                      <div className="text-white font-black text-[8px] tabular-nums drop-shadow-md">{(typeof blueTeamScore === 'number' && Number.isFinite(blueTeamScore) ? blueTeamScore : 0).toLocaleString()}</div>
+                    <div className="relative z-10 h-full flex items-center justify-between px-3">
+                      <div className="text-white font-black text-base tabular-nums drop-shadow-md">{(typeof redTeamScore === 'number' && Number.isFinite(redTeamScore) ? redTeamScore : 0).toLocaleString()}</div>
+                      <div className="text-white font-black text-base tabular-nums drop-shadow-md">{(typeof blueTeamScore === 'number' && Number.isFinite(blueTeamScore) ? blueTeamScore : 0).toLocaleString()}</div>
                     </div>
                   </button>
+
+                  {/* VS + Timer directly below bar, centered, overlapping video (like reference) */}
+                  <div className="absolute left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 pointer-events-none" style={{ top: 'calc(1rem + 2px)' }}>
+                    <span className="text-white text-lg font-black italic drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">VS</span>
+                    <div className="px-3 py-1.5 rounded bg-[#13151A]/95 border border-white/80 shadow-md">
+                      <span className="text-white text-xl font-black tabular-nums">{formatTime(battleTime)}</span>
+                    </div>
+                  </div>
 
                   {/* Spectator Tap Indicator: 1 tap = 5 pts, then done */}
                   {!isBroadcast && battleTime > 0 && !battleWinner && (
@@ -3212,7 +3211,7 @@ export default function LiveStream() {
                       className={`w-1/2 h-full overflow-hidden relative bg-[#13151A] pointer-events-auto border-r border-white/5 ${is4Player ? 'border-b' : ''}`}
                     >
                       <video ref={videoRef} className="w-full h-full object-cover transform scale-x-[-1]" autoPlay playsInline muted />
-                      <div className="absolute top-1 right-1 z-10 pointer-events-auto flex items-center gap-1">
+                      <div className="absolute bottom-2 right-2 z-10 pointer-events-auto flex items-center gap-1">
                         <div onClick={(e) => { e.stopPropagation(); togglePlayerMute('me'); }}>
                           {mutedPlayers['me'] ? <VolumeX className="w-5 h-5 text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]" strokeWidth={2.5} /> : <Volume2 className="w-5 h-5 text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]" strokeWidth={2.5} />}
                         </div>
@@ -3269,7 +3268,7 @@ export default function LiveStream() {
                       )}
 
                       {battleSlots[0].status !== 'empty' && (
-                        <div className="absolute top-1 right-1 z-10 pointer-events-auto flex items-center gap-1">
+                        <div className="absolute bottom-2 left-2 z-10 pointer-events-auto flex items-center gap-1">
                           <div onClick={(e) => { e.stopPropagation(); togglePlayerMute('opponent'); }}>
                             {mutedPlayers['opponent'] ? <VolumeX className="w-5 h-5 text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]" strokeWidth={2.5} /> : <Volume2 className="w-5 h-5 text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]" strokeWidth={2.5} />}
                           </div>
@@ -3343,7 +3342,7 @@ export default function LiveStream() {
                         )}
 
                         {battleSlots[1].status !== 'empty' && (
-                          <div className="absolute top-1 right-1 z-10 pointer-events-auto flex items-center gap-1">
+                          <div className="absolute bottom-2 right-2 z-10 pointer-events-auto flex items-center gap-1">
                             <div onClick={(e) => { e.stopPropagation(); togglePlayerMute('player3'); }}>
                               {mutedPlayers['player3'] ? <VolumeX className="w-5 h-5 text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]" strokeWidth={2.5} /> : <Volume2 className="w-5 h-5 text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]" strokeWidth={2.5} />}
                             </div>
@@ -3413,7 +3412,7 @@ export default function LiveStream() {
                         )}
 
                         {battleSlots[2].status !== 'empty' && (
-                          <div className="absolute top-1 right-1 z-10 pointer-events-auto flex items-center gap-1">
+                          <div className="absolute bottom-2 right-2 z-10 pointer-events-auto flex items-center gap-1">
                             <div onClick={(e) => { e.stopPropagation(); togglePlayerMute('player4'); }}>
                               {mutedPlayers['player4'] ? <VolumeX className="w-5 h-5 text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]" strokeWidth={2.5} /> : <Volume2 className="w-5 h-5 text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]" strokeWidth={2.5} />}
                             </div>
@@ -3425,6 +3424,7 @@ export default function LiveStream() {
 
                       <div 
                         className="absolute bottom-1 right-1 flex items-center cursor-pointer hover:scale-105 transition-transform active:scale-95 pointer-events-auto"
+                        style={{ right: '2.5rem' }}
                         onClick={(e) => { e.stopPropagation(); openMiniProfile(battleSlots[2].name); }}
                       >
                         {lastGifts.player4 && (

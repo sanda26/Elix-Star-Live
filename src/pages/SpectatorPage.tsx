@@ -27,6 +27,7 @@ import {
   Lock,
   Crown,
   Trophy,
+  PlusCircle,
 } from 'lucide-react';
 import { GiftPanel } from '../components/GiftPanel';
 import { GIFTS } from '../lib/gifts';
@@ -93,6 +94,8 @@ export default function SpectatorPage() {
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [showRankingPanel, setShowRankingPanel] = useState(false);
+  const [showFanClub, setShowFanClub] = useState(false);
+  const [isSubscribing, setIsSubscribing] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
   const [showCoHostPanel, setShowCoHostPanel] = useState(false);
 
@@ -396,6 +399,35 @@ export default function SpectatorPage() {
         });
     }
   }, [showGiftPanel, user?.id]);
+
+  const handleSubscribe = async () => {
+    setIsSubscribing(true);
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      if (!user?.id) {
+        navigate('/login');
+        return;
+      }
+      const apiBase = import.meta.env.VITE_API_URL || '';
+      const res = await fetch(`${apiBase}/api/create-subscription`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.session?.access_token}` },
+        body: JSON.stringify({ creatorId: effectiveStreamId, userId: user.id }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const url = data.url;
+        if (url) window.location.href = url;
+        else navigate('/shop');
+      } else {
+        navigate('/shop');
+      }
+    } catch {
+      navigate('/shop');
+    } finally {
+      setIsSubscribing(false);
+    }
+  };
 
   // Join tracking
   useEffect(() => {
@@ -1045,7 +1077,7 @@ export default function SpectatorPage() {
               </div>
               <div
                 className="flex items-center gap-1 bg-[#13151A] rounded-full px-2 py-0.5 border border-[#C9A96E]/40 shadow-sm cursor-pointer active:scale-95 transition-transform"
-                onClick={() => showToast('Membership coming soon')}
+                onClick={() => setShowFanClub(true)}
               >
                 <Heart className="w-2.5 h-2.5 text-[#C9A96E] fill-[#C9A96E]" />
                 <span className="text-[#C9A96E] text-[9px] font-bold whitespace-nowrap">Membership</span>
@@ -1190,6 +1222,150 @@ export default function SpectatorPage() {
           </div>
         )}
 
+        {/* ═══ SUPER FAN GOAL PANEL (Membership) — same as creator page */}
+        {showFanClub && (
+          <>
+            <div
+              className="fixed inset-0 bg-black/40 pointer-events-auto"
+              style={{ zIndex: 99998 }}
+              onClick={() => setShowFanClub(false)}
+            />
+            <div className="fixed bottom-0 left-0 right-0 z-[99999] pointer-events-auto max-w-[480px] mx-auto">
+              <div
+                className="bg-[#1C1E24]/95 rounded-t-2xl p-3 pb-safe max-h-[40vh] overflow-y-auto no-scrollbar shadow-2xl w-full border-t border-[#C9A96E]/20"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex flex-col items-center justify-center pt-3 pb-1 gap-1.5">
+                  <div className="w-2 h-2 rounded-full bg-[#C9A96E] shadow-[0_0_6px_rgba(201,169,110,0.5)]" />
+                  <div className="w-10 h-1 bg-white/20 rounded-full" />
+                </div>
+                <div className="flex items-center justify-between px-4 pb-2">
+                  <div className="flex items-center gap-1.5">
+                    <Heart className="w-3 h-3 text-[#C9A96E]" strokeWidth={2} fill="#C9A96E" />
+                    <span className="text-gold-metallic font-bold text-sm">Super Fan Goal</span>
+                  </div>
+                </div>
+                <div className="flex-1 overflow-y-auto px-4 pb-4 no-scrollbar">
+                  <div className="flex flex-col gap-3">
+                    <div className="bg-gradient-to-r from-[#C9A96E]/10 to-[#B8943F]/5 rounded-xl p-3 border border-[#C9A96E]/20 relative overflow-hidden">
+                      <div className="relative z-10">
+                        <div className="flex items-center justify-between mb-2">
+                          <div>
+                            <h3 className="text-gold-metallic font-bold text-xs">Membership</h3>
+                            <p className="text-white/50 text-[9px]">Unlock photo stickers & exclusive perks</p>
+                          </div>
+                          <div className="w-6 h-6 bg-[#C9A96E]/20 rounded-full flex items-center justify-center border border-[#C9A96E]/30">
+                            <Heart className="w-2.5 h-2.5 text-[#C9A96E] fill-[#C9A96E] animate-pulse" />
+                          </div>
+                        </div>
+                        <div className="flex items-end gap-1 mb-2">
+                          <span className="text-lg font-black text-gold-metallic">£3.00</span>
+                          <span className="text-white/40 text-[10px] font-medium mb-0.5">/ month</span>
+                        </div>
+                        <button
+                          onClick={handleSubscribe}
+                          disabled={isSubscribing}
+                          className="w-full py-2 bg-gradient-to-r from-[#C9A96E] to-[#E8D5A3] text-black font-bold text-[10px] uppercase tracking-wide rounded-xl active:scale-[0.98] transition-all shadow-lg disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+                        >
+                          {isSubscribing ? (
+                            <>
+                              <div className="w-3 h-3 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                              <span>Processing...</span>
+                            </>
+                          ) : (
+                            <span>Subscribe Now</span>
+                          )}
+                        </button>
+                        <p className="text-[8px] text-white/30 text-center mt-1.5">Non-refundable. Cancel anytime in store settings.</p>
+                      </div>
+                    </div>
+                    <div className="bg-white/5 rounded-xl p-3 border border-[#C9A96E]/20">
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className="text-gold-metallic font-bold text-[10px] flex items-center gap-1">
+                          <div className="w-4 h-4 rounded-full bg-[#13151A] flex items-center justify-center border border-[#C9A96E]/40">
+                            <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="#C9A96E" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                          </div>
+                          Photo Stickers
+                        </h3>
+                        <span className="bg-[#C9A96E]/10 text-[#C9A96E] text-[7px] font-bold px-1.5 py-0.5 rounded-full border border-[#C9A96E]/20">SUBSCRIBER ONLY</span>
+                      </div>
+                      <div className="grid grid-cols-4 gap-1">
+                        {['🔥', '💎', '👑', '🚀', '💯', '🎉', '💖', '👀'].map((emoji, i) => (
+                          <button
+                            key={i}
+                            className="aspect-square rounded-lg bg-white/5 hover:bg-white/10 active:scale-95 transition-all flex items-center justify-center text-sm border border-[#C9A96E]/10 relative overflow-hidden group"
+                            onClick={() => {
+                              const newMessage: LiveMessage = {
+                                id: Date.now().toString(),
+                                username: 'You',
+                                text: emoji,
+                                level: userLevel,
+                                isGift: false,
+                                avatar: '/Icons/elix-logo.png',
+                                isSystem: false,
+                              };
+                              setMessages(prev => [...prev, newMessage]);
+                              setShowFanClub(false);
+                            }}
+                          >
+                            <span className="group-hover:scale-110 transition-transform duration-200">{emoji}</span>
+                            {!isSubscribing && (
+                              <div className="absolute inset-0 bg-[#13151A]/60 backdrop-blur-[1px] flex items-center justify-center">
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#C9A96E" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-80"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                              </div>
+                            )}
+                          </button>
+                        ))}
+                        <button
+                          className="aspect-square rounded-lg bg-white/5 hover:bg-white/10 active:scale-95 transition-all flex items-center justify-center border border-[#C9A96E]/10 relative overflow-hidden group"
+                          onClick={() => {
+                            if (!isSubscribing) return;
+                            const input = document.createElement('input');
+                            input.type = 'file';
+                            input.accept = 'image/*';
+                            input.onchange = (e) => {
+                              const file = (e.target as HTMLInputElement).files?.[0];
+                              if (file) {
+                                const reader = new FileReader();
+                                reader.onload = (ev) => {
+                                  const newMessage: LiveMessage = {
+                                    id: Date.now().toString(),
+                                    username: 'You',
+                                    text: (ev.target?.result as string) || '',
+                                    level: userLevel,
+                                    isGift: false,
+                                    avatar: '/Icons/elix-logo.png',
+                                    isSystem: false,
+                                  };
+                                  setMessages(prev => [...prev, newMessage]);
+                                  setShowFanClub(false);
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                            };
+                            input.click();
+                          }}
+                        >
+                          <div className="flex flex-col items-center gap-0.5">
+                            <PlusCircle size={12} className="text-[#C9A96E]/50 group-hover:text-[#C9A96E] transition-colors" />
+                            <span className="text-[6px] text-[#C9A96E]/50 font-bold uppercase">Upload</span>
+                          </div>
+                          {!isSubscribing && (
+                            <div className="absolute inset-0 bg-[#13151A]/60 backdrop-blur-[1px] flex items-center justify-center">
+                              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#C9A96E" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-80"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                            </div>
+                          )}
+                        </button>
+                      </div>
+                      <p className="text-white/30 text-[8px] text-center mt-1.5">Subscribe to unlock photo stickers and send them in chat!</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
         {/* GIFT PANEL — anchored to bottom, above all buttons */}
         {showGiftPanel && (
           <>
@@ -1203,8 +1379,8 @@ export default function SpectatorPage() {
                 onSelectGift={handleSendGift}
                 userCoins={coinBalance}
                 onRechargeSuccess={(newBalance) => { setCoinBalance(newBalance); persistTestCoinsBalance(user?.id, newBalance); }}
-                onWeeklyRanking={() => { setShowGiftPanel(false); showToast('Weekly Ranking coming soon'); }}
-                onMembership={() => { setShowGiftPanel(false); showToast('Membership coming soon'); }}
+                onWeeklyRanking={() => { setShowGiftPanel(false); setShowRankingPanel(true); }}
+                onMembership={() => { setShowGiftPanel(false); setShowFanClub(true); }}
               />
             </div>
           </>

@@ -3898,8 +3898,9 @@ export default function LiveStream() {
             className="bg-[#1C1E24]/95 backdrop-blur-md rounded-t-2xl h-[40vh] flex flex-col shadow-2xl border-t border-[#C9A96E]/20 pointer-events-auto w-full relative z-10 overflow-hidden pb-safe"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Drag handle */}
-            <div className="flex justify-center pt-2 pb-1">
+            {/* Drag handle + gold circle */}
+            <div className="flex flex-col items-center justify-center pt-2 pb-1 gap-1.5">
+              <div className="w-2 h-2 rounded-full bg-[#C9A96E] shadow-[0_0_6px_rgba(201,169,110,0.5)]" />
               <div className="w-10 h-1 bg-white/20 rounded-full" />
             </div>
             {/* Header */}
@@ -4079,8 +4080,9 @@ export default function LiveStream() {
             className="bg-[#1C1E24]/95 backdrop-blur-md rounded-t-2xl h-[40vh] flex flex-col shadow-2xl border-t border-[#C9A96E]/20 pointer-events-auto w-full relative z-10 overflow-hidden pb-safe"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Drag handle */}
-            <div className="flex justify-center pt-2 pb-1">
+            {/* Drag handle + gold circle */}
+            <div className="flex flex-col items-center justify-center pt-2 pb-1 gap-1.5">
+              <div className="w-2 h-2 rounded-full bg-[#C9A96E] shadow-[0_0_6px_rgba(201,169,110,0.5)]" />
               <div className="w-10 h-1 bg-white/20 rounded-full" />
             </div>
             {/* Header */}
@@ -4351,7 +4353,8 @@ export default function LiveStream() {
           />
           <div className="fixed bottom-0 left-0 right-0 z-[999999] pointer-events-auto max-w-[480px] mx-auto">
             <div className="bg-[#1C1E24]/95 backdrop-blur-md rounded-t-2xl h-[40vh] flex flex-col shadow-2xl border-t border-[#C9A96E]/20 overflow-hidden">
-              <div className="flex justify-center pt-3 pb-1">
+              <div className="flex flex-col items-center justify-center pt-3 pb-1 gap-1.5">
+                <div className="w-2 h-2 rounded-full bg-[#C9A96E] shadow-[0_0_6px_rgba(201,169,110,0.5)]" />
                 <div className="w-10 h-1 bg-white/20 rounded-full" />
               </div>
               <div className="flex items-center justify-between px-4 pb-2">
@@ -4433,8 +4436,9 @@ export default function LiveStream() {
             className="bg-[#1C1E24]/95 backdrop-blur-md rounded-t-2xl p-3 pb-safe h-full flex flex-col shadow-2xl w-full overflow-hidden border-t border-[#C9A96E]/20"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Drag handle */}
-            <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
+            {/* Drag handle + gold circle */}
+            <div className="flex flex-col items-center justify-center pt-3 pb-1 flex-shrink-0 gap-1.5">
+              <div className="w-2 h-2 rounded-full bg-[#C9A96E] shadow-[0_0_6px_rgba(201,169,110,0.5)]" />
               <div className="w-10 h-1 bg-white/20 rounded-full" />
             </div>
 
@@ -4518,8 +4522,9 @@ export default function LiveStream() {
             className="bg-[#1C1E24]/95 rounded-t-2xl p-3 pb-safe max-h-[40vh] overflow-y-auto no-scrollbar shadow-2xl w-full"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Drag handle */}
-            <div className="flex justify-center pt-3 pb-1">
+            {/* Drag handle + gold circle */}
+            <div className="flex flex-col items-center justify-center pt-3 pb-1 gap-1.5">
+              <div className="w-2 h-2 rounded-full bg-[#C9A96E] shadow-[0_0_6px_rgba(201,169,110,0.5)]" />
               <div className="w-10 h-1 bg-white/20 rounded-full" />
             </div>
 
@@ -4679,8 +4684,9 @@ export default function LiveStream() {
             className="bg-[#1C1E24]/95 rounded-t-2xl p-3 pb-safe h-[40vh] overflow-y-auto no-scrollbar shadow-2xl w-full border-t border-[#C9A96E]/20"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Drag handle */}
-            <div className="flex justify-center mb-2">
+            {/* Drag handle + gold circle */}
+            <div className="flex flex-col items-center justify-center mb-2 gap-1.5">
+              <div className="w-2 h-2 rounded-full bg-[#C9A96E] shadow-[0_0_6px_rgba(201,169,110,0.5)]" />
               <div className="w-10 h-1 bg-white/20 rounded-full" />
             </div>
 
@@ -4975,7 +4981,8 @@ export default function LiveStream() {
           />
           <div className="fixed bottom-0 left-0 right-0 z-[99999] pointer-events-auto max-w-[480px] mx-auto">
           <div className="bg-[#1C1E24]/95 backdrop-blur-md rounded-t-2xl p-3 pb-safe flex flex-col shadow-2xl w-full h-[40vh] overflow-hidden border-t border-[#C9A96E]/20">
-            <div className="flex justify-center pt-1 pb-2">
+            <div className="flex flex-col items-center justify-center pt-1 pb-2 gap-1.5">
+              <div className="w-2 h-2 rounded-full bg-[#C9A96E] shadow-[0_0_6px_rgba(201,169,110,0.5)]" />
               <div className="w-10 h-1 bg-white/20 rounded-full" />
             </div>
 

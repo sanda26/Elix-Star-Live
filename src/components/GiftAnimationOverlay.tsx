@@ -32,7 +32,7 @@ export default function GiftAnimationOverlay({ streamId: _streamId }: GiftAnimat
       id: Date.now().toString() + Math.random(),
       username: data.username ?? 'Someone',
       giftIcon: data.gift_icon,
-      giftName: data.gift_name ?? 'Gift',
+      giftName: data.giftName ?? data.gift_name ?? 'Gift',
       creatorName: data.creator_name ?? 'Creator',
       quantity: data.quantity ?? 1,
       timestamp: Date.now(),
@@ -53,18 +53,17 @@ export default function GiftAnimationOverlay({ streamId: _streamId }: GiftAnimat
           {activeGifts.slice(-3).map(gift => (
             <div
               key={gift.id}
-              className="animate-slide-in-right w-full rounded-full flex items-center gap-1 overflow-hidden px-2 bg-red-600"
-              style={{ height: '7mm', maxHeight: '7mm' }}
+              className="animate-slide-in-right w-full rounded-full flex items-center gap-2 overflow-hidden px-3 py-1.5 bg-red-600"
             >
-              <div className="w-4 h-4 flex-shrink-0">
+              <div className="w-6 h-6 flex-shrink-0">
                 {gift.giftIcon && (gift.giftIcon.startsWith('http') || gift.giftIcon.startsWith('/')) ? (
                   <img src={gift.giftIcon} alt="" className="w-full h-full object-contain" />
                 ) : (
-                  <span className="text-xs">{gift.giftIcon || '🎁'}</span>
+                  <span className="text-base">{gift.giftIcon || '🎁'}</span>
                 )}
               </div>
               <div className="flex-1 min-w-0 overflow-x-auto no-scrollbar">
-                <p className="text-[8px] font-bold text-black whitespace-nowrap leading-none">
+                <p className="text-sm font-bold text-black whitespace-nowrap leading-tight">
                   {gift.username} send {gift.giftName} to {gift.creatorName}
                   {gift.quantity > 1 && <span> x{gift.quantity}</span>}
                 </p>

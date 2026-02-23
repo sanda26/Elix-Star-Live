@@ -3182,26 +3182,16 @@ export default function LiveStream() {
                       <div className="h-full flex-1 transition-all duration-500 ease-out" style={{ backgroundImage: 'linear-gradient(90deg, #1E90FF, #4169E1, #0047AB)' }} />
                     </div>
                     <div className="relative z-10 h-full flex items-center justify-between px-2">
-                      <div className="text-white font-black text-[8px] tabular-nums">{(typeof redTeamScore === 'number' && Number.isFinite(redTeamScore) ? redTeamScore : 0).toLocaleString()}</div>
-                      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-                        <span className="text-white text-[10px] font-black italic">VS</span>
+                      <div className="text-white font-black text-[8px] tabular-nums drop-shadow-md">{(typeof redTeamScore === 'number' && Number.isFinite(redTeamScore) ? redTeamScore : 0).toLocaleString()}</div>
+                      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-1.5">
+                        <span className="text-white text-[10px] font-black italic drop-shadow-md">VS</span>
+                        <div className="px-2 py-0.5 rounded-md bg-black/60 border border-white/90 shadow-sm">
+                          <span className="text-white text-[10px] font-black tabular-nums">{formatTime(battleTime)}</span>
+                        </div>
                       </div>
-                      <div className="text-white font-black text-[8px] tabular-nums">{(typeof blueTeamScore === 'number' && Number.isFinite(blueTeamScore) ? blueTeamScore : 0).toLocaleString()}</div>
+                      <div className="text-white font-black text-[8px] tabular-nums drop-shadow-md">{(typeof blueTeamScore === 'number' && Number.isFinite(blueTeamScore) ? blueTeamScore : 0).toLocaleString()}</div>
                     </div>
                   </button>
-
-                  {/* Battle timing capsule: Time (countdown) vs Game (total) — below bar */}
-                  {isBattleMode && battleTime >= 0 && (
-                    <div className="relative z-20 flex justify-center mt-1 pointer-events-none">
-                      <div className="rounded-full bg-[#13151A]/70 backdrop-blur-sm border border-[#C9A96E]/30 px-3 py-1.5 flex items-center gap-3">
-                        <span className="text-white/80 text-[8px] font-bold uppercase tracking-wide">Time</span>
-                        <span className="text-white text-[10px] font-black tabular-nums">{formatTime(battleTime)}</span>
-                        <span className="w-px h-3 bg-white/30" />
-                        <span className="text-white/80 text-[8px] font-bold uppercase tracking-wide">Game</span>
-                        <span className="text-white text-[10px] font-black tabular-nums">{formatTime(300)}</span>
-                      </div>
-                    </div>
-                  )}
 
                   {/* Spectator Tap Indicator: 1 tap = 5 pts, then done */}
                   {!isBroadcast && battleTime > 0 && !battleWinner && (

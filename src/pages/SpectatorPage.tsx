@@ -26,6 +26,7 @@ import {
   Coins,
   Lock,
   Crown,
+  Trophy,
 } from 'lucide-react';
 import { GiftPanel } from '../components/GiftPanel';
 import { GIFTS } from '../lib/gifts';
@@ -37,6 +38,7 @@ import { useAuthStore } from '../store/useAuthStore';
 import { supabase } from '../lib/supabase';
 import ReportModal from '../components/ReportModal';
 import PromotePanel from '../components/PromotePanel';
+import { RankingPanel } from '../components/RankingPanel';
 import { websocket } from '../lib/websocket';
 import { useLiveWebRTC } from '../hooks/useLiveWebRTC';
 
@@ -89,6 +91,8 @@ export default function SpectatorPage() {
   const [showPromotePanel, setShowPromotePanel] = useState(false);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [showRankingPanel, setShowRankingPanel] = useState(false);
+  const [isFollowing, setIsFollowing] = useState(false);
 
   const [showTestCoinsModal, setShowTestCoinsModal] = useState(false);
   const [testCoinsStep, setTestCoinsStep] = useState<'password' | 'amount'>('password');
@@ -329,6 +333,11 @@ export default function SpectatorPage() {
           setHostAvatar(profile.avatar_url || '');
         } else if (stream.title) {
           setHostName(stream.title);
+        }
+        const currentUser = (await supabase.auth.getUser()).data.user;
+        if (currentUser && stream.user_id) {
+          const { data: follow } = await supabase.from('followers').select('id').eq('follower_id', currentUser.id).eq('following_id', stream.user_id).maybeSingle();
+          if (follow) setIsFollowing(true);
         }
       }
     })();
@@ -1021,6 +1030,39 @@ export default function SpectatorPage() {
                 </button>
               </div>
             </div>
+
+            {/* Weekly Ranking + Membership + Follow — same as creator page */}
+            <div className="flex items-center gap-2 mt-1 ml-1 pointer-events-auto flex-wrap px-1">
+              <div
+                className="flex items-center gap-1 bg-[#13151A] rounded-full px-2 py-0.5 border border-[#C9A96E]/40 shadow-sm cursor-pointer active:scale-95 transition-transform"
+                onClick={() => setShowRankingPanel(true)}
+              >
+                <Trophy className="w-2.5 h-2.5 text-[#C9A96E]" />
+                <span className="text-[#C9A96E] text-[9px] font-bold whitespace-nowrap">Weekly Ranking &gt;</span>
+              </div>
+              <div
+                className="flex items-center gap-1 bg-[#13151A] rounded-full px-2 py-0.5 border border-[#C9A96E]/40 shadow-sm cursor-pointer active:scale-95 transition-transform"
+                onClick={() => showToast('Membership coming soon')}
+              >
+                <Heart className="w-2.5 h-2.5 text-[#C9A96E] fill-[#C9A96E]" />
+                <span className="text-[#C9A96E] text-[9px] font-bold whitespace-nowrap">Membership</span>
+              </div>
+              {!isFollowing && (
+                <button
+                  type="button"
+                  className="flex items-center gap-1 bg-[#FF2D55] rounded-full px-2 py-0.5 shadow-sm border border-white/20 active:scale-95 transition-transform"
+                  onClick={async () => {
+                    setIsFollowing(true);
+                    if (user?.id && hostUserId) {
+                      try { await supabase.from('followers').insert({ follower_id: user.id, following_id: hostUserId }); } catch {}
+                    }
+                  }}
+                >
+                  <UserPlus size={10} className="text-white" strokeWidth={3} />
+                  <span className="text-white text-[9px] font-bold">Follow</span>
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
@@ -1552,6 +1594,20 @@ export default function SpectatorPage() {
                   </form>
                 )}
               </div>
+            </div>
+          </>
+        )}
+
+        {/* Weekly Ranking Panel */}
+        {showRankingPanel && (
+          <>
+            <div
+              className="fixed inset-0 bg-black/40 pointer-events-auto"
+              style={{ zIndex: 99998 }}
+              onClick={() => setShowRankingPanel(false)}
+            />
+            <div className="fixed bottom-0 left-0 right-0 h-[40vh] z-[99999] pointer-events-auto max-w-[480px] mx-auto">
+              <RankingPanel onClose={() => setShowRankingPanel(false)} />
             </div>
           </>
         )}

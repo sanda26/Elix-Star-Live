@@ -3,6 +3,7 @@ import { TrendingUp, Play, UserPlus, FileText, Heart } from 'lucide-react';
 import { showToast } from '../lib/toast';
 import { useAuthStore } from '../store/useAuthStore';
 import { isStripeAllowed } from '../lib/platform';
+import { IS_STORE_BUILD } from '../config/build';
 
 export type PromoteContentType = 'video' | 'profile' | 'live';
 
@@ -38,7 +39,7 @@ export default function PromotePanel({ isOpen, onClose, contentType, content }: 
   const [audience, setAudience] = useState<'default'>('default');
   const [isPaying, setIsPaying] = useState(false);
 
-  if (!isOpen) return null;
+  if (!isOpen || IS_STORE_BUILD) return null;
 
   const fmt = (n: number) => new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n);
   const priceByGoal: Record<string, string> = {

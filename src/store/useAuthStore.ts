@@ -33,6 +33,7 @@ interface AuthStore {
     username?: string
   ) => Promise<{ error: string | null; needsEmailConfirmation: boolean }>;
   resendSignupConfirmation: (email: string) => Promise<{ error: string | null }>;
+  signInWithApple: () => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   updateUser: (updates: Partial<User>) => void;
   getCurrentUser: () => User | null;
@@ -264,6 +265,24 @@ export const useAuthStore = create<AuthStore>()(
       }
       try {
         const { error } = await supabase.auth.resend({ type: 'signup', email });
+        if (error) return { error: error.message };
+        return { error: null };
+      } catch (error) {
+        return { error: getAuthErrorMessage(error) };
+      }
+    },
+
+    signInWithApple: async () => {
+      if (!supabaseConfig.hasValidConfig) {
+        return { error: 'Authentication is not configured.' };
+      }
+      try {
+        const { error } = await supabase.auth.signInWithOAuth({
+          provider: 'apple',
+          options: {
+            redirectTo: window.location.origin + '/auth/callback',
+          },
+        });
         if (error) return { error: error.message };
         return { error: null };
       } catch (error) {

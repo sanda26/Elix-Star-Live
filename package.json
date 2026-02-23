@@ -29,9 +29,6 @@
     "generate:gift-posters": "node scripts/generate-gift-posters.mjs"
   },
   "dependencies": {
-    "@capacitor-firebase/analytics": "^8.0.1",
-    "@capacitor-firebase/app": "^8.0.1",
-    "@capacitor-firebase/crashlytics": "^8.0.1",
     "@capacitor/android": "^7.4.3",
     "@capacitor/app": "^8.0.0",
     "@capacitor/clipboard": "^8.0.0",
@@ -50,7 +47,6 @@
     "@stripe/react-stripe-js": "^5.6.0",
     "@stripe/stripe-js": "^8.7.0",
     "@supabase/supabase-js": "^2.97.0",
-    "capacitor-native-biometric": "^4.2.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "compression": "^1.8.1",

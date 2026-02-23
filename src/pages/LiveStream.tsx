@@ -54,6 +54,7 @@ import { RankingPanel } from '../components/RankingPanel';
 import { websocket } from '../lib/websocket';
 import LiveAIFilters from '../components/LiveAIFilters';
 import { useLiveWebRTC } from '../hooks/useLiveWebRTC';
+import { IS_STORE_BUILD } from '../config/build';
 
 
 type LiveMessage = {
@@ -4687,12 +4688,14 @@ export default function LiveStream() {
             {/* Content — luxury compact grid */}
             <div className="grid grid-cols-4 gap-y-4 gap-x-2 pt-1 pb-2 px-1">
 
+              {!IS_STORE_BUILD && (
               <button type="button" onClick={() => { setShowTestCoinsModal(true); setTestCoinsStep(sessionStorage.getItem('elix_test_coins_unlocked') ? 'amount' : 'password'); setTestCoinsPwd(''); setTestCoinsError(''); setTestCoinsAmount(''); setIsMoreMenuOpen(false); }} className="flex flex-col items-center gap-1.5 active:scale-95 transition-transform">
                 <div className="w-11 h-11 rounded-full bg-[#13151A] flex items-center justify-center border border-[#C9A96E]/30 shadow-[0_0_8px_rgba(201,169,110,0.1)]">
                   <Coins className="w-[18px] h-[18px] text-[#C9A96E]" strokeWidth={1.8} />
                 </div>
                 <span className="text-[10px] font-semibold text-white/70">Test</span>
               </button>
+              )}
 
               <button type="button" onClick={() => { setShowSharePanel(true); setIsMoreMenuOpen(false); }} className="flex flex-col items-center gap-1.5 active:scale-95 transition-transform">
                 <div className="w-11 h-11 rounded-full bg-[#13151A] flex items-center justify-center border border-[#C9A96E]/30 shadow-[0_0_8px_rgba(201,169,110,0.1)]">

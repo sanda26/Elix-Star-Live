@@ -1317,6 +1317,20 @@ export default function SpectatorPage() {
                 </div>
                 <div className="flex flex-col gap-1">
                   <button
+                    type="button"
+                    onClick={() => {
+                      const v = localStorage.getItem(TEST_COINS_VERIFIED_KEY);
+                      const ts = v ? parseInt(v, 10) : NaN;
+                      setTestCoinsStep((ts && Date.now() - ts < 24 * 60 * 60 * 1000) ? 'amount' : 'password');
+                      setTestCoinsPwd(''); setTestCoinsError(''); setTestCoinsAmount('');
+                      setShowTestCoinsModal(true); setIsMoreMenuOpen(false);
+                    }}
+                    className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 transition-colors w-full"
+                  >
+                    <Coins size={18} className="text-[#C9A96E]" />
+                    <span className="text-white text-sm font-medium">Test</span>
+                  </button>
+                  <button
                     onClick={() => { setIsReportModalOpen(true); setIsMoreMenuOpen(false); }}
                     className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 transition-colors w-full"
                   >

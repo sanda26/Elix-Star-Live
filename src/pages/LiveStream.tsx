@@ -2202,8 +2202,11 @@ export default function LiveStream() {
         setMessages(prev => [...prev, msg]);
         addBattleGifterCoins(typeof data.username === 'string' ? data.username : 'User', giftDef.coins, data.battleTarget, typeof data.avatar === 'string' ? data.avatar : '');
 
-        const videoUrl = data.video || giftDef.video;
-        if (videoUrl && typeof videoUrl === 'string' && (videoUrl.startsWith('http://') || videoUrl.startsWith('https://'))) {
+        const rawVideo = data.video || giftDef.video;
+        if (rawVideo && typeof rawVideo === 'string' && rawVideo.trim()) {
+          const videoUrl = (rawVideo.startsWith('http://') || rawVideo.startsWith('https://'))
+            ? rawVideo
+            : `${window.location.origin}${rawVideo.startsWith('/') ? rawVideo : `/${rawVideo}`}`;
           setGiftQueue(prev => [...prev, videoUrl]);
         }
       }

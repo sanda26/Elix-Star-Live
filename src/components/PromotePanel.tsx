@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { TrendingUp, Play, UserPlus, FileText, Heart, Info, X } from 'lucide-react';
+import { TrendingUp, Play, UserPlus, FileText, Heart } from 'lucide-react';
 import { showToast } from '../lib/toast';
 import { useAuthStore } from '../store/useAuthStore';
 import { isStripeAllowed } from '../lib/platform';
@@ -100,16 +100,16 @@ export default function PromotePanel({ isOpen, onClose, contentType, content }: 
   return (
     <div className="fixed inset-0 z-[100000] flex items-end justify-center bg-black/50" onClick={onClose}>
       <div
-        className="w-full max-w-[480px] bg-[#1C1E24]/95 backdrop-blur-md rounded-t-2xl h-[38vh] max-h-[320px] overflow-hidden flex flex-col border-t border-[#C9A96E]/20 shadow-2xl mb-[90px]"
+        className="w-full max-w-[480px] bg-[#1C1E24]/95 backdrop-blur-md rounded-t-2xl h-[38vh] max-h-[320px] overflow-hidden flex flex-col border-t border-[#C9A96E]/20 shadow-2xl animate-in slide-in-from-bottom"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header - compact */}
-        <div className="flex items-center justify-between px-3 py-2 border-b border-white/10 flex-shrink-0">
-          <button onClick={onClose} className="p-1 -ml-1" title="Close" aria-label="Close">
-            <X size={20} className="text-white/80" />
-          </button>
+        {/* Drag handle */}
+        <div className="flex justify-center pt-2 pb-1 flex-shrink-0">
+          <div className="w-10 h-1 bg-white/20 rounded-full" />
+        </div>
+        {/* Header */}
+        <div className="flex items-center justify-center px-3 py-1 border-b border-white/10 flex-shrink-0">
           <h2 className="text-white font-bold text-sm">Promote</h2>
-          <div className="w-6" />
         </div>
 
         <div className="flex-1 overflow-y-auto px-3 py-2 space-y-3 min-h-0 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:bg-[#C9A96E]/50 [&::-webkit-scrollbar-thumb]:rounded-full">

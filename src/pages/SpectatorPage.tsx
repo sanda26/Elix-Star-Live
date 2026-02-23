@@ -805,6 +805,7 @@ export default function SpectatorPage() {
       avatar: viewerAvatar,
       video: gift.video || null,
       transactionId: `${user?.id || 'anon'}-${Date.now()}`,
+      creator_name: hostName || 'Creator',
     });
 
     setLastSentGift(gift);

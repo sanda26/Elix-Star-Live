@@ -2583,6 +2583,7 @@ export default function LiveStream() {
         video: gift.video || null,
         transactionId: `${user?.id || 'anon'}-${Date.now()}`,
         battleTarget: isBattleMode ? giftTarget : undefined,
+        creator_name: hostName || 'Creator',
       });
 
       // Handle Combo Logic

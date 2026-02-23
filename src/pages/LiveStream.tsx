@@ -2401,6 +2401,8 @@ export default function LiveStream() {
   }, [isBroadcast, user?.id, effectiveStreamId, navigate]);
 
   const [giftQueue, setGiftQueue] = useState<string[]>([]);
+  const [giftBanner, setGiftBanner] = useState<{ username: string; giftName: string; icon: string } | null>(null);
+  const giftBannerTimer = useRef<NodeJS.Timeout | null>(null);
   const [isPlayingGift, setIsPlayingGift] = useState(false);
   const [lastSentGift, setLastSentGift] = useState<typeof GIFTS[0] | null>(null);
   const [userLevel, setUserLevel] = useState(1);

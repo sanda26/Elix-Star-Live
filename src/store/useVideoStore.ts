@@ -198,7 +198,12 @@ export const useVideoStore = create<VideoStore>()(
                 following: 0
               },
               description: v.description || v.caption || '',
-              hashtags: [],
+              hashtags: (() => {
+                if (v.hashtags && Array.isArray(v.hashtags) && v.hashtags.length > 0) return v.hashtags;
+                const text = v.description || v.caption || '';
+                const matches = text.match(/#[\w\u00C0-\u024F]+/g);
+                return matches ? matches.map((t: string) => t.slice(1)) : [];
+              })(),
               music: { id: 'original', title: 'Original Sound', artist: p.display_name || uname, duration: '0:15' },
               stats: { 
                 views: v.views || 0, 
@@ -208,7 +213,7 @@ export const useVideoStore = create<VideoStore>()(
                 saves: 0 
               },
               createdAt: v.created_at,
-              location: 'For You',
+              location: v.location || undefined,
               isLiked: likedSet.has(v.id),
               isSaved: savedSet.has(v.id),
               isFollowing: followedSet.has(v.user_id),
@@ -663,7 +668,7 @@ export const useVideoStore = create<VideoStore>()(
       }
     }),
     {
-      name: 'video-store-v3',
+      name: 'video-store-v4',
       partialize: (state) => ({
         likedVideos: state.likedVideos,
         savedVideos: state.savedVideos,

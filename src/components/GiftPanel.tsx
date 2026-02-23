@@ -64,46 +64,29 @@ export function GiftPanel({ onSelectGift, userCoins, onRechargeSuccess, onWeekly
   return (
     <div ref={panelRef} className="bg-[#1a1a1a]/95 rounded-t-2xl p-3 pb-safe max-h-[40dvh] overflow-y-auto no-scrollbar shadow-2xl w-full relative z-[99999]">
       {(onWeeklyRanking || onMembership) && (
-        <div className="mb-2 -mx-3 -mt-1 elix-marquee border-b border-white/5 py-1">
-          <div className="elix-marquee__inner flex items-center gap-3">
-            {onWeeklyRanking && (
-              <div
-                className="flex items-center gap-1 bg-[#13151A] rounded-full px-2.5 py-1 border border-[#C9A96E]/40 shadow-sm cursor-pointer flex-shrink-0 active:scale-95 transition-transform"
-                onClick={onWeeklyRanking}
-              >
-                <Trophy className="w-3 h-3 text-[#C9A96E]" />
-                <span className="text-[#C9A96E] text-[9px] font-bold whitespace-nowrap">Weekly Ranking &gt;</span>
-              </div>
-            )}
-            {onMembership && (
-              <div
-                className="flex items-center gap-1 bg-[#13151A] rounded-full px-2.5 py-1 border border-[#C9A96E]/40 shadow-sm cursor-pointer flex-shrink-0 active:scale-95 transition-transform"
-                onClick={onMembership}
-              >
-                <img src="/icons/Membership.png" alt="" className="w-3.5 h-3.5 object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-                <Heart className="w-3 h-3 text-[#C9A96E] fill-[#C9A96E]" />
-                <span className="text-[#C9A96E] text-[9px] font-bold whitespace-nowrap">Membership</span>
-              </div>
-            )}
-            {onWeeklyRanking && (
-              <div
-                className="flex items-center gap-1 bg-[#13151A] rounded-full px-2.5 py-1 border border-[#C9A96E]/40 shadow-sm cursor-pointer flex-shrink-0 active:scale-95 transition-transform"
-                onClick={onWeeklyRanking}
-              >
-                <Trophy className="w-3 h-3 text-[#C9A96E]" />
-                <span className="text-[#C9A96E] text-[9px] font-bold whitespace-nowrap">Weekly Ranking &gt;</span>
-              </div>
-            )}
-            {onMembership && (
-              <div
-                className="flex items-center gap-1 bg-[#13151A] rounded-full px-2.5 py-1 border border-[#C9A96E]/40 shadow-sm cursor-pointer flex-shrink-0 active:scale-95 transition-transform"
-                onClick={onMembership}
-              >
-                <img src="/icons/Membership.png" alt="" className="w-3.5 h-3.5 object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-                <Heart className="w-3 h-3 text-[#C9A96E] fill-[#C9A96E]" />
-                <span className="text-[#C9A96E] text-[9px] font-bold whitespace-nowrap">Membership</span>
-              </div>
-            )}
+        <div className="mb-1.5 -mx-3 -mt-1 w-[calc(100%+24px)] overflow-hidden border-b border-white/5" style={{ height: '10mm', maxHeight: '10mm' }}>
+          <div className="w-full h-full flex items-center overflow-x-auto no-scrollbar" style={{ scrollBehavior: 'smooth' }}>
+            <div className="flex items-center gap-2 px-3 flex-nowrap min-w-max">
+              {onWeeklyRanking && (
+                <div
+                  className="flex items-center gap-1 cursor-pointer flex-shrink-0 active:scale-95 transition-transform"
+                  onClick={onWeeklyRanking}
+                >
+                  <Trophy className="w-2.5 h-2.5 text-[#C9A96E] flex-shrink-0" />
+                  <span className="text-[#C9A96E] text-[8px] font-bold whitespace-nowrap">Weekly Ranking &gt;</span>
+                </div>
+              )}
+              {(onWeeklyRanking && onMembership) && <span className="text-white/10 text-[8px]">|</span>}
+              {onMembership && (
+                <div
+                  className="flex items-center gap-1 cursor-pointer flex-shrink-0 active:scale-95 transition-transform"
+                  onClick={onMembership}
+                >
+                  <Heart className="w-2.5 h-2.5 text-[#C9A96E] fill-[#C9A96E] flex-shrink-0" />
+                  <span className="text-[#C9A96E] text-[8px] font-bold whitespace-nowrap">Membership</span>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

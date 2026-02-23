@@ -70,11 +70,16 @@ export default function Upload() {
       following: 0
     },
     description: row.caption ?? '',
-    hashtags: [],
+    hashtags: (() => {
+      if (row.hashtags && Array.isArray(row.hashtags)) return row.hashtags;
+      const text = row.caption || '';
+      const matches = text.match(/#[\w\u00C0-\u024F]+/g);
+      return matches ? matches.map((t: string) => t.slice(1)) : [];
+    })(),
     music: { id: 'original', title: 'Original Sound', artist: profile?.display_name ?? 'User', duration: '0:15' },
     stats: { views: row.views ?? 0, likes: row.likes ?? 0, comments: 0, shares: 0, saves: 0 },
     createdAt: row.created_at,
-    location: 'For You',
+    location: row.location || undefined,
     isLiked: false,
     isSaved: false,
     isFollowing: false,
@@ -435,7 +440,7 @@ export default function Upload() {
         // Put new video directly at top of For You so it shows immediately (video already in DB = stays forever)
         const { data: row } = await supabase
           .from('videos')
-          .select('id, url, thumbnail_url, caption, created_at, views, likes, user_id')
+          .select('id, url, thumbnail_url, caption, created_at, views, likes, user_id, hashtags, location')
           .eq('id', videoId)
           .single();
         if (row) {

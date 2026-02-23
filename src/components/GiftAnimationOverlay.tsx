@@ -45,55 +45,35 @@ export default function GiftAnimationOverlay({ streamId: _streamId }: GiftAnimat
   }; 
 
   return ( 
-    <div className="fixed inset-0 pointer-events-none z-gift-animations"> 
-      {/* Gift Notifications (top-right) */} 
-      <div className="absolute top-20 right-4 space-y-2"> 
-        {activeGifts.slice(-3).map(gift => ( 
-          <div 
-            key={gift.id} 
-            className="animate-slide-in-right bg-gradient-to-r from-[#E6B36A]/90 to-[#B8935C]/90 rounded-2xl px-4 py-3 shadow-2xl flex items-center gap-3 min-w-[200px]" 
-          > 
-            <div className="w-10 h-10 flex-shrink-0 animate-bounce">
-              {gift.giftIcon && (gift.giftIcon.startsWith('http') || gift.giftIcon.startsWith('/')) ? (
-                <img src={gift.giftIcon} alt="" className="w-full h-full object-contain" />
-              ) : (
-                <span className="text-4xl">{gift.giftIcon || '🎁'}</span>
-              )}
-            </div>
-            <div className="flex-1 min-w-0"> 
-              <p className="text-sm font-bold text-white truncate">{gift.username}</p> 
-              <p className="text-xs text-white/90 uppercase font-extrabold tracking-wide truncate"> 
-                SENT {gift.giftName} <span className="text-white font-black">x{gift.quantity}</span>
-              </p> 
+    <div className="fixed inset-0 pointer-events-none z-gift-animations flex justify-center"> 
+      <div className="w-full max-w-[480px] relative">
+        {/* Gift banner — thin bar, full width, just below creator header, above Weekly Ranking */}
+        <div className="absolute left-0 right-0 space-y-[2px] px-1" style={{ top: 'calc(env(safe-area-inset-top, 0px) + 68px)' }}>
+          {activeGifts.slice(-3).map(gift => ( 
+            <div 
+              key={gift.id} 
+              className="animate-slide-in-right w-full bg-black/50 backdrop-blur-sm rounded-full flex items-center gap-1 overflow-hidden px-2" 
+              style={{ height: '7mm', maxHeight: '7mm' }}
+            > 
+              <div className="w-4 h-4 flex-shrink-0">
+                {gift.giftIcon && (gift.giftIcon.startsWith('http') || gift.giftIcon.startsWith('/')) ? (
+                  <img src={gift.giftIcon} alt="" className="w-full h-full object-contain" />
+                ) : (
+                  <span className="text-xs">{gift.giftIcon || '🎁'}</span>
+                )}
+              </div>
+              <div className="flex-1 min-w-0 overflow-x-auto no-scrollbar"> 
+                <p className="text-[8px] font-bold text-white whitespace-nowrap leading-none">
+                  <span className="text-[#C9A96E]">{gift.username}</span>
+                  {' '}sent{' '}
+                  <span className="text-[#C9A96E]">{gift.giftName}</span>
+                  {gift.quantity > 1 && <span className="text-white"> x{gift.quantity}</span>}
+                </p> 
+              </div> 
             </div> 
-            <Sparkles className="w-5 h-5 text-white animate-spin" /> 
-          </div> 
-        ))} 
-      </div> 
-
-      {/* Full-Screen Gift Animation (for large gifts) */} 
-      {activeGifts.filter(g => g.quantity >= 100).slice(-1).map(gift => ( 
-        <div 
-          key={`fullscreen-${gift.id}`} 
-          className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-[#E6B36A]/20 to-[#B8935C]/20 animate-fade-in-out" 
-        > 
-          <div className="text-center"> 
-            <div className="w-40 h-40 mx-auto mb-4 animate-bounce">
-              {gift.giftIcon && (gift.giftIcon.startsWith('http') || gift.giftIcon.startsWith('/')) ? (
-                <img src={gift.giftIcon} alt="" className="w-full h-full object-contain" />
-              ) : (
-                <span className="text-9xl">{gift.giftIcon || '🎁'}</span>
-              )}
-            </div> 
-            <div className="bg-black rounded-2xl px-8 py-6"> 
-              <p className="text-3xl font-bold text-[#E6B36A] mb-2">{gift.username}</p> 
-              <p className="text-xl text-white"> 
-                sent {gift.giftName} x{gift.quantity} 
-              </p> 
-            </div> 
-          </div> 
-        </div> 
-      ))} 
+          ))} 
+        </div>
+      </div>
     </div> 
   ); 
 }

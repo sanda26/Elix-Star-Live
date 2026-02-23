@@ -1,5 +1,10 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Eye } from 'lucide-react';
+import { useAuthStore } from '../store/useAuthStore';
+import { useLiveWebRTC } from '../hooks/useLiveWebRTC';
+import { websocket } from '../lib/websocket';
+import { supabase } from '../lib/supabase';
 
 interface LivePreviewCardProps {
   streamKey: string;
@@ -16,8 +21,58 @@ export default function LivePreviewCard({
   avatar,
   viewers,
   title,
+  isActive,
 }: LivePreviewCardProps) {
   const navigate = useNavigate();
+  const user = useAuthStore((s) => s.user);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [hasStream, setHasStream] = useState(false);
+  const [wsConnected, setWsConnected] = useState(false);
+
+  useEffect(() => {
+    if (!isActive || !streamKey || !user?.id) return;
+    let cancelled = false;
+
+    (async () => {
+      const { data } = await supabase.auth.getSession();
+      const token = data?.session?.access_token || '';
+      if (cancelled) return;
+      websocket.connect(streamKey, token);
+      setWsConnected(true);
+    })();
+
+    return () => {
+      cancelled = true;
+      setWsConnected(false);
+      websocket.disconnect();
+    };
+  }, [isActive, streamKey, user?.id]);
+
+  const { remotePeers } = useLiveWebRTC({
+    roomId: streamKey,
+    localUserId: user?.id || '',
+    localStream: null,
+    enabled: isActive && wsConnected && !!streamKey && !!user?.id,
+  });
+
+  useEffect(() => {
+    if (remotePeers.length === 0) return;
+    const broadcasterPeer = remotePeers[0];
+    if (videoRef.current && broadcasterPeer.stream) {
+      if (videoRef.current.srcObject !== broadcasterPeer.stream) {
+        videoRef.current.srcObject = broadcasterPeer.stream;
+        videoRef.current.play().catch(() => {});
+        setHasStream(true);
+      }
+    }
+  }, [remotePeers]);
+
+  useEffect(() => {
+    if (!isActive && videoRef.current) {
+      videoRef.current.srcObject = null;
+      setHasStream(false);
+    }
+  }, [isActive]);
 
   const handleTap = () => {
     navigate(`/watch/${streamKey}`);
@@ -30,70 +85,77 @@ export default function LivePreviewCard({
       className="w-full h-full relative bg-black overflow-hidden"
       title="Tap to join live"
     >
-      {/* Full-screen background with creator avatar */}
-      <div className="absolute inset-0 flex items-center justify-center">
-        {avatar ? (
-          <img
-            src={avatar}
-            alt=""
-            className="w-full h-full object-cover blur-2xl scale-110 opacity-40"
-          />
-        ) : (
-          <div className="w-full h-full bg-gradient-to-b from-[#1a1a2e] to-[#0a0b0e]" />
-        )}
-      </div>
+      {/* Live video stream */}
+      <video
+        ref={videoRef}
+        className={`absolute inset-0 w-full h-full object-cover z-[1] ${hasStream ? 'opacity-100' : 'opacity-0'}`}
+        playsInline
+        autoPlay
+        muted
+      />
 
-      {/* Center: Creator avatar + LIVE pulse */}
-      <div className="absolute inset-0 flex flex-col items-center justify-center z-10 gap-5">
-        <div className="relative">
-          <div className="absolute -inset-3 rounded-full border-2 border-red-500/40 animate-ping" style={{ animationDuration: '2s' }} />
-          <div className="absolute -inset-1.5 rounded-full border border-red-500/60 animate-pulse" />
-          <div className="w-28 h-28 rounded-full border-[3px] border-red-500 overflow-hidden shadow-[0_0_40px_rgba(239,68,68,0.4)] relative z-10 bg-[#1a1a2e]">
-            {avatar ? (
-              <img src={avatar} alt="" className="w-full h-full object-cover" />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center">
-                <span className="text-[#C9A96E] font-bold text-4xl">{name.slice(0, 1).toUpperCase()}</span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="flex flex-col items-center gap-2">
-          <p className="text-white font-bold text-lg drop-shadow-lg">{name}</p>
-          {title && (
-            <p className="text-white/70 text-sm max-w-[250px] text-center line-clamp-2 drop-shadow-md">{title}</p>
+      {/* Fallback: blurred avatar background (shown while connecting) */}
+      {!hasStream && (
+        <div className="absolute inset-0 flex items-center justify-center">
+          {avatar ? (
+            <img
+              src={avatar}
+              alt=""
+              className="w-full h-full object-cover blur-2xl scale-110 opacity-40"
+            />
+          ) : (
+            <div className="w-full h-full bg-gradient-to-b from-[#1a1a2e] to-[#0a0b0e]" />
           )}
-        </div>
-
-        {/* Tap to watch label */}
-        <div className="mt-2 px-6 py-2.5 rounded-full bg-red-500/90 shadow-[0_0_20px_rgba(239,68,68,0.4)]">
-          <span className="text-white text-sm font-bold tracking-wide">Tap to watch LIVE</span>
-        </div>
-      </div>
-
-      {/* Bottom gradient */}
-      <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-black/80 via-black/40 to-transparent z-[2] pointer-events-none" />
-
-      {/* Bottom info bar */}
-      <div className="absolute bottom-16 left-0 right-0 z-[5] px-4">
-        <div className="flex items-center gap-2 mb-2">
-          <div className="flex items-center gap-1 px-2.5 py-1 rounded bg-red-500/90">
-            <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-            <span className="text-white text-[11px] font-bold">LIVE</span>
-          </div>
-          {viewers > 0 && (
-            <div className="px-2.5 py-1 rounded bg-white/15 backdrop-blur-sm">
-              <span className="text-white text-[11px] font-semibold">
-                {viewers >= 1000 ? (viewers / 1000).toFixed(1) + 'K' : viewers} watching
-              </span>
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+            <div className="w-20 h-20 rounded-full border-[3px] border-red-500 overflow-hidden shadow-[0_0_30px_rgba(239,68,68,0.3)] bg-[#1a1a2e]">
+              {avatar ? (
+                <img src={avatar} alt="" className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  <span className="text-[#C9A96E] font-bold text-2xl">{name.slice(0, 1).toUpperCase()}</span>
+                </div>
+              )}
             </div>
+            <div className="w-5 h-5 border-2 border-white/40 border-t-transparent rounded-full animate-spin" />
+          </div>
+        </div>
+      )}
+
+      {/* LIVE badge + viewers — always visible */}
+      <div className="absolute top-[calc(env(safe-area-inset-top,0px)+50px)] left-3 z-[10] flex items-center gap-1.5">
+        <div className="flex items-center gap-1 px-2 py-0.5 rounded bg-red-500/90">
+          <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+          <span className="text-white text-[10px] font-bold">LIVE</span>
+        </div>
+        {viewers > 0 && (
+          <div className="flex items-center gap-1 px-2 py-0.5 rounded bg-black/50 backdrop-blur-sm">
+            <Eye size={10} className="text-white/70" />
+            <span className="text-white text-[10px] font-semibold">
+              {viewers >= 1000 ? (viewers / 1000).toFixed(1) + 'K' : viewers}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Bottom info */}
+      <div className="absolute bottom-0 left-0 right-0 z-[5] pointer-events-none">
+        <div className="bg-gradient-to-t from-black/80 via-black/40 to-transparent pt-20 pb-20 px-4">
+          <div className="flex items-center gap-2 mb-1">
+            <div className="w-8 h-8 rounded-full border border-white/30 overflow-hidden bg-[#1a1a2e] flex-shrink-0">
+              {avatar ? (
+                <img src={avatar} alt="" className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  <span className="text-[#C9A96E] font-bold text-xs">{name.slice(0, 1).toUpperCase()}</span>
+                </div>
+              )}
+            </div>
+            <span className="text-white font-bold text-sm drop-shadow-lg">{name}</span>
+          </div>
+          {title && (
+            <p className="text-white/80 text-xs mt-0.5 drop-shadow-md line-clamp-2 ml-10">{title}</p>
           )}
         </div>
-        <p className="text-white font-bold text-[15px] drop-shadow-lg">{name}</p>
-        {title && (
-          <p className="text-white/80 text-[13px] mt-0.5 drop-shadow-md line-clamp-2">{title}</p>
-        )}
       </div>
     </button>
   );

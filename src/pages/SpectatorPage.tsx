@@ -134,6 +134,11 @@ export default function SpectatorPage() {
   const [myHeartCount, setMyHeartCount] = useState(0);
 
   // ═══════════════════════════════════════════════════
+  // BATTLE STATE (spectator sees host's battle status)
+  // ═══════════════════════════════════════════════════
+  const [spectatorBattle, setSpectatorBattle] = useState<{ active: boolean; hostScore: number; opponentScore: number; timeLeft: number; opponentName?: string; winner?: string } | null>(null);
+
+  // ═══════════════════════════════════════════════════
   // CO-HOST STATE
   // ═══════════════════════════════════════════════════
   const [isCoHosting, setIsCoHosting] = useState(false);
@@ -397,8 +402,6 @@ export default function SpectatorPage() {
   useEffect(() => {
     if (!effectiveStreamId) return;
 
-    supabase.rpc('increment_viewer_count', { p_stream_key: effectiveStreamId }).then(() => {});
-
     const chan = supabase
       .channel(`spectator_viewers_${effectiveStreamId}`)
       .on('postgres_changes', {
@@ -417,7 +420,6 @@ export default function SpectatorPage() {
 
     return () => {
       supabase.removeChannel(chan);
-      supabase.rpc('decrement_viewer_count', { p_stream_key: effectiveStreamId }).then(() => {});
     };
   }, [effectiveStreamId, navigate]);
 
@@ -534,12 +536,61 @@ export default function SpectatorPage() {
       setTimeout(() => navigate('/feed', { replace: true }), 2000);
     };
 
+    const handleBattleStateSync = (data: any) => {
+      if (!mounted) return;
+      if (data.status === 'active' || data.status === 'IN_BATTLE') {
+        setSpectatorBattle(prev => ({
+          active: true,
+          hostScore: prev?.hostScore || 0,
+          opponentScore: prev?.opponentScore || 0,
+          timeLeft: prev?.timeLeft || 300,
+          opponentName: data.opponentName || data.opponent_name || prev?.opponentName,
+        }));
+      }
+    };
+
+    const handleBattleTick = (data: any) => {
+      if (!mounted) return;
+      setSpectatorBattle(prev => prev ? {
+        ...prev,
+        active: true,
+        timeLeft: data.timeLeft ?? prev.timeLeft,
+        hostScore: data.hostScore ?? prev.hostScore,
+        opponentScore: data.opponentScore ?? prev.opponentScore,
+      } : null);
+    };
+
+    const handleBattleScore = (data: any) => {
+      if (!mounted) return;
+      setSpectatorBattle(prev => prev ? {
+        ...prev,
+        hostScore: data.hostScore ?? prev.hostScore,
+        opponentScore: data.opponentScore ?? prev.opponentScore,
+      } : null);
+    };
+
+    const handleBattleEnded = (data: any) => {
+      if (!mounted) return;
+      setSpectatorBattle(prev => prev ? {
+        ...prev,
+        active: false,
+        hostScore: data.hostScore ?? prev.hostScore,
+        opponentScore: data.opponentScore ?? prev.opponentScore,
+        winner: data.winner || (data.hostScore > data.opponentScore ? 'host' : data.hostScore < data.opponentScore ? 'opponent' : 'draw'),
+      } : null);
+      setTimeout(() => setSpectatorBattle(null), 5000);
+    };
+
     websocket.on('room_state', handleRoomState);
     websocket.on('user_joined', handleUserJoined);
     websocket.on('user_left', handleUserLeft);
     websocket.on('chat_message', handleChatMessage);
     websocket.on('gift_sent', handleGiftSent);
     websocket.on('stream_ended', handleStreamEnded);
+    websocket.on('battle_state_sync', handleBattleStateSync);
+    websocket.on('battle_tick', handleBattleTick);
+    websocket.on('battle_score', handleBattleScore);
+    websocket.on('battle_ended', handleBattleEnded);
 
     connect();
 
@@ -579,6 +630,10 @@ export default function SpectatorPage() {
       websocket.off('chat_message', handleChatMessage);
       websocket.off('gift_sent', handleGiftSent);
       websocket.off('stream_ended', handleStreamEnded);
+      websocket.off('battle_state_sync', handleBattleStateSync);
+      websocket.off('battle_tick', handleBattleTick);
+      websocket.off('battle_score', handleBattleScore);
+      websocket.off('battle_ended', handleBattleEnded);
       websocket.disconnect();
     };
   }, [effectiveStreamId, user?.id, hostUserId]);
@@ -956,7 +1011,6 @@ export default function SpectatorPage() {
                   type="button"
                   title="Leave stream"
                   onClick={() => {
-                    supabase.rpc('decrement_viewer_count', { p_stream_key: effectiveStreamId }).then(() => {});
                     websocket.disconnect();
                     if (coHostStream) { coHostStream.getTracks().forEach(t => t.stop()); setCoHostStream(null); }
                     navigate('/feed', { replace: true });
@@ -970,21 +1024,23 @@ export default function SpectatorPage() {
           </div>
         </div>
 
-        {/* CREATOR'S CHAT — spectator sees stream chat (read-only) */}
-        <div className="flex-1 relative z-[120] pointer-events-none">
-          <div className="absolute bottom-0 left-0 right-0 max-h-[40vh] pointer-events-none px-3 pb-2">
+        {/* CHAT — behind buttons, behind gift overlay, same as creator page */}
+        <div className="chat-zone fixed left-0 right-0 bottom-[calc(50px+max(12px,env(safe-area-inset-bottom)))] z-[5] flex justify-center pointer-events-none">
+          <div className="w-full max-w-[480px] h-[25dvh] max-h-[25dvh] overflow-y-auto pointer-events-auto bg-transparent">
             <ChatOverlay
               messages={messages}
-              variant="overlay"
+              variant="panel"
               compact
-              isModerator={false}
+              isModerator={isModerator}
+              onLike={() => {}}
+              onProfileTap={() => {}}
             />
           </div>
         </div>
 
         {/* COMBO BUTTON — above bottom buttons */}
         {showComboButton && lastSentGift && (
-          <div className="flex-none pointer-events-auto flex justify-end px-3 pb-1 relative z-[120]">
+          <div className="fixed bottom-[calc(55px+max(12px,env(safe-area-inset-bottom)))] right-3 z-[121] pointer-events-auto max-w-[480px]">
             <button
               type="button"
               onClick={handleComboClick}
@@ -996,11 +1052,12 @@ export default function SpectatorPage() {
           </div>
         )}
 
-        {/* BOTTOM — chat input + buttons */}
-        <div className="flex-none pointer-events-auto bg-transparent px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-2 min-h-[50px] relative z-[120] flex items-center gap-2">
-          {/* Inline chat input box */}
+        {/* BOTTOM BAR — buttons in front of video, same as creator */}
+        <div className="fixed bottom-0 left-0 right-0 z-[120] pointer-events-auto flex justify-center">
+          <div className="w-full max-w-[480px] px-3 pb-[max(8px,env(safe-area-inset-bottom))] pt-2 bg-transparent">
+          <div className="flex items-center gap-2">
           <form
-            className="flex-1 flex items-center gap-2 bg-[#13151A]/80 backdrop-blur-md rounded-full px-3 py-2 border border-white/10 h-10 min-w-0"
+            className="flex-1 flex items-center gap-2 bg-black/40 backdrop-blur-sm rounded-full px-3 py-2 border border-white/10 h-10 min-w-0"
             onSubmit={(e) => { handleSendMessage(e); }}
           >
             <input
@@ -1044,15 +1101,41 @@ export default function SpectatorPage() {
               <MoreVertical size={20} className="text-[#C9A96E] relative z-[2]" />
               <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-125 translate-y-0.5" />
             </button>
+          </div>
+          </div>
         </div>
-
-        {/* Chat input is now inline in the bottom bar */}
 
         {/* GIFT ANIMATION OVERLAY */}
         <GiftAnimationOverlay streamId={effectiveStreamId} />
 
         {/* GIFT VIDEO OVERLAY */}
-        <GiftOverlay videoSrc={currentGift} onEnded={handleGiftEnded} isBattleMode={false} />
+        <GiftOverlay videoSrc={currentGift} onEnded={handleGiftEnded} isBattleMode={!!spectatorBattle?.active} />
+
+        {/* BATTLE STATUS BAR — full-width thin banner for spectators */}
+        {spectatorBattle && (
+          <div className="absolute top-[calc(env(safe-area-inset-top,0px)+48px)] left-0 right-0 z-[50] pointer-events-none">
+            <div className="w-full h-6 flex items-center justify-between px-3 bg-gradient-to-r from-red-900/70 via-[#13151A]/80 to-blue-900/70 backdrop-blur-sm border-b border-white/5">
+              <div className="flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                <span className="text-red-400 text-[9px] font-bold uppercase tracking-wider">Battle</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[#C9A96E] text-[11px] font-black">{spectatorBattle.hostScore}</span>
+                <span className="text-white/30 text-[9px]">—</span>
+                <span className="text-blue-400 text-[11px] font-black">{spectatorBattle.opponentScore}</span>
+              </div>
+              {spectatorBattle.active && spectatorBattle.timeLeft > 0 ? (
+                <span className="text-white/50 text-[9px] font-bold tabular-nums">
+                  {Math.floor(spectatorBattle.timeLeft / 60)}:{(spectatorBattle.timeLeft % 60).toString().padStart(2, '0')}
+                </span>
+              ) : spectatorBattle.winner ? (
+                <span className="text-[#C9A96E] text-[9px] font-bold">
+                  {spectatorBattle.winner === 'host' ? 'Host wins!' : spectatorBattle.winner === 'draw' ? 'Draw!' : 'Opponent wins!'}
+                </span>
+              ) : <span />}
+            </div>
+          </div>
+        )}
 
         {/* GIFT PANEL — anchored to bottom, above all buttons */}
         {showGiftPanel && (

@@ -349,8 +349,6 @@ export default function LiveStream() {
           .then(() => {});
       };
     } else {
-      supabase.rpc('increment_viewer_count', { p_stream_key: key }).then(() => {});
-
       supabase
         .from('live_streams')
         .select('viewer_count, user_id, title')
@@ -377,7 +375,6 @@ export default function LiveStream() {
 
       return () => {
         supabase.removeChannel(channel);
-        supabase.rpc('decrement_viewer_count', { p_stream_key: key }).then(() => {});
       };
     }
   }, [effectiveStreamId, isBroadcast, user?.id]);

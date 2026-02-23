@@ -68,19 +68,19 @@ export default function GiftAnimationOverlay({ streamId: _streamId }: GiftAnimat
   return (
     <div className="fixed inset-0 pointer-events-none z-gift-animations flex justify-center">
       <div className="w-full max-w-[480px] relative">
-        {/* Single gift banner — one line only; multiple sends merge into quantity (e.g. x20) */}
-        <div className="absolute left-0 right-0 px-1" style={{ top: 'calc(env(safe-area-inset-top, 0px) + 68px - 8mm)' }}>
+        {/* Single gift banner — 30mm from top only; smaller bar; width/bottom unchanged */}
+        <div className="absolute left-0 right-0 px-1" style={{ top: '30mm' }}>
           {currentGift && (
-            <div className="animate-slide-in-right w-full rounded-full flex items-center gap-2 overflow-hidden px-3 bg-red-600" style={{ paddingTop: 'calc(0.375rem - 1mm)', paddingBottom: 'calc(0.375rem - 1mm)' }}>
-              <div className="w-6 h-6 flex-shrink-0">
+            <div className="animate-slide-in-right w-full rounded-full flex items-center gap-1.5 overflow-hidden px-2 py-0.5 bg-red-600">
+              <div className="w-4 h-4 flex-shrink-0">
                 {currentGift.giftIcon && (currentGift.giftIcon.startsWith('http') || currentGift.giftIcon.startsWith('/')) ? (
                   <img src={currentGift.giftIcon} alt="" className="w-full h-full object-contain" />
                 ) : (
-                  <span className="text-base">{currentGift.giftIcon || '🎁'}</span>
+                  <span className="text-xs">{currentGift.giftIcon || '🎁'}</span>
                 )}
               </div>
               <div className="flex-1 min-w-0 overflow-x-auto no-scrollbar">
-                <p className="text-sm font-bold text-black whitespace-nowrap leading-tight">
+                <p className="text-xs font-bold text-black whitespace-nowrap leading-tight">
                   {currentGift.username} send {currentGift.giftName} to {currentGift.creatorName}
                   {currentGift.quantity > 1 && <span> x{currentGift.quantity}</span>}
                 </p>

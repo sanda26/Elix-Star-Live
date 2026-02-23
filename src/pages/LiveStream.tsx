@@ -3161,7 +3161,7 @@ export default function LiveStream() {
                     {/* Fan Club Removed */}
                   </div>
 
-                  {/* Score Bar on top - Red vs Blue (scores only; no VS/timer inside bar) */}
+                  {/* Score Bar — like reference: red | blue bar, center = VS (blue shield) + timer (dark box) */}
                   <button
                     type="button"
                     onClick={(e) => { 
@@ -3172,25 +3172,25 @@ export default function LiveStream() {
                         spawnHeartFromClient(e.clientX, e.clientY);
                       }
                     }}
-                    className="relative z-20 w-full h-4 overflow-hidden shadow-2xl pointer-events-auto flex-none cursor-pointer active:scale-[0.99] transition-transform"
+                    className="relative z-20 w-full h-6 overflow-hidden shadow-2xl pointer-events-auto flex-none cursor-pointer active:scale-[0.99] transition-transform"
                   >
                     <div className="absolute inset-0 flex">
                       <div className="h-full transition-all duration-500 ease-out" style={{ width: `${leftPct}%`, backgroundImage: 'linear-gradient(90deg, #DC143C, #FF1744, #C41E3A)' }} />
                       <div className="h-full flex-1 transition-all duration-500 ease-out" style={{ backgroundImage: 'linear-gradient(90deg, #1E90FF, #4169E1, #0047AB)' }} />
                     </div>
                     <div className="relative z-10 h-full flex items-center justify-between px-3">
-                      <div className="text-white font-black text-base tabular-nums drop-shadow-md">{(typeof redTeamScore === 'number' && Number.isFinite(redTeamScore) ? redTeamScore : 0).toLocaleString()}</div>
-                      <div className="text-white font-black text-base tabular-nums drop-shadow-md">{(typeof blueTeamScore === 'number' && Number.isFinite(blueTeamScore) ? blueTeamScore : 0).toLocaleString()}</div>
+                      <div className="text-white font-black text-sm tabular-nums drop-shadow-md">{(typeof redTeamScore === 'number' && Number.isFinite(redTeamScore) ? redTeamScore : 0).toLocaleString()}</div>
+                      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-2">
+                        <div className="px-2 py-0.5 rounded-md bg-blue-600/90 border border-white/80 shadow-md flex items-center justify-center">
+                          <span className="text-white text-xs font-black italic drop-shadow-md">VS</span>
+                        </div>
+                        <div className="px-2.5 py-1 rounded-md bg-gray-900 border border-white/90 shadow-md min-w-[3.5rem] flex items-center justify-center">
+                          <span className="text-white text-sm font-black tabular-nums">{formatTime(battleTime)}</span>
+                        </div>
+                      </div>
+                      <div className="text-white font-black text-sm tabular-nums drop-shadow-md">{(typeof blueTeamScore === 'number' && Number.isFinite(blueTeamScore) ? blueTeamScore : 0).toLocaleString()}</div>
                     </div>
                   </button>
-
-                  {/* VS + Timer directly below bar, centered, overlapping video (like reference) */}
-                  <div className="absolute left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 pointer-events-none" style={{ top: 'calc(1rem + 2px)' }}>
-                    <span className="text-white text-lg font-black italic drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">VS</span>
-                    <div className="px-3 py-1.5 rounded bg-[#13151A]/95 border border-white/80 shadow-md">
-                      <span className="text-white text-xl font-black tabular-nums">{formatTime(battleTime)}</span>
-                    </div>
-                  </div>
 
                   {/* Spectator Tap Indicator: 1 tap = 5 pts, then done */}
                   {!isBroadcast && battleTime > 0 && !battleWinner && (

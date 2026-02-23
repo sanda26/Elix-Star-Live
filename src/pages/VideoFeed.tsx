@@ -11,6 +11,7 @@ type LiveStreamCard = {
   avatar?: string;
   viewers: number;
   title?: string;
+  thumbnail?: string;
 };
 
 type FeedItem =
@@ -62,9 +63,10 @@ export default function VideoFeed() {
           return {
             streamKey: s.stream_key || s.id,
             name: p?.display_name || p?.username || s.title || 'Creator',
-            avatar: p?.avatar_url || s.thumbnail_url,
+            avatar: p?.avatar_url || '',
             viewers: s.viewer_count || 0,
             title: s.title || undefined,
+            thumbnail: s.thumbnail_url || '',
           };
         }));
     } catch {
@@ -201,6 +203,7 @@ export default function VideoFeed() {
                   avatar={item.stream.avatar}
                   viewers={item.stream.viewers}
                   title={item.stream.title}
+                  thumbnail={item.stream.thumbnail}
                   isActive={activeIndex === index}
                 />
               </div>

@@ -2392,11 +2392,30 @@ export default function LiveStream() {
     };
 
     moderationIntervalRef.current = setInterval(runCheck, 30000);
+
+    // Save thumbnail snapshot every 10s so ForYou page shows live preview instantly
+    const saveThumbnail = async () => {
+      const base64 = captureFrame();
+      if (!base64) return;
+      try {
+        const blob = await fetch(`data:image/jpeg;base64,${base64}`).then(r => r.blob());
+        const path = `live-thumbnails/${effectiveStreamId}.jpg`;
+        await supabase.storage.from('user-content').upload(path, blob, { upsert: true, contentType: 'image/jpeg' });
+        const { data: urlData } = supabase.storage.from('user-content').getPublicUrl(path);
+        if (urlData?.publicUrl) {
+          await supabase.from('live_streams').update({ thumbnail_url: `${urlData.publicUrl}?t=${Date.now()}` }).eq('stream_key', effectiveStreamId);
+        }
+      } catch { /* ignore */ }
+    };
+    saveThumbnail();
+    const thumbInterval = setInterval(saveThumbnail, 10000);
+
     return () => {
       if (moderationIntervalRef.current) {
         clearInterval(moderationIntervalRef.current);
         moderationIntervalRef.current = null;
       }
+      clearInterval(thumbInterval);
     };
   }, [isBroadcast, user?.id, effectiveStreamId, navigate]);
 

@@ -41,6 +41,7 @@ import PromotePanel from '../components/PromotePanel';
 import { RankingPanel } from '../components/RankingPanel';
 import { websocket } from '../lib/websocket';
 import { useLiveWebRTC } from '../hooks/useLiveWebRTC';
+import { IS_STORE_BUILD } from '../config/build';
 
 type LiveMessage = {
   id: string;
@@ -1368,6 +1369,7 @@ export default function SpectatorPage() {
                   <div className="w-10 h-1 bg-white/20 rounded-full" />
                 </div>
                 <div className="flex flex-col gap-1">
+                  {!IS_STORE_BUILD && (
                   <button
                     type="button"
                     onClick={() => {
@@ -1382,6 +1384,7 @@ export default function SpectatorPage() {
                     <Coins size={18} className="text-[#C9A96E]" />
                     <span className="text-white text-sm font-medium">Test</span>
                   </button>
+                  )}
                   <button
                     onClick={() => { setIsReportModalOpen(true); setIsMoreMenuOpen(false); }}
                     className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 transition-colors w-full"
@@ -1409,8 +1412,8 @@ export default function SpectatorPage() {
           </>
         )}
 
-        {/* TEST COINS MODAL */}
-        {showTestCoinsModal && (
+        {/* TEST COINS MODAL — hidden in store build */}
+        {!IS_STORE_BUILD && showTestCoinsModal && (
           <>
             <div
               className="fixed inset-0 bg-black/60 pointer-events-auto"

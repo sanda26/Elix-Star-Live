@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { websocket } from '../lib/websocket';
 
 interface GiftAnimation {
@@ -15,61 +15,78 @@ interface GiftAnimationOverlayProps {
   streamId: string;
 }
 
+const MERGE_WINDOW_MS = 2000;
+const DISPLAY_DURATION_MS = 4000;
+
 export default function GiftAnimationOverlay({ streamId: _streamId }: GiftAnimationOverlayProps) {
-  const [activeGifts, setActiveGifts] = useState<GiftAnimation[]>([]);
+  const [currentGift, setCurrentGift] = useState<GiftAnimation | null>(null);
+  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     websocket.on('gift_sent', handleGiftSent);
 
     return () => {
       websocket.off('gift_sent', handleGiftSent);
+      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
     };
   }, []);
 
+  const scheduleHide = () => {
+    if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    hideTimerRef.current = setTimeout(() => {
+      hideTimerRef.current = null;
+      setCurrentGift(null);
+    }, DISPLAY_DURATION_MS);
+  };
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleGiftSent = (data: any) => {
-    const animation: GiftAnimation = {
-      id: Date.now().toString() + Math.random(),
-      username: data.username ?? 'Someone',
-      giftIcon: data.gift_icon,
-      giftName: data.giftName ?? data.gift_name ?? 'Gift',
-      creatorName: data.creator_name ?? 'Creator',
-      quantity: data.quantity ?? 1,
-      timestamp: Date.now(),
-    };
+    const username = data.username ?? 'Someone';
+    const giftName = data.giftName ?? data.gift_name ?? 'Gift';
+    const quantity = data.quantity ?? 1;
+    const now = Date.now();
 
-    setActiveGifts(prev => [...prev, animation]);
-
-    setTimeout(() => {
-      setActiveGifts(prev => prev.filter(g => g.id !== animation.id));
-    }, 4000);
+    setCurrentGift(prev => {
+      const sameSenderSameGift = prev && prev.username === username && prev.giftName === giftName && now - prev.timestamp < MERGE_WINDOW_MS;
+      if (sameSenderSameGift) {
+        scheduleHide();
+        return { ...prev, quantity: prev.quantity + quantity, timestamp: now };
+      }
+      scheduleHide();
+      return {
+        id: now.toString() + Math.random(),
+        username,
+        giftIcon: data.gift_icon,
+        giftName,
+        creatorName: data.creator_name ?? 'Creator',
+        quantity,
+        timestamp: now,
+      };
+    });
   };
 
   return (
     <div className="fixed inset-0 pointer-events-none z-gift-animations flex justify-center">
       <div className="w-full max-w-[480px] relative">
-        {/* Gift banner — red bg, black text: "Sender sent GiftName to Creator", gift icon unchanged */}
-        <div className="absolute left-0 right-0 space-y-[2px] px-1" style={{ top: 'calc(env(safe-area-inset-top, 0px) + 68px)' }}>
-          {activeGifts.slice(-3).map(gift => (
-            <div
-              key={gift.id}
-              className="animate-slide-in-right w-full rounded-full flex items-center gap-2 overflow-hidden px-3 py-1.5 bg-red-600"
-            >
+        {/* Single gift banner — one line only; multiple sends merge into quantity (e.g. x20) */}
+        <div className="absolute left-0 right-0 px-1" style={{ top: 'calc(env(safe-area-inset-top, 0px) + 68px - 8mm)' }}>
+          {currentGift && (
+            <div className="animate-slide-in-right w-full rounded-full flex items-center gap-2 overflow-hidden px-3 bg-red-600" style={{ paddingTop: 'calc(0.375rem - 1mm)', paddingBottom: 'calc(0.375rem - 1mm)' }}>
               <div className="w-6 h-6 flex-shrink-0">
-                {gift.giftIcon && (gift.giftIcon.startsWith('http') || gift.giftIcon.startsWith('/')) ? (
-                  <img src={gift.giftIcon} alt="" className="w-full h-full object-contain" />
+                {currentGift.giftIcon && (currentGift.giftIcon.startsWith('http') || currentGift.giftIcon.startsWith('/')) ? (
+                  <img src={currentGift.giftIcon} alt="" className="w-full h-full object-contain" />
                 ) : (
-                  <span className="text-base">{gift.giftIcon || '🎁'}</span>
+                  <span className="text-base">{currentGift.giftIcon || '🎁'}</span>
                 )}
               </div>
               <div className="flex-1 min-w-0 overflow-x-auto no-scrollbar">
                 <p className="text-sm font-bold text-black whitespace-nowrap leading-tight">
-                  {gift.username} send {gift.giftName} to {gift.creatorName}
-                  {gift.quantity > 1 && <span> x{gift.quantity}</span>}
+                  {currentGift.username} send {currentGift.giftName} to {currentGift.creatorName}
+                  {currentGift.quantity > 1 && <span> x{currentGift.quantity}</span>}
                 </p>
               </div>
             </div>
-          ))}
+          )}
         </div>
       </div>
     </div>

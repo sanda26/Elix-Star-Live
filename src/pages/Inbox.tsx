@@ -168,6 +168,14 @@ export default function Inbox() {
                     <span className="text-xs text-gold-metallic font-semibold mt-1">Friends</span>
                 </button>
 
+                {/* Followers */}
+                <button onClick={() => navigate('/profile')} className="flex flex-col items-center gap-1" style={{ width: 90, minWidth: 90 }}>
+                    <div className="relative" style={{ width: 90, height: 90 }}>
+                        <img src="/Icons/Profile icon.png" alt="" className="w-full h-full object-contain" />
+                    </div>
+                    <span className="text-xs text-gold-metallic font-semibold mt-1">Followers</span>
+                </button>
+
                 {followers.map(f => (
                     <button key={f.user_id} onClick={() => navigate(`/profile/${f.user_id}`)} className="flex flex-col items-center gap-1" style={{ width: 90, minWidth: 90 }}>
                         <div className="relative" style={{ width: 90, height: 90 }}>
@@ -204,10 +212,10 @@ export default function Inbox() {
             
             {(activeFilter === 'main' || activeFilter === 'unread') && (
             <>
-            {/* New Followers */}
+            {/* New Followers - circle with plus button */}
             <button onClick={() => navigate('/profile')} className="flex items-center gap-3 w-full text-left">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-b from-[#f5e6a3] to-[#b8922e] flex items-center justify-center">
-                    <UserPlus className="w-6 h-6 text-[#13151A]" fill="#13151A" />
+                <div className="w-[72px] h-[72px] rounded-full bg-[#13151A] border border-[#C9A96E]/40 flex items-center justify-center overflow-hidden flex-shrink-0">
+                    <UserPlus className="w-8 h-8 text-[#C9A96E]" strokeWidth={2} />
                 </div>
                 <div className="flex-1 min-w-0">
                     <h3 className="font-bold text-sm text-gold-metallic">New followers</h3>
@@ -219,8 +227,8 @@ export default function Inbox() {
 
             {/* Activity - opens Activity list (likes, comments) */}
             <button onClick={() => setActiveFilter('activity')} className="flex items-center gap-3 w-full text-left">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-b from-[#f5e6a3] to-[#b8922e] flex items-center justify-center">
-                    <Heart className="w-6 h-6 text-[#13151A]" fill="#13151A" />
+                <div className="w-12 h-12 rounded-full bg-[#13151A] border border-[#C9A96E]/40 flex items-center justify-center">
+                    <Heart className="w-6 h-6 text-[#C9A96E]" strokeWidth={2} />
                 </div>
                 <div className="flex-1 min-w-0">
                     <h3 className="font-bold text-sm text-gold-metallic">Activity</h3>
@@ -249,9 +257,9 @@ export default function Inbox() {
                       }}
                       className="flex items-center gap-3 w-full text-left"
                     >
-                      <div className="w-12 h-12 rounded-full bg-[#13151A] border border-[#C9A96E]/40 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                      <div className="w-12 h-12 rounded-full bg-[#13151A] border border-[#C9A96E]/40 flex items-center justify-center flex-shrink-0 overflow-hidden relative">
                         {(notif.image_url || notif.rawData?.avatar_url) ? (
-                          <img src={notif.image_url || notif.rawData?.avatar_url} alt="" className="w-full h-full object-cover" />
+                          <img src={notif.image_url || notif.rawData?.avatar_url} alt="" className="absolute inset-0 w-full h-full object-cover" />
                         ) : (
                           <Heart className="w-5 h-5 text-[#C9A96E]" />
                         )}
@@ -269,9 +277,9 @@ export default function Inbox() {
             {/* Battle Invites */}
             {(activeFilter === 'main' || activeFilter === 'requests') && notifications.filter(n => n.type === 'battle_invite' && !n.is_read).map(notif => (
                 <div key={notif.id} className="flex items-center gap-3 w-full">
-                    <div className="w-12 h-12 rounded-full bg-red-500/20 border border-red-500/30 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                    <div className="w-12 h-12 rounded-full bg-red-500/20 border border-red-500/30 flex items-center justify-center flex-shrink-0 overflow-hidden relative">
                         {(notif.rawData?.host_avatar || notif.image_url) ? (
-                            <img src={notif.rawData?.host_avatar || notif.image_url} alt="" className="w-full h-full object-cover" />
+                            <img src={notif.rawData?.host_avatar || notif.image_url} alt="" className="absolute inset-0 w-full h-full object-cover" />
                         ) : (
                             <Sword className="w-5 h-5 text-red-400" />
                         )}
@@ -364,8 +372,8 @@ export default function Inbox() {
              {/* Shop Notification */}
              {notifications.filter(n => n.type === 'shop').map(notif => (
                 <button key={notif.id} onClick={() => navigate('/shop')} className="flex items-center gap-3 w-full text-left">
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-b from-[#f5e6a3] to-[#b8922e] flex items-center justify-center">
-                        <ShoppingBag className="w-6 h-6 text-[#13151A]" fill="#13151A" />
+                    <div className="w-12 h-12 rounded-full bg-[#13151A] border border-[#C9A96E]/40 flex items-center justify-center">
+                        <ShoppingBag className="w-6 h-6 text-[#C9A96E]" strokeWidth={2} />
                     </div>
                     <div className="flex-1 min-w-0">
                         <h3 className="font-bold text-sm text-gold-metallic">{notif.title}</h3>

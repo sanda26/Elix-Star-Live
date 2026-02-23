@@ -280,7 +280,7 @@ export default function Shop() {
                 <select
                   value={newCategory}
                   onChange={e => setNewCategory(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm mb-4 focus:outline-none focus:border-[#C9A96E]"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm mb-4 focus:outline-none focus:border-[#C9A96E] [&>option]:bg-[#1C1E24] [&>option]:text-white"
                   aria-label="Category"
                 >
                   <option value="clothing">Clothing</option>

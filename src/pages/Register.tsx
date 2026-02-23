@@ -193,25 +193,56 @@ export default function Register() {
             </div>
           </div>
 
-          {/* Terms & Privacy acceptance */}
-          <label className="flex items-start gap-3 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={acceptedTerms}
-              onChange={(e) => setAcceptedTerms(e.target.checked)}
-              className="mt-1 w-4 h-4 rounded border-white/30 bg-white/10 accent-[#C9A96E] flex-shrink-0"
-            />
-            <span className="text-fluid-xs text-white/70 leading-5">
+          {/* Terms & Privacy acceptance — large touch target for mobile */}
+          <div
+            role="checkbox"
+            tabIndex={0}
+            onClick={() => setAcceptedTerms((v) => !v)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                setAcceptedTerms((v) => !v);
+              }
+            }}
+            className="flex items-start gap-3 cursor-pointer select-none min-h-[44px] touch-manipulation"
+            aria-label="Accept Terms of Service and Privacy Policy"
+          >
+            <div
+              className={`mt-0.5 w-6 h-6 min-w-[24px] min-h-[24px] rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+                acceptedTerms
+                  ? 'border-[#C9A96E] bg-[#C9A96E]'
+                  : 'border-white/30 bg-white/10'
+              }`}
+            >
+              {acceptedTerms && (
+                <svg className="w-3.5 h-3.5 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                </svg>
+              )}
+            </div>
+            <span className="text-fluid-xs text-white/70 leading-5 pt-0.5">
               I agree to the{' '}
-              <Link to="/terms" className="text-[#C9A96E] underline" target="_blank">
+              <Link
+                to="/terms"
+                className="text-[#C9A96E] underline"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+              >
                 Terms of Service
               </Link>{' '}
               and{' '}
-              <Link to="/privacy" className="text-[#C9A96E] underline" target="_blank">
+              <Link
+                to="/privacy"
+                className="text-[#C9A96E] underline"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+              >
                 Privacy Policy
               </Link>
             </span>
-          </label>
+          </div>
 
           {error && (
             <div className="text-fluid-sm text-rose-300 bg-rose-500/10 border border-rose-500/20 rounded-xl p-3 xs:p-2.5">

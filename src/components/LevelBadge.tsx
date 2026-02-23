@@ -18,12 +18,12 @@ export const LevelBadge: React.FC<LevelBadgeProps> = ({
   variant: _variant = 'clean',
   avatar,
 }) => {
-  const safeLevel = Number.isFinite(level) && level > 0 ? Math.floor(level) : 1;
-  const dim = Math.max(16, Math.floor(size));
+  const safeLevel = typeof level === 'number' && Number.isFinite(level) && level > 0 ? Math.floor(level) : 1;
+  const dim = typeof size === 'number' && Number.isFinite(size) ? Math.max(16, Math.floor(size)) : 40;
 
   return (
     <div className={className}>
-      <LevelIcon level={safeLevel} size={dim} avatarUrl={avatar} />
+      <LevelIcon level={safeLevel} size={dim} avatarUrl={typeof avatar === 'string' ? avatar : undefined} />
     </div>
   );
 };

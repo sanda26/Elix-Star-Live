@@ -10,6 +10,7 @@ interface CreatorRanking {
   display_name: string;
   avatar_url: string | null;
   total_diamonds: number;
+  total_coins?: number;
 }
 
 interface RankingPanelProps {
@@ -26,12 +27,22 @@ export function RankingPanel({ onClose }: RankingPanelProps) {
 
   const loadRanking = async () => {
     try {
-      const { data, error } = await supabase.rpc('get_weekly_creator_ranking');
-      if (!error && data) {
-        setRankings(data);
+      const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 8000));
+      const rpcCall = supabase.rpc('get_weekly_creator_ranking');
+      const result = await Promise.race([rpcCall, timeout]);
+      if (result && 'data' in result && !result.error && Array.isArray(result.data)) {
+        const mapped = result.data.map((r: any, i: number) => ({
+          rank: r.rank ?? i + 1,
+          user_id: r.user_id,
+          username: r.username || '',
+          display_name: r.display_name || r.username || '',
+          avatar_url: r.avatar_url || null,
+          total_diamonds: r.total_diamonds ?? r.total_coins ?? 0,
+        }));
+        setRankings(mapped);
       }
     } catch {
-      // no data available
+      // RPC not available
     } finally {
       setLoading(false);
     }
@@ -45,7 +56,7 @@ export function RankingPanel({ onClose }: RankingPanelProps) {
 
   return (
         <div 
-          className="bg-[#1C1E24]/95 rounded-t-2xl p-3 pb-safe max-h-[40dvh] flex flex-col shadow-2xl w-full overflow-hidden" 
+          className="bg-[#1C1E24]/95 backdrop-blur-md rounded-t-2xl p-3 pb-safe max-h-[40dvh] flex flex-col shadow-2xl w-full overflow-hidden border-t border-[#C9A96E]/20 h-full" 
           onClick={(e) => e.stopPropagation()}
         >
         {/* Drag handle */}

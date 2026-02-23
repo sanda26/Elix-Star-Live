@@ -83,16 +83,20 @@ export default function VideoFeed() {
         const row = payload.new;
         if (row && row.is_live === false) {
           removeLiveStream(row.stream_key || row.id);
+          return;
         }
         if (payload.eventType === 'DELETE' && payload.old) {
           const old = payload.old;
           removeLiveStream(old.stream_key || old.id);
+          return;
         }
-        fetchLiveStreams();
+        if (payload.eventType === 'INSERT' && row?.is_live) {
+          fetchLiveStreams();
+        }
       })
       .subscribe();
 
-    const poll = setInterval(fetchLiveStreams, 5000);
+    const poll = setInterval(fetchLiveStreams, 15000);
 
     return () => {
       supabase.removeChannel(chan);

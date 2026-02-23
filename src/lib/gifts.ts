@@ -1,3 +1,4 @@
+/** Gift video only from Supabase (no local fallback) so playback is always remote. */
 const giftUrl = (path: string) => {
    const runtimeEnv = (window as any).__ENV;
    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || runtimeEnv?.VITE_SUPABASE_URL;
@@ -5,10 +6,7 @@ const giftUrl = (path: string) => {
      const trimmed = path.startsWith('/') ? path.slice(1) : path;
      return `${supabaseUrl}/storage/v1/object/public/${trimmed}`;
    }
-   const base = import.meta.env.BASE_URL ?? '/';
-   const normalizedBase = base.length > 0 ? (base.endsWith('/') ? base : `${base}/`) : '/';
-   const trimmedPath = path.startsWith('/') ? path.slice(1) : path;
-   return `${normalizedBase}${trimmedPath}`;
+   return '';
  }; 
  
  export type GiftType = 'universe' | 'big' | 'small'; 

@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
 import { Sword, Crown } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../store/useAuthStore';
@@ -15,12 +14,62 @@ interface PendingInvite {
 }
 
 export function BattleInviteBanner() {
-  const navigate = useNavigate();
-  const location = useLocation();
   const user = useAuthStore(s => s.user);
   const [pendingInvite, setPendingInvite] = useState<PendingInvite | null>(null);
 
-  const isOnLiveStream = location.pathname.startsWith('/live/') && location.pathname !== '/live';
+  // Only show invites received in the last 2 minutes — old ones are stale
+  useEffect(() => {
+    if (!user?.id) return;
+    const load = async () => {
+      const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString();
+      const { data } = await supabase
+        .from('notifications')
+        .select('id, type, data, created_at')
+        .eq('user_id', user.id)
+        .eq('is_read', false)
+        .in('type', ['battle_invite', 'cohost_invite'])
+        .gte('created_at', twoMinutesAgo)
+        .order('created_at', { ascending: false })
+        .limit(1);
+      const row = data?.[0];
+      if (row) {
+        const streamKey = (row.data as any)?.stream_key || '';
+        // Verify stream is still live before showing invite
+        if (streamKey) {
+          const { data: stream } = await supabase
+            .from('live_streams')
+            .select('is_live')
+            .eq('stream_key', streamKey)
+            .maybeSingle();
+          if (!stream?.is_live) {
+            supabase.from('notifications').update({ is_read: true }).eq('id', row.id).then(() => {});
+            return;
+          }
+        }
+        const type = row.type === 'cohost_invite' ? 'cohost' : 'battle';
+        setPendingInvite({
+          notifId: row.id,
+          hostName: (row.data as any)?.host_name || 'Someone',
+          hostAvatar: (row.data as any)?.host_avatar || '',
+          streamKey,
+          hostUserId: (row.data as any)?.actor_id || '',
+          type,
+        });
+      }
+      // Mark older stale invites as read so they don't reappear
+      if (data && data.length === 0) {
+        supabase
+          .from('notifications')
+          .update({ is_read: true })
+          .eq('user_id', user.id)
+          .eq('is_read', false)
+          .in('type', ['battle_invite', 'cohost_invite'])
+          .lt('created_at', twoMinutesAgo)
+          .then(() => {});
+      }
+    };
+    load();
+  }, [user?.id]);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -30,26 +79,29 @@ export function BattleInviteBanner() {
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
-        (payload: any) => {
+        async (payload: any) => {
           const row = payload.new;
-          if (row?.type === 'battle_invite' && !isOnLiveStream) {
+          if (row?.type === 'battle_invite' || row?.type === 'cohost_invite') {
+            const sk = row.data?.stream_key || '';
+            if (sk) {
+              const { data: stream } = await supabase
+                .from('live_streams')
+                .select('is_live')
+                .eq('stream_key', sk)
+                .maybeSingle();
+              if (!stream?.is_live) {
+                supabase.from('notifications').update({ is_read: true }).eq('id', row.id).then(() => {});
+                return;
+              }
+            }
+            const type = row.type === 'cohost_invite' ? 'cohost' : 'battle';
             setPendingInvite({
               notifId: row.id,
               hostName: row.data?.host_name || 'Someone',
               hostAvatar: row.data?.host_avatar || '',
-              streamKey: row.data?.stream_key || '',
+              streamKey: sk,
               hostUserId: row.data?.actor_id || '',
-              type: 'battle',
-            });
-          }
-          if (row?.type === 'cohost_invite' && !isOnLiveStream) {
-            setPendingInvite({
-              notifId: row.id,
-              hostName: row.data?.host_name || 'Someone',
-              hostAvatar: row.data?.host_avatar || '',
-              streamKey: row.data?.stream_key || '',
-              hostUserId: row.data?.actor_id || '',
-              type: 'cohost',
+              type,
             });
           }
         }
@@ -57,15 +109,30 @@ export function BattleInviteBanner() {
       .subscribe();
 
     return () => { supabase.removeChannel(chan); };
-  }, [user?.id, isOnLiveStream]);
+  }, [user?.id]);
 
-  const acceptInvite = () => {
+  const acceptInvite = async (e: React.MouseEvent) => {
+    e?.preventDefault?.();
+    e?.stopPropagation?.();
     if (!pendingInvite || !user?.id) return;
     const invite = pendingInvite;
     setPendingInvite(null);
 
     if (!invite.streamKey) {
       showToast('Invalid invite — missing stream key');
+      return;
+    }
+
+    // Verify stream is still live before navigating
+    const { data: stream } = await supabase
+      .from('live_streams')
+      .select('is_live')
+      .eq('stream_key', invite.streamKey)
+      .maybeSingle();
+
+    if (!stream?.is_live) {
+      showToast('Stream is no longer live');
+      supabase.from('notifications').update({ is_read: true }).eq('id', invite.notifId).then(() => {});
       return;
     }
 
@@ -98,11 +165,13 @@ export function BattleInviteBanner() {
     if (invite.type === 'battle') {
       window.location.href = `/live/${invite.streamKey}?battle=1`;
     } else {
-      window.location.href = `/watch/${invite.streamKey}`;
+      window.location.href = `/watch/${invite.streamKey}?cohost=1`;
     }
   };
 
-  const declineInvite = async () => {
+  const declineInvite = async (e?: React.MouseEvent) => {
+    e?.preventDefault?.();
+    e?.stopPropagation?.();
     if (!pendingInvite) return;
     try {
       await supabase.from('notifications').update({ is_read: true }).eq('id', pendingInvite.notifId);
@@ -110,13 +179,13 @@ export function BattleInviteBanner() {
     setPendingInvite(null);
   };
 
-  if (!pendingInvite || isOnLiveStream) return null;
+  if (!pendingInvite) return null;
 
   const isBattle = pendingInvite.type === 'battle';
 
   return (
-    <div className="fixed top-[calc(env(safe-area-inset-top,0px)+12px)] left-3 right-3 z-[9999] max-w-[480px] mx-auto animate-in slide-in-from-top">
-      <div className="bg-[#1C1E24]/95 backdrop-blur-md rounded-2xl border border-[#C9A96E]/30 shadow-2xl shadow-black/50 p-4">
+    <div className="fixed top-[calc(env(safe-area-inset-top,0px)+12px)] left-3 right-3 z-[9999] max-w-[480px] mx-auto animate-in slide-in-from-top pointer-events-auto">
+      <div className="bg-[#1C1E24]/95 backdrop-blur-md rounded-2xl border border-[#C9A96E]/30 shadow-2xl shadow-black/50 p-4 pointer-events-auto">
         <div className="flex items-center gap-3 mb-3">
           <div className="w-12 h-12 rounded-full border-2 border-[#C9A96E]/50 overflow-hidden bg-[#13151A] flex-shrink-0">
             {pendingInvite.hostAvatar ? (
@@ -144,14 +213,14 @@ export function BattleInviteBanner() {
         <div className="flex gap-2">
           <button
             type="button"
-            onClick={declineInvite}
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); declineInvite(e); }}
             className="flex-1 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/70 text-xs font-bold active:scale-95 transition-all"
           >
             Decline
           </button>
           <button
             type="button"
-            onClick={acceptInvite}
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); acceptInvite(e); }}
             className="flex-1 py-2.5 rounded-xl bg-[#C9A96E] text-black text-xs font-bold active:scale-95 transition-all shadow-lg shadow-[#C9A96E]/20"
           >
             Accept & Join

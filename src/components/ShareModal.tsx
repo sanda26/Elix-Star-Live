@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Link, 
-  Download, 
+  Download,
   MessageCircle,
   Share2,
   Check,
@@ -13,12 +14,16 @@ import {
   TrendingUp,
   Flag,
   PlusCircle,
+  UserPlus,
+  UserMinus,
   X,
+  Trash2,
 } from 'lucide-react';
 import { showToast } from '../lib/toast';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../store/useAuthStore';
 import { AvatarRing } from './AvatarRing';
+import PromotePanel from './PromotePanel';
 
 interface ShareModalProps {
   isOpen: boolean;
@@ -30,6 +35,7 @@ interface ShareModalProps {
     description: string;
     user: {
       username: string;
+      id?: string;
     };
     stats: {
       likes: number;
@@ -37,10 +43,15 @@ interface ShareModalProps {
     };
   };
   onReport?: () => void;
+  onJoin?: () => void;
+  isFollowing?: boolean;
+  onDeleteVideo?: () => void;
 }
 
-export default function ShareModal({ isOpen, onClose, video, onReport }: ShareModalProps) {
+export default function ShareModal({ isOpen, onClose, video, onReport, onJoin, isFollowing, onDeleteVideo }: ShareModalProps) {
+  const navigate = useNavigate();
   const [copiedLink, setCopiedLink] = useState(false);
+  const [showPromotePanel, setShowPromotePanel] = useState(false);
   const { user } = useAuthStore();
   const [shareQuery, setShareQuery] = useState('');
   const [followers, setFollowers] = useState<{ user_id: string; username: string; avatar_url: string | null }[]>([]);
@@ -86,8 +97,6 @@ export default function ShareModal({ isOpen, onClose, video, onReport }: ShareMo
     } catch {}
   };
 
-  if (!isOpen) return null;
-
   const videoUrl = `${window.location.origin}/video/${video.id}`;
   const shareText = `Check out this amazing video by @${video.user.username}: ${video.description}`;
 
@@ -111,71 +120,99 @@ export default function ShareModal({ isOpen, onClose, video, onReport }: ShareMo
     { name: 'Messages', color: '#00C853', icon: <MessageCircle size={22} className="text-white" />, action: () => window.open(`sms:?body=${encodeURIComponent(shareText + ' ' + videoUrl)}`) },
   ];
 
+  const isOwnVideo = !!user?.id && !!video.user?.id && user.id === video.user.id;
   const actionItems = [
-    { name: 'Promote', color: '#C9A96E', icon: <TrendingUp size={22} className="text-white" />, action: () => { if (navigator.share) navigator.share({ title: `Video by @${video.user.username}`, text: shareText, url: videoUrl }); } },
+    { name: 'Promote', color: '#C9A96E', icon: <TrendingUp size={22} className="text-white" />, action: () => { onClose(); setShowPromotePanel(true); } },
     { name: 'Report', color: '#EF4444', icon: <Flag size={22} className="text-white" />, action: () => { onClose(); if (onReport) onReport(); } },
-    { name: 'Download', color: '#6B7280', icon: <Download size={22} className="text-white" />, action: () => { const a = document.createElement('a'); a.href = video.url; a.download = `video_${video.id}.mp4`; document.body.appendChild(a); a.click(); document.body.removeChild(a); } },
-    { name: 'QR Code', color: '#8B5CF6', icon: <QrCode size={22} className="text-white" />, action: () => { handleCopyLink(); } },
+    { name: 'Share', icon: <Share2 size={22} className="text-white" />, action: () => { if (navigator.share) navigator.share({ title: `Video by @${video.user.username}`, text: shareText, url: videoUrl }); } },
+    { name: 'Download', icon: <Download size={22} className="text-white" />, action: async () => { try { const res = await fetch(video.url, { mode: 'cors' }); const blob = await res.blob(); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `video_${video.id}.mp4`; a.click(); URL.revokeObjectURL(url); showToast('Download started'); } catch { const a = document.createElement('a'); a.href = video.url; a.download = `video_${video.id}.mp4`; a.target = '_blank'; a.click(); showToast('Download started'); } } },
+    { name: 'QR Code', icon: <QrCode size={22} className="text-white" />, action: handleCopyLink },
+    ...(isOwnVideo && onDeleteVideo ? [{ name: 'Delete video', icon: <Trash2 size={22} className="text-red-400" />, action: () => { if (window.confirm('Delete this video? This cannot be undone.')) { onDeleteVideo(); onClose(); } }, isRed: true }] : []),
   ];
 
   return (
+    <>
+    {isOpen && (
     <div className="fixed inset-0 z-modals bg-black/40 flex items-end justify-center" onClick={onClose}>
       <div
-        className="bg-[#1C1E24]/95 backdrop-blur-md w-full max-w-[480px] rounded-t-2xl overflow-hidden flex flex-col border-t border-[#C9A96E]/20 h-[40vh] shadow-2xl"
+        className="bg-[#1C1E24]/95 backdrop-blur-md w-full max-w-[480px] rounded-t-2xl overflow-hidden flex flex-col border-t border-[#C9A96E]/20 h-[38vh] shadow-2xl mb-[90px]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex justify-center pt-2 pb-1">
           <div className="w-10 h-1 bg-white/20 rounded-full" />
         </div>
 
-        {/* Followers row */}
-        <div className="flex gap-3 overflow-x-auto px-4 pb-3 no-scrollbar flex-shrink-0">
-          {filteredFollowers.length === 0 ? (
-            <p className="text-white/25 text-xs px-1">No followers yet</p>
-          ) : (
-            filteredFollowers.map((f) => (
+        {/* Followers row + Followers icon on right */}
+        <div className="flex gap-3 overflow-x-auto overflow-y-hidden px-4 pb-3 flex-shrink-0 no-scrollbar items-center">
+          {filteredFollowers.length > 0 && filteredFollowers.map((f) => (
               <button
                 key={f.user_id}
-                className="flex flex-col items-center gap-0.5 min-w-[48px] active:scale-95 transition-transform"
+                className="flex flex-col items-center gap-0.5 min-w-[48px] flex-shrink-0 active:scale-95 transition-transform"
                 onClick={() => sendShareTo(f.user_id)}
               >
-                <AvatarRing src={f.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(f.username || 'U')}&background=C9A96E&color=fff&size=128`} alt={f.username} size={36} />
+                <AvatarRing src={f.avatar_url || '/Icons/Profile icon.png'} alt={f.username} size={36} />
                 <span className="text-white/60 text-[9px] font-medium truncate w-12 text-center">
                   {sentTo.has(f.user_id) ? 'Sent' : f.username || 'User'}
                 </span>
               </button>
-            ))
-          )}
+            ))}
+          <button type="button" onClick={() => { onClose(); navigate('/create'); }} className="flex-shrink-0 flex flex-col items-center gap-0.5 min-w-[48px] active:scale-95 transition-transform ml-auto">
+            <div className="w-14 h-14 rounded-full overflow-hidden flex items-center justify-center bg-[#13151A]">
+              <img src="/Icons/Profile icon.png" alt="" className="w-full h-full object-contain scale-[1.21] translate-y-[1mm]" />
+            </div>
+            <span className="text-white/60 text-[9px] font-medium">Followers</span>
+          </button>
         </div>
 
-        {/* All share options — gold circles, 4-column grid */}
-        <div className="grid grid-cols-4 gap-y-4 gap-x-2 px-4 pt-1 flex-1 overflow-y-auto">
-          {socialPlatforms.map((item) => (
-            <button
-              key={item.name}
-              onClick={() => item.action()}
-              className="flex flex-col items-center gap-1.5 active:scale-95 transition-transform"
-            >
-              <div className="w-11 h-11 rounded-full bg-[#13151A] flex items-center justify-center border border-[#C9A96E]/30 shadow-[0_0_8px_rgba(201,169,110,0.1)]">
-                {React.cloneElement(item.icon as React.ReactElement, { className: 'w-[18px] h-[18px] text-[#C9A96E]', strokeWidth: 1.8 })}
-              </div>
-              <span className="text-[10px] font-semibold text-white/70">{item.name}</span>
-            </button>
-          ))}
-          {actionItems.map((item) => (
-            <button
-              key={item.name}
-              onClick={() => item.action()}
-              className="flex flex-col items-center gap-1.5 active:scale-95 transition-transform"
-            >
-              <div className={`w-11 h-11 rounded-full bg-[#13151A] flex items-center justify-center border ${item.name === 'Report' ? 'border-red-500/30' : 'border-[#C9A96E]/30'} shadow-[0_0_8px_rgba(201,169,110,0.1)]`}>
-                {React.cloneElement(item.icon as React.ReactElement, { className: `w-[18px] h-[18px] ${item.name === 'Report' ? 'text-red-400' : 'text-[#C9A96E]'}`, strokeWidth: 1.8 })}
-              </div>
-              <span className={`text-[10px] font-semibold ${item.name === 'Report' ? 'text-red-400/70' : 'text-white/70'}`}>{item.name}</span>
-            </button>
-          ))}
+        {/* All share options — compact grid, scrollable */}
+        <div className="flex-1 overflow-y-scroll overflow-x-hidden min-h-0 px-4 pb-2 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-white/5 [&::-webkit-scrollbar-thumb]:bg-[#C9A96E]/60 [&::-webkit-scrollbar-thumb]:rounded-full" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(201,169,110,0.6) transparent' }}>
+          <div className="grid grid-cols-5 gap-y-3 gap-x-1.5 pt-1 auto-rows-fr">
+            {socialPlatforms.map((item) => (
+              <button
+                key={item.name}
+                onClick={() => item.action()}
+                className="flex flex-col items-center gap-1 active:scale-95 transition-transform"
+              >
+                <div className="relative w-9 h-9 rounded-full bg-[#13151A] overflow-hidden flex items-center justify-center flex-shrink-0">
+                  <div className="relative z-[2]">{React.cloneElement(item.icon as React.ReactElement, { className: 'w-3.5 h-3.5 text-white', strokeWidth: 1.8 })}</div>
+                  <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-125 translate-y-0.5" />
+                </div>
+                <span className="text-[8px] font-semibold text-white/70 truncate w-full text-center">{item.name}</span>
+              </button>
+            ))}
+            {actionItems.map((item) => {
+              const isRed = item.name === 'Report' || (item as { isRed?: boolean }).isRed;
+              return (
+                <button
+                  key={item.name}
+                  onClick={() => item.action()}
+                  className="flex flex-col items-center gap-1 active:scale-95 transition-transform"
+                >
+                  <div className="relative w-9 h-9 rounded-full bg-[#13151A] overflow-hidden flex items-center justify-center flex-shrink-0">
+                    <div className={`relative z-[2] ${item.name === 'Report' ? 'translate-y-0.5' : ''}`}>{React.cloneElement(item.icon as React.ReactElement, { className: `w-3.5 h-3.5 ${isRed ? 'text-red-400' : 'text-white'}`, strokeWidth: 1.8 })}</div>
+                    <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-125 translate-y-px" />
+                  </div>
+                  <span className={`text-[8px] font-semibold truncate w-full text-center ${isRed ? 'text-red-400/70' : 'text-white/70'}`}>{item.name}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
     </div>
+    )}
+    <PromotePanel
+      isOpen={showPromotePanel}
+      onClose={() => setShowPromotePanel(false)}
+      contentType="video"
+      content={{
+        id: video.id,
+        title: video.description,
+        thumbnail: video.thumbnail,
+        username: video.user?.username,
+        postedAt: new Date().toLocaleDateString(),
+      }}
+    />
+    </>
   );
 }

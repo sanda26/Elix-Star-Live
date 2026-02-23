@@ -122,7 +122,13 @@ async function insertPurchaseTransaction(row) {
     }
 }
 async function handleSuccessfulPayment(session) {
+    const type = session.metadata?.type;
     const userId = session.metadata?.userId;
+    if (type === "membership") {
+        const creatorId = session.metadata?.creatorId;
+        console.log("Membership purchased: user=" + userId + " creator=" + creatorId);
+        return;
+    }
     const coinPackageId = session.metadata?.coinPackageId;
     const coins = parseInt(session.metadata?.coins || "0", 10);
     if (!userId || !coinPackageId || !coins) {

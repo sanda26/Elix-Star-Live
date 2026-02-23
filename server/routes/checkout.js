@@ -1,4 +1,12 @@
 import Stripe from 'stripe';
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '';
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+
+function getSupabase() {
+    return createClient(supabaseUrl, supabaseServiceKey);
+}
 // Simple rate limiter map
 const rateLimits = new Map();
 function checkRateLimit(userId, action) {
@@ -90,6 +98,93 @@ export async function createCheckoutSession(req, res) {
     catch (error) {
         console.error('Stripe checkout error:', error);
         res.status(500).json({ error: 'Failed to create checkout session' });
+    }
+}
+export async function createSubscriptionSession(req, res) {
+    if (req.method !== 'POST') {
+        return res.status(405).json({ error: 'Method not allowed' });
+    }
+    try {
+        if (!stripe) {
+            return res.status(500).json({ error: 'Stripe is not configured' });
+        }
+        const { creatorId, userId } = req.body ?? {};
+        const headerUserId = req.headers['x-user-id'];
+        const effectiveUserId = (typeof userId === 'string' && userId.trim()) || headerUserId;
+        if (!effectiveUserId) {
+            return res.status(400).json({ error: 'Missing user id' });
+        }
+        const rateCheck = checkRateLimit(effectiveUserId, 'subscription');
+        if (!rateCheck.allowed) {
+            return res.status(429).json({ error: 'Too many requests', retryAfter: rateCheck.retryAfter });
+        }
+        const MEMBERSHIP_PRICE_GBP = 3.00;
+        const amountCents = Math.round(MEMBERSHIP_PRICE_GBP * 100);
+        const origin = req.headers.origin || 'http://localhost:3000';
+
+        let creatorStripeAccountId = null;
+        if (creatorId) {
+            const supabase = getSupabase();
+            let creatorUserId = creatorId;
+            const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(creatorId);
+            if (!isUuid) {
+                const { data: stream } = await supabase
+                    .from('live_streams')
+                    .select('user_id')
+                    .eq('stream_key', creatorId)
+                    .maybeSingle();
+                creatorUserId = stream?.user_id || null;
+            }
+            if (creatorUserId) {
+                const { data: p } = await supabase
+                    .from('profiles')
+                    .select('stripe_connect_account_id')
+                    .eq('user_id', creatorUserId)
+                    .maybeSingle();
+                creatorStripeAccountId = p?.stripe_connect_account_id || null;
+            }
+        }
+
+        const sessionConfig = {
+            payment_method_types: ['card'],
+            line_items: [
+                {
+                    price_data: {
+                        currency: 'gbp',
+                        product_data: {
+                            name: 'Super Fan Membership',
+                            description: 'Join the Fan Club – support your favourite creator',
+                        },
+                        unit_amount: amountCents,
+                    },
+                    quantity: 1,
+                },
+            ],
+            mode: 'payment',
+            success_url: `${origin}/live/${creatorId || ''}?membership=success`,
+            cancel_url: `${origin}/live/${creatorId || ''}?membership=cancelled`,
+            client_reference_id: effectiveUserId,
+            metadata: {
+                type: 'membership',
+                userId: effectiveUserId,
+                creatorId: (creatorId || '').toString(),
+            },
+        };
+
+        if (creatorStripeAccountId && creatorStripeAccountId.startsWith('acct_')) {
+            const platformFeeCents = Math.round(amountCents * 0.3);
+            sessionConfig.payment_intent_data = {
+                transfer_data: { destination: creatorStripeAccountId },
+                application_fee_amount: platformFeeCents,
+            };
+        }
+
+        const session = await stripe.checkout.sessions.create(sessionConfig);
+        res.status(200).json({ url: session.url, sessionId: session.id });
+    }
+    catch (error) {
+        console.error('Stripe subscription checkout error:', error);
+        res.status(500).json({ error: 'Failed to create subscription session' });
     }
 }
 export async function createPaymentIntent(req, res) {

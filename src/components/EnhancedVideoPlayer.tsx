@@ -8,9 +8,15 @@ import {
   Flag,
   UserPlus,
   UserMinus,
+  Download,
+  QrCode,
+  Trash2,
+  TrendingUp,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useVideoStore } from '../store/useVideoStore';
+import { useAuthStore } from '../store/useAuthStore';
+import { showToast } from '../lib/toast';
 import { useSettingsStore } from '../store/useSettingsStore';
 import { trackEvent } from '../lib/analytics';
 import EnhancedCommentsModal from './EnhancedCommentsModal';
@@ -18,6 +24,7 @@ import EnhancedLikesModal from './EnhancedLikesModal';
 import ShareModal from './ShareModal';
 import UserProfileModal from './UserProfileModal';
 import ReportModal from './ReportModal';
+import PromotePanel from './PromotePanel';
 import { LevelBadge } from './LevelBadge';
 
 interface EnhancedVideoPlayerProps {
@@ -123,7 +130,9 @@ export default function EnhancedVideoPlayer({
   const [showLikes, setShowLikes] = useState(false);
   const [showUserProfile, setShowUserProfile] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
+  const [showPromotePanel, setShowPromotePanel] = useState(false);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
+  const [videoError, setVideoError] = useState(false);
   const [isDoubleClick, setIsDoubleClick] = useState(false);
   const [showHeartAnimation, setShowHeartAnimation] = useState(false);
   
@@ -134,8 +143,10 @@ export default function EnhancedVideoPlayer({
     toggleLike, 
     toggleSave, 
     toggleFollow, 
-    incrementViews
+    incrementViews,
+    deleteVideo,
   } = useVideoStore();
+  const authUserId = useAuthStore((s) => s.user?.id ?? null);
   
   const video = videos.find(v => v.id === videoId);
   const effectiveMuted = muteAllSounds || isMuted;
@@ -224,17 +235,24 @@ export default function EnhancedVideoPlayer({
   useEffect(() => {
     if (isActive) {
       const el = videoRef.current;
-      const playResult = el?.play?.();
-      if (playResult && typeof (playResult as Promise<void>).catch === 'function') {
-        (playResult as Promise<void>).catch((err) => {
-          if (!effectiveMuted) {
-            setIsMuted(true);
-            if (videoRef.current) videoRef.current.muted = true;
-            trackEvent('video_autoplay_sound_blocked', { videoId, name: err?.name });
-          }
+      if (!el) return;
+      setVideoError(false);
+
+      // Try unmuted first (works after user interaction)
+      el.muted = muteAllSounds;
+      el.volume = volume;
+      const playResult = el.play();
+      if (playResult && typeof playResult.catch === 'function') {
+        playResult.catch(() => {
+          // Browser blocked unmuted autoplay — retry muted
+          el.muted = true;
+          setIsMuted(true);
+          el.play().catch(() => {});
         });
       }
+
       setIsPlaying(true);
+      if (!muteAllSounds) setIsMuted(false);
       incrementViews(videoId);
       trackEvent('video_view', { videoId });
 
@@ -244,35 +262,24 @@ export default function EnhancedVideoPlayer({
           audio.src = video.music.previewUrl;
         }
         audio.currentTime = 0;
-        audio.muted = effectiveMuted;
+        audio.muted = muteAllSounds;
         audio.volume = volume;
-        if (!effectiveMuted) {
-          const audioPlayResult = audio.play?.();
-          if (audioPlayResult && typeof (audioPlayResult as Promise<void>).catch === 'function') {
-            (audioPlayResult as Promise<void>).catch(() => {});
-          }
+        if (!muteAllSounds) {
+          audio.play().catch(() => {});
         }
       }
     } else {
       const v = videoRef.current;
       if (v?.pause) {
-        try {
-          v.pause();
-        } catch {
-          void 0;
-        }
+        try { v.pause(); } catch { void 0; }
       }
       setIsPlaying(false);
       const a = audioRef.current;
       if (a?.pause) {
-        try {
-          a.pause();
-        } catch {
-          void 0;
-        }
+        try { a.pause(); } catch { void 0; }
       }
     }
-  }, [effectiveMuted, incrementViews, isActive, video?.music?.previewUrl, videoId, volume]);
+  }, [incrementViews, isActive, muteAllSounds, video?.music?.previewUrl, videoId, volume]);
 
   useEffect(() => {
     if (!muteAllSounds) return;
@@ -292,21 +299,15 @@ export default function EnhancedVideoPlayer({
 
   // Mouse/touch interactions
   const handleVideoClick = (e: React.MouseEvent) => {
-    if (isMuted) {
-      toggleMute();
+    // If video is muted (browser blocked sound), unmute on first tap
+    if (isMuted && !muteAllSounds && videoRef.current) {
+      videoRef.current.muted = false;
+      videoRef.current.volume = volume;
+      setIsMuted(false);
     }
-
-    const rect = containerRef.current?.getBoundingClientRect();
-    if (!rect) return;
-
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    const centerX = rect.width / 2;
-    const centerY = rect.height / 2;
 
     // Double click detection
     if (isDoubleClick) {
-      // Like on double click
       handleLike();
       setShowHeartAnimation(true);
       setTimeout(() => setShowHeartAnimation(false), 1000);
@@ -317,9 +318,7 @@ export default function EnhancedVideoPlayer({
     setTimeout(() => setIsDoubleClick(false), 300);
 
     // Single click - play/pause
-    if (Math.abs(x - centerX) < rect.width * 0.3 && Math.abs(y - centerY) < rect.height * 0.3) {
-      togglePlay();
-    }
+    togglePlay();
   };
 
   // Action handlers
@@ -361,6 +360,38 @@ export default function EnhancedVideoPlayer({
     setIsMoreMenuOpen(true);
   };
 
+  const handleDownload = () => {
+    if (!video?.url) return;
+    const a = document.createElement('a');
+    a.href = video.url;
+    a.download = `video_${videoId}.mp4`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    showToast('Download started');
+  };
+
+  const handleQRCode = async () => {
+    const url = `${window.location.origin}/video/${videoId}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      showToast('Link copied!');
+    } catch {}
+  };
+
+  const isOwnVideo = !!authUserId && !!video?.user?.id && authUserId === video.user.id;
+  const handleDeleteVideo = async () => {
+    if (!isOwnVideo) return;
+    if (!window.confirm('Delete this video? This cannot be undone.')) return;
+    try {
+      await deleteVideo(videoId);
+      setIsMoreMenuOpen(false);
+      showToast('Video deleted');
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Failed to delete');
+    }
+  };
+
   // Format functions
   const formatNumber = (num: number) => {
     if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
@@ -392,18 +423,19 @@ export default function EnhancedVideoPlayer({
           preload="auto"
           muted={effectiveMuted}
           onClick={handleVideoClick}
-          onError={(e) => {
-
-            e.currentTarget.style.display = 'none';
-            e.currentTarget.parentElement?.classList.add('bg-[#13151A]');
-            const errorText = document.createElement('div');
-            errorText.className = 'absolute inset-0 flex items-center justify-center text-white/50 text-sm';
-            errorText.innerText = 'Video unavailable';
-            e.currentTarget.parentElement?.appendChild(errorText);
+          onError={() => {
+            setIsPlaying(false);
+            setVideoError(true);
           }}
         />
 
 
+
+        {videoError && (
+          <div className="absolute inset-0 flex items-center justify-center bg-[#13151A] z-10">
+            <span className="text-white/50 text-sm">Video unavailable</span>
+          </div>
+        )}
 
         <div className="absolute bottom-3 left-3 right-3 h-1.5 rounded-full overflow-hidden shadow-lg">
           <div
@@ -461,14 +493,14 @@ export default function EnhancedVideoPlayer({
         {/* Like Button */}
         <button 
           onClick={handleLike}
-          className="hover:scale-105 active:scale-95 transition-transform"
+          className="hover:scale-105 active:scale-95 transition-transform relative"
           style={{width:'48px',height:'48px'}}
           title="Like"
         >
           <img 
             src="/Icons/Like Icon.png" 
             alt="Like" 
-            className="w-full h-full object-contain transition-all duration-300"
+            className="absolute inset-0 w-full h-full object-contain transition-all duration-300 z-[2]"
             style={video.isLiked ? {filter:'brightness(0.5) sepia(1) hue-rotate(-30deg) saturate(10)'} : {}}
           />
         </button>
@@ -477,25 +509,25 @@ export default function EnhancedVideoPlayer({
         {/* Comment Button */}
         <button 
           onClick={handleComment}
-          className="hover:scale-105 active:scale-95 transition-transform"
+          className="hover:scale-105 active:scale-95 transition-transform relative"
           style={{width:'48px',height:'48px'}}
           title="Comments"
         >
-          <img src="/Icons/Coment Icon.png" alt="Comments" className="w-full h-full object-contain" />
+          <img src="/Icons/Coment Icon.png" alt="Comments" className="absolute inset-0 w-full h-full object-contain z-[2]" />
         </button>
         <span className="text-white text-[10px] font-semibold -mt-1">{formatNumber(video.stats.comments)}</span>
 
         {/* Save Button */}
         <button 
           onClick={handleSave}
-          className="hover:scale-105 active:scale-95 transition-transform"
+          className="hover:scale-105 active:scale-95 transition-transform relative"
           style={{width:'48px',height:'48px'}}
           title="Save"
         >
           <img 
             src="/Icons/Save Icon.png" 
             alt="Save" 
-            className={`w-full h-full object-contain ${video.isSaved ? 'brightness-125 drop-shadow-[0_0_8px_rgba(201,169,110,0.6)]' : ''}`}
+            className={`absolute inset-0 w-full h-full object-contain z-[2] ${video.isSaved ? 'brightness-125 drop-shadow-[0_0_8px_rgba(201,169,110,0.6)]' : ''}`}
           />
         </button>
         <span className="text-white text-[10px] font-semibold -mt-1">{formatNumber(video.stats.saves || 0)}</span>
@@ -503,32 +535,32 @@ export default function EnhancedVideoPlayer({
         {/* Share Button */}
         <button 
           onClick={handleShare}
-          className="hover:scale-105 active:scale-95 transition-transform"
+          className="hover:scale-105 active:scale-95 transition-transform relative"
           style={{width:'48px',height:'48px'}}
           title="Share"
         >
-          <img src="/Icons/Share Icon.png" alt="Share" className="w-full h-full object-contain" />
+          <img src="/Icons/Share Icon.png" alt="Share" className="absolute inset-0 w-full h-full object-contain z-[2]" />
         </button>
         <span className="text-white text-[10px] font-semibold -mt-1">{formatNumber(video.stats.shares)}</span>
 
         {/* Music Button */}
         <button 
           onClick={handleMusicClick}
-          className="hover:scale-105 active:scale-95 transition-transform animate-spin"
+          className="hover:scale-105 active:scale-95 transition-transform animate-spin relative"
           style={{width:'48px',height:'48px',animationDuration:'8s'}}
           title="Music"
         >
-          <img src="/Icons/Music Icon.png" alt="Music" className="w-full h-full object-contain" />
+          <img src="/Icons/Music Icon.png" alt="Music" className="absolute inset-0 w-full h-full object-contain z-[2]" />
         </button>
 
         {/* 3 Dots Button */}
         <button 
           onClick={handleReport}
-          className="hover:scale-105 active:scale-95 transition-transform"
+          className="hover:scale-105 active:scale-95 transition-transform relative"
           style={{width:'48px',height:'48px'}}
           title="More"
         >
-          <img src="/Icons/3 Dots Buton.png" alt="More" className="w-full h-full object-contain" />
+          <img src="/Icons/3 Dots Buton.png" alt="More" className="absolute inset-0 w-full h-full object-contain z-[2]" />
         </button>
       </div>
 
@@ -601,6 +633,7 @@ export default function EnhancedVideoPlayer({
         isOpen={showShareModal}
         onClose={() => setShowShareModal(false)}
         video={video}
+        onDeleteVideo={isOwnVideo ? handleDeleteVideo : undefined}
       />
       
       <UserProfileModal
@@ -624,52 +657,64 @@ export default function EnhancedVideoPlayer({
                 <span className="text-white font-bold text-sm">More Options</span>
               </div>
             </div>
-            <div className="p-2 overflow-y-auto">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsMoreMenuOpen(false);
-                  handleShare();
-                }}
-                className="w-full px-4 py-3 flex items-center gap-3 text-white hover:bg-white/5 rounded-xl"
-              >
-                <Share2 className="w-5 h-5" strokeWidth={2} />
-                <span className="text-sm font-bold">Share</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  handleSave();
-                  setIsMoreMenuOpen(false);
-                }}
-                className="w-full px-4 py-3 flex items-center gap-3 text-white hover:bg-white/5 rounded-xl"
-              >
-                <Bookmark className="w-5 h-5" strokeWidth={2} />
-                <span className="text-sm font-bold">{video.isSaved ? 'Unsave' : 'Save'}</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  handleFollow();
-                  setIsMoreMenuOpen(false);
-                }}
-                className="w-full px-4 py-3 flex items-center gap-3 text-white hover:bg-white/5 rounded-xl"
-              >
-                {video.isFollowing ? <UserMinus className="w-5 h-5" strokeWidth={2} /> : <UserPlus className="w-5 h-5" strokeWidth={2} />}
-                <span className="text-sm font-bold">{video.isFollowing ? 'Unfollow' : 'Follow'}</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setIsMoreMenuOpen(false);
-                  setShowReportModal(true);
-                  trackEvent('video_report_open', { videoId });
-                }}
-                className="w-full px-4 py-3 flex items-center gap-3 text-red-400 hover:bg-white/5 rounded-xl"
-              >
-                <Flag className="w-5 h-5" strokeWidth={2} />
-                <span className="text-sm font-bold">Report</span>
-              </button>
+            <div className="p-4 overflow-y-auto overflow-x-hidden min-h-0 flex-1">
+              <div className="grid grid-cols-4 gap-y-4 gap-x-2">
+                <button
+                  type="button"
+                  onClick={() => { setIsMoreMenuOpen(false); handleShare(); }}
+                  className="flex flex-col items-center gap-1.5 active:scale-95 transition-transform"
+                >
+                  <div className="relative w-11 h-11 rounded-full bg-[#13151A] overflow-hidden flex items-center justify-center">
+                    <Share2 className="relative z-[2] w-[18px] h-[18px] text-white" strokeWidth={1.8} />
+                    <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-125 translate-y-0.5" />
+                  </div>
+                  <span className="text-[10px] font-semibold text-white/70">Share</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { handleSave(); setIsMoreMenuOpen(false); }}
+                  className="flex flex-col items-center gap-1.5 active:scale-95 transition-transform"
+                >
+                  <div className="relative w-11 h-11 rounded-full bg-[#13151A] overflow-hidden flex items-center justify-center">
+                    <Bookmark className="relative z-[2] w-[18px] h-[18px] text-white" strokeWidth={1.8} />
+                    <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-125 translate-y-0.5" />
+                  </div>
+                  <span className="text-[10px] font-semibold text-white/70">{video.isSaved ? 'Unsave' : 'Save'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { handleFollow(); setIsMoreMenuOpen(false); }}
+                  className="flex flex-col items-center gap-1.5 active:scale-95 transition-transform"
+                >
+                  <div className="relative w-11 h-11 rounded-full bg-[#13151A] overflow-hidden flex items-center justify-center">
+                    {video.isFollowing ? <UserMinus className="relative z-[2] w-[18px] h-[18px] text-white" strokeWidth={1.8} /> : <UserPlus className="relative z-[2] w-[18px] h-[18px] text-white" strokeWidth={1.8} />}
+                    <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-125 translate-y-0.5" />
+                  </div>
+                  <span className="text-[10px] font-semibold text-white/70">{video.isFollowing ? 'Unfollow' : 'Follow'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setIsMoreMenuOpen(false); setShowPromotePanel(true); }}
+                  className="flex flex-col items-center gap-1.5 active:scale-95 transition-transform"
+                >
+                  <div className="relative w-11 h-11 rounded-full bg-[#13151A] overflow-hidden flex items-center justify-center">
+                    <TrendingUp className="relative z-[2] w-[18px] h-[18px] text-white" strokeWidth={1.8} />
+                    <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-125 translate-y-0.5" />
+                  </div>
+                  <span className="text-[10px] font-semibold text-white/70">Promote</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setIsMoreMenuOpen(false); setShowReportModal(true); trackEvent('video_report_open', { videoId }); }}
+                  className="flex flex-col items-center gap-1.5 active:scale-95 transition-transform"
+                >
+                  <div className="relative w-11 h-11 rounded-full bg-[#13151A] overflow-hidden flex items-center justify-center">
+                    <Flag className="relative z-[2] w-[18px] h-[18px] text-red-400" strokeWidth={1.8} />
+                    <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-125 translate-y-0.5" />
+                  </div>
+                  <span className="text-[10px] font-semibold text-red-400/70">Report</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -682,6 +727,20 @@ export default function EnhancedVideoPlayer({
         videoId={videoId}
         contentType="video"
       />
+      {video && (
+        <PromotePanel
+          isOpen={showPromotePanel}
+          onClose={() => setShowPromotePanel(false)}
+          contentType="video"
+          content={{
+            id: video.id,
+            title: video.description,
+            thumbnail: video.thumbnail,
+            username: video.user?.username,
+            postedAt: new Date().toISOString().split('T')[0],
+          }}
+        />
+      )}
     </div>
   );
 }

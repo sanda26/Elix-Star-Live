@@ -6,7 +6,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { createClient } from '@supabase/supabase-js';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import { createCheckoutSession, createPaymentIntent } from './routes/checkout';
+import { createCheckoutSession, createPaymentIntent, createSubscriptionSession } from './routes/checkout';
 import { handleStripeWebhook } from './routes/webhook';
 import { handleAnalytics, handleBlockUser, handleDeleteAccount, handleReport, handleSendNotification, handleVerifyPurchase } from './routes/misc';
 import { handleForYouFeed, handleTrackView, handleTrackInteraction, handleGetVideoScore, } from './routes/feed';
@@ -42,6 +42,7 @@ app.get('/health', (_req, res) => {
 // API Routes
 app.post('/api/create-checkout-session', createCheckoutSession);
 app.post('/api/create-payment-intent', createPaymentIntent);
+app.post('/api/create-subscription', createSubscriptionSession);
 app.post('/api/analytics', handleAnalytics);
 app.post('/api/block-user', handleBlockUser);
 app.post('/api/delete-account', handleDeleteAccount);
@@ -192,6 +193,17 @@ const GIFT_VALUES = {
 };
 function getGiftValue(giftId) {
     return GIFT_VALUES[giftId] || 0;
+}
+function normalizeBattleTarget(rawTarget) {
+    if (rawTarget === 'host' || rawTarget === 'opponent')
+        return rawTarget;
+    if (rawTarget === 'me')
+        return 'host';
+    if (rawTarget === 'player4')
+        return 'opponent';
+    if (rawTarget === 'player3')
+        return 'host';
+    return null;
 }
 const battles = new Map(); // roomId -> BattleSession
 const userBattleRoom = new Map(); // userId -> roomId (which battle they're in)
@@ -425,16 +437,22 @@ wss.on('connection', async (ws, req) => {
             rooms.set(roomId, new Set());
         }
         rooms.get(roomId).add(client);
-        // Send welcome + full room state with all current viewers
+        // Send welcome + full room state with deduplicated viewers
         const roomClients = rooms.get(roomId);
-        const viewers = Array.from(roomClients).map(c => ({
-            user_id: c.userId,
-            username: c.username,
-            display_name: c.displayName,
-            avatar_url: c.avatarUrl,
-            level: c.level,
-            country: c.country,
-        }));
+        const seenUserIds = new Set();
+        const viewers = [];
+        for (const c of roomClients) {
+            if (seenUserIds.has(c.userId)) continue;
+            seenUserIds.add(c.userId);
+            viewers.push({
+                user_id: c.userId,
+                username: c.username,
+                display_name: c.displayName,
+                avatar_url: c.avatarUrl,
+                level: c.level,
+                country: c.country,
+            });
+        }
         sendToClient(client, 'connected', {
             room_id: roomId,
             user_count: roomClients.size,
@@ -552,7 +570,11 @@ wss.on('connection', async (ws, req) => {
                     username: client.username,
                     avatar_url: client.avatarUrl,
                 });
+                broadcastToRoom(client.roomId, 'rtc_leave', {
+                    user_id: client.userId,
+                });
                 updateViewerCount(client.roomId).catch(() => { });
+                checkAndBroadcastStreamEnd(client.roomId, client.userId);
                 if (room.size === 0) {
                     rooms.delete(client.roomId);
                 }
@@ -578,6 +600,30 @@ wss.on('connection', async (ws, req) => {
     });
 });
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function checkAndBroadcastStreamEnd(roomId, userId) {
+    if (!supabaseAdmin) return;
+    try {
+        const { data } = await supabaseAdmin
+            .from('live_streams')
+            .select('user_id, is_live')
+            .eq('stream_key', roomId)
+            .maybeSingle();
+        if (data && data.user_id === userId && data.is_live) {
+            await supabaseAdmin
+                .from('live_streams')
+                .update({ is_live: false, viewer_count: 0 })
+                .eq('stream_key', roomId);
+            broadcastToRoom(roomId, 'stream_ended', {
+                stream_key: roomId,
+                host_user_id: userId,
+                reason: 'host_disconnected',
+            });
+        }
+    } catch (err) {
+        console.error('checkAndBroadcastStreamEnd error:', err);
+    }
+}
+
 async function handleMessage(client, event, data) {
     if (!data)
         data = {};
@@ -629,9 +675,9 @@ async function handleMessage(client, event, data) {
                 if (activeBattle && activeBattle.status === 'ACTIVE') {
                     const serverGiftValue = getGiftValue(data.giftId);
                     if (serverGiftValue > 0) {
-                        const giftTarget = data.battleTarget;
-                        if (giftTarget === 'host' || giftTarget === 'opponent') {
-                            addBattleScoreForTarget(client.roomId, giftTarget, serverGiftValue);
+                        const normalizedTarget = normalizeBattleTarget(data.battleTarget);
+                        if (normalizedTarget) {
+                            addBattleScoreForTarget(client.roomId, normalizedTarget, serverGiftValue);
                         }
                         else {
                             addBattleScoreForTarget(client.roomId, 'host', serverGiftValue);
@@ -642,18 +688,39 @@ async function handleMessage(client, event, data) {
             }
             // ═══ BATTLE EVENTS — server-controlled ═══
             case 'battle_create': {
-                // Host creates a battle session
+                // Host creates a battle session; optional opponentUserId/opponentName to start immediately
                 const existing = battles.get(client.roomId);
                 if (existing && existing.status !== 'ENDED') {
                     sendToClient(client, 'battle_error', { message: 'Battle already active' });
                     break;
                 }
                 const session = createBattle(client.roomId, client.userId, data.hostName || client.displayName);
-                sendToClient(client, 'battle_created', {
-                    battleId: session.id,
-                    status: session.status,
-                });
-                broadcastBattleState(client.roomId, session);
+                const opponentUserId = typeof data.opponentUserId === 'string' ? data.opponentUserId : '';
+                const opponentName = typeof data.opponentName === 'string' ? data.opponentName : 'Opponent';
+                if (opponentUserId || opponentName) {
+                    session.opponentUserId = opponentUserId;
+                    session.opponentName = opponentName;
+                    session.status = 'COUNTDOWN';
+                    if (opponentUserId)
+                        userBattleRoom.set(opponentUserId, client.roomId);
+                    broadcastBattleState(client.roomId, session);
+                    let countdown = 3;
+                    const countdownTimer = setInterval(() => {
+                        countdown--;
+                        broadcastToRoom(client.roomId, 'battle_countdown', { count: countdown });
+                        if (countdown <= 0) {
+                            clearInterval(countdownTimer);
+                            startBattleTimer(client.roomId);
+                        }
+                    }, 1000);
+                }
+                else {
+                    sendToClient(client, 'battle_created', {
+                        battleId: session.id,
+                        status: session.status,
+                    });
+                    broadcastBattleState(client.roomId, session);
+                }
                 break;
             }
             case 'battle_join': {
@@ -668,8 +735,8 @@ async function handleMessage(client, event, data) {
             case 'battle_gift_score': {
                 // Manual score event — validate target, use server gift value
                 const bRoom = userBattleRoom.get(client.userId) || client.roomId;
-                const target = data.target;
-                if (target !== 'host' && target !== 'opponent')
+                const target = normalizeBattleTarget(data.target);
+                if (!target)
                     break;
                 const giftId = data.giftId;
                 const serverPoints = giftId ? getGiftValue(giftId) : 0;
@@ -706,6 +773,23 @@ async function handleMessage(client, event, data) {
                         winner: currentBattle.winner,
                     });
                 }
+                break;
+            }
+            case 'stream_end': {
+                if (supabaseAdmin) {
+                    try {
+                        await supabaseAdmin
+                            .from('live_streams')
+                            .update({ is_live: false, viewer_count: 0 })
+                            .eq('stream_key', client.roomId)
+                            .eq('user_id', client.userId);
+                    } catch {}
+                }
+                broadcastToRoom(client.roomId, 'stream_ended', {
+                    stream_key: client.roomId,
+                    host_user_id: client.userId,
+                    reason: 'host_ended',
+                });
                 break;
             }
             case 'booster_activated':
@@ -843,7 +927,13 @@ async function updateViewerCount(roomId) {
         if (!supabaseAdmin)
             return;
         const room = rooms.get(roomId);
-        const count = room ? room.size : 0;
+        let count = 0;
+        if (room) {
+            for (const c of room) {
+                if (c.userId === roomId) continue;
+                count++;
+            }
+        }
         await supabaseAdmin
             .from('live_streams')
             .update({ viewer_count: count })
@@ -853,7 +943,49 @@ async function updateViewerCount(roomId) {
         console.error('Failed to update viewer count:', error);
     }
 }
+// Stale stream cleanup: mark streams as offline if their host has no active WebSocket
+// Uses updated_at to avoid killing streams that were recently created/updated
+async function cleanupStaleStreams() {
+    if (!supabaseAdmin) return;
+    try {
+        const { data: liveStreams } = await supabaseAdmin
+            .from('live_streams')
+            .select('stream_key, user_id, updated_at')
+            .eq('is_live', true);
+        if (!liveStreams || liveStreams.length === 0) return;
+        const now = Date.now();
+        for (const stream of liveStreams) {
+            const room = rooms.get(stream.stream_key);
+            const hostConnected = room
+                ? Array.from(room).some(c => c.userId === stream.user_id)
+                : false;
+            if (!hostConnected) {
+                const updatedAt = stream.updated_at ? new Date(stream.updated_at).getTime() : 0;
+                if (now - updatedAt < 90000) {
+                    console.log(`Skipping cleanup for fresh stream: ${stream.stream_key} (updated ${Math.round((now - updatedAt) / 1000)}s ago)`);
+                    continue;
+                }
+                console.log(`Cleaning up stale stream: ${stream.stream_key} (host ${stream.user_id} not connected, last updated ${Math.round((now - updatedAt) / 1000)}s ago)`);
+                await supabaseAdmin
+                    .from('live_streams')
+                    .update({ is_live: false, viewer_count: 0 })
+                    .eq('stream_key', stream.stream_key);
+                broadcastToRoom(stream.stream_key, 'stream_ended', {
+                    stream_key: stream.stream_key,
+                    host_user_id: stream.user_id,
+                    reason: 'stale_cleanup',
+                });
+            }
+        }
+    } catch (err) {
+        console.error('Stale stream cleanup error:', err);
+    }
+}
+setTimeout(cleanupStaleStreams, 60000);
+const staleCleanupTimer = setInterval(cleanupStaleStreams, 30000);
+
 // Start server
+console.log('Server build v3 — viewer count excludes host');
 console.log('Starting server...');
 console.log(`PORT: ${PORT}`);
 console.log(`NODE_ENV: ${process.env.NODE_ENV}`);

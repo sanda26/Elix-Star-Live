@@ -142,7 +142,38 @@ async function insertPurchaseTransaction(row: Record<string, unknown>) {
 }
 
 async function handleSuccessfulPayment(session: Stripe.Checkout.Session) {
+  const type = session.metadata?.type;
   const userId = session.metadata?.userId;
+
+  if (type === "promote") {
+    const goal = session.metadata?.goal || "";
+    const contentType = session.metadata?.contentType || "video";
+    const contentId = session.metadata?.contentId || "";
+    const amountGbp = session.amount_total ? session.amount_total / 100 : 0;
+    try {
+      await getSupabase().from("promote_purchases").insert({
+        user_id: userId,
+        content_type: contentType,
+        content_id: contentId,
+        goal,
+        amount_gbp: amountGbp,
+        stripe_session_id: session.id,
+        status: "completed",
+      });
+      console.log("Promote purchase recorded: user=" + userId + " goal=" + goal);
+    } catch (err) {
+      console.error("Failed to insert promote purchase:", err);
+    }
+    return;
+  }
+
+  if (type === "membership") {
+    const creatorId = session.metadata?.creatorId;
+    console.log("Membership purchased: user=" + userId + " creator=" + creatorId);
+    // TODO: insert into creator_subscribers / memberships table when schema exists
+    return;
+  }
+
   const coinPackageId = session.metadata?.coinPackageId;
   const coins = parseInt(session.metadata?.coins || "0", 10);
 

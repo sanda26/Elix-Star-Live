@@ -553,6 +553,23 @@
   z-index: -1;
 }
 
+/* Gift overlay entrance animation */
+@keyframes elix-overlay-in {
+  0% { opacity: 0; transform: scale(0.8) translateY(20px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+.elix-overlay-in {
+  animation: elix-overlay-in 0.4s ease-out forwards;
+}
+
+@keyframes bounce-small {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+.animate-bounce-small {
+  animation: bounce-small 1.5s ease-in-out infinite;
+}
+
 .text-gold-metallic {
   background: linear-gradient(
     180deg,

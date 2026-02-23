@@ -318,7 +318,7 @@ export function useLiveWebRTC({ roomId, localUserId, localStream, enabled }: Use
       websocket.off('room_full', handleRoomFull);
       leaveRoom();
     };
-  }, [enabled, localStream, roomId, localUserId, handleRtcJoin, handleRtcLeave, handleRtcOffer, handleRtcAnswer, handleRtcIceCandidate, joinRoom, leaveRoom]);
+  }, [enabled, roomId, localUserId, handleRtcJoin, handleRtcLeave, handleRtcOffer, handleRtcAnswer, handleRtcIceCandidate, joinRoom, leaveRoom]);
 
   return {
     remotePeers,

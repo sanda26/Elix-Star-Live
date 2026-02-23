@@ -213,33 +213,20 @@ export default function ReportModal({ isOpen, onClose, videoId, contentType, con
     <div className="fixed inset-0 z-modals flex items-end justify-center">
       <div className="absolute inset-0 bg-black/60 pointer-events-auto" onClick={onClose} />
 
-      <div className="relative w-full max-w-[480px] z-10 bg-[#1C1E24]/95 backdrop-blur-md rounded-t-2xl p-4 pb-safe flex flex-col gap-1 shadow-2xl border-t border-[#C9A96E]/20 pointer-events-auto h-[40vh] max-h-[40vh] overflow-y-auto no-scrollbar">
+      <div className="relative w-full max-w-[480px] z-10 bg-[#1C1E24]/95 backdrop-blur-md rounded-t-2xl p-4 pb-safe flex flex-col gap-1 shadow-2xl border-t border-[#C9A96E]/20 pointer-events-auto h-[40vh] max-h-[40vh] overflow-y-auto mb-[95px] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-white/5 [&::-webkit-scrollbar-thumb]:bg-[#C9A96E]/50 [&::-webkit-scrollbar-thumb]:rounded-full" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(201,169,110,0.5) transparent' }}>
         <div className="flex justify-center mb-2">
           <div className="w-10 h-1 bg-white/20 rounded-full" />
         </div>
 
-        <div className="flex items-center gap-1.5 mb-1">
-          <Flag className="w-3.5 h-3.5 text-red-400" strokeWidth={1.8} />
+        <div className="flex items-center gap-2 mb-1 ml-[4mm]">
+          <div className="relative w-9 h-9 rounded-full bg-[#13151A] overflow-hidden flex items-center justify-center flex-shrink-0">
+            <Flag className="relative z-[2] w-4 h-4 text-red-400" strokeWidth={1.8} />
+            <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-125 translate-y-0.5" />
+          </div>
           <h3 className="text-white font-bold text-[13px] whitespace-nowrap">Report {getContentTypeLabel()}</h3>
         </div>
 
-        {contentType === 'video' && (
-          <button
-            type="button"
-            onClick={handleDelete}
-            disabled={isDeletingVideo || !canDelete}
-            className="w-full px-3 py-2 flex items-center gap-2.5 text-red-400 hover:bg-red-500/10 rounded-lg transition-colors disabled:opacity-40"
-          >
-            <AlertTriangle className="w-3.5 h-3.5" strokeWidth={1.8} />
-            <span className="text-xs font-semibold">
-              {isDeletingVideo ? 'Deleting...' : canDelete ? 'Delete' : 'Delete (owner only)'}
-            </span>
-          </button>
-        )}
-
-        <p className="text-white/35 text-[10px] leading-snug px-0.5 mb-1">Select a reason below.</p>
-
-        <div className="flex flex-col gap-0.5">
+        <div className="flex flex-col gap-0.5 ml-[4mm]">
           {reportReasons.map((reason) => {
             const IconComponent = reason.icon;
             const selected = selectedReason === reason.id;
@@ -250,9 +237,10 @@ export default function ReportModal({ isOpen, onClose, videoId, contentType, con
                 onClick={() => setSelectedReason(reason.id)}
                 className={`w-full px-3 py-2 flex items-center justify-between rounded-lg transition-colors ${selected ? 'bg-[#C9A96E]/10' : 'hover:bg-white/[0.03]'}`}
               >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <div className={`w-7 h-7 rounded-full bg-[#13151A] border flex items-center justify-center flex-shrink-0 ${selected ? 'border-[#C9A96E]/50' : 'border-white/10'}`}>
-                    <IconComponent className="w-3.5 h-3.5" strokeWidth={1.8} />
+                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                  <div className={`relative w-9 h-9 rounded-full bg-[#13151A] overflow-hidden flex items-center justify-center flex-shrink-0 shrink-0 ${selected ? 'ring-2 ring-[#C9A96E]/50' : ''}`}>
+                    <IconComponent className={`relative z-[2] w-4 h-4 ${reason.color}`} strokeWidth={1.8} />
+                    <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-125 translate-y-0.5" />
                   </div>
                   <span className="text-white/80 text-xs font-medium truncate">{reason.title}</span>
                 </div>
@@ -268,14 +256,18 @@ export default function ReportModal({ isOpen, onClose, videoId, contentType, con
           })}
         </div>
 
-        <textarea
-          value={additionalDetails}
-          onChange={(e) => setAdditionalDetails(e.target.value)}
-          placeholder="Additional details (optional)..."
-          className="w-full bg-[#13151A]/40 border border-white/10 text-white rounded-lg p-2.5 text-xs focus:outline-none focus:border-white/20 resize-none leading-snug mt-2"
-          rows={2}
-          maxLength={500}
-        />
+        <div className="relative mt-2 ml-[4mm]">
+          <textarea
+            value={additionalDetails}
+            onChange={(e) => setAdditionalDetails(e.target.value)}
+            className="w-full bg-[#13151A]/40 border border-white/10 text-white rounded-lg p-2.5 text-xs focus:outline-none focus:border-white/20 resize-none leading-snug peer"
+            rows={2}
+            maxLength={500}
+          />
+          <span className={`absolute left-2.5 top-2.5 text-xs text-white/40 pointer-events-none transition-opacity ${additionalDetails ? 'opacity-0' : ''}`}>
+            Additional details (optional)...
+          </span>
+        </div>
 
         <div className="mt-2 flex gap-2">
           <button

@@ -218,12 +218,7 @@ export const useVideoStore = create<VideoStore>()(
             };
           });
 
-          const fetchedIds = new Set(mappedVideos.map((v) => v.id));
-          const existing = get().videos;
-          const toPrepend = existing.filter((v) => !fetchedIds.has(v.id));
-          const merged = toPrepend.length ? [...toPrepend, ...mappedVideos] : mappedVideos;
-
-          set({ videos: merged, likedVideos: likedIds, followingUsers: followedUserIds, savedVideos: savedIds, loading: false });
+          set({ videos: mappedVideos, likedVideos: likedIds, followingUsers: followedUserIds, savedVideos: savedIds, loading: false });
         } catch (err) {
           set({ loading: false });
         }

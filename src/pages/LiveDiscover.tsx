@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Eye, Radio, RefreshCw } from 'lucide-react';
+import { Eye, Radio, RefreshCw } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 type LiveCreator = {
@@ -15,9 +15,9 @@ export default function LiveDiscover() {
   const navigate = useNavigate();
   const [creators, setCreators] = useState<LiveCreator[]>([]);
   const [loading, setLoading] = useState(true);
+  const removedKeysRef = useRef<Set<string>>(new Set());
 
-  const fetchLiveStreams = async () => {
-    setLoading(true);
+  const fetchLiveStreams = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('live_streams')
@@ -34,16 +34,19 @@ export default function LiveDiscover() {
           : { data: [] };
         const profileMap = new Map((profiles || []).map((p: any) => [p.user_id, p]));
 
-        const mapped: LiveCreator[] = (data as any[]).map((stream: any) => {
-          const profile: any = profileMap.get(stream.user_id);
-          return {
-            id: stream.stream_key || stream.id,
-            name: profile?.display_name || profile?.username || 'Creator',
-            viewers: stream.viewer_count || 0,
-            thumbnail: profile?.avatar_url || stream.thumbnail_url,
-            title: stream.title || undefined,
-          };
-        });
+        const removed = removedKeysRef.current;
+        const mapped: LiveCreator[] = (data as any[])
+          .filter((s: any) => !removed.has(s.stream_key) && !removed.has(s.id))
+          .map((stream: any) => {
+            const profile: any = profileMap.get(stream.user_id);
+            return {
+              id: stream.stream_key || stream.id,
+              name: profile?.display_name || profile?.username || 'Creator',
+              viewers: stream.viewer_count || 0,
+              thumbnail: profile?.avatar_url || stream.thumbnail_url,
+              title: stream.title || undefined,
+            };
+          });
         setCreators(mapped);
       } else {
         setCreators([]);
@@ -53,18 +56,35 @@ export default function LiveDiscover() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  const removeLiveStream = useCallback((key: string) => {
+    removedKeysRef.current.add(key);
+    setCreators(prev => prev.filter(c => c.id !== key));
+    setTimeout(() => removedKeysRef.current.delete(key), 10000);
+  }, []);
 
   useEffect(() => {
     fetchLiveStreams();
+
     const channel = supabase
-      .channel('public:live_streams')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'live_streams' }, () => {
-        fetchLiveStreams();
+      .channel('live_discover_streams')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'live_streams' }, (payload: any) => {
+        const row = payload.new;
+        if (row && row.is_live === false) {
+          removeLiveStream(row.stream_key || row.id);
+        }
+        if (payload.eventType === 'DELETE' && payload.old) {
+          removeLiveStream(payload.old.stream_key || payload.old.id);
+        }
+        if (payload.eventType === 'INSERT' && row?.is_live) {
+          fetchLiveStreams();
+        }
       })
       .subscribe();
+
     return () => { supabase.removeChannel(channel); };
-  }, []);
+  }, [fetchLiveStreams, removeLiveStream]);
 
   const formatViewers = (n: number) => {
     if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
@@ -87,22 +107,13 @@ export default function LiveDiscover() {
               <span className="text-white/30 text-xs font-medium">{creators.length} streaming</span>
             )}
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => navigate('/live/broadcast')}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-500 active:bg-red-600 active:scale-95 transition-all"
-            >
-              <Radio size={12} className="text-white" />
-              <span className="text-white text-[11px] font-bold">Go Live</span>
-            </button>
-            <button
-              onClick={fetchLiveStreams}
-              className="w-7 h-7 rounded-full bg-white/5 flex items-center justify-center"
-              title="Refresh"
-            >
-              <RefreshCw size={12} className={`text-white/40 ${loading ? 'animate-spin' : ''}`} />
-            </button>
-          </div>
+          <button
+            onClick={fetchLiveStreams}
+            className="w-7 h-7 rounded-full bg-white/5 flex items-center justify-center"
+            title="Refresh"
+          >
+            <RefreshCw size={12} className={`text-white/40 ${loading ? 'animate-spin' : ''}`} />
+          </button>
         </div>
 
         {/* Content */}
@@ -176,21 +187,21 @@ export default function LiveDiscover() {
               ))}
             </div>
           ) : (
-            /* Empty state */
+            /* Empty state — no Go Live button, just info */
             <div className="flex flex-col items-center justify-center h-full pb-20 px-8 text-center">
               <div className="w-20 h-20 rounded-full bg-white/[0.02] border border-white/5 flex items-center justify-center mb-5">
                 <Radio className="w-8 h-8 text-white/10" />
               </div>
               <p className="text-white/60 font-bold text-base mb-1">No one is live right now</p>
               <p className="text-white/25 text-xs mb-6 max-w-[240px]">
-                Start streaming and let your followers watch you in real time
+                Check back later to watch creators streaming live
               </p>
               <button
-                onClick={() => navigate('/live/broadcast')}
-                className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-red-500 active:bg-red-600 active:scale-95 transition-all"
+                onClick={fetchLiveStreams}
+                className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-white/5 border border-white/10 active:scale-95 transition-all"
               >
-                <Radio size={14} className="text-white" />
-                <span className="text-white font-bold text-sm">Go Live</span>
+                <RefreshCw size={14} className="text-white/50" />
+                <span className="text-white/60 font-bold text-sm">Refresh</span>
               </button>
             </div>
           )}

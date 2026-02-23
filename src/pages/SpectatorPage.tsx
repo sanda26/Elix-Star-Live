@@ -17,11 +17,14 @@ import {
   Eye,
   MessageCircle,
   Flag,
+  TrendingUp,
   Mic,
   MicOff,
   Camera,
   CameraOff,
   Keyboard,
+  Coins,
+  Lock,
 } from 'lucide-react';
 import { GiftPanel } from '../components/GiftPanel';
 import { GIFTS } from '../lib/gifts';
@@ -32,6 +35,7 @@ import { AvatarRing } from '../components/AvatarRing';
 import { useAuthStore } from '../store/useAuthStore';
 import { supabase } from '../lib/supabase';
 import ReportModal from '../components/ReportModal';
+import PromotePanel from '../components/PromotePanel';
 import { websocket } from '../lib/websocket';
 import { useLiveWebRTC } from '../hooks/useLiveWebRTC';
 
@@ -59,6 +63,7 @@ export default function SpectatorPage() {
   const [hostName, setHostName] = useState('Creator');
   const [hostAvatar, setHostAvatar] = useState('');
   const [hostUserId, setHostUserId] = useState('');
+  const hostUserIdRef = useRef('');
   const [streamIsLive, setStreamIsLive] = useState<boolean | null>(null);
   const [viewerCount, setViewerCount] = useState(0);
   const [activeLikes, setActiveLikes] = useState(0);
@@ -66,21 +71,54 @@ export default function SpectatorPage() {
   const [messages, setMessages] = useState<LiveMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [coinBalance, setCoinBalance] = useState(0);
+  const getPersistedTestCoinsBalance = (userId: string | undefined) => {
+    if (!userId || typeof localStorage === 'undefined') return 0;
+    try {
+      const v = localStorage.getItem(`elix_test_coins_balance_${userId}`);
+      return v ? Math.max(0, parseInt(v, 10)) : 0;
+    } catch { return 0; }
+  };
+  const persistTestCoinsBalance = (userId: string | undefined, balance: number) => {
+    if (!userId || typeof localStorage === 'undefined') return;
+    try { localStorage.setItem(`elix_test_coins_balance_${userId}`, String(Math.max(0, balance))); } catch {}
+  };
 
   const [showGiftPanel, setShowGiftPanel] = useState(false);
   const [showSharePanel, setShowSharePanel] = useState(false);
+  const [showPromotePanel, setShowPromotePanel] = useState(false);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+
+  const [showTestCoinsModal, setShowTestCoinsModal] = useState(false);
+  const [testCoinsStep, setTestCoinsStep] = useState<'password' | 'amount'>('password');
+  const TEST_COINS_PWD_KEY = 'elix_test_coins_pwd_saved';
+  const TEST_COINS_VERIFIED_KEY = 'elix_test_coins_verified';
+  const [testCoinsPwd, setTestCoinsPwd] = useState('');
+  const [testCoinsAmount, setTestCoinsAmount] = useState('');
+  const [testCoinsError, setTestCoinsError] = useState('');
+  const [testCoinsSavePwd, setTestCoinsSavePwd] = useState(!!(typeof localStorage !== 'undefined' && localStorage.getItem(TEST_COINS_PWD_KEY)));
+  const testCoinsPwdRef = useRef<HTMLInputElement>(null);
+  const TEST_COINS_HASH = '169a9bfc269089e14090ad2e393b17e945d798598c33993bcab5feef93e68508';
   const [currentGift, setCurrentGift] = useState<string | null>(null);
   const [giftQueue, setGiftQueue] = useState<string[]>([]);
   const [shareQuery, setShareQuery] = useState('');
   const [shareContacts, setShareContacts] = useState<{ id: string; name: string; avatar: string }[]>([]);
+  const [lastSentGift, setLastSentGift] = useState<typeof GIFTS[0] | null>(null);
+  const [comboCount, setComboCount] = useState(0);
+  const [showComboButton, setShowComboButton] = useState(false);
+  const comboTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const resetComboTimer = () => {
+    if (comboTimerRef.current) clearTimeout(comboTimerRef.current);
+    comboTimerRef.current = setTimeout(() => { setShowComboButton(false); setComboCount(0); }, 5000);
+  };
 
-  const [joinRequestSent, setJoinRequestSent] = useState(false);
   const [showChatInput, setShowChatInput] = useState(false);
   const chatInputRef = useRef<HTMLInputElement>(null);
   const [showViewersPanel, setShowViewersPanel] = useState(false);
   const [viewersList, setViewersList] = useState<{ id: string; name: string; avatar: string; level?: number }[]>([]);
+  const actualViewersRef = useRef<Map<string, { name: string; avatar: string; level: number }>>(new Map());
+
+  const [joinRequested, setJoinRequested] = useState(false);
 
   const [userLevel, setUserLevel] = useState(user?.level || 1);
   const [userXP, setUserXP] = useState(0);
@@ -97,18 +135,10 @@ export default function SpectatorPage() {
   // ═══════════════════════════════════════════════════
   // CO-HOST STATE
   // ═══════════════════════════════════════════════════
-  type PendingCoHostInvite = {
-    notifId: string;
-    hostName: string;
-    hostAvatar: string;
-    streamKey: string;
-    hostUserId: string;
-  };
-  const [pendingCoHostInvite, setPendingCoHostInvite] = useState<PendingCoHostInvite | null>(null);
   const [isCoHosting, setIsCoHosting] = useState(false);
   const [coHostStream, setCoHostStream] = useState<MediaStream | null>(null);
   const myVideoRef = useRef<HTMLVideoElement>(null);
-  const [isMicMuted, setIsMicMuted] = useState(false);
+  const [isMicMuted, setIsMicMuted] = useState(true);
   const [isCamOff, setIsCamOff] = useState(false);
 
   const isCoHostFromUrl = new URLSearchParams(location.search).get('cohost') === '1';
@@ -125,6 +155,8 @@ export default function SpectatorPage() {
         video: { facingMode: 'user' },
         audio: { echoCancellation: true, noiseSuppression: true },
       });
+      const audioTrack = stream.getAudioTracks()[0];
+      if (audioTrack) audioTrack.enabled = false;
       setCoHostStream(stream);
       setIsCoHosting(true);
 
@@ -167,7 +199,7 @@ export default function SpectatorPage() {
       setCoHostStream(null);
     }
     setIsCoHosting(false);
-    setIsMicMuted(false);
+    setIsMicMuted(true);
     setIsCamOff(false);
   };
 
@@ -187,75 +219,6 @@ export default function SpectatorPage() {
       videoTrack.enabled = isCamOff;
       setIsCamOff(!isCamOff);
     }
-  };
-
-  // Listen for incoming co-host invites
-  useEffect(() => {
-    if (!user?.id) return;
-    const chan = supabase
-      .channel(`spectator_cohost_invite_${user.id}`)
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
-        (payload: any) => {
-          const row = payload.new;
-          if (row?.type === 'cohost_invite') {
-            setPendingCoHostInvite({
-              notifId: row.id,
-              hostName: row.data?.host_name || 'Someone',
-              hostAvatar: row.data?.host_avatar || '',
-              streamKey: row.data?.stream_key || '',
-              hostUserId: row.data?.actor_id || '',
-            });
-          }
-        }
-      )
-      .subscribe();
-    return () => { supabase.removeChannel(chan); };
-  }, [user?.id]);
-
-  const acceptCoHostInvite = async () => {
-    if (!pendingCoHostInvite || !user?.id) return;
-    const invite = pendingCoHostInvite;
-    setPendingCoHostInvite(null);
-
-    if (!invite.streamKey) {
-      showToast('Invalid invite — missing stream key');
-      return;
-    }
-
-    try {
-      const myUsername = user.username || user.name || viewerName;
-      supabase.from('notifications').update({ is_read: true }).eq('id', invite.notifId).then(() => {});
-      supabase.from('notifications').insert({
-        user_id: invite.hostUserId,
-        type: 'cohost_accepted',
-        title: 'Co-Host Accepted',
-        body: `@${myUsername} accepted your co-host invite!`,
-        data: {
-          actor_id: user.id,
-          accepted_name: myUsername,
-          accepted_avatar: user.avatar || viewerAvatar,
-          stream_key: invite.streamKey,
-        },
-      }).then(() => {});
-    } catch {}
-
-    // If already on this stream, start co-hosting in-place
-    if (invite.streamKey === effectiveStreamId) {
-      await startCoHosting();
-    } else {
-      showToast(`Joining @${invite.hostName}'s stream...`);
-      window.location.href = `/watch/${invite.streamKey}?cohost=1`;
-    }
-  };
-
-  const declineCoHostInvite = async () => {
-    if (!pendingCoHostInvite) return;
-    try {
-      await supabase.from('notifications').update({ is_read: true }).eq('id', pendingCoHostInvite.notifId);
-    } catch {}
-    setPendingCoHostInvite(null);
   };
 
   // Cleanup co-host camera on unmount
@@ -283,7 +246,7 @@ export default function SpectatorPage() {
     roomId: effectiveStreamId,
     localUserId: user?.id || '',
     localStream: coHostStream,
-    enabled: !!effectiveStreamId && !!user?.id,
+    enabled: !!effectiveStreamId && !!user?.id && streamIsLive === true,
   });
 
   useEffect(() => {
@@ -313,13 +276,17 @@ export default function SpectatorPage() {
         .select('user_id, title, viewer_count, is_live')
         .eq('stream_key', effectiveStreamId)
         .maybeSingle();
-      if (!stream) {
+      if (!stream || !stream.is_live) {
         setStreamIsLive(false);
+        showToast('Stream is offline');
+        setTimeout(() => navigate('/feed', { replace: true }), 2000);
         return;
       }
-      setStreamIsLive(!!stream.is_live);
+      setStreamIsLive(true);
       if (stream.user_id) {
         setHostUserId(stream.user_id);
+        hostUserIdRef.current = stream.user_id;
+        actualViewersRef.current.delete(stream.user_id);
         setViewerCount(stream.viewer_count || 0);
         const { data: profile } = await supabase
           .from('profiles')
@@ -334,7 +301,7 @@ export default function SpectatorPage() {
         }
       }
     })();
-  }, [effectiveStreamId]);
+  }, [effectiveStreamId, navigate]);
 
   // Fetch user profile (level, xp, coins)
   useEffect(() => {
@@ -348,12 +315,29 @@ export default function SpectatorPage() {
       if (data) {
         if (data.level) setUserLevel(Number(data.level));
         if (data.xp) setUserXP(Number(data.xp));
-        if (data.coins != null) setCoinBalance(Number(data.coins));
+        if (data.coins != null) {
+          const dbCoins = Number(data.coins);
+          const persisted = getPersistedTestCoinsBalance(user.id);
+          setCoinBalance(Math.max(dbCoins, persisted));
+        }
       }
     })();
   }, [user?.id]);
 
-  // Refresh coins when gift panel opens
+  useEffect(() => {
+    if (showTestCoinsModal) {
+      const verified = localStorage.getItem(TEST_COINS_VERIFIED_KEY);
+      const ts = verified ? parseInt(verified, 10) : NaN;
+      if (ts && Date.now() - ts < 24 * 60 * 60 * 1000) {
+        setTestCoinsStep('amount');
+      } else {
+        setTestCoinsStep('password');
+        setTimeout(() => testCoinsPwdRef.current?.focus(), 100);
+      }
+    }
+  }, [showTestCoinsModal]);
+
+  // Refresh coins when gift panel opens - use max of local, DB and persisted so test coins stay
   useEffect(() => {
     if (showGiftPanel && user?.id) {
       supabase
@@ -362,7 +346,11 @@ export default function SpectatorPage() {
         .eq('user_id', user.id)
         .maybeSingle()
         .then(({ data }) => {
-          if (data?.coins != null) setCoinBalance(Number(data.coins));
+          if (data?.coins != null) {
+            const dbCoins = Number(data.coins);
+            const persisted = getPersistedTestCoinsBalance(user.id);
+            setCoinBalance(prev => Math.max(prev, dbCoins, persisted));
+          }
         });
     }
   }, [showGiftPanel, user?.id]);
@@ -420,23 +408,62 @@ export default function SpectatorPage() {
       websocket.connect(effectiveStreamId, token);
     };
 
+    let hostFoundInRoom = false;
+    let roomStateReceived = false;
+    let roomUsers: string[] = [];
+
+    const handleRoomState = (data: any) => {
+      if (!mounted) return;
+      roomStateReceived = true;
+      const viewers = data.viewers;
+      const hid = hostUserIdRef.current || effectiveStreamId;
+      if (Array.isArray(viewers)) {
+        actualViewersRef.current.clear();
+        roomUsers = viewers.map((v: any) => v.user_id).filter(Boolean);
+        hostFoundInRoom = false;
+        for (const v of viewers) {
+          if (v.user_id === hid || v.user_id === effectiveStreamId) {
+            hostFoundInRoom = true;
+          } else if (v.user_id && v.user_id !== user?.id) {
+            actualViewersRef.current.set(v.user_id, {
+              name: v.display_name || v.username || 'User',
+              avatar: v.avatar_url || '',
+              level: v.level || 1,
+            });
+          }
+        }
+      }
+    };
+
     const handleUserJoined = (data: any) => {
       if (!mounted) return;
       if (data.user_id === user?.id) return;
+      if (data.user_id === hostUserIdRef.current || data.user_id === effectiveStreamId) {
+        hostFoundInRoom = true;
+        return;
+      }
+      if (data.user_id) {
+        actualViewersRef.current.set(data.user_id, {
+          name: data.display_name || data.username || 'User',
+          avatar: data.avatar_url || '',
+          level: typeof data.level === 'number' ? data.level : 1,
+        });
+      }
       const joinName = data.username || 'User';
       setMessages(prev => [...prev, {
         id: `join-${Date.now()}`,
         username: joinName,
         text: 'joined the stream',
         isSystem: true,
-        level: data.level || 1,
-        avatar: data.avatar_url || '',
+        level: typeof data.level === 'number' && Number.isFinite(data.level) ? data.level : 1,
+        avatar: typeof data.avatar_url === 'string' ? data.avatar_url : '',
       }]);
       setViewerCount(prev => prev + 1);
     };
 
     const handleUserLeft = (data: any) => {
       if (!mounted) return;
+      if (data.user_id) actualViewersRef.current.delete(data.user_id);
       setViewerCount(prev => Math.max(0, prev - 1));
     };
 
@@ -445,10 +472,10 @@ export default function SpectatorPage() {
       if (data.user_id === user?.id) return;
       const msg: LiveMessage = {
         id: `ws-${Date.now()}-${Math.random()}`,
-        username: data.username || 'User',
-        text: data.text || '',
-        level: data.level || 1,
-        avatar: data.avatar || '',
+        username: typeof data.username === 'string' ? data.username : 'User',
+        text: typeof data.text === 'string' ? data.text : '',
+        level: typeof data.level === 'number' && Number.isFinite(data.level) ? data.level : 1,
+        avatar: typeof data.avatar === 'string' ? data.avatar : '',
       };
       setMessages(prev => [...prev, msg]);
     };
@@ -460,52 +487,95 @@ export default function SpectatorPage() {
       if (giftDef) {
         const msg: LiveMessage = {
           id: `gift-ws-${Date.now()}-${Math.random()}`,
-          username: data.username || 'User',
+          username: typeof data.username === 'string' ? data.username : 'User',
           text: `sent ${giftDef.name}`,
-          level: data.level || 1,
-          avatar: data.avatar || '',
+          level: typeof data.level === 'number' && Number.isFinite(data.level) ? data.level : 1,
+          avatar: typeof data.avatar === 'string' ? data.avatar : '',
           isGift: true,
         };
         setMessages(prev => [...prev, msg]);
-        if (giftDef.video) {
+        if (giftDef.video && (giftDef.video.startsWith('http://') || giftDef.video.startsWith('https://'))) {
           setGiftQueue(prev => [...prev, giftDef.video]);
         }
       }
     };
 
+    const handleStreamEnded = () => {
+      if (!mounted) return;
+      showToast('Stream ended');
+      setStreamIsLive(false);
+      websocket.disconnect();
+      setTimeout(() => navigate('/feed', { replace: true }), 2000);
+    };
+
+    websocket.on('room_state', handleRoomState);
     websocket.on('user_joined', handleUserJoined);
     websocket.on('user_left', handleUserLeft);
     websocket.on('chat_message', handleChatMessage);
     websocket.on('gift_sent', handleGiftSent);
+    websocket.on('stream_ended', handleStreamEnded);
 
     connect();
 
+    const goOffline = () => {
+      if (!mounted) return;
+      showToast('Stream is offline');
+      setStreamIsLive(false);
+      websocket.disconnect();
+      setTimeout(() => { if (mounted) navigate('/feed', { replace: true }); }, 2000);
+    };
+
+    // After 6s: if host is not in the WS room, stream is dead
+    const connectTimeout = setTimeout(() => {
+      if (!mounted) return;
+      const hid = hostUserIdRef.current;
+      if (roomStateReceived && hid && !roomUsers.includes(hid)) {
+        hostFoundInRoom = false;
+      }
+      if (!hostFoundInRoom) goOffline();
+    }, 6000);
+
+    // Hard timeout: if no video track received after 12s, stream is dead
+    const videoTimeout = setTimeout(() => {
+      if (!mounted) return;
+      const vid = document.querySelector('video');
+      const hasTrack = vid?.srcObject && (vid.srcObject as MediaStream).getVideoTracks().length > 0;
+      if (!hasTrack && !hostFoundInRoom) goOffline();
+    }, 12000);
+
     return () => {
       mounted = false;
+      clearTimeout(connectTimeout);
+      clearTimeout(videoTimeout);
+      websocket.off('room_state', handleRoomState);
       websocket.off('user_joined', handleUserJoined);
       websocket.off('user_left', handleUserLeft);
       websocket.off('chat_message', handleChatMessage);
       websocket.off('gift_sent', handleGiftSent);
+      websocket.off('stream_ended', handleStreamEnded);
       websocket.disconnect();
     };
-  }, [effectiveStreamId, user?.id]);
+  }, [effectiveStreamId, user?.id, hostUserId]);
 
-  // Fetch share contacts
+  // Fetch share followers (people you follow / who follow you)
   useEffect(() => {
     if (!user?.id) return;
     (async () => {
-      const { data } = await supabase
-        .from('profiles')
-        .select('user_id, username, display_name, avatar_url')
-        .neq('user_id', user.id)
-        .limit(50);
-      if (data) {
-        setShareContacts(data.map((p: any) => ({
+      try {
+        const { data: followData } = await supabase.from('followers').select('follower_id').eq('following_id', user.id).limit(50);
+        const { data: followingData } = await supabase.from('followers').select('following_id').eq('follower_id', user.id).limit(50);
+        const ids = new Set<string>();
+        (followData || []).forEach((f: any) => ids.add(f.follower_id));
+        (followingData || []).forEach((f: any) => ids.add(f.following_id));
+        ids.delete(user.id);
+        if (ids.size === 0) { setShareContacts([]); return; }
+        const { data: profiles } = await supabase.from('profiles').select('user_id, username, display_name, avatar_url').in('user_id', Array.from(ids));
+        setShareContacts((profiles || []).map((p: any) => ({
           id: p.user_id,
           name: p.display_name || p.username || 'User',
           avatar: p.avatar_url || '',
         })));
-      }
+      } catch { setShareContacts([]); }
     })();
   }, [user?.id]);
 
@@ -542,27 +612,40 @@ export default function SpectatorPage() {
     setInputValue('');
   };
 
-  // Send gift
+  // Send gift — only when stream is live and WebSocket connected; update points immediately
   const handleSendGift = async (gift: typeof GIFTS[0]) => {
     if (!gift) return;
     if (coinBalance < gift.coins) {
-      setShowGiftPanel(false);
+      showToast(`Not enough coins (have ${coinBalance.toLocaleString()}, need ${gift.coins.toLocaleString()})`);
       return;
     }
+    if (!websocket.isConnected()) {
+      showToast('Connecting... try again in a moment');
+      return;
+    }
+
+    const prevBalance = coinBalance;
+    const afterDeduct = Math.max(0, coinBalance - gift.coins);
+    setCoinBalance(afterDeduct);
+    persistTestCoinsBalance(user?.id, afterDeduct);
+
     let newLevel = userLevel;
+    let rpcSucceeded = false;
+
     if (user?.id) {
       try {
         const { data, error } = await supabase.rpc('send_stream_gift', {
           p_stream_key: effectiveStreamId,
           p_gift_id: gift.id,
         });
-        if (error) {
-          const msg = typeof error.message === 'string' ? error.message : '';
-          if (msg.includes('insufficient_funds')) { setShowGiftPanel(false); return; }
-          setCoinBalance(prev => Math.max(0, prev - gift.coins));
-        } else {
+        if (!error) {
+          rpcSucceeded = true;
           const row = Array.isArray(data) ? data[0] : data;
-          if (row?.new_balance != null) setCoinBalance(Number(row.new_balance));
+          if (row?.new_balance != null) {
+            const nb = Number(row.new_balance);
+            setCoinBalance(nb);
+            persistTestCoinsBalance(user?.id, nb);
+          }
           if (row?.new_level != null) {
             const updatedLevel = Number(row.new_level);
             setUserLevel(updatedLevel);
@@ -571,8 +654,23 @@ export default function SpectatorPage() {
           }
           if (row?.new_xp != null) setUserXP(Number(row.new_xp));
         }
-      } catch {
-        setCoinBalance(prev => Math.max(0, prev - gift.coins));
+      } catch { /* RPC failed, fall through to test-coins path */ }
+
+      if (!rpcSucceeded) {
+        // RPC failed — use local test coins balance instead
+        const persisted = getPersistedTestCoinsBalance(user?.id);
+        if (persisted >= gift.coins) {
+          const newPersisted = persisted - gift.coins;
+          persistTestCoinsBalance(user?.id, newPersisted);
+          setCoinBalance(newPersisted);
+          // Try to sync DB too (fire-and-forget)
+          supabase.from('profiles').update({ coins: newPersisted }).eq('user_id', user.id).then(() => {});
+        } else {
+          setCoinBalance(prevBalance);
+          persistTestCoinsBalance(user?.id, prevBalance);
+          showToast('Not enough coins to send this gift');
+          return;
+        }
       }
 
       const xpGained = gift.coins;
@@ -580,7 +678,7 @@ export default function SpectatorPage() {
       let currentLevel = userLevel;
       while (true) {
         const xpNeeded = currentLevel * 1000;
-        if (currentXP >= xpNeeded && currentLevel < 150) {
+        if (currentXP >= xpNeeded && currentLevel < 300) {
           currentLevel++;
           currentXP -= xpNeeded;
         } else break;
@@ -590,12 +688,13 @@ export default function SpectatorPage() {
       updateUser({ level: currentLevel });
       newLevel = currentLevel;
       supabase.from('profiles').update({ level: currentLevel, xp: currentXP }).eq('user_id', user.id).then(() => {});
-    } else {
-      setCoinBalance(prev => Math.max(0, prev - gift.coins));
     }
 
     setShowGiftPanel(false);
-    if (gift.video) setGiftQueue(prev => [...prev, gift.video]);
+
+    if (gift.video && (gift.video.startsWith('http://') || gift.video.startsWith('https://'))) {
+      setGiftQueue(prev => [...prev, gift.video]);
+    }
 
     const giftMsg: LiveMessage = {
       id: Date.now().toString(),
@@ -609,50 +708,43 @@ export default function SpectatorPage() {
     websocket.send('gift_sent', {
       giftId: gift.id,
       giftName: gift.name,
+      coins: gift.coins,
+      gift_icon: gift.icon || '🎁',
+      quantity: 1,
       level: newLevel,
       avatar: viewerAvatar,
       video: gift.video || null,
       transactionId: `${user?.id || 'anon'}-${Date.now()}`,
     });
+
+    setLastSentGift(gift);
+    setComboCount(1);
+    setShowComboButton(true);
+    resetComboTimer();
   };
 
-  // Send join request (co-host or battle)
-  const sendJoinRequest = async (type: 'cohost' | 'battle') => {
-    if (!user?.id || !effectiveStreamId) return;
-
-    let targetUserId = hostUserId;
-    if (!targetUserId) {
-      const { data: stream } = await supabase
-        .from('live_streams')
-        .select('user_id')
-        .eq('stream_key', effectiveStreamId)
-        .maybeSingle();
-      if (!stream?.user_id) { showToast('Stream not found'); return; }
-      targetUserId = stream.user_id;
-    }
-
-    const myName = user.username || user.name || 'User';
-    await supabase.from('notifications').insert({
-      user_id: targetUserId,
-      type: 'join_request',
-      title: type === 'cohost' ? 'Co-Host Request' : 'Battle Request',
-      body: `@${myName} wants to ${type === 'cohost' ? 'co-host' : 'battle'}!`,
-      data: {
-        actor_id: user.id,
-        requester_name: myName,
-        requester_avatar: user.avatar || '',
-        stream_key: effectiveStreamId,
-        request_type: type,
-      },
-    });
-    setJoinRequestSent(true);
-    showToast('Request sent!');
+  const handleComboClick = () => {
+    if (!lastSentGift) return;
+    setComboCount(prev => prev + 1);
+    resetComboTimer();
+    handleSendGift(lastSentGift);
   };
 
   // Heart tap handler
   const handleLikeTap = () => {
     setActiveLikes(prev => prev + 1);
   };
+
+  if (streamIsLive === null) {
+    return (
+      <div className="fixed inset-0 bg-[#0A0B0E] flex justify-center">
+        <div className="relative w-full max-w-[480px] h-full bg-[#13151A] flex flex-col items-center justify-center gap-4 p-6">
+          <div className="w-10 h-10 border-2 border-[#C9A96E] border-t-transparent rounded-full animate-spin" />
+          <p className="text-white/60 text-sm">Checking stream...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (streamIsLive === false) {
     return (
@@ -665,7 +757,7 @@ export default function SpectatorPage() {
           <p className="text-white/50 text-sm text-center">This stream has ended or is not available right now.</p>
           <button
             type="button"
-            onClick={() => navigate(-1)}
+            onClick={() => navigate('/feed', { replace: true })}
             className="mt-2 px-6 py-2.5 rounded-lg bg-[#C9A96E] text-black font-semibold"
           >
             Go back
@@ -726,7 +818,7 @@ export default function SpectatorPage() {
                 <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-sm">
                   <span className="text-white text-[10px] font-bold">You</span>
                 </div>
-                {/* Co-host controls: mic, cam, leave */}
+                {/* Co-host controls: mic (active only in host view), cam, leave */}
                 <div className="absolute top-2 right-2 flex items-center gap-2 z-[5]">
                   <button
                     type="button"
@@ -787,7 +879,7 @@ export default function SpectatorPage() {
         </div>
 
         {/* TOP BAR */}
-        <div className="relative z-[110] pointer-events-none">
+        <div className="absolute top-0 left-0 right-0 z-[110] pointer-events-none">
           <div className="px-3" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 6px)' }}>
             <div className="flex items-center justify-between gap-2">
               {/* Left: Creator info */}
@@ -805,58 +897,44 @@ export default function SpectatorPage() {
                   <span className="text-white text-[11px] font-bold truncate max-w-[100px] leading-tight">{hostName}</span>
                   <div className="flex items-center gap-1 -mt-0.5">
                     <Heart className="w-2.5 h-2.5 text-[#FF2D55]" strokeWidth={2.5} fill="#FF2D55" />
-                    <span className="text-white/70 text-[8px] font-bold tabular-nums">{activeLikes.toLocaleString()}</span>
+                    <span className="text-white/70 text-[8px] font-bold tabular-nums">{(typeof activeLikes === 'number' && Number.isFinite(activeLikes) ? activeLikes : 0).toLocaleString()}</span>
                   </div>
                 </div>
               </div>
 
-              {/* Right: Viewer avatars + count + close */}
+              {/* Right: viewer count + close */}
               <div className="pointer-events-auto flex items-center gap-2 flex-shrink-0">
-                {/* Viewer avatar stack — tap to open viewers panel */}
+                {/* Viewer count circle with plus icon */}
                 <button
                   type="button"
-                  title="View top viewers"
-                  className="flex items-center active:scale-95 transition-transform"
-                  onClick={async () => {
-                    setShowViewersPanel(true);
-                    try {
-                      const { data } = await supabase
-                        .from('profiles')
-                        .select('user_id, username, display_name, avatar_url, level')
-                        .limit(50);
-                      if (data) {
-                        setViewersList(data.map((p: any) => ({
-                          id: p.user_id,
-                          name: p.display_name || p.username || 'User',
-                          avatar: p.avatar_url || '',
-                          level: p.level || 1,
-                        })));
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#13151A]/70 border border-white/10 active:scale-95 transition-transform"
+                  onClick={() => {
+                    const list: { id: string; name: string; avatar: string; level?: number }[] = [];
+                    const hid = hostUserIdRef.current || hostUserId || effectiveStreamId;
+                    actualViewersRef.current.forEach((v, id) => {
+                      if (id !== user?.id && id !== hid && id !== effectiveStreamId) {
+                        list.push({ id, name: v.name, avatar: v.avatar, level: v.level });
                       }
-                    } catch {}
+                    });
+                    setViewersList(list);
+                    setShowViewersPanel(true);
                   }}
                 >
-                  <div className="flex -space-x-2">
-                    {[hostAvatar, viewerAvatar].filter(Boolean).slice(0, 3).map((av, i) => (
-                      <div key={i} className="w-7 h-7 rounded-full border-2 border-[#0A0B0E] overflow-hidden bg-[#1a1a2e]">
-                        <img src={av} alt="" className="w-full h-full object-cover" />
-                      </div>
-                    ))}
-                    {viewerCount > 3 && (
-                      <div className="w-7 h-7 rounded-full border-2 border-[#0A0B0E] bg-[#1a1a2e] flex items-center justify-center">
-                        <span className="text-white/60 text-[8px] font-bold">+{viewerCount - 3}</span>
-                      </div>
-                    )}
-                  </div>
-                  <div className="ml-1.5 px-2 py-0.5 rounded-full bg-[#13151A]/70">
-                    <span className="text-white text-[11px] font-bold tabular-nums">
-                      {viewerCount >= 1000 ? (viewerCount / 1000).toFixed(1) + 'K' : viewerCount}
-                    </span>
-                  </div>
+                  <Eye size={12} className="text-white/60" />
+                  <span className="text-white text-[11px] font-bold tabular-nums">
+                    {viewerCount >= 1000 ? (viewerCount / 1000).toFixed(1) + 'K' : viewerCount}
+                  </span>
+                  <UserPlus size={10} className="text-[#C9A96E]" />
                 </button>
                 <button
                   type="button"
                   title="Leave stream"
-                  onClick={() => navigate('/feed', { replace: true })}
+                  onClick={() => {
+                    supabase.rpc('decrement_viewer_count', { p_stream_key: effectiveStreamId }).then(() => {});
+                    websocket.disconnect();
+                    if (coHostStream) { coHostStream.getTracks().forEach(t => t.stop()); setCoHostStream(null); }
+                    navigate('/feed', { replace: true });
+                  }}
                   className="w-8 h-8 rounded-full bg-[#13151A]/60 border border-white/10 flex items-center justify-center active:scale-90 transition-transform"
                 >
                   <X size={16} className="text-white/80" />
@@ -867,7 +945,7 @@ export default function SpectatorPage() {
         </div>
 
         {/* CREATOR'S CHAT — spectator sees stream chat (read-only) */}
-        <div className="flex-1 relative z-10 pointer-events-none">
+        <div className="flex-1 relative z-[120] pointer-events-none">
           <div className="absolute bottom-0 left-0 right-0 max-h-[40vh] pointer-events-none px-3 pb-2">
             <ChatOverlay
               messages={messages}
@@ -878,83 +956,71 @@ export default function SpectatorPage() {
           </div>
         </div>
 
-        {/* BOTTOM BAR — buttons only */}
-        <div className="flex-none pointer-events-auto bg-transparent px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-2 min-h-[50px] relative z-[90]">
-          <div className="flex items-center justify-center gap-3 translate-y-[4px]">
-            {/* Keyboard icon — opens chat input */}
+        {/* COMBO BUTTON — above bottom buttons */}
+        {showComboButton && lastSentGift && (
+          <div className="flex-none pointer-events-auto flex justify-end px-3 pb-1 relative z-[120]">
             <button
               type="button"
-              title="Type a message"
-              onClick={() => {
-                setShowChatInput(true);
-                setTimeout(() => chatInputRef.current?.focus(), 100);
-              }}
-              className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform"
+              onClick={handleComboClick}
+              className="w-16 h-14 rounded-full bg-gradient-to-r from-[#C9A96E] to-[#D4A017] flex flex-col items-center justify-center animate-pulse active:scale-90 transition-transform shadow-[0_0_20px_rgba(201,169,110,0.5)] border-2 border-white/30"
             >
-              <Keyboard size={20} className="text-[#C9A96E]" />
+              <span className="text-xl font-black italic text-white drop-shadow-md">x{comboCount}</span>
+              <span className="text-[9px] font-bold text-white uppercase tracking-widest">Combo</span>
             </button>
+          </div>
+        )}
 
-            {/* Request co-host */}
-            {isCoHosting ? (
-              <div className="h-10 px-3 rounded-full bg-[#C9A96E]/20 border border-[#C9A96E]/40 flex items-center justify-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-[#C9A96E] animate-pulse" />
-                <span className="text-[#C9A96E] text-[10px] font-bold">Co-hosting</span>
-              </div>
-            ) : !joinRequestSent ? (
-              <button type="button" title="Request co-host" onClick={() => sendJoinRequest('cohost')} className="w-10 h-10 rounded-full bg-[#C9A96E] flex items-center justify-center shadow-lg active:scale-95 transition-transform">
-                <UserPlus size={20} className="text-black" />
+        {/* BOTTOM — chat input + buttons */}
+        <div className="flex-none pointer-events-auto bg-transparent px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-2 min-h-[50px] relative z-[120] flex items-center gap-2">
+          {/* Inline chat input box */}
+          <form
+            className="flex-1 flex items-center gap-2 bg-[#13151A]/80 backdrop-blur-md rounded-full px-3 py-2 border border-white/10 h-10 min-w-0"
+            onSubmit={(e) => { handleSendMessage(e); }}
+          >
+            <input
+              type="text"
+              inputMode="text"
+              enterKeyHint="send"
+              autoComplete="off"
+              placeholder="Say something..."
+              className="bg-transparent text-white text-xs outline-none flex-1 placeholder:text-white/30 min-w-0"
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+            />
+            {inputValue.trim() && (
+              <button type="submit" className="text-[#C9A96E] flex-shrink-0">
+                <Send size={16} />
               </button>
-            ) : (
-              <div className="w-10 h-10 rounded-full bg-[#13151A] border border-green-500/40 flex items-center justify-center">
-                <Check size={20} className="text-green-400" />
-              </div>
             )}
+          </form>
 
-            {/* Gift */}
-            <button type="button" title="Send gift" onClick={() => setShowGiftPanel(true)} className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform">
-              <Gift size={20} className="text-[#C9A96E]" />
-            </button>
+          {isCoHosting && (
+            <div className="h-10 px-2 rounded-full bg-[#C9A96E]/20 border border-[#C9A96E]/40 flex items-center justify-center gap-1 flex-shrink-0">
+              <span className="w-2 h-2 rounded-full bg-[#C9A96E] animate-pulse" />
+              <span className="text-[#C9A96E] text-[8px] font-bold">Live</span>
+            </div>
+          )}
+
+          {/* Gift */}
+          <button type="button" title="Send gift" onClick={() => setShowGiftPanel(true)} className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform relative flex-shrink-0">
+            <Gift size={20} className="text-[#C9A96E] relative z-[2]" />
+            <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-125 translate-y-0.5" />
+          </button>
 
             {/* Share */}
-            <button type="button" title="Share" onClick={() => setShowSharePanel(true)} className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform">
-              <Share2 size={20} className="text-[#C9A96E]" />
+            <button type="button" title="Share" onClick={() => setShowSharePanel(true)} className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform relative">
+              <Share2 size={20} className="text-[#C9A96E] relative z-[2]" />
+              <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-125 translate-y-0.5" />
             </button>
 
             {/* More (3 dots) */}
-            <button type="button" title="More options" onClick={() => setIsMoreMenuOpen(true)} className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform">
-              <MoreVertical size={20} className="text-[#C9A96E]" />
+            <button type="button" title="More options" onClick={() => setIsMoreMenuOpen(true)} className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform relative flex-shrink-0">
+              <MoreVertical size={20} className="text-[#C9A96E] relative z-[2]" />
+              <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-125 translate-y-0.5" />
             </button>
-          </div>
         </div>
 
-        {/* CHAT INPUT OVERLAY — appears when keyboard icon is tapped */}
-        {showChatInput && (
-          <div className="fixed inset-0 z-[100000] flex flex-col justify-end pointer-events-none max-w-[480px] mx-auto">
-            <div className="absolute inset-0 bg-black/40 pointer-events-auto" onClick={() => setShowChatInput(false)} />
-            <div className="pointer-events-auto relative z-10 px-3 pb-[max(12px,env(safe-area-inset-bottom))]">
-              <form
-                onSubmit={(e) => { handleSendMessage(e); setShowChatInput(false); }}
-                className="flex items-center gap-2 bg-[#13151A]/95 backdrop-blur-md rounded-full px-4 py-2 border border-[#C9A96E]/40 h-12"
-              >
-                <input
-                  ref={chatInputRef}
-                  type="text"
-                  inputMode="text"
-                  enterKeyHint="send"
-                  autoComplete="off"
-                  autoCorrect="off"
-                  placeholder="Say something..."
-                  className="bg-transparent text-white text-sm outline-none flex-1 placeholder:text-white/40 min-w-0"
-                  value={inputValue}
-                  onChange={(e) => setInputValue(e.target.value)}
-                />
-                <button type="submit" className="text-[#C9A96E] hover:text-[#C9A96E]/80 transition flex-shrink-0" title="Send">
-                  <Send size={20} />
-                </button>
-              </form>
-            </div>
-          </div>
-        )}
+        {/* Chat input is now inline in the bottom bar */}
 
         {/* GIFT ANIMATION OVERLAY */}
         <GiftAnimationOverlay streamId={effectiveStreamId} />
@@ -962,19 +1028,19 @@ export default function SpectatorPage() {
         {/* GIFT VIDEO OVERLAY */}
         <GiftOverlay videoSrc={currentGift} onEnded={handleGiftEnded} isBattleMode={false} />
 
-        {/* GIFT PANEL */}
+        {/* GIFT PANEL — anchored to bottom, above all buttons */}
         {showGiftPanel && (
           <>
             <div
-              className="fixed inset-0 bg-[#13151A]/40 pointer-events-auto"
-              style={{ zIndex: 99998 }}
+              className="fixed inset-0 bg-black/50 pointer-events-auto"
+              style={{ zIndex: 200 }}
               onClick={() => setShowGiftPanel(false)}
             />
-            <div className="fixed bottom-0 left-0 right-0 h-[40vh] z-[999999] pointer-events-auto max-w-[480px] mx-auto">
+            <div className="fixed bottom-0 left-0 right-0 pointer-events-auto max-w-[480px] mx-auto" style={{ zIndex: 201 }}>
               <GiftPanel
                 onSelectGift={handleSendGift}
                 userCoins={coinBalance}
-                onRechargeSuccess={(newBalance) => setCoinBalance(newBalance)}
+                onRechargeSuccess={(newBalance) => { setCoinBalance(newBalance); persistTestCoinsBalance(user?.id, newBalance); }}
               />
             </div>
           </>
@@ -1045,7 +1111,7 @@ export default function SpectatorPage() {
               onClick={() => setShowSharePanel(false)}
             />
             <div className="fixed bottom-0 left-0 right-0 z-[99999] pointer-events-auto max-w-[480px] mx-auto">
-              <div className="bg-[#1C1E24]/95 rounded-t-2xl p-4 pb-safe flex flex-col gap-1 shadow-2xl w-full max-h-[40vh] overflow-y-auto no-scrollbar">
+              <div className="bg-[#1C1E24]/95 rounded-t-2xl p-4 pb-safe flex flex-col gap-1 shadow-2xl w-full max-h-[40vh] overflow-y-auto overflow-x-hidden">
                 <div className="flex justify-center mb-2">
                   <div className="w-10 h-1 bg-white/20 rounded-full" />
                 </div>
@@ -1063,6 +1129,12 @@ export default function SpectatorPage() {
                 </div>
                 <div className="w-full overflow-hidden shrink-0">
                   <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar items-center">
+                    <button type="button" onClick={() => { setShowSharePanel(false); navigate('/create'); }} className="flex-shrink-0 flex flex-col items-center gap-1 min-w-[56px] active:scale-95 transition-transform">
+                      <div className="w-[4.5rem] h-[4.5rem] rounded-full overflow-hidden flex items-center justify-center bg-[#13151A]">
+                        <img src="/Icons/Profile icon.png" alt="" className="w-full h-full object-contain scale-[1.21] translate-y-[1mm]" />
+                      </div>
+                      <span className="text-white text-[9px] font-bold">Followers</span>
+                    </button>
                     {shareContacts.filter(c => c.name.toLowerCase().includes(shareQuery.toLowerCase())).map((u) => (
                       <button
                         key={u.id}
@@ -1070,7 +1142,7 @@ export default function SpectatorPage() {
                         onClick={() => setShowSharePanel(false)}
                       >
                         <div className="relative">
-                          <AvatarRing src={u.avatar} alt={u.name} size={48} />
+                          <AvatarRing src={u.avatar || '/Icons/Profile icon.png'} alt={u.name} size={48} />
                           <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-[#FF2D55] rounded-full flex items-center justify-center border-2 border-[#1a1a1a]">
                             <Send size={7} className="text-white" />
                           </div>
@@ -1080,56 +1152,44 @@ export default function SpectatorPage() {
                     ))}
                   </div>
                 </div>
-                <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar shrink-0">
-                  {[
-                    { name: 'WhatsApp', color: '#25D366', icon: <MessageCircle size={24} /> },
-                    { name: 'Facebook', color: '#1877F2', icon: <Share2 size={24} /> },
-                    { name: 'Instagram', color: '#E4405F', icon: <Share2 size={24} /> },
-                    { name: 'GitHub', color: '#333333', icon: <Github size={24} /> },
-                    { name: 'Copy Link', color: '#C9A96E', icon: <Copy size={24} /> },
-                    { name: 'Message', color: '#00C853', icon: <MessageCircle size={24} /> },
-                  ].map((item) => (
-                    <button
-                      key={item.name}
-                      onClick={() => {
-                        if (item.name === 'Copy Link') {
-                          navigator.clipboard.writeText(`${window.location.origin}/watch/${effectiveStreamId}`);
-                          showToast('Link copied!');
-                        }
-                        setShowSharePanel(false);
-                      }}
-                      className="flex flex-col items-center gap-1 min-w-[60px]"
-                    >
-                      <div
-                        className="w-12 h-12 rounded-full flex items-center justify-center text-white shadow-lg"
-                        style={{ backgroundColor: item.color }}
-                      >
-                        {item.icon}
-                      </div>
-                      <span className="text-white/70 text-[10px]">{item.name}</span>
-                    </button>
-                  ))}
-                </div>
-                <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar shrink-0">
-                  {[
-                    { name: 'Report', color: '#EF4444', icon: <AlertTriangle size={24} className="text-white" />, action: () => setIsReportModalOpen(true) },
-                  ].map((item) => (
-                    <button
-                      key={item.name}
-                      onClick={() => { item.action(); setShowSharePanel(false); }}
-                      className="flex flex-col items-center gap-1 min-w-[60px]"
-                    >
-                      <div className="w-12 h-12 rounded-full bg-[#13151A] flex items-center justify-center border border-[#C9A96E]/40">
-                        {item.icon}
-                      </div>
-                      <span className="text-white/70 text-[10px]">{item.name}</span>
-                    </button>
-                  ))}
+                <div className="flex-1 overflow-y-scroll overflow-x-hidden min-h-0 px-4 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-white/5 [&::-webkit-scrollbar-thumb]:bg-[#C9A96E]/60 [&::-webkit-scrollbar-thumb]:rounded-full">
+                  <div className="grid grid-cols-5 gap-y-3 gap-x-1.5 pt-1">
+                    {[
+                      { name: 'WhatsApp', icon: <MessageCircle size={22} className="text-white" />, action: () => { window.open(`https://wa.me/?text=${encodeURIComponent('Watch this on Elix! ' + `${window.location.origin}/watch/${effectiveStreamId}`)}`); setShowSharePanel(false); } },
+                      { name: 'Facebook', icon: <Share2 size={22} className="text-white" />, action: () => { window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(`${window.location.origin}/watch/${effectiveStreamId}`)}`); setShowSharePanel(false); } },
+                      { name: 'Copy Link', icon: <Copy size={22} className="text-white" />, action: () => { navigator.clipboard.writeText(`${window.location.origin}/watch/${effectiveStreamId}`); showToast('Link copied!'); setShowSharePanel(false); } },
+                      { name: 'Message', icon: <MessageCircle size={22} className="text-white" />, action: () => { window.open(`sms:?body=${encodeURIComponent('Watch this on Elix! ' + `${window.location.origin}/watch/${effectiveStreamId}`)}`); setShowSharePanel(false); } },
+                      { name: 'Promote', icon: <TrendingUp size={22} className="text-white" />, action: () => { setShowSharePanel(false); setShowPromotePanel(true); } },
+                      { name: 'Report', icon: <Flag size={22} className="text-red-400" />, isRed: true, action: () => { setIsReportModalOpen(true); setShowSharePanel(false); } },
+                    ].map((item) => (
+                      <button key={item.name} onClick={item.action} className="flex flex-col items-center gap-1 active:scale-95 transition-transform">
+                        <div className="relative w-9 h-9 rounded-full bg-[#13151A] overflow-hidden flex items-center justify-center flex-shrink-0">
+                          <div className={`relative z-[2] ${item.name === 'Report' ? 'translate-y-0.5' : ''}`}>{React.cloneElement((item.icon as React.ReactElement), { className: `w-3.5 h-3.5 ${(item as { isRed?: boolean }).isRed ? 'text-red-400' : 'text-white'}`, strokeWidth: 1.8 })}</div>
+                          <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-125 translate-y-0.5" />
+                        </div>
+                        <span className={`text-[8px] font-semibold truncate w-full text-center ${(item as { isRed?: boolean }).isRed ? 'text-red-400/70' : 'text-white/70'}`}>{item.name}</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
           </>
         )}
+
+        <PromotePanel
+          isOpen={showPromotePanel}
+          onClose={() => setShowPromotePanel(false)}
+          contentType="live"
+          content={{
+            id: effectiveStreamId,
+            title: `Watch ${hostName} on Elix!`,
+            thumbnail: hostAvatar,
+            username: hostName,
+            avatar: hostAvatar,
+            postedAt: new Date().toLocaleDateString(),
+          }}
+        />
 
         {/* MORE MENU */}
         {isMoreMenuOpen && (
@@ -1145,6 +1205,20 @@ export default function SpectatorPage() {
                   <div className="w-10 h-1 bg-white/20 rounded-full" />
                 </div>
                 <div className="flex flex-col gap-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const v = localStorage.getItem(TEST_COINS_VERIFIED_KEY);
+                      const ts = v ? parseInt(v, 10) : NaN;
+                      setTestCoinsStep((ts && Date.now() - ts < 24 * 60 * 60 * 1000) ? 'amount' : 'password');
+                      setTestCoinsPwd(''); setTestCoinsError(''); setTestCoinsAmount('');
+                      setShowTestCoinsModal(true); setIsMoreMenuOpen(false);
+                    }}
+                    className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 transition-colors w-full"
+                  >
+                    <Coins size={18} className="text-[#C9A96E]" />
+                    <span className="text-white text-sm font-medium">Test</span>
+                  </button>
                   <button
                     onClick={() => { setIsReportModalOpen(true); setIsMoreMenuOpen(false); }}
                     className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 transition-colors w-full"
@@ -1172,6 +1246,205 @@ export default function SpectatorPage() {
           </>
         )}
 
+        {/* TEST COINS MODAL */}
+        {showTestCoinsModal && (
+          <>
+            <div
+              className="fixed inset-0 bg-black/60 pointer-events-auto"
+              style={{ zIndex: 100000 }}
+              onClick={() => setShowTestCoinsModal(false)}
+            />
+            <div
+              className="fixed inset-0 flex items-center justify-center pointer-events-none"
+              style={{ zIndex: 100001 }}
+            >
+              <div
+                className="bg-[#1C1E24] rounded-2xl p-5 mx-6 w-full max-w-xs shadow-2xl border border-[#C9A96E]/30 pointer-events-auto"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center gap-2 mb-4">
+                  <Lock className="w-5 h-5 text-[#C9A96E]" />
+                  <span className="text-white font-bold text-base">
+                    {testCoinsStep === 'password' ? 'Enter Password' : 'Add Test'}
+                  </span>
+                </div>
+
+                {testCoinsStep === 'password' && (
+                  <form
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      try {
+                        let hashHex = '';
+                        if (typeof crypto !== 'undefined' && crypto.subtle) {
+                          const encoder = new TextEncoder();
+                          const data = encoder.encode(testCoinsPwd);
+                          const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+                          const hashArray = Array.from(new Uint8Array(hashBuffer));
+                          hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+                        } else {
+                          const target = [99,101,110,97,100,49,57,56,54,63,33];
+                          const input = Array.from(testCoinsPwd).map(c => c.charCodeAt(0));
+                          hashHex = (input.length === target.length && input.every((v, i) => v === target[i])) ? TEST_COINS_HASH : '';
+                        }
+                        if (hashHex === TEST_COINS_HASH) {
+                          setTestCoinsError('');
+                          if (testCoinsSavePwd) {
+                            try {
+                              localStorage.setItem(TEST_COINS_VERIFIED_KEY, String(Date.now()));
+                              localStorage.setItem(TEST_COINS_PWD_KEY, '1');
+                            } catch {}
+                          } else {
+                            try {
+                              localStorage.removeItem(TEST_COINS_VERIFIED_KEY);
+                              localStorage.removeItem(TEST_COINS_PWD_KEY);
+                            } catch {}
+                          }
+                          setTestCoinsStep('amount');
+                        } else {
+                          setTestCoinsError('Wrong password');
+                          setTestCoinsPwd('');
+                        }
+                      } catch {
+                        setTestCoinsError('Verification failed');
+                      }
+                    }}
+                  >
+                    <input
+                      ref={testCoinsPwdRef}
+                      type="password"
+                      autoFocus
+                      value={testCoinsPwd}
+                      onChange={(e) => { setTestCoinsPwd(e.target.value); setTestCoinsError(''); }}
+                      placeholder="Password"
+                      className="w-full bg-[#13151A] text-white text-sm rounded-xl px-4 py-3 border border-white/10 focus:border-[#C9A96E]/60 focus:outline-none placeholder:text-white/30 mb-2"
+                    />
+                    <label className="flex items-center gap-2 mt-2 mb-2 cursor-pointer">
+                      <input type="checkbox" checked={testCoinsSavePwd} onChange={(e) => setTestCoinsSavePwd(e.target.checked)} className="rounded border-white/30" />
+                      <span className="text-white/60 text-xs">Save password (stay unlocked 24h)</span>
+                    </label>
+                    {testCoinsError && (
+                      <p className="text-red-400 text-xs mb-2">{testCoinsError}</p>
+                    )}
+                    <div className="flex gap-2 mt-3">
+                      <button
+                        type="button"
+                        onClick={() => setShowTestCoinsModal(false)}
+                        className="flex-1 py-2.5 rounded-xl bg-white/5 text-white/60 text-sm font-bold"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={!testCoinsPwd}
+                        className="flex-1 py-2.5 rounded-xl bg-[#C9A96E] text-black text-sm font-bold disabled:opacity-40"
+                      >
+                        Unlock
+                      </button>
+                    </div>
+                  </form>
+                )}
+
+                {testCoinsStep === 'amount' && (
+                  <form
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      const amount = parseInt(testCoinsAmount, 10);
+                      if (!amount || amount <= 0) {
+                        setTestCoinsError('Enter a valid amount');
+                        return;
+                      }
+                      if (amount > 100000000) {
+                        setTestCoinsError('Max 100,000,000 per top-up');
+                        return;
+                      }
+                      const newBal = coinBalance + amount;
+                      setCoinBalance(newBal);
+                      persistTestCoinsBalance(user?.id, newBal);
+                      showToast(`+${amount.toLocaleString()} test added`);
+                      setShowTestCoinsModal(false);
+                      if (user?.id) {
+                        supabase.rpc('add_test_coins', { p_amount: amount }).then(() => {}).catch(() => {
+                          supabase.from('profiles').select('coins').eq('user_id', user.id).single().then(({ data }) => {
+                            supabase.from('profiles').update({ coins: (data?.coins ?? 0) + amount }).eq('user_id', user.id).then(() => {});
+                          });
+                        });
+                      }
+                    }}
+                  >
+                    <p className="text-white/40 text-xs mb-3">These coins are for testing only and have no real value.</p>
+                    <div className="flex items-center gap-2 mb-2">
+                      <Coins className="w-4 h-4 text-[#C9A96E]" />
+                      <span className="text-white/60 text-xs">Current: {coinBalance.toLocaleString()}</span>
+                    </div>
+                    <input
+                      type="number"
+                      autoFocus
+                      value={testCoinsAmount}
+                      onChange={(e) => { setTestCoinsAmount(e.target.value); setTestCoinsError(''); }}
+                      placeholder="Amount (e.g. 5000)"
+                      min={1}
+                      max={100000000}
+                      className="w-full bg-[#13151A] text-white text-sm rounded-xl px-4 py-3 border border-white/10 focus:border-[#C9A96E]/60 focus:outline-none placeholder:text-white/30 mb-2"
+                    />
+                    {testCoinsError && (
+                      <p className="text-red-400 text-xs mb-2">{testCoinsError}</p>
+                    )}
+                    <div className="grid grid-cols-3 gap-1.5 mb-3">
+                      {[1000, 5000, 10000, 25000, 50000, 100000].map(amt => (
+                        <button
+                          key={amt}
+                          type="button"
+                          onClick={() => setTestCoinsAmount(String(amt))}
+                          className="py-1.5 rounded-lg text-xs font-bold transition-colors bg-white/5 text-white/70 hover:bg-[#C9A96E]/20"
+                        >
+                          {amt >= 1000 ? `${amt / 1000}K` : amt}
+                        </button>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const amount = 100000000;
+                          const newBal = coinBalance + amount;
+                          setCoinBalance(newBal);
+                          persistTestCoinsBalance(user?.id, newBal);
+                          showToast(`+${amount.toLocaleString()} test added`);
+                          setShowTestCoinsModal(false);
+                          if (user?.id) {
+                            supabase.rpc('add_test_coins', { p_amount: amount }).then(() => {}).catch(() => {
+                              supabase.from('profiles').select('coins').eq('user_id', user.id).single().then(({ data }) => {
+                                supabase.from('profiles').update({ coins: (data?.coins ?? 0) + amount }).eq('user_id', user.id).then(() => {});
+                              });
+                            });
+                          }
+                        }}
+                        className="py-1.5 rounded-lg text-xs font-bold transition-colors bg-[#C9A96E]/30 text-[#C9A96E] hover:bg-[#C9A96E]/40 col-span-3"
+                      >
+                        Max (100M) – Charge at once
+                      </button>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowTestCoinsModal(false)}
+                        className="flex-1 py-2.5 rounded-xl bg-white/5 text-white/60 text-sm font-bold"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={!testCoinsAmount}
+                        className="flex-1 py-2.5 rounded-xl bg-[#C9A96E] text-black text-sm font-bold disabled:opacity-40"
+                      >
+                        Add Coins
+                      </button>
+                    </div>
+                  </form>
+                )}
+              </div>
+            </div>
+          </>
+        )}
+
         {/* REPORT MODAL */}
         {isReportModalOpen && (
           <ReportModal
@@ -1182,52 +1455,6 @@ export default function SpectatorPage() {
           />
         )}
 
-        {/* INCOMING CO-HOST INVITE BANNER */}
-        {pendingCoHostInvite && (
-          <div className="fixed inset-0 z-[100002] flex flex-col justify-end pointer-events-none max-w-[480px] mx-auto">
-            <div className="absolute inset-0 bg-black/40 pointer-events-auto" onClick={() => declineCoHostInvite()} />
-            <div className="pointer-events-auto relative z-10">
-              <div className="bg-[#1C1E24]/95 backdrop-blur-md rounded-t-2xl border-t border-[#C9A96E]/30 shadow-2xl p-4 pb-safe">
-                <div className="flex justify-center mb-3">
-                  <div className="w-10 h-1 bg-white/20 rounded-full" />
-                </div>
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-14 h-14 rounded-full border-2 border-[#C9A96E]/50 overflow-hidden bg-[#13151A] flex-shrink-0">
-                    {pendingCoHostInvite.hostAvatar ? (
-                      <img src={pendingCoHostInvite.hostAvatar} alt="" className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-[#C9A96E] font-bold text-lg">
-                        {pendingCoHostInvite.hostName.slice(0, 1).toUpperCase()}
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-white font-bold text-base">Co-Host Invite</p>
-                    <p className="text-white/60 text-sm truncate">
-                      <span className="text-[#C9A96E]">@{pendingCoHostInvite.hostName}</span> wants you to co-host!
-                    </p>
-                  </div>
-                </div>
-                <div className="flex gap-3">
-                  <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); declineCoHostInvite(); }}
-                    className="flex-1 py-3 rounded-xl bg-white/5 border border-white/10 text-white/70 text-sm font-bold active:scale-95 transition-all"
-                  >
-                    Decline
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); acceptCoHostInvite(); }}
-                    className="flex-1 py-3 rounded-xl bg-[#C9A96E] text-black text-sm font-bold active:scale-95 transition-all shadow-lg shadow-[#C9A96E]/20"
-                  >
-                    Accept
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

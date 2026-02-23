@@ -114,10 +114,13 @@ function SoundPickerModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[500] bg-[#13151A] flex items-end justify-center">
-      <div className="w-full bg-[#13151A] border-t border-[#C9A96E]/30 rounded-t-2xl overflow-hidden">
+    <div className="fixed inset-0 z-[500] bg-black/40 flex items-end justify-center" onClick={onClose}>
+      <div
+        className="bg-[#1C1E24]/95 backdrop-blur-md w-full max-w-[480px] rounded-t-2xl overflow-hidden flex flex-col border-t border-[#C9A96E]/20 h-[40vh] max-h-[40dvh] shadow-2xl mb-[90px]"
+        onClick={(e) => e.stopPropagation()}
+      >
         <audio ref={audioRef} preload="auto" onEnded={() => setPlayingId(null)} className="hidden" />
-        <div className="flex items-center justify-between px-4 py-3 border-b border-[#C9A96E]/20">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-[#C9A96E]/20 flex-shrink-0">
           <div className="flex items-center gap-2">
             <Music className="w-4 h-4 text-white" strokeWidth={2} />
             <p className="text-white font-semibold">Add sound</p>
@@ -150,7 +153,7 @@ function SoundPickerModal({
             </button>
           </div>
         </div>
-        <div className="max-h-[45vh] overflow-y-auto">
+        <div className="flex-1 min-h-0 overflow-y-auto">
           {sounds.map((s) => (
             <div key={s.id} className="w-full px-3 py-2 flex items-center justify-between hover:brightness-125 transition-colors">
               <div className="text-left flex-1 min-w-0 mr-2">
@@ -198,6 +201,7 @@ const FEATURE_TOOLS = [
   { id: 'autocut', label: 'AutoCut', icon: Scissors },
   { id: 'captions', label: 'Captions', icon: Type },
   { id: 'cutout', label: 'Cutout', icon: Layers },
+  { id: 'music', label: 'Music', icon: Music },
 ];
 
 export default function Create() {
@@ -476,8 +480,9 @@ export default function Create() {
               onClick={() => openCamera('create')}
               className="flex flex-col items-center gap-1 active:scale-95 transition-transform"
             >
-              <div className="w-9 h-9 rounded-lg bg-[#13151A] border border-[#C9A96E]/30 flex items-center justify-center">
-                <tool.icon className="w-4 h-4 text-[#C9A96E]" strokeWidth={1.5} />
+              <div className="w-9 h-9 rounded-full bg-[#13151A] border border-[#C9A96E]/30 flex items-center justify-center relative">
+                <tool.icon className="w-4 h-4 text-[#C9A96E] relative z-[2]" strokeWidth={1.5} />
+                <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-125 translate-y-0.5" />
               </div>
               <span className="text-white/50 text-[9px] font-medium">{tool.label}</span>
             </button>
@@ -695,7 +700,7 @@ export default function Create() {
           onPost={() => navigate('/upload')}
         />
 
-        <SoundPickerModal isOpen={isSoundOpen} onClose={() => setIsSoundOpen(false)} onPick={() => {}} />
+        <SoundPickerModal isOpen={isSoundOpen} onClose={() => setIsSoundOpen(false)} onPick={(sound) => { setIsSoundOpen(false); }} />
       </div>
     </div>
   );

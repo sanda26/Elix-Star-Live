@@ -274,8 +274,9 @@ export default function CreatorLoginDetails() {
                 }}
                 className="flex-shrink-0 w-14 flex flex-col items-center gap-1.5 group cursor-pointer opacity-60 hover:opacity-100"
               >
-                <div className="w-10 h-10 rounded-full bg-[#13151A] border border-[#C9A96E]/40 flex items-center justify-center group-hover:bg-[#C9A96E]/10 transition-colors">
-                  <span className="text-lg text-white/50 font-light">+</span>
+                <div className="w-10 h-10 rounded-full bg-[#13151A] border border-[#C9A96E]/40 flex items-center justify-center group-hover:bg-[#C9A96E]/10 transition-colors relative">
+                  <span className="text-lg text-white/50 font-light relative z-[2]">+</span>
+                  <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-125 translate-y-0.5" />
                 </div>
                 <div className="text-center">
                   <p className="text-[9px] font-medium text-white/50">Add</p>

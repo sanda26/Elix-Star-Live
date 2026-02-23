@@ -500,7 +500,7 @@ export default function Upload() {
 
   return (
     <div className="fixed inset-0 h-[100dvh] w-full bg-[#13151A] overflow-hidden flex justify-center">
-      <div className="w-full max-w-[480px] flex flex-col items-center justify-end h-full relative">
+      <div className={`w-full max-w-[480px] flex flex-col items-center h-full relative ${recordedVideoUrl ? 'justify-end' : 'justify-start'}`}>
       {toast && <div className="fixed top-16 left-1/2 -translate-x-1/2 bg-white/10 backdrop-blur-md text-white text-sm px-4 py-2 rounded-xl z-[9999]">{toast}</div>}
       {/* PREVIEW MODE */}
        {recordedVideoUrl ? (
@@ -516,16 +516,7 @@ export default function Upload() {
                   style={{ filter: activeFilter !== 'none' || activeEnhance !== 'none' ? [activeFilter !== 'none' ? activeFilter : '', activeEnhance !== 'none' ? activeEnhance : ''].filter(Boolean).join(' ') : undefined }}
               />
                
-               {/* Overlay Image in Preview too */}
-               <div className="absolute inset-0 z-10 w-full h-full pointer-events-none">
-                    <img 
-                        src="/Icons/Camera.png" 
-                        className="absolute inset-0 w-full h-full object-fill object-bottom opacity-50" // Semi-transparent or full?
-                        alt="Camera Interface"
-                    />
-               </div>
-
-               {/* Preview Top Controls */}
+               {/* Preview Top Controls - icon pack on right */}
                <div className="absolute top-[2%] left-0 right-0 z-20 flex items-center justify-between pointer-events-auto px-4">
                     <button onClick={() => navigate('/feed')} className="p-1" title="Back to For You">
                       <img src="/Icons/Gold power buton.png" alt="Close" className="w-5 h-5" />
@@ -600,58 +591,58 @@ export default function Upload() {
                  </div>
                </div>
 
-                  {/* AI Studio Button */}
+                  {/* Upload - left side only */}
                   <button
-                      onClick={() => setShowAITools(true)}
-                      className="absolute bottom-[10%] right-[5%] flex flex-col items-center gap-1 group z-30 pointer-events-auto"
-                      title="AI Studio"
+                      onClick={handleFileUpload}
+                      className="absolute bottom-[10%] left-[5%] flex flex-col items-center gap-1 z-30 pointer-events-auto group"
+                      title="Upload"
                   >
-                      <div className="w-10 h-10 bg-gradient-to-br from-[#C9A96E] to-[#B8943F] rounded-full flex items-center justify-center text-black border-2 border-white shadow-lg shadow-[#C9A96E]/30 group-hover:scale-110 transition-transform">
-                          <Wand2 size={18} />
+                      <div className="w-9 h-9 bg-[#13151A] rounded-full flex items-center justify-center text-white border border-[#C9A96E]/30 relative">
+                          <div className="w-4 h-4 border-2 border-white rounded-sm relative overflow-hidden z-[2]">
+                              <div className="absolute top-0.5 right-0.5 w-1 h-1 bg-white rounded-full"></div>
+                          </div>
+                          <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-[1.32] translate-y-0.5" />
                       </div>
-                      <span className="text-white font-bold text-[10px] shadow-black drop-shadow-md">AI Studio</span>
+                      <span className="text-white font-bold text-[10px] shadow-black drop-shadow-md">Upload</span>
                   </button>
 
-                  {/* 10. Upload (Inside Post - Restored) */}
-                  <button 
-                      onClick={handleFileUpload}
-                      className="absolute bottom-[10%] left-[5%] flex flex-col items-center gap-1 group z-30 pointer-events-auto"
-                      title="Upload"
-                   >
-                       <div className="w-10 h-10 bg-[#13151A] rounded-full flex items-center justify-center text-white border border-[#C9A96E]/40 group-hover:bg-[#C9A96E]/10">
-                           {/* Simple Upload Icon */}
-                           <div className="w-4 h-4 border-2 border-white rounded-sm relative overflow-hidden">
-                               <div className="absolute top-0.5 right-0.5 w-1 h-1 bg-white rounded-full"></div>
-                           </div>
-                       </div>
-                       <span className="text-white font-bold text-[10px] shadow-black drop-shadow-md">Upload</span>
-                   </button>
-                   
-                   {/* Preview Controls - Custom Buttons Over Overlay */}
-                   <div className="absolute bottom-[10%] left-0 right-0 flex justify-center gap-20 z-20 pointer-events-auto">
-                       <button 
-                           onClick={handleDiscard}
-                           className="flex flex-col items-center gap-1 group"
-                           title="Retake"
-                       >
-                           <div className="w-10 h-10 bg-[#13151A] rounded-full flex items-center justify-center text-white border border-[#C9A96E]/40 group-hover:bg-[#C9A96E]/10">
-                               <RotateCcw size={18} />
-                           </div>
-                           <span className="text-white font-bold text-[10px] shadow-black drop-shadow-md">Retake</span>
-                       </button>
-
-                       <button 
-                           onClick={handlePost}
-                           className="flex flex-col items-center gap-1 group disabled:opacity-60"
-                           title="Post"
-                           disabled={isPosting}
-                       >
-                           <div className="w-10 h-10 bg-red-600 rounded-full flex items-center justify-center text-white font-bold shadow-lg border-2 border-white group-hover:scale-110 transition-transform">
-                               <Check size={18} />
-                           </div>
-                           <span className="text-white font-bold text-[10px] shadow-black drop-shadow-md">{isPosting ? 'Posting' : 'Post'}</span>
-                       </button>
-                   </div>
+                  {/* All other buttons - right side */}
+                  <div className="absolute bottom-[10%] right-[5%] flex flex-col items-center gap-4 z-30 pointer-events-auto">
+                    <button
+                        onClick={() => setShowAITools(true)}
+                        className="flex flex-col items-center gap-1 group"
+                        title="AI Studio"
+                    >
+                        <div className="w-9 h-9 rounded-full bg-[#13151A] border border-[#C9A96E]/30 flex items-center justify-center relative group-hover:scale-110 transition-transform">
+                            <Wand2 size={18} className="text-[#C9A96E] relative z-[2]" />
+                            <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-[1.32] translate-y-0.5" />
+                        </div>
+                        <span className="text-white font-bold text-[10px] shadow-black drop-shadow-md">AI Studio</span>
+                    </button>
+                    <button 
+                        onClick={handleDiscard}
+                        className="flex flex-col items-center gap-1 group"
+                        title="Retake"
+                    >
+                        <div className="w-9 h-9 bg-[#13151A] rounded-full flex items-center justify-center text-white border border-[#C9A96E]/30 relative">
+                            <RotateCcw size={18} className="text-[#C9A96E] relative z-[2]" />
+                            <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-[1.32] translate-y-0.5" />
+                        </div>
+                        <span className="text-white font-bold text-[10px] shadow-black drop-shadow-md">Retake</span>
+                    </button>
+                    <button 
+                        onClick={handlePost}
+                        className="flex flex-col items-center gap-1 group disabled:opacity-60"
+                        title="Post"
+                        disabled={isPosting}
+                    >
+                        <div className="w-9 h-9 bg-red-600 rounded-full flex items-center justify-center text-white font-bold shadow-lg border-2 border-white group-hover:scale-110 transition-transform relative">
+                            <Check size={18} className="relative z-[2]" />
+                            <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-[1.32] translate-y-0.5" />
+                        </div>
+                        <span className="text-white font-bold text-[10px] shadow-black drop-shadow-md">{isPosting ? 'Posting' : 'Post'}</span>
+                    </button>
+                  </div>
                </div>
 
               {/* AI Tools Panel */}
@@ -678,7 +669,7 @@ export default function Upload() {
        ) : (
         /* CAMERA MODE */
         <>
-          {/* Container Principal - Limitat la mărimea unui telefon (500px) */}
+          {/* Container Principal */}
           <div className="relative z-10 w-full h-[100dvh] mb-0 pointer-events-none bg-[#13151A] shadow-2xl overflow-hidden">
               
               {/* Camera Preview Layer */}
@@ -720,56 +711,42 @@ export default function Upload() {
                 </div>
               )}
 
-              {/* Imaginea de fundal a interfeței - PESTE VIDEO cu SCREEN blend */}
-              <img 
-                src="/Icons/Camera.png" 
-                className="absolute inset-0 w-full h-full object-fill object-bottom z-10 mix-blend-screen" 
-                alt="Camera Interface"
-              />
-
               {/* Interactive Hitboxes Layer */}
               <div className="absolute inset-0 z-20 w-full h-full pointer-events-auto">
-                  {/* 1. Close Button */}
-                  <button 
-                    onClick={() => navigate('/feed')} 
-                    className="absolute top-[2%] left-[5%] w-10 h-10 flex items-center justify-center"
-                    title="Close"
-                  >
-                    <img src="/Icons/Gold power buton.png" alt="Close" className="w-5 h-5" />
-                  </button>
-
-                  {/* 2. Sound/Music */}
-                  <button 
-                    className="absolute top-[2%] left-1/2 -translate-x-1/2 w-40 h-8 rounded-full flex items-center justify-center gap-1 bg-[#13151A] border border-transparent z-[150]"
-                    onClick={() => setShowMusicModal(true)}
-                  >
-                    <Music size={14} className="text-white" />
-                    <span className="text-white text-xs font-bold truncate max-w-[120px]">
-                        {getSelectedLabel()}
-                    </span>
-                  </button>
-
-                  {/* Zoom Out */}
-                  <button 
-                    className="absolute top-[18%] right-[5%] w-8 h-8 flex items-center justify-center rounded-full bg-[#13151A] border border-[#C9A96E]/40 text-white"
-                    onClick={handleZoomOut}
-                    title="Zoom out"
-                    aria-label="Zoom out"
-                  >
-                    <ZoomOut size={20} />
-                  </button>
-                  {/* Zoom In */}
-                  <button 
-                    className="absolute top-[26%] right-[5%] w-8 h-8 flex items-center justify-center rounded-full bg-[#13151A] border border-[#C9A96E]/40 text-white"
-                    onClick={handleZoomIn}
-                    title="Zoom in"
-                    aria-label="Zoom in"
-                  >
-                    <ZoomIn size={20} />
-                  </button>
-                  {/* 3. Flip Camera */}
-                  <button 
-                    className="absolute top-[34%] right-[5%] w-8 h-8 flex items-center justify-center rounded-full bg-[#13151A]/60 border border-[#C9A96E]/30"
+                  {/* Right side - all controls except Upload */}
+                  <div className="absolute top-0 right-[5%] bottom-0 flex flex-col items-center gap-4 py-2" style={{ paddingTop: 'max(0.5rem, env(safe-area-inset-top))' }}>
+                    <button onClick={() => navigate('/feed')} className="w-9 h-9 rounded-full flex items-center justify-center bg-[#13151A] border border-[#C9A96E]/30 relative" title="Close">
+                      <img src="/Icons/Gold power buton.png" alt="Close" className="w-5 h-5 relative z-[2]" />
+                      <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-[1.32] translate-y-0.5" />
+                    </button>
+                    <button 
+                      className="w-9 h-9 rounded-full flex items-center justify-center bg-[#13151A] border border-[#C9A96E]/30 relative"
+                      onClick={() => setShowMusicModal(true)}
+                      title="Add sound"
+                    >
+                      <Music size={18} className="text-[#C9A96E] relative z-[2]" />
+                      <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-[1.32] translate-y-0.5" />
+                    </button>
+                    <button 
+                      className="w-9 h-9 rounded-full flex items-center justify-center bg-[#13151A] border border-[#C9A96E]/30 relative"
+                      onClick={handleZoomOut}
+                      title="Zoom out"
+                      aria-label="Zoom out"
+                    >
+                      <ZoomOut size={18} className="text-[#C9A96E] relative z-[2]" />
+                      <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-[1.32] translate-y-0.5" />
+                    </button>
+                    <button 
+                      className="w-9 h-9 rounded-full flex items-center justify-center bg-[#13151A] border border-[#C9A96E]/30 relative"
+                      onClick={handleZoomIn}
+                      title="Zoom in"
+                      aria-label="Zoom in"
+                    >
+                      <ZoomIn size={18} className="text-[#C9A96E] relative z-[2]" />
+                      <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-[1.32] translate-y-0.5" />
+                    </button>
+                    <button 
+                      className="w-9 h-9 rounded-full flex items-center justify-center bg-[#13151A] border border-[#C9A96E]/30 relative"
                     onClick={async () => {
                       try {
                         const currentStream = videoRef.current?.srcObject as MediaStream | null;
@@ -787,95 +764,92 @@ export default function Upload() {
                         cameraFacingRef.current = newFacing;
                       } catch { showToast('Cannot flip camera'); }
                     }}
-                    title="Flip Camera"
-                  >
-                    <RefreshCw size={20} className="text-white" />
-                  </button>
+                      title="Flip Camera"
+                    >
+                      <RefreshCw size={18} className="text-[#C9A96E] relative z-[2]" />
+                      <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-[1.32] translate-y-0.5" />
+                    </button>
+                    <button 
+                      className="w-9 h-9 rounded-full flex items-center justify-center bg-[#13151A] border border-[#C9A96E]/30 relative"
+                      onClick={() => showToast('Speed: 1x')}
+                      title="Speed"
+                    >
+                      <span className="text-[#C9A96E] font-bold text-xs relative z-[2]">1x</span>
+                      <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-[1.32] translate-y-0.5" />
+                    </button>
+                    <button 
+                      className="w-9 h-9 rounded-full flex items-center justify-center bg-[#13151A] border border-[#C9A96E]/30 relative"
+                      onClick={() => showToast('Beauty: On')}
+                      title="Beauty"
+                    >
+                      <span className="text-[#C9A96E] text-xs relative z-[2]">✨</span>
+                      <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-[1.32] translate-y-0.5" />
+                    </button>
+                    <button 
+                      className="w-9 h-9 rounded-full flex items-center justify-center bg-[#13151A] border border-[#C9A96E]/30 relative"
+                      onClick={() => showToast('Timer: Off')}
+                      title="Timer"
+                    >
+                      <Clock size={18} className="text-[#C9A96E] relative z-[2]" />
+                      <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-[1.32] translate-y-0.5" />
+                    </button>
+                    <button 
+                      className="w-9 h-9 rounded-full flex items-center justify-center bg-[#13151A] border border-[#C9A96E]/30 relative"
+                      onClick={() => showToast('Flash: Off')}
+                      title="Flash"
+                    >
+                      <Zap size={18} className="text-[#C9A96E] relative z-[2]" />
+                      <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-[1.32] translate-y-0.5" />
+                    </button>
+                    <button 
+                      className="w-9 h-9 rounded-full bg-[#13151A] border border-[#C9A96E]/30 flex items-center justify-center relative"
+                      onClick={() => { if (!recordedVideoUrl) showToast('Record a video first'); }}
+                      title="AI Effects"
+                    >
+                      <Wand2 size={18} className="text-[#C9A96E] relative z-[2]" />
+                      <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-[1.32] translate-y-0.5" />
+                    </button>
+                  </div>
 
-                  {/* 4. Speed */}
-                  <button 
-                    className="absolute top-[42%] right-[5%] w-8 h-8 flex items-center justify-center rounded-full bg-[#13151A]/60 border border-[#C9A96E]/30"
-                    onClick={() => showToast('Speed: 1x')}
-                    title="Speed"
-                  >
-                    <span className="text-white font-bold text-xs">1x</span>
-                  </button>
-
-                  {/* 5. Beauty */}
-                  <button 
-                    className="absolute top-[50%] right-[5%] w-8 h-8 flex items-center justify-center rounded-full bg-[#13151A]/60 border border-[#C9A96E]/30"
-                    onClick={() => showToast('Beauty: On')}
-                    title="Beauty"
-                  >
-                    <span className="text-white text-xs">✨</span>
-                  </button>
-
-                  {/* 6. Timer */}
-                  <button 
-                    className="absolute top-[58%] right-[5%] w-8 h-8 flex items-center justify-center rounded-full bg-[#13151A]/60 border border-[#C9A96E]/30"
-                    onClick={() => showToast('Timer: Off')}
-                    title="Timer"
-                  >
-                    <Clock size={20} className="text-white" />
-                  </button>
-
-                  {/* 7. Flash */}
-                  <button 
-                    className="absolute top-[66%] right-[5%] w-8 h-8 flex items-center justify-center rounded-full bg-[#13151A]/60 border border-[#C9A96E]/30"
-                    onClick={() => showToast('Flash: Off')}
-                    title="Flash"
-                  >
-                    <Zap size={20} className="text-white" />
-                  </button>
-
-                  {/* --- Bottom Controls --- */}
-
-                  {/* 8. AI Effects */}
-                  <button 
-                    className="absolute bottom-[15%] left-[15%] w-10 h-10 bg-gradient-to-br from-[#C9A96E] to-[#B8943F] rounded-lg flex items-center justify-center"
-                    onClick={() => { if (!recordedVideoUrl) showToast('Record a video first'); }}
-                  >
-                    <Wand2 size={16} className="text-black" />
-                  </button>
-
-                  {/* 9. Record Button (Play / Stop Logic) */}
-                  <div className="absolute bottom-[10.5%] left-1/2 -translate-x-1/2 flex items-center gap-4">
+                  {/* Record Button (Play / Stop Logic) */}
+                  <div className="absolute bottom-[10.5%] left-1/2 -translate-x-[calc(50%+20px)] flex items-center gap-4">
                       {/* Done Button (Visible only if we have chunks and are paused or recording) */}
                       {(chunks.length > 0 || isPaused) && (
                           <button 
-                            className="w-12 h-12 bg-red-600 rounded-full flex items-center justify-center text-white border-2 border-white animate-in fade-in zoom-in duration-300 absolute -right-20"
+                            className="w-9 h-9 bg-red-600 rounded-full flex items-center justify-center text-white border-2 border-white animate-in fade-in zoom-in duration-300 absolute -right-44 relative"
                             onClick={stopRecordingFinal}
                             title="Done"
                           >
-                              <Check size={24} />
+                              <Check size={24} className="relative z-[2]" />
+                              <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-[1.32] translate-y-0.5" />
                           </button>
                       )}
 
                       <button 
-                        className={`w-24 h-24 rounded-full flex items-center justify-center transition-all ${isRecording ? 'bg-red-600 border-4 border-white' : 'bg-white border-4 border-white hover:bg-red-600/50'}`}
+                        className={`w-24 h-24 rounded-full flex items-center justify-center transition-all relative z-[2] border-4 border-white ${isRecording ? 'bg-red-600' : 'bg-white hover:bg-red-600/50'}`}
                         onClick={toggleRecording}
                       >
                         {isRecording ? (
-                            <Square className="text-white fill-white w-8 h-8" />
+                            <Square className="text-white fill-white w-8 h-8 relative z-[2]" />
                         ) : (
-                            <div className="w-16 h-16 bg-red-600 rounded-full flex items-center justify-center">
+                            <div className="w-16 h-16 bg-red-600 rounded-full flex items-center justify-center relative z-[2]">
                                 {/* Inner Circle */}
                             </div>
                         )}
                       </button>
                   </div>
 
-                  {/* 10. Upload (Left Side - VISIBLE NOW) */}
+                  {/* 10. Upload - left side */}
                   <button 
                     className="absolute bottom-8 left-6 flex flex-col items-center gap-1 z-[1000] pointer-events-auto group"
                     onClick={handleFileUpload}
                     title="Upload from Gallery"
                   >
-                    <div className="w-10 h-10 bg-[#13151A] rounded-full flex items-center justify-center text-white border border-[#C9A96E]/40 group-hover:bg-[#C9A96E]/10">
-                        {/* Gallery Icon */}
-                        <div className="w-4 h-4 border-2 border-white rounded-sm relative overflow-hidden">
+                    <div className="w-9 h-9 bg-[#13151A] rounded-full flex items-center justify-center text-white border border-[#C9A96E]/30 relative">
+                        <div className="w-4 h-4 border-2 border-white rounded-sm relative overflow-hidden z-[2]">
                             <div className="absolute top-0.5 right-0.5 w-1 h-1 bg-white rounded-full"></div>
                         </div>
+                        <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-[1.32] translate-y-0.5" />
                     </div>
                     <span className="text-white text-[10px] font-bold shadow-black drop-shadow-md">Upload</span>
                   </button>

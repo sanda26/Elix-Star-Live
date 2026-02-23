@@ -70,7 +70,7 @@ BEGIN
   
   LOOP
     v_xp_needed := v_new_level * 1000;
-    EXIT WHEN v_new_xp < v_xp_needed OR v_new_level >= 150;
+    EXIT WHEN v_new_xp < v_xp_needed OR v_new_level >= 300;
     v_new_level := v_new_level + 1;
     v_new_xp := v_new_xp - v_xp_needed;
   END LOOP;

@@ -17,10 +17,11 @@ export const LevelIcon: React.FC<LevelIconProps> = ({
   barColor,
   text = 'lv',
 }) => {
-  const safeLevel = Number.isFinite(level) && level > 0 ? Math.floor(level) : 1;
-  const circleSize = Math.max(16, Math.floor(size));
+  const safeLevel = typeof level === 'number' && Number.isFinite(level) && level > 0 ? Math.floor(level) : 1;
+  const rawSize = typeof size === 'number' && Number.isFinite(size) ? size : 40;
+  const circleSize = Math.max(16, Math.floor(rawSize));
   const barHeight = Math.round(circleSize * 0.72);
-  const barWidth = Math.round(circleSize * 1.95);
+  const barWidth = Math.round(circleSize * 1.75);
   const overlap = Math.round(circleSize * 0.52);
   const ringThickness = Math.max(2, Math.round(circleSize * 0.09));
 
@@ -33,11 +34,12 @@ export const LevelIcon: React.FC<LevelIconProps> = ({
   };
 
   const ringGlow = 'rgba(201, 169, 110, 0.35)';
+  const goldScale = (circleSize + 12) / circleSize; // 3mm bigger
   const ringMetal =
     'conic-gradient(from 210deg, rgba(255,255,255,0.08), rgba(0,0,0,0.55), rgba(255,255,255,0.18), rgba(0,0,0,0.55), rgba(255,255,255,0.08))';
 
   return (
-    <div className={className} style={{ display: 'inline-flex', alignItems: 'center', flexShrink: 0 }}>
+    <div className={className} style={{ display: 'inline-flex', alignItems: 'center', flexShrink: 0, marginLeft: 8 }}>
       <div
         style={{
           position: 'relative',
@@ -60,7 +62,7 @@ export const LevelIcon: React.FC<LevelIconProps> = ({
             background: 'rgba(0,0,0,0.55)',
           }}
         >
-          {avatarUrl ? (
+          {typeof avatarUrl === 'string' && avatarUrl ? (
             <img src={avatarUrl} alt="" draggable={false} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           ) : null}
           <div
@@ -72,6 +74,12 @@ export const LevelIcon: React.FC<LevelIconProps> = ({
             }}
           />
         </div>
+        <img
+          src="/Icons/Profile icon.png"
+          alt=""
+          className="absolute object-contain pointer-events-none rounded-full"
+          style={{ top: '50%', left: '50%', width: '100%', height: '100%', transform: `translate(-50%, -50%) scale(${goldScale})`, zIndex: 3 }}
+        />
       </div>
 
       <div
@@ -80,7 +88,7 @@ export const LevelIcon: React.FC<LevelIconProps> = ({
           zIndex: 1,
           height: barHeight,
           width: barWidth,
-          marginLeft: -overlap,
+          marginLeft: -overlap + 8,
           borderRadius: barHeight / 2,
           background: getBarGradient(),
           border: '1px solid rgba(255,255,255,0.22)',

@@ -8,6 +8,8 @@ interface AvatarRingProps {
 
 export function AvatarRing({ src, alt = '', size, className = '', onClick }: AvatarRingProps) {
   const innerSize = size * 0.65;
+  const safeSrc = typeof src === 'string' ? src : '';
+  const safeAlt = typeof alt === 'string' ? alt : '';
   return (
     <div
       className={`relative flex-shrink-0 rounded-full ${onClick ? 'cursor-pointer' : ''} ${className}`}
@@ -26,8 +28,8 @@ export function AvatarRing({ src, alt = '', size, className = '', onClick }: Ava
         }}
       />
       <img
-        src={src}
-        alt={alt}
+        src={safeSrc}
+        alt={safeAlt}
         className="absolute rounded-full object-cover"
         style={{
           width: innerSize,

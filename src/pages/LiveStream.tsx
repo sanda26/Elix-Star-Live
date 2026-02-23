@@ -12,7 +12,6 @@ import {
   RefreshCw,
   Mic,
   MicOff,
-  Settings2,
   LogOut,
   Volume2,
   VolumeX,
@@ -38,7 +37,6 @@ import {
   Flag,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { GiftPanel } from '../components/GiftPanel';
 import { GIFTS } from '../lib/gifts';
 import { GiftOverlay } from '../components/GiftOverlay';
 import GiftAnimationOverlay from '../components/GiftAnimationOverlay';
@@ -51,6 +49,7 @@ import { clearCachedCameraStream, getCachedCameraStream } from '../lib/cameraStr
 import { supabase } from '../lib/supabase';
 import { LevelBadge } from '../components/LevelBadge';
 import ReportModal from '../components/ReportModal';
+import PromotePanel from '../components/PromotePanel';
 import { RankingPanel } from '../components/RankingPanel';
 import { websocket } from '../lib/websocket';
 import LiveAIFilters from '../components/LiveAIFilters';
@@ -118,17 +117,8 @@ export default function LiveStream() {
   const PROMOTE_LIKES_THRESHOLD_LIVE = 100;
   const _PROMOTE_LIKES_THRESHOLD_BATTLE = 50;
   
-  const [showGiftPanel, setShowGiftPanel] = useState(false);
   const [showRankingPanel, setShowRankingPanel] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
-  const giftPanelOpenedAtRef = useRef(0);
-  const _openGiftPanel = useCallback(() => {
-    giftPanelOpenedAtRef.current = Date.now();
-    setShowGiftPanel(true);
-  }, []);
-  const _closeGiftPanel = useCallback(() => {
-    setShowGiftPanel(false);
-  }, []);
   const [currentGift, setCurrentGift] = useState<string | null>(null);
   const [messages, setMessages] = useState<LiveMessage[]>([]);
   const [coinBalance, setCoinBalance] = useState(0);
@@ -143,18 +133,31 @@ export default function LiveStream() {
   const [moderationWarningMessage, setModerationWarningMessage] = useState('');
   const [showTestCoinsModal, setShowTestCoinsModal] = useState(false);
   const [testCoinsStep, setTestCoinsStep] = useState<'password' | 'amount'>('password');
+  const TEST_COINS_PWD_KEY = 'elix_test_coins_pwd_saved';
+  const TEST_COINS_VERIFIED_KEY = 'elix_test_coins_verified';
   const [testCoinsPwd, setTestCoinsPwd] = useState('');
+  const [testCoinsSavePwd, setTestCoinsSavePwd] = useState(!!(typeof localStorage !== 'undefined' && localStorage.getItem(TEST_COINS_PWD_KEY)));
   const [testCoinsError, setTestCoinsError] = useState('');
   const [testCoinsAmount, setTestCoinsAmount] = useState('');
   const testCoinsPwdRef = useRef<HTMLInputElement>(null);
-  const TEST_COINS_HASH = '899e963d166e2738a2e519801a27139abf7fbe55e7c4ac54be9c94aed8199057';
+  const TEST_COINS_HASH = '169a9bfc269089e14090ad2e393b17e945d798598c33993bcab5feef93e68508';
+  const getPersistedTestCoinsBalance = (userId: string | undefined) => {
+    if (!userId || typeof localStorage === 'undefined') return 0;
+    try {
+      const v = localStorage.getItem(`elix_test_coins_balance_${userId}`);
+      return v ? Math.max(0, parseInt(v, 10)) : 0;
+    } catch { return 0; }
+  };
+  const persistTestCoinsBalance = (userId: string | undefined, balance: number) => {
+    if (!userId || typeof localStorage === 'undefined') return;
+    try { localStorage.setItem(`elix_test_coins_balance_${userId}`, String(Math.max(0, balance))); } catch {}
+  };
   const [showViewerList, setShowViewerList] = useState(false);
   const [moderators, setModerators] = useState<Set<string>>(new Set());
 
   const [isMicMuted, setIsMicMuted] = useState(false);
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
   const [isChatVisible, setIsChatVisible] = useState(true);
-  const [isLiveSettingsOpen, setIsLiveSettingsOpen] = useState(false);
   const [viewerCount, setViewerCount] = useState(0);
   const [cameraFacing, setCameraFacing] = useState<'user' | 'environment'>('user');
   const user = useAuthStore((s) => s.user);
@@ -263,7 +266,9 @@ export default function LiveStream() {
         .maybeSingle();
 
       if (!cancelled && data?.coins != null) {
-        setCoinBalance(Number(data.coins));
+        const dbCoins = Number(data.coins);
+        const persisted = getPersistedTestCoinsBalance(user.id);
+        setCoinBalance(Math.max(dbCoins, persisted));
         if (data.level != null) setUserLevel(Number(data.level));
         if (data.xp != null) setUserXP(Number(data.xp));
         if (data.level != null) updateUser({ level: Number(data.level) });
@@ -284,7 +289,9 @@ export default function LiveStream() {
         .maybeSingle();
 
       if (!cancelled && retryData?.coins != null) {
-        setCoinBalance(Number(retryData.coins));
+        const dbCoins = Number(retryData.coins);
+        const persisted = getPersistedTestCoinsBalance(user.id);
+        setCoinBalance(Math.max(dbCoins, persisted));
         if (retryData.level != null) setUserLevel(Number(retryData.level));
         if (retryData.xp != null) setUserXP(Number(retryData.xp));
         if (retryData.level != null) updateUser({ level: Number(retryData.level) });
@@ -297,6 +304,10 @@ export default function LiveStream() {
     };
   }, [updateUser, user?.id]);
 
+  const [isMyStreamLive, setIsMyStreamLive] = useState(false);
+  const creatorNameRef = useRef(creatorName);
+  creatorNameRef.current = creatorName;
+
   useEffect(() => {
     if (!user?.id) return;
     const key = effectiveStreamId;
@@ -304,16 +315,18 @@ export default function LiveStream() {
 
     if (isBroadcast) {
       (async () => {
-        await supabase.from('live_streams').upsert(
+        const { error } = await supabase.from('live_streams').upsert(
           {
             stream_key: key,
             user_id: user.id,
-            title: creatorName,
+            title: creatorNameRef.current,
             is_live: true,
             viewer_count: 0,
+            updated_at: new Date().toISOString(),
           },
           { onConflict: 'stream_key' }
         );
+        if (!error) setIsMyStreamLive(true);
       })();
 
       const channel = supabase
@@ -326,6 +339,7 @@ export default function LiveStream() {
         .subscribe();
 
       return () => {
+        setIsMyStreamLive(false);
         supabase.removeChannel(channel);
         supabase
           .from('live_streams')
@@ -335,10 +349,8 @@ export default function LiveStream() {
           .then(() => {});
       };
     } else {
-      // Viewer joining: increment count via SECURITY DEFINER RPC
       supabase.rpc('increment_viewer_count', { p_stream_key: key }).then(() => {});
 
-      // Fetch initial stream data (viewer count + host info)
       supabase
         .from('live_streams')
         .select('viewer_count, user_id, title')
@@ -350,7 +362,6 @@ export default function LiveStream() {
           }
         });
 
-      // Subscribe to realtime updates for this stream
       const channel = supabase
         .channel(`live_viewers_${key}`)
         .on('postgres_changes', { event: '*', schema: 'public', table: 'live_streams', filter: `stream_key=eq.${key}` }, (payload: any) => {
@@ -369,23 +380,28 @@ export default function LiveStream() {
         supabase.rpc('decrement_viewer_count', { p_stream_key: key }).then(() => {});
       };
     }
-  }, [creatorName, effectiveStreamId, isBroadcast, user?.id]);
+  }, [effectiveStreamId, isBroadcast, user?.id]);
 
-  // Refresh coins when gift panel opens to ensure balance is up to date
   useEffect(() => {
-    if (showGiftPanel && user?.id) {
-      supabase
-        .from('profiles')
-        .select('coins')
-        .eq('user_id', user.id)
-        .maybeSingle()
-        .then(({ data }) => {
-          if (data?.coins != null) {
-            setCoinBalance(Number(data.coins));
-          }
-        });
+    if (!isBroadcast || !isMyStreamLive || !effectiveStreamId || !user?.id) return;
+    supabase.from('live_streams')
+      .update({ title: creatorName })
+      .eq('stream_key', effectiveStreamId)
+      .eq('user_id', user.id)
+      .then(() => {});
+  }, [creatorName, isBroadcast, isMyStreamLive, effectiveStreamId, user?.id]);
+
+  useEffect(() => {
+    if (showTestCoinsModal) {
+      const verified = localStorage.getItem(TEST_COINS_VERIFIED_KEY);
+      const ts = verified ? parseInt(verified, 10) : 0;
+      if (ts && Date.now() - ts < 24 * 60 * 60 * 1000) {
+        setTestCoinsStep('amount');
+      } else {
+        setTestCoinsStep('password');
+      }
     }
-  }, [showGiftPanel, user?.id]);
+  }, [showTestCoinsModal]);
 
   useEffect(() => {
     if (user?.id && effectiveStreamId) {
@@ -481,6 +497,7 @@ export default function LiveStream() {
   }, [user?.id]);
 
   const filteredCreators = creators.filter((c) => {
+    if (!c.isLive) return false;
     const q = creatorQuery.trim().toLowerCase();
     if (!q) return true;
     return c.username.toLowerCase().includes(q) || c.name.toLowerCase().includes(q);
@@ -689,19 +706,13 @@ export default function LiveStream() {
   };
   const [coHosts, setCoHosts] = useState<CoHost[]>([]);
   const [isInviteHostOpen, setIsInviteHostOpen] = useState(false);
+  useEffect(() => {
+    if (!isMyStreamLive) setIsInviteHostOpen(false);
+  }, [isMyStreamLive]);
   const [hostSearchQuery, setHostSearchQuery] = useState('');
   const [featuredHostId, setFeaturedHostId] = useState<string | null>(null);
   const coHostTimersRef = useRef<NodeJS.Timeout[]>([]);
   const MAX_CO_HOSTS = 16;
-
-  type PendingCoHostInvite = {
-    notifId: string;
-    hostName: string;
-    hostAvatar: string;
-    streamKey: string;
-    hostUserId: string;
-  };
-  const [pendingCoHostInvite, setPendingCoHostInvite] = useState<PendingCoHostInvite | null>(null);
 
   const inviteCoHost = async (creator: { id: string; name: string; avatar?: string }) => {
     if (coHosts.length >= MAX_CO_HOSTS) return;
@@ -746,30 +757,6 @@ export default function LiveStream() {
         { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
         (payload: any) => {
           const row = payload.new;
-          if (row?.type === 'cohost_invite') {
-            const inviterId = row.data?.actor_id || '';
-            const inviterName = row.data?.host_name || 'Someone';
-            const inviterAvatar = row.data?.host_avatar || '';
-            const inviteStreamKey = row.data?.stream_key || '';
-            setPendingCoHostInvite({
-              notifId: row.id,
-              hostName: inviterName,
-              hostAvatar: inviterAvatar,
-              streamKey: inviteStreamKey,
-              hostUserId: inviterId,
-            });
-            if (!coHosts.some(h => h.userId === inviterId)) {
-              setCoHosts(prev => [...prev, {
-                id: `invite-${row.id}`,
-                userId: inviterId,
-                name: inviterName,
-                avatar: inviterAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(inviterName)}&background=121212&color=C9A96E`,
-                status: 'pending_accept' as any,
-                isMuted: false,
-              }]);
-            }
-            setIsInviteHostOpen(true);
-          }
           if (row?.type === 'cohost_accepted' && isBroadcast) {
             const acceptedUserId = row.data?.actor_id || '';
             const acceptedName = row.data?.accepted_name || '';
@@ -793,72 +780,9 @@ export default function LiveStream() {
     return () => { supabase.removeChannel(chan); };
   }, [user?.id, isBroadcast]);
 
-  const acceptCoHostInvite = async () => {
-    if (!pendingCoHostInvite || !user?.id) return;
-    const invite = pendingCoHostInvite;
-    setPendingCoHostInvite(null);
-    if (!invite.streamKey) {
-      showToast('Invalid invite — missing stream key');
-      return;
-    }
-    try {
-      const myUsername = user?.username || user?.name || viewerName;
-      supabase.from('notifications').update({ is_read: true }).eq('id', invite.notifId).then(() => {});
-      supabase.from('notifications').insert({
-        user_id: invite.hostUserId,
-        type: 'cohost_accepted',
-        title: 'Co-Host Accepted',
-        body: `@${myUsername} accepted your co-host invite!`,
-        data: {
-          actor_id: user.id,
-          accepted_name: myUsername,
-          accepted_avatar: viewerAvatar,
-          stream_key: invite.streamKey,
-        },
-      }).then(() => {});
-    } catch { /* fire-and-forget */ }
-    showToast(`Joining @${invite.hostName}'s stream...`);
-    window.location.href = `/watch/${invite.streamKey}`;
-  };
-
-  const declineCoHostInvite = async () => {
-    if (!pendingCoHostInvite) return;
-    try {
-      await supabase.from('notifications').update({ is_read: true }).eq('id', pendingCoHostInvite.notifId);
-    } catch { /* ignore */ }
-    setPendingCoHostInvite(null);
-  };
-
-  // ─── JOIN REQUEST: spectator asks creator to let them join ───
-  const [joinRequestSent, setJoinRequestSent] = useState(false);
+  // ─── JOIN REQUEST: creator receives when someone asked to join (no spectator UI to send — invite only from creator) ───
   type PendingJoinRequest = { notifId: string; requesterName: string; requesterAvatar: string; requesterId: string; type: 'cohost' | 'battle' };
   const [pendingJoinRequest, setPendingJoinRequest] = useState<PendingJoinRequest | null>(null);
-
-  const sendJoinRequest = async (type: 'cohost' | 'battle') => {
-    if (!user?.id || !effectiveStreamId || isBroadcast) return;
-    const { data: stream } = await supabase
-      .from('live_streams')
-      .select('user_id')
-      .eq('stream_key', effectiveStreamId)
-      .maybeSingle();
-    if (!stream?.user_id) { showToast('Stream not found'); return; }
-    const myName = user.username || user.name || 'User';
-    await supabase.from('notifications').insert({
-      user_id: stream.user_id,
-      type: 'join_request',
-      title: type === 'cohost' ? 'Co-Host Request' : 'Battle Request',
-      body: `@${myName} wants to ${type === 'cohost' ? 'co-host' : 'battle'}!`,
-      data: {
-        actor_id: user.id,
-        requester_name: myName,
-        requester_avatar: user.avatar || '',
-        stream_key: effectiveStreamId,
-        request_type: type,
-      },
-    });
-    setJoinRequestSent(true);
-    // request sent silently — button changes to "Sent"
-  };
 
   useEffect(() => {
     if (!user?.id || !isBroadcast) return;
@@ -882,17 +806,7 @@ export default function LiveStream() {
               type: reqType,
             });
             if (reqType === 'cohost') {
-              if (!coHosts.some(h => h.userId === reqId)) {
-                setCoHosts(prev => [...prev, {
-                  id: `req-${row.id}`,
-                  userId: reqId,
-                  name: reqName,
-                  avatar: reqAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(reqName)}&background=121212&color=C9A96E`,
-                  status: 'pending_accept' as any,
-                  isMuted: false,
-                }]);
-              }
-              setIsInviteHostOpen(true);
+              showToast(`${reqName} wants to co-host`);
             } else {
               setBattleSlots(prev => {
                 if (prev.some(s => s.userId === reqId)) return prev;
@@ -1426,7 +1340,7 @@ export default function LiveStream() {
   const [floatingHearts, setFloatingHearts] = useState<
     Array<{ id: string; x: number; y: number; dx: number; rot: number; size: number; color: string; username?: string; avatar?: string }>
   >([]);
-  const [miniProfile, setMiniProfile] = useState<null | { id?: string; username: string; avatar: string; level: number | null; coins?: number; donated?: number }>(null);
+  const [miniProfile, setMiniProfile] = useState<null | { id?: string; username: string; avatar: string; level: number | null; coins?: number; donated?: number; bio?: string; followers_count?: number; following_count?: number }>(null);
   const [showMembershipBar, setShowMembershipBar] = useState(false);
   const [showTeamStatus, setShowTeamStatus] = useState(false);
   const [showJoinAnimation, setShowJoinAnimation] = useState(false);
@@ -1442,13 +1356,19 @@ export default function LiveStream() {
     setIsSubscribing(true);
     try {
       const { data: session } = await supabase.auth.getSession();
-      const res = await fetch('/api/create-subscription', {
+      if (!user?.id) {
+        navigate('/login');
+        return;
+      }
+      const apiBase = import.meta.env.VITE_API_URL || '';
+      const res = await fetch(`${apiBase}/api/create-subscription`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.session?.access_token}` },
-        body: JSON.stringify({ creatorId: streamId, amount: 300 }),
+        body: JSON.stringify({ creatorId: effectiveStreamId, userId: user.id }),
       });
       if (res.ok) {
-        const { url } = await res.json();
+        const data = await res.json();
+        const url = data.url;
         if (url) window.location.href = url;
         else navigate('/shop');
       } else {
@@ -1486,7 +1406,52 @@ export default function LiveStream() {
   const [currentUniverse, setCurrentUniverse] = useState<UniverseTickerMessage | null>(null);
 
   const [showSharePanel, setShowSharePanel] = useState(false);
+  const [showPromotePanel, setShowPromotePanel] = useState(false);
   const [shareQuery, setShareQuery] = useState('');
+  const [shareFollowers, setShareFollowers] = useState<{ user_id: string; username: string; avatar_url: string | null }[]>([]);
+  const [shareSentTo, setShareSentTo] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (showSharePanel && user?.id) {
+      (async () => {
+        try {
+          const { data: followData } = await supabase.from('followers').select('follower_id').eq('following_id', user.id).limit(50);
+          const { data: followingData } = await supabase.from('followers').select('following_id').eq('follower_id', user.id).limit(50);
+          const ids = new Set<string>();
+          (followData || []).forEach((f: any) => ids.add(f.follower_id));
+          (followingData || []).forEach((f: any) => ids.add(f.following_id));
+          ids.delete(user.id);
+          if (ids.size === 0) { setShareFollowers([]); return; }
+          const { data: profiles } = await supabase.from('profiles').select('user_id, username, avatar_url').in('user_id', Array.from(ids));
+          setShareFollowers(profiles || []);
+        } catch { setShareFollowers([]); }
+      })();
+    } else {
+      setShareSentTo(new Set());
+    }
+  }, [showSharePanel, user?.id]);
+
+  const sendShareToFollower = async (targetUserId: string) => {
+    if (!user?.id || shareSentTo.has(targetUserId)) return;
+    const shareUrl = window.location.href;
+    const msgText = `Watch my LIVE on Elix! ${shareUrl}`;
+    try {
+      const { data: existing } = await supabase.from('chat_threads').select('id')
+        .or(`and(user1_id.eq.${user.id},user2_id.eq.${targetUserId}),and(user1_id.eq.${targetUserId},user2_id.eq.${user.id})`)
+        .limit(1).single();
+      let threadId = existing?.id;
+      if (!threadId) {
+        const { data: newThread } = await supabase.from('chat_threads').insert({ user1_id: user.id, user2_id: targetUserId }).select('id').single();
+        threadId = newThread?.id;
+      }
+      if (threadId) {
+        await supabase.from('messages').insert({ thread_id: threadId, sender_id: user.id, text: msgText });
+        await supabase.from('chat_threads').update({ last_message: msgText, last_at: new Date().toISOString() }).eq('id', threadId);
+      }
+      setShareSentTo(prev => new Set(prev).add(targetUserId));
+      showToast('Shared!');
+    } catch {}
+  };
 
   // 2v2: Red Team (P1+P3) vs Blue Team (P2+P4)
   const determine4PlayerWinner = useCallback(() => {
@@ -1557,7 +1522,6 @@ export default function LiveStream() {
     setPlayer4Score(0);
     setBattleWinner(null);
     setGiftTarget('me');
-    setShowGiftPanel(false);
     setBattleGifterCoins({});
     setPlayerGifters({});
     setBattleCountdown(null);
@@ -1584,10 +1548,9 @@ export default function LiveStream() {
       setOpponentScore(0);
       setPlayer3Score(0);
       setPlayer4Score(0);
-      setBattleWinner(null);
-      setGiftTarget('me');
-      setShowGiftPanel(false);
-      setBattleGifterCoins({});
+        setBattleWinner(null);
+        setGiftTarget('me');
+        setBattleGifterCoins({});
       setBattleCountdown(null);
       const params = new URLSearchParams(location.search);
       params.set('battle', '1');
@@ -1690,32 +1653,53 @@ export default function LiveStream() {
       }));
   };
 
+  // Get overall top 3 gifters (merged across all battle players)
+  const getTop3GiftersOverall = () => {
+    const merged: Record<string, number> = {};
+    (['me', 'opponent', 'player3', 'player4'] as const).forEach((p) => {
+      const gifters = playerGifters[p] || {};
+      Object.entries(gifters).forEach(([name, coins]) => {
+        merged[name] = (merged[name] || 0) + coins;
+      });
+    });
+    return Object.entries(merged)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([name, coins]) => ({
+        name,
+        coins,
+        avatar: gifterAvatars[name] || activeViewers.find(v => v.username === name || v.displayName === name)?.avatar || '',
+      }));
+  };
+
   const formatCoinsShort = (coins: number) => {
-    if (coins >= 1_000_000) {
-      const m = Math.round((coins / 1_000_000) * 10) / 10;
+    const n = typeof coins === 'number' && Number.isFinite(coins) ? coins : 0;
+    if (n >= 1_000_000) {
+      const m = Math.round((n / 1_000_000) * 10) / 10;
       const label = Number.isInteger(m) ? String(Math.trunc(m)) : String(m);
       return `${label}M`;
     }
-    if (coins >= 1000) {
-      const k = Math.round((coins / 1000) * 10) / 10;
+    if (n >= 1000) {
+      const k = Math.round((n / 1000) * 10) / 10;
       const label = Number.isInteger(k) ? String(Math.trunc(k)) : String(k);
       return `${label}K`;
     }
-    return coins.toLocaleString();
+    return n.toLocaleString();
   };
 
   const formatCountShort = (count: number) => {
-    if (count >= 1_000_000) {
-      const m = Math.round((count / 1_000_000) * 10) / 10;
+    const c = typeof count === 'number' && Number.isFinite(count) ? count : 0;
+    if (c >= 1_000_000) {
+      const m = Math.round((c / 1_000_000) * 10) / 10;
       const label = Number.isInteger(m) ? String(Math.trunc(m)) : String(m);
       return `${label}M`;
     }
-    if (count >= 1000) {
-      const k = Math.round((count / 1000) * 10) / 10;
+    if (c >= 1000) {
+      const k = Math.round((c / 1000) * 10) / 10;
       const label = Number.isInteger(k) ? String(Math.trunc(k)) : String(k);
       return `${label}K`;
     }
-    return String(count);
+    return String(c);
   };
 
   const activeViewersRef = useRef<LiveViewer[]>([]);
@@ -2102,19 +2086,26 @@ export default function LiveStream() {
 
     const handleRoomState = (data: any) => {
       if (!mounted) return;
-      const viewers: LiveViewer[] = (data.viewers || []).map((v: any) => ({
-        id: v.user_id,
-        username: v.username || 'User',
-        displayName: v.display_name || v.username || 'User',
-        level: v.level || 1,
-        avatar: v.avatar_url || '',
-        country: v.country || '',
-        joinedAt: Date.now(),
-        isActive: true,
-        chatFrequency: 0,
-        supportDays: 0,
-        lastVisitDaysAgo: 0,
-      }));
+      const seen = new Set<string>();
+      const viewers: LiveViewer[] = [];
+      for (const v of (data.viewers || [])) {
+        const uid = typeof v.user_id === 'string' ? v.user_id : String(v.user_id ?? '');
+        if (!uid || uid === user?.id || seen.has(uid)) continue;
+        seen.add(uid);
+        viewers.push({
+          id: uid,
+          username: typeof v.username === 'string' ? v.username : 'User',
+          displayName: typeof v.display_name === 'string' ? v.display_name : (typeof v.username === 'string' ? v.username : 'User'),
+          level: typeof v.level === 'number' && Number.isFinite(v.level) ? v.level : 1,
+          avatar: typeof v.avatar_url === 'string' ? v.avatar_url : '',
+          country: v.country || '',
+          joinedAt: Date.now(),
+          isActive: true,
+          chatFrequency: 0,
+          supportDays: 0,
+          lastVisitDaysAgo: 0,
+        });
+      }
       setActiveViewers(viewers);
 
       // Opponent: once connected to the room, tell the server we're joining the battle
@@ -2132,9 +2123,9 @@ export default function LiveStream() {
         return [...prev, {
           id: data.user_id,
           username: joinName,
-          displayName: data.display_name || joinName,
-          level: data.level || 1,
-          avatar: data.avatar_url || '',
+          displayName: typeof data.display_name === 'string' ? data.display_name : joinName,
+          level: typeof data.level === 'number' && Number.isFinite(data.level) ? data.level : 1,
+          avatar: typeof data.avatar_url === 'string' ? data.avatar_url : '',
           country: data.country || '',
           joinedAt: Date.now(),
           isActive: true,
@@ -2148,8 +2139,8 @@ export default function LiveStream() {
         username: joinName,
         text: 'joined the stream',
         isSystem: true,
-        level: data.level || 1,
-        avatar: data.avatar_url || '',
+        level: typeof data.level === 'number' && Number.isFinite(data.level) ? data.level : 1,
+        avatar: typeof data.avatar_url === 'string' ? data.avatar_url : '',
       }]);
       setViewerCount(prev => prev + 1);
     };
@@ -2158,6 +2149,10 @@ export default function LiveStream() {
       if (!mounted) return;
       setActiveViewers(prev => prev.filter(v => v.id !== data.user_id));
       setViewerCount(prev => Math.max(0, prev - 1));
+      // Remove co-host when they disconnect
+      if (data.user_id) {
+        setCoHosts(prev => prev.filter(h => h.userId !== data.user_id));
+      }
     };
 
     const handleChatMessage = (data: any) => {
@@ -2165,10 +2160,10 @@ export default function LiveStream() {
       if (data.user_id === user?.id) return;
       const msg: LiveMessage = {
         id: `ws-${Date.now()}-${Math.random()}`,
-        username: data.username || 'User',
-        text: data.text || '',
-        level: data.level || 1,
-        avatar: data.avatar || '',
+        username: typeof data.username === 'string' ? data.username : 'User',
+        text: typeof data.text === 'string' ? data.text : '',
+        level: typeof data.level === 'number' && Number.isFinite(data.level) ? data.level : 1,
+        avatar: typeof data.avatar === 'string' ? data.avatar : '',
       };
       setMessages(prev => [...prev, msg]);
     };
@@ -2180,14 +2175,19 @@ export default function LiveStream() {
       if (giftDef) {
         const msg: LiveMessage = {
           id: `gift-ws-${Date.now()}-${Math.random()}`,
-          username: data.username || 'User',
+          username: typeof data.username === 'string' ? data.username : 'User',
           text: `sent ${giftDef.name}`,
-          level: data.level || 1,
-          avatar: data.avatar || '',
+          level: typeof data.level === 'number' && Number.isFinite(data.level) ? data.level : 1,
+          avatar: typeof data.avatar === 'string' ? data.avatar : '',
           isGift: true,
         };
         setMessages(prev => [...prev, msg]);
-        addBattleGifterCoins(data.username || 'User', giftDef.coins, data.battleTarget, data.avatar || '');
+        addBattleGifterCoins(typeof data.username === 'string' ? data.username : 'User', giftDef.coins, data.battleTarget, typeof data.avatar === 'string' ? data.avatar : '');
+
+        const videoUrl = data.video || giftDef.video;
+        if (videoUrl && typeof videoUrl === 'string' && (videoUrl.startsWith('http://') || videoUrl.startsWith('https://'))) {
+          setGiftQueue(prev => [...prev, videoUrl]);
+        }
       }
     };
 
@@ -2435,8 +2435,10 @@ export default function LiveStream() {
     try {
       // Allow everyone to spend if they have coins locally (which we just set to max)
       if (coinBalance < gift.coins) {
-          setShowGiftPanel(false);
           return;
+      }
+      if (gift.video && (gift.video.startsWith('http://') || gift.video.startsWith('https://'))) {
+        setGiftQueue(prev => [...prev, gift.video]);
       }
       
       let newLevel = userLevel;
@@ -2451,16 +2453,17 @@ export default function LiveStream() {
 
           if (error) {
             const msg = typeof error.message === 'string' ? error.message : '';
-            if (msg.includes('insufficient_funds') || msg.includes('Insufficient coins') || msg.includes('frozen')) {
-              setShowGiftPanel(false);
-              if (msg.includes('frozen')) showToast('Account is frozen. Contact support.');
+            if (msg.includes('frozen')) {
+              showToast('Account is frozen. Contact support.');
               return;
             }
-            setCoinBalance(prev => Math.max(0, prev - gift.coins));
+            setCoinBalance(prev => { const n = Math.max(0, prev - gift.coins); persistTestCoinsBalance(user?.id, n); return n; });
           } else {
             const row = Array.isArray(data) ? data[0] : data;
             if (row?.new_balance != null) {
-              setCoinBalance(Number(row.new_balance));
+              const nb = Number(row.new_balance);
+              setCoinBalance(nb);
+              persistTestCoinsBalance(user?.id, nb);
             }
             if (row?.new_level != null) {
               const updatedLevel = Number(row.new_level);
@@ -2473,8 +2476,7 @@ export default function LiveStream() {
             }
           }
         } catch {
-          // Fallback: deduct locally
-          setCoinBalance(prev => Math.max(0, prev - gift.coins));
+          setCoinBalance(prev => { const n = Math.max(0, prev - gift.coins); persistTestCoinsBalance(user?.id, n); return n; });
         }
 
         // Update level/XP locally
@@ -2483,7 +2485,7 @@ export default function LiveStream() {
         let currentLevel = userLevel;
         while (true) {
           const xpNeeded = currentLevel * 1000;
-          if (currentXP >= xpNeeded && currentLevel < 150) {
+          if (currentXP >= xpNeeded && currentLevel < 300) {
             currentLevel++;
             currentXP -= xpNeeded;
           } else {
@@ -2501,7 +2503,7 @@ export default function LiveStream() {
           .eq('user_id', user.id)
           .then(() => {});
       } else {
-        setCoinBalance(prev => Math.max(0, prev - gift.coins));
+        setCoinBalance(prev => { const n = Math.max(0, prev - gift.coins); persistTestCoinsBalance(user?.id, n); return n; });
       }
 
       // Track session contribution for membership
@@ -2516,15 +2518,8 @@ export default function LiveStream() {
         setRoseCount(roseCountRef.current);
       }
 
-      setShowGiftPanel(false);
-
       if (isBroadcast && !isBattleMode) {
         maybeTriggerFaceARGift(gift);
-      }
-      
-      // Always queue the video animation for the sender/viewer to see immediate feedback
-      if (gift.video) {
-        setGiftQueue(prev => [...prev, gift.video]);
       }
       
       // Add to chat
@@ -2542,6 +2537,8 @@ export default function LiveStream() {
         giftId: gift.id,
         giftName: gift.name,
         coins: gift.coins,
+        gift_icon: gift.icon || '🎁',
+        quantity: 1,
         level: newLevel,
         avatar: giftMsg.avatar,
         video: gift.video || null,
@@ -2608,10 +2605,14 @@ export default function LiveStream() {
               showToast('Not enough coins');
               return;
             }
-            setCoinBalance(prev => Math.max(0, prev - lastSentGift.coins));
+            setCoinBalance(prev => { const n = Math.max(0, prev - lastSentGift.coins); persistTestCoinsBalance(user?.id, n); return n; });
           } else {
             const row = Array.isArray(data) ? data[0] : data;
-            if (row?.new_balance != null) setCoinBalance(Number(row.new_balance));
+            if (row?.new_balance != null) {
+              const nb = Number(row.new_balance);
+              setCoinBalance(nb);
+              persistTestCoinsBalance(user?.id, nb);
+            }
             if (row?.new_level != null) {
               newLevel = Number(row.new_level);
               setUserLevel(newLevel);
@@ -2620,10 +2621,10 @@ export default function LiveStream() {
             if (row?.new_xp != null) setUserXP(Number(row.new_xp));
           }
         } catch {
-          setCoinBalance(prev => Math.max(0, prev - lastSentGift.coins));
+          setCoinBalance(prev => { const n = Math.max(0, prev - lastSentGift.coins); persistTestCoinsBalance(user?.id, n); return n; });
         }
       } else {
-        setCoinBalance(prev => Math.max(0, prev - lastSentGift.coins));
+        setCoinBalance(prev => { const n = Math.max(0, prev - lastSentGift.coins); persistTestCoinsBalance(user?.id, n); return n; });
       }
 
       // Track session contribution for membership
@@ -2642,8 +2643,8 @@ export default function LiveStream() {
         maybeTriggerFaceARGift(lastSentGift);
       }
       
-      // Always queue the video animation for the sender/viewer to see immediate feedback
-      if (lastSentGift.video) {
+      // Always queue the video animation for the sender/viewer to see immediate feedback (Supabase/remote only)
+      if (lastSentGift.video && (lastSentGift.video.startsWith('http://') || lastSentGift.video.startsWith('https://'))) {
         setGiftQueue(prev => [...prev, lastSentGift.video]);
       }
       
@@ -2695,12 +2696,14 @@ export default function LiveStream() {
   };
 
   const stopBroadcast = () => {
+      websocket.send('stream_end', {});
       if (cameraStreamRef.current) {
         cameraStreamRef.current.getTracks().forEach((track) => track.stop());
         cameraStreamRef.current = null;
         setCameraStream(null);
       }
       clearCachedCameraStream();
+      websocket.disconnect();
       navigate('/feed', { replace: true });
   };
 
@@ -2746,13 +2749,36 @@ export default function LiveStream() {
     addLiveLikes(1);
   };
 
-  const openMiniProfile = (username: string, coins?: number) => {
+  const openMiniProfile = async (username: string, coins?: number) => {
     const avatar = username === myCreatorName
       ? myAvatar
       : `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=121212&color=C9A96E`;
     const level = username === myCreatorName ? userLevel : null;
     const donated = username === myCreatorName ? sessionContribution : 0;
     setMiniProfile({ username, avatar, level, coins, donated });
+    try {
+      const { data: prof } = await supabase
+        .from('profiles')
+        .select('user_id, bio, avatar_url, level, display_name')
+        .or(`username.eq.${username},display_name.eq.${username}`)
+        .maybeSingle();
+      if (prof) {
+        const uid = prof.user_id;
+        const [{ count: fc }, { count: fgc }] = await Promise.all([
+          supabase.from('followers').select('*', { count: 'exact', head: true }).eq('following_id', uid),
+          supabase.from('followers').select('*', { count: 'exact', head: true }).eq('follower_id', uid),
+        ]);
+        setMiniProfile(prev => prev ? {
+          ...prev,
+          id: uid,
+          bio: prof.bio || '',
+          avatar: prof.avatar_url || prev.avatar,
+          level: prof.level ?? prev.level,
+          followers_count: fc ?? 0,
+          following_count: fgc ?? 0,
+        } : prev);
+      }
+    } catch { /* keep what we have */ }
   };
 
   const closeMiniProfile = () => setMiniProfile(null);
@@ -2793,8 +2819,8 @@ export default function LiveStream() {
   const activeLikes = liveLikes;
 
   return (
-    <div className="flex items-start justify-center min-h-[100dvh] h-[100dvh] bg-[#13151A]">
-      <div className="relative w-full h-full bg-[#13151A] overflow-hidden border-none">
+    <div className="min-h-[100dvh] h-[100dvh] w-full flex justify-center bg-[#0A0B0E]">
+      <div className="relative w-full max-w-[480px] h-full bg-[#13151A] overflow-hidden border-none">
         <div className="h-full w-full relative">
         {/* BACKGROUND: VIDEO AREA (Unified frame) */}
         <div className="absolute inset-0 z-0 bg-[#13151A] overflow-hidden">
@@ -2917,7 +2943,14 @@ export default function LiveStream() {
                   <div className="w-full h-full flex gap-[2px] p-1 pointer-events-auto">
                     {/* Featured host — left half */}
                     <div className="w-1/2 h-full relative overflow-hidden rounded-xl bg-[#13151A] border-2 border-[#C9A96E]/50 shadow-lg">
-                      <img src={featuredHost.avatar} alt={featuredHost.name} className="w-full h-full object-cover" />
+                      {(() => {
+                        const peer = remotePeers.find(p => p.userId === featuredHost.userId);
+                        return peer?.stream ? (
+                          <video ref={el => { if (el && peer.stream) el.srcObject = peer.stream; }} autoPlay playsInline muted={featuredHost.isMuted} className="w-full h-full object-cover" />
+                        ) : (
+                          <img src={featuredHost.avatar} alt={featuredHost.name} className="w-full h-full object-cover" />
+                        );
+                      })()}
                       <img src="/Icons/Profile icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[1]" />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/20 pointer-events-none" />
                       <div className="absolute bottom-2 left-2 flex items-center gap-1 bg-black/60 backdrop-blur-sm rounded-full px-2 py-1">
@@ -2949,9 +2982,15 @@ export default function LiveStream() {
                           gridAutoRows: 'min-content',
                         }}
                       >
-                        {smallHosts.map(host => (
+                        {smallHosts.map(host => {
+                          const peer = remotePeers.find(p => p.userId === host.userId);
+                          return (
                           <div key={host.id} className="relative overflow-hidden rounded-lg bg-[#13151A] border border-white/10 aspect-square">
-                            <img src={host.avatar} alt={host.name} className="w-full h-full object-cover" />
+                            {peer?.stream ? (
+                              <video ref={el => { if (el && peer.stream) el.srcObject = peer.stream; }} autoPlay playsInline muted={host.isMuted} className="w-full h-full object-cover" />
+                            ) : (
+                              <img src={host.avatar} alt={host.name} className="w-full h-full object-cover" />
+                            )}
                             <img src="/Icons/Profile icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[1]" />
                             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
                             <div className="absolute bottom-0.5 left-0.5 bg-black/60 backdrop-blur-sm rounded-full px-1 py-0.5">
@@ -2969,7 +3008,8 @@ export default function LiveStream() {
                               <Crown size={8} className="text-white/60" />
                             </button>
                           </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   </div>
@@ -2982,9 +3022,15 @@ export default function LiveStream() {
                         gridTemplateColumns: `repeat(${hostGridCols}, 1fr)`,
                       }}
                     >
-                      {liveCoHosts.map(host => (
+                      {liveCoHosts.map(host => {
+                        const peer = remotePeers.find(p => p.userId === host.userId);
+                        return (
                         <div key={host.id} className="relative overflow-hidden rounded-xl bg-[#13151A] border border-white/10 shadow-lg aspect-square">
-                          <img src={host.avatar} alt={host.name} className="w-full h-full object-cover" />
+                          {peer?.stream ? (
+                            <video ref={el => { if (el && peer.stream) el.srcObject = peer.stream; }} autoPlay playsInline muted={host.isMuted} className="w-full h-full object-cover" />
+                          ) : (
+                            <img src={host.avatar} alt={host.name} className="w-full h-full object-cover" />
+                          )}
                           <img src="/Icons/Profile icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[1]" />
                           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/20 pointer-events-none" />
                           <div className="absolute bottom-1 left-1 flex items-center gap-1 bg-black/60 backdrop-blur-sm rounded-full px-1.5 py-0.5">
@@ -3005,7 +3051,8 @@ export default function LiveStream() {
                             {host.isMuted ? <MicOff size={10} className="text-red-400" /> : <Mic size={10} className="text-white" />}
                           </button>
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 )}
@@ -3095,7 +3142,7 @@ export default function LiveStream() {
                       <div className="h-full flex-1 transition-all duration-500 ease-out" style={{ backgroundImage: 'linear-gradient(90deg, #1E90FF, #4169E1, #0047AB)' }} />
                     </div>
                     <div className="relative z-10 h-full flex items-center justify-between px-2">
-                      <div className="text-white font-black text-[8px] tabular-nums">{redTeamScore.toLocaleString()}</div>
+                      <div className="text-white font-black text-[8px] tabular-nums">{(typeof redTeamScore === 'number' && Number.isFinite(redTeamScore) ? redTeamScore : 0).toLocaleString()}</div>
                       
                       {/* Battle Timer with VS */}
                       <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-1">
@@ -3107,7 +3154,7 @@ export default function LiveStream() {
                         </div>
                       </div>
 
-                      <div className="text-white font-black text-[8px] tabular-nums">{blueTeamScore.toLocaleString()}</div>
+                      <div className="text-white font-black text-[8px] tabular-nums">{(typeof blueTeamScore === 'number' && Number.isFinite(blueTeamScore) ? blueTeamScore : 0).toLocaleString()}</div>
                     </div>
                   </button>
 
@@ -3463,7 +3510,7 @@ export default function LiveStream() {
                   }}
                 >
                                 <Heart className="w-2 h-2 text-[#FF2D55]" strokeWidth={2.5} fill="#FF2D55" />
-                                <span className="text-white/70 text-[8px] font-bold tabular-nums">{activeLikes.toLocaleString()}</span>
+                                <span className="text-white/70 text-[8px] font-bold tabular-nums">{(typeof activeLikes === 'number' && Number.isFinite(activeLikes) ? activeLikes : 0).toLocaleString()}</span>
                               </button>
                               
                               {(() => {
@@ -3579,25 +3626,43 @@ export default function LiveStream() {
                       </div>
 
                       <div className="pointer-events-auto flex items-center gap-2 mt-5">
-                        <div className="flex items-center gap-1.5">
-                            <div className="flex items-center -space-x-1 pointer-events-auto" onClick={() => setShowViewerList(prev => !prev)}>
-                              {activeViewers.slice(0, 3).map((v, i) => {
-                                const donated = 0;
+                        <div className="flex items-center -space-x-1.5 pointer-events-auto flex-shrink-0" onClick={() => setShowViewerList(prev => !prev)}>
+                          {isBattleMode ? (
+                            (() => {
+                              const top3 = getTop3GiftersOverall();
+                              if (top3.length === 0) {
+                                return activeViewers.slice(0, 3).map((v, i) => (
+                                  <div key={v.id} style={{ zIndex: 3 - i }} className="relative">
+                                    <AvatarRing src={v.avatar} alt={v.username} size={36} />
+                                  </div>
+                                ));
+                              }
+                              return top3.map((g, i) => {
+                                const isMvp = i === 0;
                                 return (
-                                  <div key={v.id} className="relative flex flex-col items-center" style={{ zIndex: 3 - i }}>
-                                    <div className="relative">
-                                      <AvatarRing src={v.avatar} alt={v.username} size={28} />
-                                      <span className="absolute bottom-0 inset-x-0 flex items-center justify-center text-white text-[5px] font-black leading-none drop-shadow-[0_1px_2px_rgba(0,0,0,1)]">{formatCoinsShort(donated)}</span>
-                                    </div>
+                                  <div key={g.name} style={{ zIndex: 3 - i }} className="relative">
+                                    <AvatarRing src={g.avatar} alt={g.name} size={36} />
+                                    {isMvp && (
+                                      <div className="absolute -top-2 -right-1 bg-[#C9A96E] rounded-full w-5 h-5 flex items-center justify-center border border-black shadow-lg z-10">
+                                        <Crown size={10} className="text-black" />
+                                      </div>
+                                    )}
                                   </div>
                                 );
-                              })}
-                            </div>
-                          <button onClick={() => setShowViewerList(prev => !prev)} className="flex items-center gap-0.5 pointer-events-auto">
-                            <span className="text-white text-[9px] font-bold tabular-nums">{formatCountShort(viewerCount)}</span>
-                            <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round"><polyline points="6 9 12 15 18 9"/></svg>
-                          </button>
+                              });
+                            })()
+                          ) : (
+                            activeViewers.slice(0, 3).map((v, i) => (
+                              <div key={v.id} style={{ zIndex: 3 - i }} className="relative">
+                                <AvatarRing src={v.avatar} alt={v.username} size={36} />
+                              </div>
+                            ))
+                          )}
                         </div>
+                        <button onClick={() => setShowViewerList(prev => !prev)} className="flex items-center gap-0.5 pointer-events-auto">
+                          <span className="text-white text-[9px] font-bold tabular-nums">{formatCountShort(viewerCount)}</span>
+                          <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+                        </button>
                         <button type="button" onClick={() => { if (!isBroadcast) { navigate('/feed', { replace: true }); } else if (isBattleMode) { toggleBattle(); } else { stopBroadcast(); } }} className="w-7 h-7 rounded-full flex items-center justify-center active:scale-95 transition-transform" title={isBroadcast ? (isBattleMode ? 'End battle' : 'End broadcast') : 'Leave'}>
                           <img src="/Icons/Gold power buton.png" alt="Close" className="w-5 h-5 object-contain" />
                         </button>
@@ -3645,43 +3710,58 @@ export default function LiveStream() {
               </div>
             </div>
 
-      {/* BOTTOM ZONE: INPUT (Fixed) - Moved out to ensure top z-index */}
-      <div className="bottom-zone flex-none pointer-events-auto bg-transparent px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-2 min-h-[50px] flex items-center fixed bottom-0 left-0 right-0 z-[90] justify-center">
-        <div className="w-full max-w-[480px] mx-auto">
-          {/* Spectator bottom bar: keyboard, request co-host, gift, 3 dots */}
+      {/* BOTTOM RIGHT: Action buttons (same area as before, aligned right) */}
+      <div className="bottom-zone flex-none pointer-events-auto bg-transparent px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-2 min-h-[50px] flex flex-col items-end fixed bottom-0 left-0 right-0 z-[120] justify-end">
+        <div className="w-full max-w-[480px] mx-auto flex flex-col items-end gap-0">
+        {/* Combo Button - on top of 3 dots, 1cm up */}
+        <AnimatePresence>
+          {showComboButton && lastSentGift && (
+            <motion.div
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0, opacity: 0 }}
+              className="flex flex-col items-center pointer-events-auto mb-[1cm] ml-[2mm]"
+            >
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); handleComboClick(); }}
+                className="w-16 h-14 rounded-full bg-gradient-to-r from-secondary to-[#C9A96E] flex flex-col items-center justify-center animate-pulse active:scale-90 transition-transform shadow-[0_0_20px_rgba(201,169,110,0.5)] border-2 border-white/30"
+              >
+                <span className="text-xl font-black italic text-white drop-shadow-md">x{comboCount}</span>
+                <span className="text-[9px] font-bold text-white uppercase tracking-widest">Combo</span>
+              </button>
+              <div className="mt-1 px-3 py-1 text-[10px] text-secondary font-bold bg-[#13151A]/60 rounded-full backdrop-blur-md border border-white/10 shadow-lg">
+                Send {lastSentGift.name}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+        <div className="flex justify-end">
+          {/* Spectator bottom bar: keyboard, share, more — no invite/request; only creator sends invites */}
           {!isBroadcast && (
-            <div className="flex items-center justify-center gap-3 pointer-events-auto translate-y-[12px]">
+            <div className="flex items-center justify-center gap-3 pointer-events-auto">
               <button
                 type="button"
                 title="Type a message"
                 onClick={() => setShowSpectatorChatInput(true)}
-                className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform"
+                className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform relative"
               >
-                <MessageCircle size={20} className="text-[#C9A96E]" />
+                <MessageCircle size={20} className="text-[#C9A96E] relative z-[2]" />
+                <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-125 translate-y-0.5" />
               </button>
-              {!joinRequestSent ? (
-                <button type="button" title="Request co-host" onClick={() => sendJoinRequest('cohost')} className="w-10 h-10 rounded-full bg-[#C9A96E] flex items-center justify-center shadow-lg active:scale-95 transition-transform">
-                  <UserPlus size={20} className="text-black" />
-                </button>
-              ) : (
-                <div className="w-10 h-10 rounded-full bg-[#13151A] border border-green-500/40 flex items-center justify-center">
-                  <Check size={20} className="text-green-400" />
-                </div>
-              )}
-              <button type="button" title="Send gift" onClick={() => { setGiftTarget('me'); setShowGiftPanel(true); }} className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform">
-                <Gift size={20} className="text-[#C9A96E]" />
+              <button type="button" title="Share" onClick={() => setShowSharePanel(true)} className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform relative">
+                <Share2 size={20} className="text-[#C9A96E] relative z-[2]" />
+                <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-125 translate-y-0.5" />
               </button>
-              <button type="button" title="Share" onClick={() => setShowSharePanel(true)} className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform">
-                <Share2 size={20} className="text-[#C9A96E]" />
-              </button>
-              <button type="button" title="More options" onClick={() => setIsMoreMenuOpen(true)} className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform">
-                <MoreVertical size={20} className="text-[#C9A96E]" />
+              <button type="button" title="More options" onClick={() => setIsMoreMenuOpen(true)} className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform relative">
+                <MoreVertical size={20} className="text-[#C9A96E] relative z-[2]" />
+                <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-125 translate-y-0.5" />
               </button>
             </div>
           )}
 
           {isBroadcast && (
-            <div className="flex items-center justify-center gap-3 pointer-events-auto translate-y-[12px]">
+            <div className="flex items-center justify-center gap-3 pointer-events-auto">
               <div className="flex items-center justify-center gap-3 flex-shrink-0">
               {isBattleMode && battleWinner && (
                 <button 
@@ -3702,29 +3782,43 @@ export default function LiveStream() {
                   <span className="text-[#C9A96E] text-xs font-bold">Rematch</span>
                 </button>
               )}
-              <button type="button" onClick={() => setIsInviteHostOpen(true)} className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg relative">
-                <UserPlus size={20} className="text-[#C9A96E]" />
-                {coHosts.length > 0 && (
-                  <div className="absolute -top-1 -right-1 w-5 h-5 bg-[#C9A96E] rounded-full flex items-center justify-center">
-                    <span className="text-black text-[10px] font-black">{coHosts.length}</span>
-                  </div>
-                )}
-              </button>
-              <button type="button" onClick={() => { if (!isBattleMode) toggleBattle(); else setIsFindCreatorsOpen(true); }} className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg">
-                <Users size={20} className="text-[#C9A96E]" />
-              </button>
-              <button type="button" onClick={() => { setGiftTarget('me'); setShowGiftPanel(true); }} className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg">
-                <Gift size={20} className="text-[#C9A96E]" />
-              </button>
-              <button type="button" onClick={() => setShowSharePanel(true)} className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform">
-                <Share2 size={20} className="text-[#C9A96E]" />
-              </button>
-              <button type="button" onClick={() => setIsMoreMenuOpen(true)} className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg">
-                <MoreVertical size={20} className="text-[#C9A96E]" />
-              </button>
+              <div className="flex flex-col items-center gap-0.5">
+                <button type="button" onClick={() => setIsInviteHostOpen(true)} className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg relative">
+                  <span className="flex items-center justify-center w-full h-full relative z-[2]"><UserPlus size={20} className="text-[#C9A96E] shrink-0" strokeWidth={2} /></span>
+                  <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-125 translate-y-0.5" />
+                  {coHosts.length > 0 && (
+                    <div className="absolute -top-1 -right-1 w-5 h-5 bg-[#C9A96E] rounded-full flex items-center justify-center">
+                      <span className="text-black text-[10px] font-black">{coHosts.length}</span>
+                    </div>
+                  )}
+                </button>
+                <span className="text-white/60 text-[8px] font-medium">Co-Host</span>
+              </div>
+              <div className="flex flex-col items-center gap-0.5">
+                <button type="button" onClick={() => { if (!isBattleMode) toggleBattle(); else setIsFindCreatorsOpen(true); }} className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg relative">
+                  <Users size={20} className="text-[#C9A96E] relative z-[2]" />
+                  <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-125 translate-y-0.5" />
+                </button>
+                <span className="text-white/60 text-[8px] font-medium">Battle</span>
+              </div>
+              <div className="flex flex-col items-center gap-0.5">
+                <button type="button" onClick={() => setShowSharePanel(true)} className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform relative">
+                  <Share2 size={20} className="text-[#C9A96E] relative z-[2]" />
+                  <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-125 translate-y-0.5" />
+                </button>
+                <span className="text-white/60 text-[8px] font-medium">Share</span>
+              </div>
+              <div className="flex flex-col items-center gap-0.5">
+                <button type="button" onClick={() => setIsMoreMenuOpen(true)} className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg relative">
+                  <MoreVertical size={20} className="text-[#C9A96E] relative z-[2]" />
+                  <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-125 translate-y-0.5" />
+                </button>
+                <span className="text-white/60 text-[8px] font-medium">More</span>
+              </div>
               </div>
             </div>
           )}
+        </div>
         </div>
       </div>
 
@@ -3804,7 +3898,7 @@ export default function LiveStream() {
                 <Search className="w-3.5 h-3.5 text-white/30" strokeWidth={1.8} />
                 <input
                   type="text"
-                  placeholder="Search creators..."
+                  placeholder="Search spectators..."
                   className="bg-transparent text-white text-xs outline-none flex-1 placeholder:text-white/25"
                   value={hostSearchQuery}
                   onChange={(e) => setHostSearchQuery(e.target.value)}
@@ -3812,67 +3906,78 @@ export default function LiveStream() {
               </div>
             </div>
 
-            {/* Creator List — scrollable */}
+            {/* Spectator List — show viewers watching this stream so creator can invite them */}
             <div className="flex-1 overflow-y-auto px-4 pb-3">
-              {filteredHostCreators.length === 0 ? (
-                <div className="text-center text-white/30 text-sm py-8">No creators found</div>
-              ) : (
-                <div className="space-y-0.5">
-                  {[...liveHostCreators, ...offlineHostCreators].map(creator => {
-                    const hostEntry = coHosts.find(h => h.userId === creator.id);
-                    const status = hostEntry?.status;
-                    const isLive = liveHostCreators.some(c => c.id === creator.id);
-                    return (
-                      <button
-                        key={creator.id || creator.name}
-                        onClick={() => !status && inviteCoHost({ id: creator.id, name: creator.name, avatar: creator.avatar })}
-                        disabled={!!status || coHosts.length >= MAX_CO_HOSTS}
-                        className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-white/[0.03] transition-colors active:scale-[0.98] disabled:opacity-80"
-                      >
-                        <div className="relative flex-shrink-0">
-                          <AvatarRing src={creator.avatar} alt={creator.name} size={30} />
-                          {isLive && <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-red-500 rounded-full border border-[#1C1E24]" />}
-                        </div>
-                        <p className="flex-1 text-left text-white text-xs font-semibold truncate min-w-0">{creator.name || creator.username}</p>
-                        {status === 'live' ? (
-                          <div className="px-2 py-1 rounded-full bg-green-500/20 border border-green-500/40 flex items-center gap-0.5 flex-shrink-0">
-                            <Check size={9} className="text-green-400" />
-                            <span className="text-green-400 text-[9px] font-bold">Joined</span>
+              {(() => {
+                const spectators = activeViewers.filter(v =>
+                  v.id !== user?.id &&
+                  !coHosts.some(h => h.userId === v.id) &&
+                  (hostSearchQuery.trim() === '' || v.displayName.toLowerCase().includes(hostSearchQuery.trim().toLowerCase()) || v.username.toLowerCase().includes(hostSearchQuery.trim().toLowerCase()))
+                );
+                const isJoinRequester = (vid: string) => pendingJoinRequest?.requesterId === vid;
+                if (spectators.length === 0) {
+                  return <div className="text-center text-white/30 text-sm py-8">{activeViewers.length <= 1 ? 'No spectators watching' : 'No spectators match your search'}</div>;
+                }
+                return (
+                  <div className="space-y-0.5">
+                    {spectators.map(viewer => {
+                      const hostEntry = coHosts.find(h => h.userId === viewer.id);
+                      const status = hostEntry?.status;
+                      return (
+                        <button
+                          key={viewer.id}
+                          onClick={() => !status && !isJoinRequester(viewer.id) && inviteCoHost({ id: viewer.id, name: viewer.displayName || viewer.username, avatar: viewer.avatar })}
+                          disabled={!!status || coHosts.length >= MAX_CO_HOSTS || isJoinRequester(viewer.id)}
+                          className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-white/[0.03] transition-colors active:scale-[0.98] disabled:opacity-80"
+                        >
+                          <div className="relative flex-shrink-0">
+                            <AvatarRing src={viewer.avatar} alt={viewer.displayName} size={30} />
+                            <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-green-500 rounded-full border border-[#1C1E24]" />
                           </div>
-                        ) : status === 'accepted' ? (
-                          <div className="px-2 py-1 rounded-full bg-[#C9A96E]/20 border border-[#C9A96E]/40 flex items-center gap-0.5 flex-shrink-0">
-                            <span className="text-[#C9A96E] text-[9px] font-bold">Joining...</span>
+                          <div className="flex-1 min-w-0 text-left">
+                            <p className="text-white text-xs font-semibold truncate">{viewer.displayName || viewer.username}</p>
+                            <p className="text-white/40 text-[10px] truncate">Watching now</p>
                           </div>
-                        ) : status === ('pending_accept' as any) ? (
-                          <div className="flex items-center gap-1 flex-shrink-0">
-                            <div
-                              className="px-2 py-1 rounded-full bg-red-500/20 border border-red-500/30 flex items-center gap-0.5 active:scale-95 transition-transform cursor-pointer"
-                              onClick={(e) => { e.stopPropagation(); if (pendingJoinRequest && pendingJoinRequest.requesterId === hostEntry?.userId) { declineJoinRequest(); } else { declineCoHostInvite(); } setCoHosts(prev => prev.filter(h => h.userId !== hostEntry?.userId)); }}
-                            >
-                              <span className="text-red-400 text-[9px] font-bold">Reject</span>
+                          {status === 'live' ? (
+                            <div className="px-2 py-1 rounded-full bg-green-500/20 border border-green-500/40 flex items-center gap-0.5 flex-shrink-0">
+                              <Check size={9} className="text-green-400" />
+                              <span className="text-green-400 text-[9px] font-bold">Joined</span>
                             </div>
-                            <div
-                              className="px-2.5 py-1 rounded-full bg-green-500 flex items-center gap-0.5 active:scale-95 transition-transform cursor-pointer"
-                              onClick={(e) => { e.stopPropagation(); if (pendingJoinRequest && pendingJoinRequest.requesterId === hostEntry?.userId) { acceptJoinRequest(); } else { acceptCoHostInvite(); } }}
-                            >
-                              <span className="text-black text-[9px] font-bold">Join</span>
+                          ) : status === 'accepted' ? (
+                            <div className="px-2 py-1 rounded-full bg-[#C9A96E]/20 border border-[#C9A96E]/40 flex items-center gap-0.5 flex-shrink-0">
+                              <span className="text-[#C9A96E] text-[9px] font-bold">Joining...</span>
                             </div>
-                          </div>
-                        ) : status === 'invited' ? (
-                          <div className="px-2 py-1 rounded-full bg-white/5 border border-white/20 flex items-center gap-0.5 flex-shrink-0">
-                            <span className="text-white/50 text-[9px] font-bold">Invited</span>
-                          </div>
-                        ) : (
-                          <div className="px-2 py-1 rounded-full bg-[#C9A96E] flex items-center gap-0.5 flex-shrink-0">
-                            <UserPlus size={9} className="text-black" />
-                            <span className="text-black text-[9px] font-bold">Invite</span>
-                          </div>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
+                          ) : (status === ('pending_accept' as any) || isJoinRequester(viewer.id)) ? (
+                            <div className="flex items-center gap-1 flex-shrink-0">
+                              <div
+                                className="px-2 py-1 rounded-full bg-red-500/20 border border-red-500/30 flex items-center gap-0.5 active:scale-95 transition-transform cursor-pointer"
+                                onClick={(e) => { e.stopPropagation(); if (isJoinRequester(viewer.id)) { declineJoinRequest(); } else if (hostEntry) { removeCoHost(hostEntry.id); setCoHosts(prev => prev.filter(h => h.userId !== hostEntry.userId)); } }}
+                              >
+                                <span className="text-red-400 text-[9px] font-bold">Reject</span>
+                              </div>
+                              <div
+                                className="px-2.5 py-1 rounded-full bg-green-500 flex items-center gap-0.5 active:scale-95 transition-transform cursor-pointer"
+                                onClick={(e) => { e.stopPropagation(); if (isJoinRequester(viewer.id)) { acceptJoinRequest(); } }}
+                              >
+                                <span className="text-black text-[9px] font-bold">Join</span>
+                              </div>
+                            </div>
+                          ) : status === 'invited' ? (
+                            <div className="px-2 py-1 rounded-full bg-white/5 border border-white/20 flex items-center gap-0.5 flex-shrink-0">
+                              <span className="text-white/50 text-[9px] font-bold">Invited</span>
+                            </div>
+                          ) : (
+                            <div className="px-2 py-1 rounded-full bg-[#C9A96E] flex items-center justify-center gap-0.5 flex-shrink-0">
+                              <UserPlus size={9} className="text-black shrink-0 flex-shrink-0" strokeWidth={2} />
+                              <span className="text-black text-[9px] font-bold">Invite</span>
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
             </div>
           </div>
         </div>
@@ -3886,65 +3991,12 @@ export default function LiveStream() {
             style={{ zIndex: 99998 }}
             onClick={() => setShowRankingPanel(false)}
           />
-          <div className="fixed bottom-0 left-0 right-0 z-[99999] pointer-events-auto max-w-[480px] mx-auto">
+          <div className="fixed bottom-0 left-0 right-0 h-[40vh] z-[99999] pointer-events-auto max-w-[480px] mx-auto">
             <RankingPanel onClose={() => setShowRankingPanel(false)} />
           </div>
         </>
       )}
 
-      {/* Join requests now handled inline in co-host / battle invite panels */}
-
-      {/* Battle invite is now handled inline in the invite creators panel */}
-
-      {/* ─── INCOMING CO-HOST INVITE BANNER (Bottom sheet) ─── */}
-      {pendingCoHostInvite && (
-        <div className="fixed inset-0 z-[100002] flex flex-col justify-end pointer-events-none max-w-[480px] mx-auto">
-          <div className="absolute inset-0 bg-black/40 pointer-events-auto" onClick={() => declineCoHostInvite()} />
-          <div className="pointer-events-auto animate-in slide-in-from-bottom relative z-10">
-            <div className="bg-[#1C1E24]/95 backdrop-blur-md rounded-t-2xl border-t border-[#C9A96E]/30 shadow-2xl p-4 pb-safe">
-              <div className="flex justify-center mb-3">
-                <div className="w-10 h-1 bg-white/20 rounded-full" />
-              </div>
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-14 h-14 rounded-full border-2 border-[#C9A96E]/50 overflow-hidden bg-[#13151A] flex-shrink-0">
-                  {pendingCoHostInvite.hostAvatar ? (
-                    <img src={pendingCoHostInvite.hostAvatar} alt="" className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-[#C9A96E] font-bold text-lg">
-                      {pendingCoHostInvite.hostName.slice(0, 1).toUpperCase()}
-                    </div>
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-white font-bold text-base">Co-Host Invite</p>
-                  <p className="text-white/60 text-sm truncate">
-                    <span className="text-[#C9A96E]">@{pendingCoHostInvite.hostName}</span> wants you to co-host!
-                  </p>
-                </div>
-                <div className="w-10 h-10 rounded-full bg-[#C9A96E]/20 flex items-center justify-center flex-shrink-0">
-                  <Crown className="w-5 h-5 text-[#C9A96E]" />
-                </div>
-              </div>
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); e.preventDefault(); declineCoHostInvite(); }}
-                  className="flex-1 py-3 rounded-xl bg-white/5 border border-white/10 text-white/70 text-sm font-bold active:scale-95 transition-all"
-                >
-                  Decline
-                </button>
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); e.preventDefault(); acceptCoHostInvite(); }}
-                  className="flex-1 py-3 rounded-xl bg-[#C9A96E] text-black text-sm font-bold active:scale-95 transition-all shadow-lg shadow-[#C9A96E]/20"
-                >
-                  Accept & Join
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* MODALS & OVERLAYS */}
       {isFindCreatorsOpen && (
@@ -3996,12 +4048,28 @@ export default function LiveStream() {
                   const isPendingAccept = slotStatus === ('pending_accept' as any);
                   const allFull = battleSlots.every(s => s.status !== 'empty');
 
+                  const handleReject = (ev: React.MouseEvent) => {
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                    setBattleSlots(prev => prev.map(s => s.userId === c.id ? { userId: '', name: '', status: 'empty' as const, avatar: '' } : s));
+                    if (pendingInvite && pendingInvite.hostUserId === c.id) declineBattleInvite();
+                    else if (pendingJoinRequest && pendingJoinRequest.requesterId === c.id) declineJoinRequest();
+                  };
+                  const handleJoin = async (ev: React.MouseEvent) => {
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                    if (pendingInvite && pendingInvite.hostUserId === c.id) acceptBattleInvite();
+                    else if (pendingJoinRequest && pendingJoinRequest.requesterId === c.id) {
+                      await acceptJoinRequest();
+                      setBattleSlots(prev => prev.map(s => s.userId === c.id ? { ...s, status: 'accepted' as const } : s));
+                    }
+                  };
+
                   return (
-                    <button
+                    <div
                       key={c.id}
                       onClick={() => !slotStatus && !allFull && inviteCreatorToSlot(c.id)}
-                      disabled={!!slotStatus || allFull}
-                      className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-white/[0.03] transition-colors active:scale-[0.98] disabled:opacity-80"
+                      className={`w-full flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-white/[0.03] transition-colors active:scale-[0.98] cursor-pointer ${!!slotStatus || allFull ? 'opacity-70' : ''}`}
                     >
                       <div className="relative flex-shrink-0">
                         <AvatarRing src={c.avatar} alt={c.name} size={30} />
@@ -4015,31 +4083,33 @@ export default function LiveStream() {
                           <span className="text-green-400 text-[9px] font-bold">Joined</span>
                         </div>
                       ) : isPendingAccept ? (
-                        <div className="flex items-center gap-1 flex-shrink-0">
-                          <div
+                        <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            type="button"
                             className="px-2 py-1 rounded-full bg-red-500/20 border border-red-500/30 flex items-center gap-0.5 active:scale-95 transition-transform cursor-pointer"
-                            onClick={(e) => { e.stopPropagation(); if (pendingInvite) { declineBattleInvite(); } else if (pendingJoinRequest) { declineJoinRequest(); } setBattleSlots(prev => prev.map(s => s.userId === c.id ? { userId: '', name: '', status: 'empty' as const, avatar: '' } : s)); }}
+                            onClick={handleReject}
                           >
                             <span className="text-red-400 text-[9px] font-bold">Reject</span>
-                          </div>
-                          <div
+                          </button>
+                          <button
+                            type="button"
                             className="px-2.5 py-1 rounded-full bg-green-500 flex items-center gap-0.5 active:scale-95 transition-transform cursor-pointer"
-                            onClick={(e) => { e.stopPropagation(); if (pendingInvite) { acceptBattleInvite(); } else if (pendingJoinRequest) { acceptJoinRequest(); } }}
+                            onClick={handleJoin}
                           >
                             <span className="text-black text-[9px] font-bold">Join</span>
-                          </div>
+                          </button>
                         </div>
                       ) : isInvited ? (
                         <div className="px-2 py-1 rounded-full bg-white/5 border border-white/20 flex items-center gap-0.5 flex-shrink-0">
                           <span className="text-white/50 text-[9px] font-bold">Invited</span>
                         </div>
                       ) : (
-                        <div className="px-2 py-1 rounded-full bg-[#C9A96E] flex items-center gap-0.5 flex-shrink-0">
-                          <UserPlus size={9} className="text-black" />
+                        <div className="px-2 py-1 rounded-full bg-[#C9A96E] flex items-center justify-center gap-0.5 flex-shrink-0">
+                          <UserPlus size={9} className="text-black shrink-0 flex-shrink-0" strokeWidth={2} />
                           <span className="text-black text-[9px] font-bold">Invite</span>
                         </div>
                       )}
-                    </button>
+                    </div>
                   );
                 })}
 
@@ -4053,7 +4123,7 @@ export default function LiveStream() {
                       )}
                     </div>
                     <p className="text-white/40 text-xs font-medium">
-                      {creators.length === 0 ? 'Loading creators...' : 'No creators match your search'}
+                      {creators.length === 0 ? 'Loading creators...' : creators.some(c => c.isLive) ? 'No creators match your search' : 'No creators are live right now'}
                     </p>
                   </div>
                 )}
@@ -4067,10 +4137,12 @@ export default function LiveStream() {
                   type="button"
                   onClick={() => {
                     setIsFindCreatorsOpen(false);
-                    setBattleState('IN_BATTLE');
-                    setBattleTime(300);
-                    setBattleCountdown(3);
-                    websocket.send('battle_create', { hostName: myCreatorName });
+                    const accepted = battleSlots.find(s => s.status === 'accepted');
+                    websocket.send('battle_create', {
+                      hostName: myCreatorName,
+                      opponentUserId: accepted?.userId ?? '',
+                      opponentName: accepted?.name ?? 'Opponent',
+                    });
                   }}
                   className="w-full py-2.5 bg-[#C9A96E] text-black text-xs font-bold rounded-lg shadow-lg active:scale-95 transition-all flex items-center justify-center gap-1.5"
                 >
@@ -4101,10 +4173,10 @@ export default function LiveStream() {
               <div className="flex items-start justify-between">
                 <div className="flex items-start gap-3 min-w-0">
                   <div className="relative -mt-6 flex-shrink-0">
-                    <AvatarRing src={miniProfile.avatar} alt={miniProfile.username} size={80} />
+                    <AvatarRing src={typeof miniProfile.avatar === 'string' ? miniProfile.avatar : ''} alt={typeof miniProfile.username === 'string' ? miniProfile.username : 'User'} size={80} />
                   </div>
                   <div className="min-w-0 pt-1">
-                    <div className="text-white font-black text-[16px] truncate">{miniProfile.username}</div>
+                    <div className="text-white font-black text-[16px] truncate">{typeof miniProfile.username === 'string' ? miniProfile.username : 'User'}</div>
                     <div className="text-white/70 text-[12px] font-bold">
                       {typeof miniProfile.level === 'number' ? (
                         <span className="inline-flex items-center gap-2">
@@ -4119,19 +4191,21 @@ export default function LiveStream() {
                     
                     <div className="flex items-center gap-3 mt-1 text-[10px] text-white/50">
                       <div className="flex items-center gap-1">
-                        <span className="text-white font-bold tabular-nums">1.2k</span>
+                        <span className="text-white font-bold tabular-nums">{formatCountShort(miniProfile.followers_count ?? 0)}</span>
                         <span>Followers</span>
                       </div>
                       <div className="w-px h-2 bg-white/20" />
                       <div className="flex items-center gap-1">
-                        <span className="text-white font-bold tabular-nums">458</span>
+                        <span className="text-white font-bold tabular-nums">{formatCountShort(miniProfile.following_count ?? 0)}</span>
                         <span>Following</span>
                       </div>
                     </div>
 
-                    <div className="mt-2 text-[11px] text-white/80 leading-snug line-clamp-2">
-                      Welcome to my stream! 🎵 Music lover, gamer & content creator. Let's vibe! ✨
-                    </div>
+                    {miniProfile.bio && (
+                      <div className="mt-2 text-[11px] text-white/80 leading-snug line-clamp-2">
+                        {miniProfile.bio}
+                      </div>
+                    )}
 
                     {miniProfile.donated != null && miniProfile.donated > 0 && (
                       <div className="text-white text-[11px] font-bold mt-2 pt-2 border-t border-white/10">
@@ -4153,21 +4227,11 @@ export default function LiveStream() {
                 }} className="h-9 rounded-lg bg-[#C9A96E] text-black text-[11px] font-black hover:bg-[#C9A96E]/90 active:scale-95 transition-all">
                   Follow
                 </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowGiftPanel(true);
-                    closeMiniProfile();
-                  }}
-                  className="h-9 rounded-lg bg-white/10 text-white text-[11px] font-bold hover:bg-white/20 active:scale-95 transition-all"
-                >
-                  Gift
-                </button>
                 <button 
                   type="button" 
                   onClick={() => {
                     closeMiniProfile();
-                    navigate(`/profile/${miniProfile.username}`);
+                    navigate(`/profile/${miniProfile.id ?? miniProfile.username}`);
                   }}
                   className="h-9 rounded-lg bg-white/10 text-white text-[11px] font-bold hover:bg-white/20 active:scale-95 transition-all"
                 >
@@ -4238,7 +4302,7 @@ export default function LiveStream() {
                       key={v.id}
                       type="button"
                       className="flex items-center gap-3 w-full py-2.5 active:bg-white/5 rounded-xl transition-colors"
-                      onClick={() => { setMiniProfile({ id: v.id, username: v.displayName, avatar: v.avatar, level: v.level ?? null }); setShowViewerList(false); }}
+                      onClick={() => { openMiniProfile(v.displayName); setShowViewerList(false); }}
                     >
                       <span className="text-white/30 text-xs font-bold w-5 text-right">{i + 1}</span>
                       <div className="w-10 h-10 rounded-full border-2 border-[#C9A96E]/30 overflow-hidden bg-[#13151A] flex-shrink-0">
@@ -4298,18 +4362,18 @@ export default function LiveStream() {
             style={{ zIndex: 99998 }}
             onClick={() => setShowTeamStatus(false)}
           />
-          <div className="fixed bottom-0 left-0 right-0 z-[99999] pointer-events-auto max-w-[480px] mx-auto">
+          <div className="fixed bottom-0 left-0 right-0 h-[40vh] z-[99999] pointer-events-auto max-w-[480px] mx-auto">
           <div
-            className="bg-[#1C1E24]/95 rounded-t-2xl p-3 pb-safe max-h-[40vh] overflow-y-auto no-scrollbar shadow-2xl w-full"
+            className="bg-[#1C1E24]/95 backdrop-blur-md rounded-t-2xl p-3 pb-safe h-full flex flex-col shadow-2xl w-full overflow-hidden border-t border-[#C9A96E]/20"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Drag handle */}
-            <div className="flex justify-center pt-3 pb-1">
+            <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
               <div className="w-10 h-1 bg-white/20 rounded-full" />
             </div>
 
             {/* Header */}
-            <div className="flex items-center justify-between px-4 pb-2">
+            <div className="flex items-center justify-between px-4 pb-2 flex-shrink-0">
               <div className="flex items-center gap-1.5">
                 <Heart className="w-3 h-3 text-[#C9A96E]" strokeWidth={2} fill="#C9A96E" />
                 <span className="text-gold-metallic font-bold text-sm">Your Team Status</span>
@@ -4317,7 +4381,7 @@ export default function LiveStream() {
             </div>
             
             {/* Content */}
-            <div className="flex-1 overflow-y-auto px-4 pb-4 no-scrollbar">
+            <div className="flex-1 overflow-y-auto px-4 pb-4 no-scrollbar min-h-0">
                {/* Team Status Card */}
                <div className="bg-white/5 rounded-xl p-3 border border-[#C9A96E]/20 relative overflow-hidden">
                  <div className="flex items-center gap-3 relative z-10">
@@ -4557,11 +4621,11 @@ export default function LiveStream() {
             {/* Content — luxury compact grid */}
             <div className="grid grid-cols-4 gap-y-4 gap-x-2 pt-1 pb-2 px-1">
 
-              <button type="button" onClick={() => { setShowTestCoinsModal(true); setTestCoinsStep('password'); setTestCoinsPwd(''); setTestCoinsError(''); setTestCoinsAmount(''); setIsMoreMenuOpen(false); }} className="flex flex-col items-center gap-1.5 active:scale-95 transition-transform">
+              <button type="button" onClick={() => { setShowTestCoinsModal(true); setTestCoinsStep(sessionStorage.getItem('elix_test_coins_unlocked') ? 'amount' : 'password'); setTestCoinsPwd(''); setTestCoinsError(''); setTestCoinsAmount(''); setIsMoreMenuOpen(false); }} className="flex flex-col items-center gap-1.5 active:scale-95 transition-transform">
                 <div className="w-11 h-11 rounded-full bg-[#13151A] flex items-center justify-center border border-[#C9A96E]/30 shadow-[0_0_8px_rgba(201,169,110,0.1)]">
                   <Coins className="w-[18px] h-[18px] text-[#C9A96E]" strokeWidth={1.8} />
                 </div>
-                <span className="text-[10px] font-semibold text-white/70">Test Coins</span>
+                <span className="text-[10px] font-semibold text-white/70">Test</span>
               </button>
 
               <button type="button" onClick={() => { setShowSharePanel(true); setIsMoreMenuOpen(false); }} className="flex flex-col items-center gap-1.5 active:scale-95 transition-transform">
@@ -4583,13 +4647,6 @@ export default function LiveStream() {
                   {isMicMuted ? <MicOff className="w-[18px] h-[18px] text-[#C9A96E]" strokeWidth={1.8} /> : <Mic className="w-[18px] h-[18px] text-[#C9A96E]" strokeWidth={1.8} />}
                 </div>
                 <span className="text-[10px] font-semibold text-white/70">{isMicMuted ? 'Unmute' : 'Mute'}</span>
-              </button>
-
-              <button type="button" onClick={() => { setIsLiveSettingsOpen(true); setIsMoreMenuOpen(false); }} className="flex flex-col items-center gap-1.5 active:scale-95 transition-transform">
-                <div className="w-11 h-11 rounded-full bg-[#13151A] flex items-center justify-center border border-[#C9A96E]/30 shadow-[0_0_8px_rgba(201,169,110,0.1)]">
-                  <Settings2 className="w-[18px] h-[18px] text-[#C9A96E]" strokeWidth={1.8} />
-                </div>
-                <span className="text-[10px] font-semibold text-white/70">Settings</span>
               </button>
 
               <button type="button" onClick={() => { setIsChatVisible((v) => !v); setIsMoreMenuOpen(false); }} className="flex flex-col items-center gap-1.5 active:scale-95 transition-transform">
@@ -4648,7 +4705,7 @@ export default function LiveStream() {
               <div className="flex items-center gap-2 mb-4">
                 <Lock className="w-5 h-5 text-[#C9A96E]" />
                 <span className="text-white font-bold text-base">
-                  {testCoinsStep === 'password' ? 'Enter Password' : 'Add Test Coins'}
+                  {testCoinsStep === 'password' ? 'Enter Password' : 'Add Test'}
                 </span>
               </div>
 
@@ -4672,6 +4729,17 @@ export default function LiveStream() {
                       }
                       if (hashHex === TEST_COINS_HASH) {
                         setTestCoinsError('');
+                        if (testCoinsSavePwd) {
+                          try {
+                            localStorage.setItem(TEST_COINS_VERIFIED_KEY, String(Date.now()));
+                            localStorage.setItem(TEST_COINS_PWD_KEY, '1');
+                          } catch {}
+                        } else {
+                          try {
+                            localStorage.removeItem(TEST_COINS_VERIFIED_KEY);
+                            localStorage.removeItem(TEST_COINS_PWD_KEY);
+                          } catch {}
+                        }
                         setTestCoinsStep('amount');
                       } else {
                         setTestCoinsError('Wrong password');
@@ -4691,6 +4759,10 @@ export default function LiveStream() {
                     placeholder="Password"
                     className="w-full bg-[#13151A] text-white text-sm rounded-xl px-4 py-3 border border-white/10 focus:border-[#C9A96E]/60 focus:outline-none placeholder:text-white/30 mb-2"
                   />
+                  <label className="flex items-center gap-2 mt-2 mb-2 cursor-pointer">
+                    <input type="checkbox" checked={testCoinsSavePwd} onChange={(e) => setTestCoinsSavePwd(e.target.checked)} className="rounded border-white/30" />
+                    <span className="text-white/60 text-xs">Save password (stay unlocked 24h)</span>
+                  </label>
                   {testCoinsError && (
                     <p className="text-red-400 text-xs mb-2">{testCoinsError}</p>
                   )}
@@ -4715,20 +4787,29 @@ export default function LiveStream() {
 
               {testCoinsStep === 'amount' && (
                 <form
-                  onSubmit={(e) => {
+                  onSubmit={async (e) => {
                     e.preventDefault();
                     const amount = parseInt(testCoinsAmount, 10);
                     if (!amount || amount <= 0) {
                       setTestCoinsError('Enter a valid amount');
                       return;
                     }
-                    if (amount > 999999) {
-                      setTestCoinsError('Max 999,999 coins per top-up');
+                    if (amount > 100000000) {
+                      setTestCoinsError('Max 100,000,000 per top-up');
                       return;
                     }
-                    setCoinBalance(prev => prev + amount);
-                    showToast(`+${amount.toLocaleString()} test coins added`);
+                    const newBal = coinBalance + amount;
+                    setCoinBalance(newBal);
+                    persistTestCoinsBalance(user?.id, newBal);
+                    showToast(`+${amount.toLocaleString()} test added`);
                     setShowTestCoinsModal(false);
+                    if (user?.id) {
+                      supabase.rpc('add_test_coins', { p_amount: amount }).then(() => {}).catch(() => {
+                        supabase.from('profiles').select('coins').eq('user_id', user.id).single().then(({ data }) => {
+                          supabase.from('profiles').update({ coins: (data?.coins ?? 0) + amount }).eq('user_id', user.id).then(() => {});
+                        });
+                      });
+                    }
                   }}
                 >
                   <p className="text-white/40 text-xs mb-3">These coins are for testing only and have no real value.</p>
@@ -4743,7 +4824,7 @@ export default function LiveStream() {
                     onChange={(e) => { setTestCoinsAmount(e.target.value); setTestCoinsError(''); }}
                     placeholder="Amount (e.g. 5000)"
                     min="1"
-                    max="999999"
+                    max="100000000"
                     className="w-full bg-[#13151A] text-white text-sm rounded-xl px-4 py-3 border border-white/10 focus:border-[#C9A96E]/60 focus:outline-none placeholder:text-white/30 mb-2"
                   />
                   {testCoinsError && (
@@ -4755,11 +4836,32 @@ export default function LiveStream() {
                         key={amt}
                         type="button"
                         onClick={() => setTestCoinsAmount(String(amt))}
-                        className="py-1.5 rounded-lg bg-white/5 text-white/70 text-xs font-bold hover:bg-[#C9A96E]/20 transition-colors"
+                        className="py-1.5 rounded-lg text-xs font-bold transition-colors bg-white/5 text-white/70 hover:bg-[#C9A96E]/20"
                       >
                         {amt >= 1000 ? `${amt / 1000}K` : amt}
                       </button>
                     ))}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const amount = 100000000;
+                        const newBal = coinBalance + amount;
+                        setCoinBalance(newBal);
+                        persistTestCoinsBalance(user?.id, newBal);
+                        showToast(`+${amount.toLocaleString()} test added`);
+                        setShowTestCoinsModal(false);
+                        if (user?.id) {
+                          supabase.rpc('add_test_coins', { p_amount: amount }).then(() => {}).catch(() => {
+                            supabase.from('profiles').select('coins').eq('user_id', user.id).single().then(({ data }) => {
+                              supabase.from('profiles').update({ coins: (data?.coins ?? 0) + amount }).eq('user_id', user.id).then(() => {});
+                            });
+                          });
+                        }
+                      }}
+                      className="py-1.5 rounded-lg text-xs font-bold transition-colors bg-[#C9A96E]/30 text-[#C9A96E] hover:bg-[#C9A96E]/40 col-span-3"
+                    >
+                      Max (100M) – Charge at once
+                    </button>
                   </div>
                   <div className="flex gap-2">
                     <button
@@ -4785,100 +4887,8 @@ export default function LiveStream() {
       )}
 
 
-      {isLiveSettingsOpen && (
-        <div
-          className="fixed inset-0 z-[710] bg-[#13151A] pointer-events-auto max-w-[480px] mx-auto"
-          onClick={() => setIsLiveSettingsOpen(false)}
-          role="button"
-          tabIndex={-1}
-        >
-          <div className="fixed bottom-0 left-0 right-0 px-4 pb-[calc(16px+env(safe-area-inset-bottom))] pointer-events-auto max-w-[480px] mx-auto">
-            <div
-              className="mx-auto w-full bg-[#13151A] overflow-hidden"
-              onClick={(e) => e.stopPropagation()}
-              role="button"
-              tabIndex={-1}
-            >
-              <div className="px-4 py-3 flex items-center justify-between text-white">
-                <div className="flex flex-col">
-                  <span className="font-extrabold">Live settings</span>
-                  <span className="text-[10px] text-white/40 font-mono">v1.5 (Clean UI)</span>
-                </div>
-                <button type="button" onClick={() => setIsLiveSettingsOpen(false)} className="p-2">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#C9A96E" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                </button>
-              </div>
-              <div className="h-px bg-[#C9A96E]" />
-              <div className="p-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    toggleMic();
-                    setIsLiveSettingsOpen(false);
-                  }}
-                  className="w-full px-4 py-3 flex items-center justify-between text-white hover:brightness-125"
-                >
-                  <div className="flex items-center gap-3">
-                    {isMicMuted ? <MicOff className="w-5 h-5" strokeWidth={2} /> : <Mic className="w-5 h-5" strokeWidth={2} />}
-                    <span className="font-semibold">{isMicMuted ? 'Unmute microphone' : 'Mute microphone'}</span>
-                  </div>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsChatVisible((v) => !v);
-                    setIsLiveSettingsOpen(false);
-                  }}
-                  className="w-full px-4 py-3 flex items-center justify-between text-white hover:brightness-125"
-                >
-                  <div className="flex items-center gap-3">
-                    <MessageCircle className="w-5 h-5" strokeWidth={2} />
-                    <span className="font-semibold">{isChatVisible ? 'Hide comments' : 'Show comments'}</span>
-                  </div>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={async () => {
-                    await handleShare();
-                    setIsLiveSettingsOpen(false);
-                  }}
-                  className="w-full px-4 py-3 flex items-center justify-between text-white hover:brightness-125"
-                >
-                  <div className="flex items-center gap-3">
-                    <Share2 className="w-5 h-5" strokeWidth={2} />
-                    <span className="font-semibold">Share</span>
-                  </div>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Full-screen Gift Overlay Animation */}
       <GiftAnimationOverlay streamId={effectiveStreamId} />
-
-      {/* Gift Panel Slide-up */}
-      {showGiftPanel && (
-        <>
-          <div 
-            className="fixed inset-0 bg-[#13151A]/40 pointer-events-auto"
-            style={{ zIndex: 99998 }}
-            onClick={() => setShowGiftPanel(false)}
-          />
-          <div 
-            className="fixed bottom-0 left-0 right-0 h-[40vh] z-[999999] pointer-events-auto max-w-[480px] mx-auto"
-          >
-            <GiftPanel 
-              onSelectGift={handleSendGift} 
-              userCoins={coinBalance} 
-              onRechargeSuccess={(newBalance) => setCoinBalance(newBalance)}
-            />
-          </div>
-        </>
-      )}
 
       {/* Full-screen Video Effect Overlay (Behind controls but above video) */}
       <GiftOverlay 
@@ -4901,48 +4911,66 @@ export default function LiveStream() {
               <div className="w-10 h-1 bg-white/20 rounded-full" />
             </div>
 
-            {/* Followers row */}
-            <div className="flex gap-3 overflow-x-auto pb-3 no-scrollbar flex-shrink-0">
-              {creators.filter(c => c.name.toLowerCase().includes(shareQuery.toLowerCase())).map((u) => (
+            {/* Followers icon + Followers row */}
+            <div className="flex gap-3 overflow-x-auto overflow-y-hidden pb-3 flex-shrink-0 px-4 no-scrollbar">
+              <button type="button" onClick={() => { setShowSharePanel(false); navigate('/create'); }} className="flex-shrink-0 flex flex-col items-center gap-0.5 min-w-[48px] active:scale-95 transition-transform">
+                <div className="w-14 h-14 rounded-full overflow-hidden flex items-center justify-center bg-[#13151A]">
+                  <img src="/Icons/Profile icon.png" alt="" className="w-full h-full object-contain scale-[1.21] translate-y-[1mm]" />
+                </div>
+                <span className="text-white/60 text-[9px] font-medium">Followers</span>
+              </button>
+              {shareFollowers.filter(f => f.username?.toLowerCase().includes(shareQuery.toLowerCase())).map((f) => (
                 <button
-                  key={u.id}
+                  key={f.user_id}
                   className="flex flex-col items-center gap-0.5 min-w-[48px] active:scale-95 transition-transform"
-                  onClick={() => setShowSharePanel(false)}
+                  onClick={() => sendShareToFollower(f.user_id)}
                 >
-                  <AvatarRing src={u.avatar} alt={u.name} size={36} />
-                  <span className="text-white/60 text-[9px] font-medium truncate w-12 text-center">{u.name}</span>
+                  <AvatarRing src={f.avatar_url || '/Icons/Profile icon.png'} alt={f.username} size={36} />
+                  <span className="text-white/60 text-[9px] font-medium truncate w-12 text-center">{shareSentTo.has(f.user_id) ? 'Sent' : f.username || 'User'}</span>
                 </button>
               ))}
             </div>
 
-            {/* Share options — all gold circles, small */}
-            <div className="grid grid-cols-4 gap-y-4 gap-x-2 pt-1 flex-1 overflow-y-auto">
-              {[
-                { name: 'WhatsApp', icon: <MessageCircle className="w-[18px] h-[18px] text-[#C9A96E]" strokeWidth={1.8} />, action: () => { window.open(`https://wa.me/?text=${encodeURIComponent('Watch my LIVE on Elix! ' + window.location.href)}`); setShowSharePanel(false); } },
-                { name: 'Facebook', icon: <Share2 className="w-[18px] h-[18px] text-[#C9A96E]" strokeWidth={1.8} />, action: () => { window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}`); setShowSharePanel(false); } },
-                { name: 'Copy Link', icon: <Copy className="w-[18px] h-[18px] text-[#C9A96E]" strokeWidth={1.8} />, action: () => { navigator.clipboard.writeText(`https://app.com/live/${effectiveStreamId}`); showToast('Link copied!'); setShowSharePanel(false); } },
-                { name: 'Message', icon: <Send className="w-[18px] h-[18px] text-[#C9A96E]" strokeWidth={1.8} />, action: () => { window.open(`sms:?body=${encodeURIComponent('Watch my LIVE on Elix! ' + window.location.href)}`); setShowSharePanel(false); } },
-                { name: 'Promote', icon: <TrendingUp className="w-[18px] h-[18px] text-[#C9A96E]" strokeWidth={1.8} />, action: () => { if (navigator.share) navigator.share({ title: 'Watch my LIVE on Elix!', url: window.location.href }); setShowSharePanel(false); } },
-                { name: 'Report', icon: <Flag className="w-[18px] h-[18px] text-red-400" strokeWidth={1.8} />, action: () => { setIsReportModalOpen(true); setShowSharePanel(false); } },
-                { name: 'Story', icon: <PlusCircle className="w-[18px] h-[18px] text-[#C9A96E]" strokeWidth={1.8} />, action: () => { navigate('/create'); setShowSharePanel(false); } },
-                { name: 'Settings', icon: <Settings2 className="w-[18px] h-[18px] text-[#C9A96E]" strokeWidth={1.8} />, action: () => { setIsLiveSettingsOpen(true); setShowSharePanel(false); } },
-              ].map((item) => (
-                <button
-                  key={item.name}
-                  onClick={item.action}
-                  className="flex flex-col items-center gap-1.5 active:scale-95 transition-transform"
-                >
-                  <div className="w-11 h-11 rounded-full bg-[#13151A] flex items-center justify-center border border-[#C9A96E]/30 shadow-[0_0_8px_rgba(201,169,110,0.1)]">
-                    {item.icon}
-                  </div>
-                  <span className="text-[10px] font-semibold text-white/70">{item.name}</span>
-                </button>
-              ))}
+            {/* Share options — same layout as ShareModal */}
+            <div className="flex-1 overflow-y-scroll overflow-x-hidden min-h-0 px-4 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-white/5 [&::-webkit-scrollbar-thumb]:bg-[#C9A96E]/60 [&::-webkit-scrollbar-thumb]:rounded-full">
+              <div className="grid grid-cols-5 gap-y-3 gap-x-1.5 pt-1">
+                {[
+                  { name: 'WhatsApp', icon: <MessageCircle size={22} className="text-white" />, action: () => { window.open(`https://wa.me/?text=${encodeURIComponent('Watch my LIVE on Elix! ' + window.location.href)}`); setShowSharePanel(false); } },
+                  { name: 'Facebook', icon: <Share2 size={22} className="text-white" />, action: () => { window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}`); setShowSharePanel(false); } },
+                  { name: 'Copy Link', icon: <Copy size={22} className="text-white" />, action: () => { navigator.clipboard.writeText(`https://app.com/live/${effectiveStreamId}`); showToast('Link copied!'); setShowSharePanel(false); } },
+                  { name: 'Message', icon: <Send size={22} className="text-white" />, action: () => { window.open(`sms:?body=${encodeURIComponent('Watch my LIVE on Elix! ' + window.location.href)}`); setShowSharePanel(false); } },
+                  { name: 'Promote', icon: <TrendingUp size={22} className="text-white" />, action: () => { setShowSharePanel(false); setShowPromotePanel(true); } },
+                  { name: 'Report', icon: <Flag size={22} className="text-red-400" />, isRed: true, action: () => { setIsReportModalOpen(true); setShowSharePanel(false); } },
+                  { name: 'Story', icon: <PlusCircle size={22} className="text-white" />, action: () => { navigate('/create'); setShowSharePanel(false); } },
+                ].map((item) => (
+                  <button key={item.name} onClick={item.action} className="flex flex-col items-center gap-1 active:scale-95 transition-transform">
+                    <div className="relative w-9 h-9 rounded-full bg-[#13151A] overflow-hidden flex items-center justify-center flex-shrink-0">
+                      <div className={`relative z-[2] ${item.name === 'Report' ? 'translate-y-0.5' : ''}`}>{React.cloneElement((item.icon as React.ReactElement), { className: `w-3.5 h-3.5 ${(item as { isRed?: boolean }).isRed ? 'text-red-400' : 'text-white'}`, strokeWidth: 1.8 })}</div>
+                      <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-125 translate-y-0.5" />
+                    </div>
+                    <span className={`text-[8px] font-semibold truncate w-full text-center ${(item as { isRed?: boolean }).isRed ? 'text-red-400/70' : 'text-white/70'}`}>{item.name}</span>
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
           </div>
         </>
       )}
+
+      <PromotePanel
+        isOpen={showPromotePanel}
+        onClose={() => setShowPromotePanel(false)}
+        contentType="live"
+        content={{
+          id: effectiveStreamId,
+          title: `Watch ${myCreatorName}'s LIVE on Elix!`,
+          thumbnail: myAvatar,
+          username: myCreatorName,
+          avatar: myAvatar,
+          postedAt: new Date().toLocaleDateString(),
+        }}
+      />
 
       {/* Report Modal */}
       <ReportModal
@@ -4972,32 +5000,6 @@ export default function LiveStream() {
         </div>
       )}
 
-      {/* Combo Button Overlay - Moved to top-most layer */}
-      <AnimatePresence>
-        {showComboButton && lastSentGift && (
-            <motion.div 
-                initial={{ scale: 0, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0, opacity: 0 }}
-                className="absolute right-4 bottom-[120px] z-[100000] flex flex-col items-center pointer-events-auto"
-            >
-                <button 
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleComboClick();
-                    }}
-                    className="w-16 h-14 rounded-full bg-gradient-to-r from-secondary to-[#C9A96E] flex flex-col items-center justify-center animate-pulse active:scale-90 transition-transform shadow-[0_0_20px_rgba(201,169,110,0.5)] border-2 border-white/30"
-                >
-                    <span className="text-xl font-black italic text-white drop-shadow-md">x{comboCount}</span>
-                    <span className="text-[9px] font-bold text-white uppercase tracking-widest">Combo</span>
-                </button>
-                <div className="mt-1 px-3 py-1 text-[10px] text-secondary font-bold bg-[#13151A]/60 rounded-full backdrop-blur-md border border-white/10 shadow-lg">
-                    Send {lastSentGift.name}
-                </div>
-            </motion.div>
-        )}
-      </AnimatePresence>
             </div>
           </div>
         </div>

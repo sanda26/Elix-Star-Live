@@ -96,9 +96,9 @@ export function ChatOverlay({ messages, variant = 'panel', compact = false, clas
         className="chat-scroll space-y-2 px-2"
         style={scrollStyle}
       >
-        {messages.map((msg) => (
+        {messages.map((msg, idx) => (
           <div
-            key={msg.id}
+            key={typeof msg.id === 'string' ? msg.id : `msg-${idx}`}
             className="flex items-center gap-2 animate-in slide-in-from-left-2 duration-200 relative"
             onPointerDown={() => startLongPress(msg.id)}
             onPointerUp={cancelLongPress}
@@ -112,7 +112,7 @@ export function ChatOverlay({ messages, variant = 'panel', compact = false, clas
                 if (onProfileTap) onProfileTap(msg.username);
               }}
             >
-              <LevelBadge level={msg.level || 1} size={28} layout="fixed" avatar={msg.avatar} />
+              <LevelBadge level={typeof msg.level === 'number' ? msg.level : 1} size={28} layout="fixed" avatar={typeof msg.avatar === 'string' ? msg.avatar : undefined} />
             </div>
             
             <div className="flex flex-col min-w-0 justify-center">
@@ -125,12 +125,12 @@ export function ChatOverlay({ messages, variant = 'panel', compact = false, clas
                 )}
                 <span 
                     className="text-white font-bold text-[13px] leading-tight cursor-pointer hover:underline whitespace-nowrap" 
-                    onClick={() => onProfileTap?.(msg.username)}
+                    onClick={() => onProfileTap?.(String(msg.username ?? ''))}
                 >
-                  {msg.username}
+                  {typeof msg.username === 'string' ? msg.username : 'User'}
                 </span>
                 
-                {msg.membershipIcon && (
+                {typeof msg.membershipIcon === 'string' && msg.membershipIcon && (
                   <div className="bg-[#C9A96E] px-1.5 py-0.5 rounded-full flex items-center gap-1 border border-white/10 shadow-sm inline-flex align-middle">
                     <img src={msg.membershipIcon} alt="Member" className="w-3 h-3 object-contain" />
                     <span className="text-white text-[9px] font-bold uppercase tracking-wider">Member</span>
@@ -138,7 +138,7 @@ export function ChatOverlay({ messages, variant = 'panel', compact = false, clas
                 )}
                 
                 <span className={`text-[13px] leading-snug break-words ${msg.isGift ? 'text-white font-bold' : 'text-white/90'}`}>
-                    {msg.text}
+                    {typeof msg.text === 'string' ? msg.text : ''}
                 </span>
               </div>
             </div>

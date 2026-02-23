@@ -1,13 +1,13 @@
-import { useState, useEffect, useRef } from 'react';
-import { Share2, Menu, Lock, Play, Heart, Camera, Sparkles, LogOut, UserPlus, X, Bookmark, Grid3X3, Coins, ShoppingBag, Repeat2, ChevronDown, ChevronRight, Store, Search, Send, Copy, MessageCircle, Check, TrendingUp, Flag, Download } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Share2, Menu, Lock, Play, Heart, Camera, Sparkles, LogOut, UserPlus, X, Bookmark, Grid3X3, Coins, ShoppingBag, Repeat2, ChevronDown, ChevronRight, Store, Search, Copy, MessageCircle, Check, TrendingUp, Flag, Download } from 'lucide-react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
 import { supabase } from '../lib/supabase';
 import { uploadAvatar } from '../lib/avatarUpload';
 import { AvatarRing } from '../components/AvatarRing';
-import { LevelBadge } from '../components/LevelBadge';
 import { trackEvent } from '../lib/analytics';
 import ReportModal from '../components/ReportModal';
+import PromotePanel from '../components/PromotePanel';
 import { useVideoStore } from '../store/useVideoStore';
 
 interface Video {
@@ -50,6 +50,7 @@ export default function Profile() {
   const [showAccountMenu, setShowAccountMenu] = useState(false);
   const [shopItems, setShopItems] = useState<{ id: string; title: string; price: number; image_url: string | null }[]>([]);
   const [showSharePanel, setShowSharePanel] = useState(false);
+  const [showPromotePanel, setShowPromotePanel] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [shareFollowers, setShareFollowers] = useState<{ user_id: string; username: string; avatar_url: string | null }[]>([]);
   const [shareSent, setShareSent] = useState<Set<string>>(new Set());
@@ -293,21 +294,23 @@ export default function Profile() {
     if (!user?.id || !displayUserId || isOwnProfile) return;
 
     const wasFollowing = isFollowing;
+    setIsFollowing(!wasFollowing);
     try {
       if (wasFollowing) {
-        await supabase
+        const { error } = await supabase
           .from('followers')
           .delete()
           .eq('follower_id', user.id)
           .eq('following_id', displayUserId);
-        setIsFollowing(false);
+        if (error) throw error;
       } else {
-        await supabase
+        const { error } = await supabase
           .from('followers')
           .insert({ follower_id: user.id, following_id: displayUserId });
-        setIsFollowing(true);
+        if (error && error.code !== '23505') throw error;
         trackEvent('user_follow', { target_user_id: displayUserId });
       }
+
       // Sync video store so feed reflects the change without refresh
       const videoStore = useVideoStore.getState();
       const currentFollowing = videoStore.followingUsers;
@@ -473,70 +476,76 @@ export default function Profile() {
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto px-4 pb-4 no-scrollbar">
-                {/* Followers Row */}
+              <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 pb-4">
+                {/* Followers icon + Followers Row */}
                 <div className="w-full overflow-hidden shrink-0 mb-3">
                   <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar items-center">
-                    {shareFollowers.length === 0 ? (
-                      <p className="text-white/30 text-xs px-1">No followers yet</p>
-                    ) : (
-                      shareFollowers.map((f) => (
+                    <button type="button" onClick={() => { setShowSharePanel(false); navigate('/create'); }} className="flex-shrink-0 flex flex-col items-center gap-1 min-w-[56px] active:scale-95 transition-transform">
+                      <div className="w-[4.5rem] h-[4.5rem] rounded-full overflow-hidden flex items-center justify-center bg-[#13151A]">
+                        <img src="/Icons/Profile icon.png" alt="" className="w-full h-full object-contain scale-[1.21] translate-y-[1mm]" />
+                      </div>
+                      <span className="text-white text-[9px] font-bold">Followers</span>
+                    </button>
+                    {shareFollowers.map((f) => (
                         <button key={f.user_id} className="flex flex-col items-center gap-1 min-w-[56px] active:scale-95 transition-transform" onClick={() => sendShareTo(f.user_id)}>
                           <div className="relative">
-                            <img
-                              src={f.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(f.username || 'U')}&background=C9A96E&color=fff&size=128`}
-                              alt={f.username}
-                              className="w-12 h-12 rounded-full object-cover border-2 border-[#C9A96E]"
+                            <AvatarRing
+                              src={f.avatar_url || '/Icons/Profile icon.png'}
+                              alt={f.username || 'User'}
+                              size={48}
                             />
-                            {shareSent.has(f.user_id) ? (
+                            {shareSent.has(f.user_id) && (
                               <div className="absolute bottom-0 right-0 w-4 h-4 bg-[#C9A96E] rounded-full flex items-center justify-center border-2 border-[#1C1E24]">
                                 <Check size={8} className="text-black" />
-                              </div>
-                            ) : (
-                              <div className="absolute bottom-0 right-0 w-4 h-4 bg-[#FF2D55] rounded-full flex items-center justify-center border-2 border-[#1C1E24]">
-                                <Send size={7} className="text-white" />
                               </div>
                             )}
                           </div>
                           <span className="text-white text-[9px] font-bold truncate max-w-[56px]">{shareSent.has(f.user_id) ? 'Sent' : f.username || 'User'}</span>
                         </button>
-                      ))
-                    )}
+                      ))}
                   </div>
                 </div>
 
-                {/* Social Row */}
-                <div className="flex items-center gap-2 overflow-x-auto pb-3 no-scrollbar shrink-0">
-                  {[
-                    { name: 'WhatsApp', color: '#25D366', icon: <MessageCircle size={22} className="text-white" />, action: () => window.open(`https://wa.me/?text=${encodeURIComponent(`Check out ${displayName}'s profile on Elix! ${window.location.origin}/profile/${displayUserId}`)}`) },
-                    { name: 'Facebook', color: '#1877F2', icon: <Share2 size={22} className="text-white" />, action: () => window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(`${window.location.origin}/profile/${displayUserId}`)}`) },
-                    { name: 'Twitter', color: '#1DA1F2', icon: <Share2 size={22} className="text-white" />, action: () => window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(`Check out ${displayName} on Elix!`)}&url=${encodeURIComponent(`${window.location.origin}/profile/${displayUserId}`)}`) },
-                    { name: 'Copy Link', color: '#C9A96E', icon: <Copy size={22} className="text-white" />, action: () => { navigator.clipboard.writeText(`${window.location.origin}/profile/${displayUserId}`).then(() => alert('Profile link copied!')).catch(() => {}); } },
-                    { name: 'Messages', color: '#00C853', icon: <MessageCircle size={22} className="text-white" />, action: () => window.open(`sms:?body=${encodeURIComponent(`Check out ${displayName} on Elix! ${window.location.origin}/profile/${displayUserId}`)}`) },
-                  ].map((item) => (
-                    <button key={item.name} onClick={item.action} className="flex flex-col items-center gap-1 min-w-[60px]">
-                      <div className="w-12 h-12 rounded-full flex items-center justify-center shadow-lg" style={{ backgroundColor: item.color }}>{item.icon}</div>
-                      <span className="text-white/70 text-[10px]">{item.name}</span>
-                    </button>
-                  ))}
-                </div>
-
-                {/* Actions Row */}
-                <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar shrink-0">
-                  {[
-                    { name: 'Promote', icon: <TrendingUp size={22} className="text-white" />, action: () => { if (navigator.share) navigator.share({ title: `${displayName} on Elix`, url: `${window.location.origin}/profile/${displayUserId}` }); } },
-                    { name: 'Report', icon: <Flag size={22} className="text-white" />, action: () => { setShowSharePanel(false); setShowReportModal(true); } },
-                  ].map((item) => (
-                    <button key={item.name} onClick={item.action} className="flex flex-col items-center gap-1 min-w-[60px]">
-                      <div className="w-12 h-12 rounded-full bg-[#13151A] flex items-center justify-center border border-[#C9A96E]/40">{item.icon}</div>
-                      <span className="text-white/70 text-[10px]">{item.name}</span>
-                    </button>
-                  ))}
+                {/* Share options — same layout as ShareModal */}
+                <div className="flex-1 overflow-y-scroll overflow-x-hidden min-h-0 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-white/5 [&::-webkit-scrollbar-thumb]:bg-[#C9A96E]/60 [&::-webkit-scrollbar-thumb]:rounded-full">
+                  <div className="grid grid-cols-5 gap-y-3 gap-x-1.5 pt-1">
+                    {[
+                      { name: 'WhatsApp', icon: <MessageCircle size={22} className="text-white" />, action: () => window.open(`https://wa.me/?text=${encodeURIComponent(`Check out ${displayName}'s profile on Elix! ${window.location.origin}/profile/${displayUserId}`)}`) },
+                      { name: 'Facebook', icon: <Share2 size={22} className="text-white" />, action: () => window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(`${window.location.origin}/profile/${displayUserId}`)}`) },
+                      { name: 'Twitter', icon: <Share2 size={22} className="text-white" />, action: () => window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(`Check out ${displayName} on Elix!`)}&url=${encodeURIComponent(`${window.location.origin}/profile/${displayUserId}`)}`) },
+                      { name: 'Copy Link', icon: <Copy size={22} className="text-white" />, action: () => { navigator.clipboard.writeText(`${window.location.origin}/profile/${displayUserId}`).then(() => alert('Profile link copied!')).catch(() => {}); } },
+                      { name: 'Messages', icon: <MessageCircle size={22} className="text-white" />, action: () => window.open(`sms:?body=${encodeURIComponent(`Check out ${displayName} on Elix! ${window.location.origin}/profile/${displayUserId}`)}`) },
+                      { name: 'Promote', icon: <TrendingUp size={22} className="text-white" />, action: () => { setShowSharePanel(false); setShowPromotePanel(true); } },
+                      { name: 'Report', icon: <Flag size={22} className="text-red-400" />, isRed: true, action: () => { setShowSharePanel(false); setShowReportModal(true); } },
+                    ].map((item) => (
+                      <button key={item.name} onClick={item.action} className="flex flex-col items-center gap-1 active:scale-95 transition-transform">
+                        <div className="relative w-9 h-9 rounded-full bg-[#13151A] overflow-hidden flex items-center justify-center flex-shrink-0">
+                          <div className={`relative z-[2] ${item.name === 'Report' ? 'translate-y-0.5' : ''}`}>{React.cloneElement((item.icon as React.ReactElement), { className: `w-3.5 h-3.5 ${(item as { isRed?: boolean }).isRed ? 'text-red-400' : 'text-white'}`, strokeWidth: 1.8 })}</div>
+                          <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-125 translate-y-0.5" />
+                        </div>
+                        <span className={`text-[8px] font-semibold truncate w-full text-center ${(item as { isRed?: boolean }).isRed ? 'text-red-400/70' : 'text-white/70'}`}>{item.name}</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
           </div>
         )}
+
+        <PromotePanel
+          isOpen={showPromotePanel}
+          onClose={() => setShowPromotePanel(false)}
+          contentType="profile"
+          content={{
+            id: displayUserId,
+            title: `${displayName} on Elix`,
+            thumbnail: displayAvatar,
+            username: displayName,
+            avatar: displayAvatar,
+            postedAt: new Date().toLocaleDateString(),
+          }}
+        />
 
         {/* ═══ AVATAR ═══ */}
         <div className="flex flex-col items-center mt-2 mb-3">
@@ -569,11 +578,6 @@ export default function Profile() {
             )}
           </div>
           <span className="text-[13px] text-white font-medium">@{displayUsername}</span>
-          {(profileData?.level ?? 0) > 0 && (
-            <div className="mt-2">
-              <LevelBadge level={profileData?.level || 1} size={28} layout="fixed" avatar={displayAvatar} />
-            </div>
-          )}
         </div>
 
 

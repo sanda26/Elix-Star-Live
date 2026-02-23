@@ -32,7 +32,13 @@ export default defineConfig(({ mode }) => ({
     },
   },
   server: {
-    cors: true, // Enable CORS for local dev
+    cors: true,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+      },
+    },
   },
   plugins: [
     react({

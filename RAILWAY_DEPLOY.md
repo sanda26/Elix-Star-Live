@@ -1,10 +1,10 @@
 # Deploy to Railway
 
-## One-time setup (already done)
+## One-time setup
 
-- **Railway CLI** is installed globally.
-- **Project linked:** `surprising-achievement` → service `elix-star-live-web`.
-- **Build:** `nixpacks.toml` runs `npm ci` and `npm run build`, then starts `node server/index.js`.
+- **Railway CLI** (optional): `npm i -g @railway/cli`
+- **Link project:** `railway link` (or create a new project at [railway.app](https://railway.app))
+- **Build:** `nixpacks.toml` runs `npm ci` and `npm run build`, then starts `npx tsx server/index.ts`
 
 ## Deploy from your PC
 
@@ -28,9 +28,29 @@
 ## After deploy
 
 - **URL:** In Railway dashboard → your service → **Settings** → **Networking** → **Generate domain** (e.g. `elix-star-live-web-production.up.railway.app`).
-- **Env vars:** In Railway → **Variables**, add any `VITE_*` and other keys your app needs (e.g. Supabase URL/anon key).
+
+### Supabase — set these so everything stays connected
+
+All auth, database, storage, and realtime use Supabase. In Railway → **Variables**, add:
+
+| Variable | Used by | Description |
+|----------|---------|-------------|
+| `VITE_SUPABASE_URL` | Frontend + server | Supabase project URL (e.g. `https://xxxx.supabase.co`) |
+| `VITE_SUPABASE_ANON_KEY` | Frontend | Supabase anon/public key (safe in client) |
+| `SUPABASE_URL` | Server | Same as `VITE_SUPABASE_URL` (server fallback) |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server only | Service role key from Supabase Dashboard → API (auth, WebSocket, payouts, feed, moderation) |
+
+Without these, login, live streams, chat, gifts, payouts, and feed won’t work. Copy from Supabase Dashboard → Project Settings → API.
+
+### Other env vars (Railway → Variables)
+
+- **`VITE_WS_URL`** = your Railway app URL (e.g. `https://your-app.up.railway.app`) so the frontend uses the same host for WebSockets (live, chat, battles).
+- **Stripe:** `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`
+- **Optional:** `OPENAI_API_KEY` (moderation), Apple IAP vars if you use them.
+
+See `.env.example` in the repo for a full list.
 
 ## Build / start (reference)
 
 - **Build:** `npm ci` then `npm run build` (creates `dist/`).
-- **Start:** `node server/index.js` (serves `dist/` and `/health`).
+- **Start:** `npx tsx server/index.ts` (serves `dist/`, API, WebSocket, and `/health`).

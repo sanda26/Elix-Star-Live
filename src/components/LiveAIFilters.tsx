@@ -18,10 +18,11 @@ export default function LiveAIFilters({ onFilterChange, currentFilter }: LiveAIF
     return (
       <button
         onClick={() => setIsOpen(true)}
-        className="w-9 h-9 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform"
+        className="w-9 h-9 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform relative"
         title="AI Filters"
       >
-        <Sparkles size={16} className={currentFilter !== 'none' ? 'text-[#C9A96E]' : 'text-white/70'} />
+        <Sparkles size={16} className={`relative z-[2] ${currentFilter !== 'none' ? 'text-[#C9A96E]' : 'text-white/70'}`} />
+        <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-125 translate-y-0.5" />
       </button>
     );
   }

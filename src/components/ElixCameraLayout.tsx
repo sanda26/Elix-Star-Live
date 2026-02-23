@@ -15,8 +15,8 @@ import {
   User, 
   ChevronDown,
   Check,
-  Plus,
-  Minus,
+  ZoomIn,
+  ZoomOut,
   Wand2,
   Type,
   Gauge,
@@ -330,19 +330,25 @@ export default function ElixCameraLayout({
         {/* Add Sound Button */}
         <button
           onClick={onSelectMusic}
-          className="bg-[#13151A]/60 backdrop-blur-sm px-3 py-1.5 rounded-full flex items-center gap-1.5 hover:scale-105 active:scale-95 transition-all border border-[#C9A96E]/15"
+          className="w-[calc(2.25rem+2mm)] h-[calc(2.25rem+2mm)] rounded-full overflow-hidden flex items-center justify-center hover:scale-105 active:scale-95 transition-all relative"
+          title="Add sound"
         >
-          <Music size={12} className="text-white" strokeWidth={2} />
-          <span className="text-white text-xs font-medium">Add sound</span>
+          <div className="w-[calc(1.75rem+2mm)] h-[calc(1.75rem+2mm)] rounded-full bg-[#13151A] flex items-center justify-center z-[2]">
+            <Music size={18} className="text-[#C9A96E]" strokeWidth={2} />
+          </div>
+          <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-cover pointer-events-none z-[3] scale-[1.18] translate-y-[0.5mm] -translate-x-[0.5mm]" />
         </button>
 
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="w-10 h-10 flex items-center justify-center hover:scale-110 transition-transform active:scale-90 z-[60] relative"
+          className="w-10 h-10 flex-shrink-0 min-w-10 aspect-square rounded-full overflow-hidden flex items-center justify-center hover:scale-110 transition-transform active:scale-90 z-[60] relative translate-x-[1mm] -translate-y-[2mm]"
           title="Close"
         >
-          <img src="/Icons/Gold power buton.png" alt="Close" className="w-5 h-5 object-contain" />
+          <div className="w-8 h-8 rounded-full bg-[#13151A] flex items-center justify-center z-[2] translate-y-[0.25mm] -translate-x-[0.5mm]">
+            <img src="/Icons/Gold power buton.png" alt="Close" className="w-5 h-5 object-contain" />
+          </div>
+          <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-cover pointer-events-none z-[3] scale-[1.18] translate-y-[0.5mm] -translate-x-[0.5mm]" />
         </button>
       </div>
 
@@ -353,7 +359,7 @@ export default function ElixCameraLayout({
         <div className="absolute top-0 left-3 z-50 pointer-events-auto" style={{ paddingTop: 'max(5.5rem, calc(env(safe-area-inset-top) + 3rem))' }}>
           <div className="bg-[#13151A]/50 backdrop-blur-sm px-2 py-1 rounded-full flex items-center gap-1.5 border border-[#C9A96E]/20">
             <div className="w-3 h-3 rounded-full" style={{ backgroundColor: cameraFilters.find(f => f.id === activeFilter)?.color }} />
-          <span className="text-white text-[10px] font-semibold">{cameraFilters.find(f => f.id === activeFilter)?.name}</span>
+          <span className="text-[#C9A96E] text-[10px] font-semibold">{cameraFilters.find(f => f.id === activeFilter)?.name}</span>
             <button onClick={() => setActiveFilter('none')} className="ml-0.5" title="Remove filter">
               <X size={10} className="text-white/60" />
             </button>
@@ -393,25 +399,31 @@ export default function ElixCameraLayout({
       {/* ══════════════════════════════════════════ */}
       {/* RIGHT SIDE VERTICAL CONTROLS */}
       {/* ══════════════════════════════════════════ */}
-      <div className="absolute right-2 top-1/2 -translate-y-1/2 z-50 flex flex-col items-center gap-2.5 pointer-events-auto max-h-[65vh] overflow-y-auto scrollbar-hide pb-safe">
+      <div className="absolute right-2 top-[calc(env(safe-area-inset-top)+4.5rem)] pt-[9mm] pb-4 z-50 flex flex-col items-center justify-start gap-2.5 pointer-events-auto max-h-[85vh] overflow-y-auto scrollbar-hide">
         
         {/* Flip Camera */}
         <button
           onClick={onFlipCamera}
-          className="w-10 h-10 flex items-center justify-center hover:scale-110 active:scale-90 transition-transform"
+          className="w-10 h-10 flex-shrink-0 min-w-10 aspect-square rounded-full overflow-hidden flex items-center justify-center hover:scale-110 active:scale-90 transition-transform relative self-center"
           title="Flip Camera"
         >
-          <RefreshCw size={22} strokeWidth={1.5} className="text-white" />
+          <div className="w-8 h-8 rounded-full bg-[#13151A] flex items-center justify-center z-[2]">
+            <RefreshCw size={16} strokeWidth={1.5} className="text-white" />
+          </div>
+          <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-cover pointer-events-none z-[3] scale-[1.18] translate-y-[0.5mm] -translate-x-[0.5mm]" />
         </button>
 
         {/* Flash */}
         <button 
           onClick={onFlashToggle}
-          className="w-10 h-10 flex items-center justify-center hover:scale-110 active:scale-90 transition-transform relative"
+          className="w-10 h-10 flex-shrink-0 min-w-10 aspect-square rounded-full overflow-hidden flex items-center justify-center hover:scale-110 active:scale-90 transition-transform relative self-center"
         >
-          <Zap size={22} strokeWidth={1.5} className="text-white" fill={flashActive ? "#C9A96E" : "none"} />
+          <div className="w-8 h-8 rounded-full bg-[#13151A] flex items-center justify-center z-[2]">
+            <Zap size={16} strokeWidth={1.5} className="text-white" fill={flashActive ? "#C9A96E" : "none"} />
+          </div>
+          <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-cover pointer-events-none z-[3] scale-[1.18] translate-y-[0.5mm] -translate-x-[0.5mm]" />
           {flashActive && (
-            <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-[#C9A96E] rounded-full flex items-center justify-center">
+            <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-[#C9A96E] rounded-full flex items-center justify-center z-[4]">
               <Check size={8} className="text-white" strokeWidth={2.5} />
             </div>
           )}
@@ -420,26 +432,32 @@ export default function ElixCameraLayout({
         {/* Focus Lock */}
         <button 
           onClick={toggleFocusLock}
-          className="w-10 h-10 flex items-center justify-center hover:scale-110 active:scale-90 transition-transform relative"
+          className="w-10 h-10 flex-shrink-0 min-w-10 aspect-square rounded-full overflow-hidden flex items-center justify-center hover:scale-110 active:scale-90 transition-transform relative self-center"
           title="Focus Lock"
         >
-          <Crosshair size={22} strokeWidth={1.5} className="text-white" />
+          <div className="w-8 h-8 rounded-full bg-[#13151A] flex items-center justify-center z-[2]">
+            <Crosshair size={16} strokeWidth={1.5} className="text-white" />
+          </div>
+          <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-cover pointer-events-none z-[3] scale-[1.18] translate-y-[0.5mm] -translate-x-[0.5mm]" />
           {focusLocked && (
-            <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-[#C9A96E] rounded-full flex items-center justify-center">
+            <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-[#C9A96E] rounded-full flex items-center justify-center z-[4]">
               <Check size={8} className="text-white" strokeWidth={2.5} />
             </div>
           )}
         </button>
 
-        <div className="w-6 h-[1px] bg-[#C9A96E]/25 rounded-full"></div>
+        <div className="w-10 h-[1px] bg-[#C9A96E]/25 rounded-full"></div>
         <button 
           onClick={onTimerCycle}
-          className="w-10 h-10 flex items-center justify-center hover:scale-110 active:scale-90 transition-transform relative"
+          className="w-10 h-10 flex-shrink-0 min-w-10 aspect-square rounded-full overflow-hidden flex items-center justify-center hover:scale-110 active:scale-90 transition-transform relative self-center"
         >
-          <Clock size={22} strokeWidth={1.5} className="text-white" />
+          <div className="w-8 h-8 rounded-full bg-[#13151A] flex items-center justify-center z-[2]">
+            <Clock size={16} strokeWidth={1.5} className="text-white" />
+          </div>
+          <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-cover pointer-events-none z-[3] scale-[1.18] translate-y-[0.5mm] -translate-x-[0.5mm]" />
           {timerDelay > 0 && (
-            <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-[#C9A96E] rounded-full flex items-center justify-center">
-              <span className="text-[7px] text-white font-bold">{timerDelay}s</span>
+            <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-[#C9A96E] rounded-full flex items-center justify-center z-[4]">
+              <span className="text-[7px] text-[#C9A96E] font-bold">{timerDelay}s</span>
             </div>
           )}
         </button>
@@ -447,21 +465,27 @@ export default function ElixCameraLayout({
         {/* Effects / Filters */}
         <button 
           onClick={toggleEffectsPanel}
-          className={`w-10 h-10 flex items-center justify-center hover:scale-110 active:scale-90 transition-transform ${showEffectsPanel ? 'bg-[#C9A96E]/20 rounded-full' : ''}`}
+          className={`w-10 h-10 flex-shrink-0 min-w-10 aspect-square rounded-full overflow-hidden flex items-center justify-center hover:scale-110 active:scale-90 transition-transform relative self-center ${showEffectsPanel ? 'ring-2 ring-[#C9A96E]/50' : ''}`}
           title="Filters & Effects"
         >
-          <Palette size={22} strokeWidth={1.5} className="text-white" />
+          <div className="w-8 h-8 rounded-full bg-[#13151A] flex items-center justify-center z-[2]">
+            <Palette size={16} strokeWidth={1.5} className="text-white" />
+          </div>
+          <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-cover pointer-events-none z-[3] scale-[1.18] translate-y-[0.5mm] -translate-x-[0.5mm]" />
         </button>
 
         {/* Beauty */}
         <button
           onClick={toggleBeautySlider}
           onDoubleClick={openBeautySlider}
-          className="w-10 h-10 flex items-center justify-center hover:scale-110 active:scale-90 transition-transform relative"
+          className="w-10 h-10 flex-shrink-0 min-w-10 aspect-square rounded-full overflow-hidden flex items-center justify-center hover:scale-110 active:scale-90 transition-transform relative self-center"
         >
-          <User size={22} strokeWidth={1.5} className="text-white" />
+          <div className="w-8 h-8 rounded-full bg-[#13151A] flex items-center justify-center z-[2]">
+            <User size={16} strokeWidth={1.5} className="text-white" />
+          </div>
+          <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-cover pointer-events-none z-[3] scale-[1.18] translate-y-[0.5mm] -translate-x-[0.5mm]" />
           {beautyEnabled && (
-            <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-[#C9A96E] rounded-full flex items-center justify-center">
+            <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-[#C9A96E] rounded-full flex items-center justify-center z-[4]">
               <Check size={8} className="text-white" strokeWidth={2.5} />
             </div>
           )}
@@ -470,7 +494,7 @@ export default function ElixCameraLayout({
         {/* Beauty Slider (shows when tapped) */}
         {showBeautySlider && (
           <div className="bg-[#13151A]/60 backdrop-blur-sm rounded-full px-1 py-2 flex flex-col items-center gap-1 border border-[#C9A96E]/20">
-            <span className="text-[8px] text-white font-bold">{Math.round(beautyLevel * 100)}%</span>
+            <span className="text-[8px] text-[#C9A96E] font-bold">{Math.round(beautyLevel * 100)}%</span>
             <input
               type="range"
               min="0"
@@ -495,23 +519,29 @@ export default function ElixCameraLayout({
             const el = document.querySelector('.scrollbar-hide');
             if (el) el.scrollBy({ top: 100, behavior: 'smooth' });
           }}
-          className="w-10 h-10 flex items-center justify-center hover:scale-110 active:scale-90 transition-transform"
+          className="w-10 h-10 flex-shrink-0 min-w-10 aspect-square rounded-full overflow-hidden flex items-center justify-center hover:scale-110 active:scale-90 transition-transform relative self-center"
           title="More options"
         >
-          <ChevronDown size={22} strokeWidth={1.5} className="text-white" />
+          <div className="w-8 h-8 rounded-full bg-[#13151A] flex items-center justify-center z-[2]">
+            <ChevronDown size={16} strokeWidth={1.5} className="text-white" />
+          </div>
+          <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-cover pointer-events-none z-[3] scale-[1.18] translate-y-[0.5mm] -translate-x-[0.5mm]" />
         </button>
 
         {/* ── AI FEATURES SECTION ── */}
-        <div className="w-7 h-[1.5px] bg-[#C9A96E]/30 rounded-full my-0.5"></div>
+        <div className="w-10 h-[1.5px] bg-[#C9A96E]/30 rounded-full my-0.5"></div>
 
         {/* Zoom In */}
         {onZoomIn && (
           <button 
             onClick={onZoomIn}
-            className="w-10 h-10 flex items-center justify-center hover:scale-110 active:scale-90 transition-transform"
+            className="w-10 h-10 flex-shrink-0 min-w-10 aspect-square rounded-full overflow-hidden flex items-center justify-center hover:scale-110 active:scale-90 transition-transform relative self-center"
             title="Zoom In"
           >
-            <Plus size={22} className="text-white" strokeWidth={1.5} />
+            <div className="w-8 h-8 rounded-full bg-[#13151A] flex items-center justify-center z-[2]">
+              <ZoomIn size={16} className="text-white" strokeWidth={1.5} />
+            </div>
+            <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-cover pointer-events-none z-[3] scale-[1.18] translate-y-[0.5mm] -translate-x-[0.5mm]" />
           </button>
         )}
 
@@ -519,10 +549,13 @@ export default function ElixCameraLayout({
         {onZoomOut && (
           <button 
             onClick={onZoomOut}
-            className="w-10 h-10 flex items-center justify-center hover:scale-110 active:scale-90 transition-transform"
+            className="w-10 h-10 flex-shrink-0 min-w-10 aspect-square rounded-full overflow-hidden flex items-center justify-center hover:scale-110 active:scale-90 transition-transform relative self-center"
             title="Zoom Out"
           >
-            <Minus size={22} className="text-white" strokeWidth={1.5} />
+            <div className="w-8 h-8 rounded-full bg-[#13151A] flex items-center justify-center z-[2]">
+              <ZoomOut size={16} className="text-white" strokeWidth={1.5} />
+            </div>
+            <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-cover pointer-events-none z-[3] scale-[1.18] translate-y-[0.5mm] -translate-x-[0.5mm]" />
           </button>
         )}
 
@@ -530,42 +563,38 @@ export default function ElixCameraLayout({
         {(onZoomIn || onZoomOut) && (
           <button
             onClick={onZoomReset}
-            className={`text-white text-xs font-bold bg-[#13151A]/40 backdrop-blur-sm px-3 py-1 rounded-full border transition-all active:scale-90 ${
-              zoomLevel !== 1 ? 'border-[#C9A96E]/40 shadow-[0_0_6px_rgba(214,160,136,0.3)]' : 'border-[#C9A96E]/15'
-            }`}
+            className="w-10 h-10 flex-shrink-0 min-w-10 aspect-square rounded-full overflow-hidden flex items-center justify-center transition-all active:scale-90 hover:scale-110 self-center"
             title="Tap to reset zoom"
           >
-            {zoomLevel.toFixed(1)}x
-          </button>
-        )}
-
-        {/* AI Music Generator */}
-        {onAIMusicGenerator && (
-          <button 
-            onClick={onAIMusicGenerator}
-            className="w-10 h-10 flex items-center justify-center hover:scale-110 active:scale-90 transition-transform"
-            title="AI Music"
-          >
-            <Music size={22} className="text-white" strokeWidth={1.5} />
+            <div className="w-8 h-8 rounded-full bg-[#13151A] flex items-center justify-center z-[2]">
+              <span className="text-[#C9A96E] text-[10px] font-bold">{zoomLevel.toFixed(1)}x</span>
+            </div>
+            <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-cover pointer-events-none z-[3] scale-[1.18] translate-y-[0.5mm] -translate-x-[0.5mm]" />
           </button>
         )}
 
         {/* AI Effects (Wand) */}
         <button 
           onClick={toggleEffectsPanel}
-          className={`w-10 h-10 flex items-center justify-center hover:scale-110 active:scale-90 transition-transform ${showEffectsPanel ? 'bg-[#C9A96E]/20 rounded-full' : ''}`}
+          className={`w-10 h-10 flex-shrink-0 min-w-10 aspect-square rounded-full overflow-hidden flex items-center justify-center hover:scale-110 active:scale-90 transition-transform relative self-center ${showEffectsPanel ? 'ring-2 ring-[#C9A96E]/50' : ''}`}
           title="AI Effects"
         >
-          <Wand2 size={22} className="text-white" strokeWidth={1.5} />
+          <div className="w-8 h-8 rounded-full bg-[#13151A] flex items-center justify-center z-[2]">
+            <Wand2 size={16} className="text-white" strokeWidth={1.5} />
+          </div>
+          <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-cover pointer-events-none z-[3] scale-[1.18] translate-y-[0.5mm] -translate-x-[0.5mm]" />
         </button>
 
         {/* CapCut AI Editor */}
         <button 
           onClick={toggleCapCutPanel}
-          className={`w-10 h-10 flex items-center justify-center hover:scale-110 active:scale-90 transition-transform ${showCapCutPanel ? 'bg-[#C9A96E]/20 rounded-full' : ''}`}
+          className={`w-10 h-10 flex-shrink-0 min-w-10 aspect-square rounded-full overflow-hidden flex items-center justify-center hover:scale-110 active:scale-90 transition-transform relative self-center ${showCapCutPanel ? 'ring-2 ring-[#C9A96E]/50' : ''}`}
           title="CapCut AI"
         >
-          <Sparkles size={22} className="text-white" strokeWidth={1.5} />
+          <div className="w-8 h-8 rounded-full bg-[#13151A] flex items-center justify-center z-[2]">
+            <Sparkles size={16} className="text-white" strokeWidth={1.5} />
+          </div>
+          <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-cover pointer-events-none z-[3] scale-[1.18] translate-y-[0.5mm] -translate-x-[0.5mm]" />
         </button>
       </div>
 
@@ -577,7 +606,7 @@ export default function ElixCameraLayout({
           <div className="bg-[#13151A]/90 backdrop-blur-xl rounded-t-2xl border-t border-[#C9A96E]/20 pb-safe">
             {/* Header */}
             <div className="flex items-center justify-between px-4 pt-3 pb-2">
-              <h3 className="text-white text-sm font-bold flex items-center gap-1.5">
+              <h3 className="text-[#C9A96E] text-sm font-bold flex items-center gap-1.5">
                 <Palette size={14} />
                 Filters & Effects
               </h3>
@@ -605,7 +634,7 @@ export default function ElixCameraLayout({
                         <Check size={16} className="text-white drop-shadow-lg" strokeWidth={3} />
                       )}
                     </div>
-                    <span className={`text-[9px] font-semibold ${activeFilter === filter.id ? 'text-white' : 'text-white/60'}`}>
+                    <span className={`text-[9px] font-semibold ${activeFilter === filter.id ? 'text-[#C9A96E]' : 'text-[#C9A96E]/70'}`}>
                       {filter.name}
                     </span>
                   </button>
@@ -628,7 +657,7 @@ export default function ElixCameraLayout({
               </button>
               <button
                 onClick={() => { setActiveFilter('none'); setEnhanceEnabled(false); }}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-[#13151A] text-white/60 border border-[#C9A96E]/40"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-[#13151A] text-[#C9A96E] border border-[#C9A96E]/40"
               >
                 <RotateCcw size={12} />
                 Reset All
@@ -646,7 +675,7 @@ export default function ElixCameraLayout({
           <div className="bg-[#13151A]/90 backdrop-blur-xl rounded-t-2xl border-t border-[#C9A96E]/20 pb-safe">
             {/* Header */}
             <div className="flex items-center justify-between px-4 pt-3 pb-2">
-              <h3 className="text-white text-sm font-bold flex items-center gap-1.5">
+              <h3 className="text-[#C9A96E] text-sm font-bold flex items-center gap-1.5">
                 <Sparkles size={14} />
                 CapCut AI Tools
               </h3>
@@ -657,7 +686,7 @@ export default function ElixCameraLayout({
 
             {/* Speed Control */}
             <div className="px-4 pb-3">
-              <p className="text-white/40 text-[10px] font-semibold uppercase tracking-wider mb-2 flex items-center gap-1">
+              <p className="text-[#C9A96E]/80 text-[10px] font-semibold uppercase tracking-wider mb-2 flex items-center gap-1">
                 <Gauge size={10} />
                 Recording Speed
               </p>
@@ -680,7 +709,7 @@ export default function ElixCameraLayout({
 
             {/* AI Tools Grid */}
             <div className="px-4 pb-3">
-              <p className="text-white/40 text-[10px] font-semibold uppercase tracking-wider mb-2 flex items-center gap-1">
+              <p className="text-[#C9A96E]/80 text-[10px] font-semibold uppercase tracking-wider mb-2 flex items-center gap-1">
                 <Layers size={10} />
                 AI Tools
               </p>
@@ -690,8 +719,10 @@ export default function ElixCameraLayout({
                   onClick={() => { setShowTextInput(true); setShowCapCutPanel(false); }}
                   className="flex flex-col items-center gap-1 p-2 rounded-xl bg-white/5 border border-white/10 hover:border-[#C9A96E]/30 transition-all active:scale-95"
                 >
-                  <Type size={20} className="text-white" />
-                  <span className="text-white/60 text-[9px] font-medium">Text</span>
+                  <div className="w-9 h-9 rounded-full bg-[#13151A] flex items-center justify-center border border-[#C9A96E]/30">
+                    <Type size={18} className="text-[#C9A96E]" />
+                  </div>
+                  <span className="text-[#C9A96E] text-[9px] font-medium">Text</span>
                 </button>
 
                 {/* Stickers */}
@@ -699,8 +730,10 @@ export default function ElixCameraLayout({
                   onClick={() => { setShowStickerPicker(true); setShowCapCutPanel(false); }}
                   className="flex flex-col items-center gap-1 p-2 rounded-xl bg-white/5 border border-white/10 hover:border-[#C9A96E]/30 transition-all active:scale-95"
                 >
-                  <span className="text-lg">😂</span>
-                  <span className="text-white/60 text-[9px] font-medium">Stickers</span>
+                  <div className="w-9 h-9 rounded-full bg-[#13151A] flex items-center justify-center border border-[#C9A96E]/30 text-lg">
+                    😂
+                  </div>
+                  <span className="text-[#C9A96E] text-[9px] font-medium">Stickers</span>
                 </button>
 
                 {/* Auto Enhance */}
@@ -712,8 +745,10 @@ export default function ElixCameraLayout({
                       : 'bg-white/5 border-white/10 hover:border-[#C9A96E]/30'
                   }`}
                 >
-                  <Star size={20} className="text-white" />
-                  <span className="text-white/60 text-[9px] font-medium">Enhance</span>
+                  <div className="w-9 h-9 rounded-full bg-[#13151A] flex items-center justify-center border border-[#C9A96E]/30">
+                    <Star size={18} className={enhanceEnabled ? 'text-[#C9A96E]' : 'text-white/60'} />
+                  </div>
+                  <span className="text-[#C9A96E] text-[9px] font-medium">Enhance</span>
                 </button>
 
                 {/* Beauty Fine-Tune */}
@@ -721,8 +756,10 @@ export default function ElixCameraLayout({
                   onClick={() => { openBeautySlider(); setShowCapCutPanel(false); }}
                   className="flex flex-col items-center gap-1 p-2 rounded-xl bg-white/5 border border-white/10 hover:border-[#C9A96E]/30 transition-all active:scale-95"
                 >
-                  <SlidersHorizontal size={20} className="text-white" />
-                  <span className="text-white/60 text-[9px] font-medium">Retouch</span>
+                  <div className="w-9 h-9 rounded-full bg-[#13151A] flex items-center justify-center border border-[#C9A96E]/30">
+                    <SlidersHorizontal size={18} className="text-[#C9A96E]" />
+                  </div>
+                  <span className="text-[#C9A96E] text-[9px] font-medium">Retouch</span>
                 </button>
 
                 {/* Filters shortcut */}
@@ -730,8 +767,10 @@ export default function ElixCameraLayout({
                   onClick={() => { toggleEffectsPanel(); setShowCapCutPanel(false); }}
                   className="flex flex-col items-center gap-1 p-2 rounded-xl bg-white/5 border border-white/10 hover:border-[#C9A96E]/30 transition-all active:scale-95"
                 >
-                  <Palette size={20} className="text-white" />
-                  <span className="text-white/60 text-[9px] font-medium">Filters</span>
+                  <div className="w-9 h-9 rounded-full bg-[#13151A] flex items-center justify-center border border-[#C9A96E]/30">
+                    <Palette size={18} className="text-[#C9A96E]" />
+                  </div>
+                  <span className="text-[#C9A96E] text-[9px] font-medium">Filters</span>
                 </button>
 
                 {/* Music */}
@@ -739,8 +778,10 @@ export default function ElixCameraLayout({
                   onClick={() => { onAIMusicGenerator?.(); setShowCapCutPanel(false); }}
                   className="flex flex-col items-center gap-1 p-2 rounded-xl bg-white/5 border border-white/10 hover:border-[#C9A96E]/30 transition-all active:scale-95"
                 >
-                  <Music size={20} className="text-white" />
-                  <span className="text-white/60 text-[9px] font-medium">Music</span>
+                  <div className="w-9 h-9 rounded-full bg-[#13151A] flex items-center justify-center border border-[#C9A96E]/30">
+                    <Music size={18} className="text-[#C9A96E]" />
+                  </div>
+                  <span className="text-[#C9A96E] text-[9px] font-medium">Music</span>
                 </button>
 
                 {/* Flip */}
@@ -748,8 +789,10 @@ export default function ElixCameraLayout({
                   onClick={() => { onFlipCamera(); setShowCapCutPanel(false); }}
                   className="flex flex-col items-center gap-1 p-2 rounded-xl bg-white/5 border border-white/10 hover:border-[#C9A96E]/30 transition-all active:scale-95"
                 >
-                  <RefreshCw size={20} className="text-white" />
-                  <span className="text-white/60 text-[9px] font-medium">Flip</span>
+                  <div className="w-9 h-9 rounded-full bg-[#13151A] flex items-center justify-center border border-[#C9A96E]/30">
+                    <RefreshCw size={18} className="text-[#C9A96E]" />
+                  </div>
+                  <span className="text-[#C9A96E] text-[9px] font-medium">Flip</span>
                 </button>
               </div>
             </div>
@@ -764,7 +807,7 @@ export default function ElixCameraLayout({
         <div className="absolute inset-0 z-[70] bg-[#13151A]/60 flex items-center justify-center pointer-events-auto">
           <div className="w-[80%] max-w-xs bg-[#13151A]/90 backdrop-blur-xl rounded-2xl border border-[#C9A96E]/20 p-4">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-white text-sm font-bold">Add Text</h3>
+              <h3 className="text-[#C9A96E] text-sm font-bold">Add Text</h3>
               <button onClick={() => setShowTextInput(false)} title="Close text input">
                 <X size={16} className="text-white/60" />
               </button>
@@ -781,7 +824,7 @@ export default function ElixCameraLayout({
             <div className="flex gap-2 mt-3">
               <button
                 onClick={() => { setTextOverlay(''); setShowTextInput(false); }}
-                className="flex-1 py-2 rounded-xl bg-white/10 text-white/60 text-xs font-semibold"
+                className="flex-1 py-2 rounded-xl bg-white/10 text-[#C9A96E] text-xs font-semibold"
               >
                 Clear
               </button>
@@ -803,7 +846,7 @@ export default function ElixCameraLayout({
         <div className="absolute bottom-0 left-0 right-0 z-[70] pointer-events-auto">
           <div className="bg-[#13151A]/90 backdrop-blur-xl rounded-t-2xl border-t border-[#C9A96E]/20 pb-safe">
             <div className="flex items-center justify-between px-4 pt-3 pb-2">
-              <h3 className="text-white text-sm font-bold">Stickers</h3>
+              <h3 className="text-[#C9A96E] text-sm font-bold">Stickers</h3>
               <button onClick={() => setShowStickerPicker(false)} className="p-1" title="Close stickers">
                 <X size={16} className="text-white/60" />
               </button>
@@ -827,7 +870,7 @@ export default function ElixCameraLayout({
               <div className="px-4 pb-4">
                 <button
                   onClick={() => setActiveStickers([])}
-                  className="w-full py-2 rounded-xl bg-white/10 text-white/60 text-xs font-semibold"
+                  className="w-full py-2 rounded-xl bg-white/10 text-[#C9A96E] text-xs font-semibold"
                 >
                   Clear All Stickers
                 </button>
@@ -842,17 +885,25 @@ export default function ElixCameraLayout({
       {/* ══════════════════════════════════════════ */}
       {!showEffectsPanel && !showCapCutPanel && !showStickerPicker && (
         <div className="absolute bottom-0 left-0 right-0 z-50 pointer-events-auto" style={{ paddingBottom: 'max(3.5rem, env(safe-area-inset-bottom))' }}>
-          {/* Duration Selector - Tap to cycle */}
-          <div className="flex justify-center mb-6">
-            <button
-              onClick={() => {
-                const idx = durations.indexOf(selectedDuration);
-                setSelectedDuration(durations[(idx + 1) % durations.length]);
-              }}
-              className="px-4 py-1.5 rounded-full bg-[#C9A96E] text-black text-xs font-semibold active:scale-90 transition-transform"
-            >
-              {selectedDuration}
-            </button>
+          {/* Duration Selector - One box, scroll on text only */}
+          <div className="flex flex-col items-center justify-center mb-6 w-full">
+            <div className="relative flex items-center justify-center h-10 w-[calc(80px+3mm)] overflow-hidden rounded-[9999px]">
+              <div className="absolute left-[1mm] right-[1mm] top-1/2 -translate-y-1/2 h-[calc(2.5rem-5mm)] rounded-[9999px] bg-[#13151A] pointer-events-none" />
+              <img src="/Icons/live post create icon.png" alt="" className="absolute inset-0 w-full h-full object-contain object-center pointer-events-none scale-y-[1.42]" />
+              <div className="relative z-[2] flex items-center h-full w-full overflow-x-auto overflow-y-hidden scrollbar-hide snap-x snap-mandatory touch-pan-x" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                <div className="flex min-w-max">
+                  {durations.map((d) => (
+                    <button
+                      key={d}
+                      onClick={() => setSelectedDuration(d)}
+                      className={`flex-shrink-0 w-[calc(80px+3mm)] flex items-center justify-center text-xs font-semibold active:scale-90 transition-transform py-2 snap-center ${selectedDuration === d ? 'text-[#C9A96E]' : 'text-[#C9A96E]/70'}`}
+                    >
+                      {d}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Record Button or Post/Retake Actions */}
@@ -867,7 +918,7 @@ export default function ElixCameraLayout({
                     <div className="w-10 h-10 bg-[#1C1E24]/80 rounded-full flex items-center justify-center text-white border-2 border-white group-hover:bg-[#2A2D35]">
                         <RotateCcw size={18} />
                     </div>
-                    <span className="text-white font-bold text-[10px] shadow-black drop-shadow-md">Retake</span>
+                    <span className="text-[#C9A96E] font-bold text-[10px] shadow-black drop-shadow-md">Retake</span>
                 </button>
 
                 <button 
@@ -879,7 +930,7 @@ export default function ElixCameraLayout({
                     <div className="w-10 h-10 bg-red-600 rounded-full flex items-center justify-center text-white font-bold shadow-lg border-2 border-white group-hover:scale-110 transition-transform">
                         <Check size={18} />
                     </div>
-                    <span className="text-white font-bold text-[10px] shadow-black drop-shadow-md">{isPosting ? 'Posting' : 'Post'}</span>
+                    <span className="text-[#C9A96E] font-bold text-[10px] shadow-black drop-shadow-md">{isPosting ? 'Posting' : 'Post'}</span>
                 </button>
               </div>
             ) : (
@@ -905,33 +956,37 @@ export default function ElixCameraLayout({
           {currentSpeed !== 1 && (
             <div className="flex justify-center mb-2">
               <div className="bg-[#C9A96E]/20 px-3 py-0.5 rounded-full border border-[#C9A96E]/30">
-                <span className="text-white text-[10px] font-bold">Speed: {currentSpeed}x</span>
+                <span className="text-[#C9A96E] text-[10px] font-bold">Speed: {currentSpeed}x</span>
               </div>
             </div>
           )}
 
           {/* Bottom Tabs + Gallery */}
           <div className="flex items-center justify-center px-4 pb-0.5 w-full absolute bottom-4">
-            <div className="flex items-center gap-8">
+            <div className="flex items-center gap-4">
               <button 
                 onClick={onPostTab}
-                className={`text-sm font-bold hover:scale-105 active:scale-95 transition-transform ${
-                  selectedTab === 'post' ? 'text-white' : 'text-white/40 hover:text-white'
-                }`}
-              >POST</button>
+                className="relative flex items-center justify-center h-10 px-6 min-w-[80px] overflow-hidden"
+              >
+                <div className="absolute left-[1mm] right-[1mm] top-1/2 -translate-y-1/2 h-[calc(2.5rem-5mm)] rounded-[9999px] bg-[#13151A]" />
+                <img src="/Icons/live post create icon.png" alt="" className="absolute inset-0 w-full h-full object-contain object-center pointer-events-none scale-y-[1.26]" />
+                <span className={`relative z-[2] text-sm font-semibold ${selectedTab === 'post' ? 'text-[#C9A96E]' : 'text-[#C9A96E]'}`}>POST</span>
+              </button>
               <button 
                 onClick={onCreateTab}
-                className={`text-sm font-semibold hover:scale-105 active:scale-95 transition-transform ${
-                  selectedTab === 'create' ? 'text-white' : 'text-white/40 hover:text-white'
-                }`}
-              >CREATE</button>
+                className="relative flex items-center justify-center h-10 px-6 min-w-[80px] overflow-hidden"
+              >
+                <div className="absolute left-[1mm] right-[1mm] top-1/2 -translate-y-1/2 h-[calc(2.5rem-5mm)] rounded-[9999px] bg-[#13151A]" />
+                <img src="/Icons/live post create icon.png" alt="" className="absolute inset-0 w-full h-full object-contain object-center pointer-events-none scale-y-[1.14]" />
+                <span className={`relative z-[2] text-sm font-semibold ${selectedTab === 'create' ? 'text-[#C9A96E]' : 'text-[#C9A96E]'}`}>CREATE</span>
+              </button>
               <button 
                 onClick={onLiveTab}
-                className={`text-sm font-semibold hover:scale-105 active:scale-95 transition-transform ${
-                  selectedTab === 'live' ? 'text-white' : 'text-white/40 hover:text-white'
-                }`}
+                className="relative flex items-center justify-center h-10 px-6 min-w-[80px] overflow-hidden"
               >
-                LIVE
+                <div className="absolute left-[1mm] right-[1mm] top-1/2 -translate-y-1/2 h-[calc(2.5rem-5mm)] rounded-[9999px] bg-[#13151A]" />
+                <img src="/Icons/live post create icon.png" alt="" className="absolute inset-0 w-full h-full object-contain object-center pointer-events-none scale-y-[1.32]" />
+                <span className={`relative z-[2] text-sm font-semibold ${selectedTab === 'live' ? 'text-[#C9A96E]' : 'text-[#C9A96E]'}`}>LIVE</span>
               </button>
             </div>
           </div>

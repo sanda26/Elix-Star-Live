@@ -9,6 +9,7 @@ export const TopNav = () => {
   if (
     location.pathname === '/live' ||
     location.pathname.startsWith('/live/') ||
+    location.pathname.startsWith('/watch/') ||
     location.pathname === '/create' ||
     location.pathname.startsWith('/create/') ||
     location.pathname === '/upload' ||

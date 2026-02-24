@@ -382,16 +382,19 @@ export default function EnhancedVideoPlayer({
 
   // Action handlers
   const handleLike = () => {
+    if (!video) return;
     toggleLike(videoId);
     trackEvent('video_like_toggle', { videoId, next: !video.isLiked });
   };
 
   const handleSave = () => {
+    if (!video) return;
     toggleSave(videoId);
     trackEvent('video_save_toggle', { videoId, next: !video.isSaved });
   };
 
   const handleFollow = () => {
+    if (!video?.user?.id) return;
     toggleFollow(video.user.id);
     trackEvent('video_follow_toggle', { videoId, userId: video.user.id, next: !video.isFollowing });
   };
@@ -407,11 +410,13 @@ export default function EnhancedVideoPlayer({
   };
 
   const handleProfileClick = () => {
+    if (!video?.user?.id) return;
     setShowUserProfile(true);
     trackEvent('video_profile_open', { videoId, userId: video.user.id });
   };
 
   const handleMusicClick = () => {
+    if (!video?.music?.id) return;
     navigate(`/music/${encodeURIComponent(video.music.id)}`);
     trackEvent('video_music_open', { videoId, musicId: video.music.id });
   };
@@ -722,7 +727,7 @@ export default function EnhancedVideoPlayer({
         <div className="flex items-center gap-2 text-white/90">
           <Music size={14} className="text-white" />
           <span className="text-xs font-medium animate-marquee whitespace-nowrap overflow-hidden w-32">
-            {video.music.title} - {video.music.artist}
+            {video.music?.title || 'Original Sound'} - {video.music?.artist || ''}
           </span>
         </div>
 

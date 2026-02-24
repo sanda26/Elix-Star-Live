@@ -2588,14 +2588,9 @@ export default function LiveStream() {
         const xpGained = gift.coins;
         let currentXP = userXP + xpGained;
         let currentLevel = userLevel;
-        while (true) {
-          const xpNeeded = currentLevel * 1000;
-          if (currentXP >= xpNeeded && currentLevel < 300) {
-            currentLevel++;
-            currentXP -= xpNeeded;
-          } else {
-            break;
-          }
+        for (let i = 0; i < 300 && currentXP >= currentLevel * 1000 && currentLevel < 300; i++) {
+          currentXP -= currentLevel * 1000;
+          currentLevel++;
         }
         setUserLevel(currentLevel);
         setUserXP(currentXP);

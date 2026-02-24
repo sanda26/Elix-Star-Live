@@ -96,14 +96,15 @@ export function useBattleManager(roomId: string) {
         // We can't easily filter by battle_id here without knowing it first, 
         // so we might need to refresh participants when session updates or just poll/refresh on signal.
       }, () => {
-        if (currentBattle?.id) fetchParticipants(currentBattle.id);
+        const battle = currentBattle;
+        if (battle?.id) fetchParticipants(battle.id);
       })
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [roomId, fetchActiveBattle, currentBattle?.id]);
+  }, [roomId, fetchActiveBattle]);
 
   // Timer Logic
   useEffect(() => {

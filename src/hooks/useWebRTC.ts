@@ -145,43 +145,43 @@ export function useWebRTCCall({ callId, localUserId, remoteUserId, isCaller }: U
 
   const handleSignal = useCallback(
     async (type: string, payload: Record<string, unknown>) => {
-      const pc = pcRef.current;
-      if (!pc) return;
+      try {
+        const pc = pcRef.current;
+        if (!pc) return;
 
-      switch (type) {
-        case 'offer': {
-          await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp as RTCSessionDescriptionInit));
-          hasRemoteDescRef.current = true;
-          const answer = await pc.createAnswer();
-          await pc.setLocalDescription(answer);
-          await sendSignal('answer', { sdp: answer });
-          await flushIceCandidates();
-          break;
-        }
-        case 'answer': {
-          await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp as RTCSessionDescriptionInit));
-          hasRemoteDescRef.current = true;
-          await flushIceCandidates();
-          break;
-        }
-        case 'ice-candidate': {
-          const candidate = payload.candidate as RTCIceCandidateInit;
-          if (hasRemoteDescRef.current) {
-            try {
-              await pc.addIceCandidate(new RTCIceCandidate(candidate));
-            } catch (e) {
-
-            }
-          } else {
-            iceCandidateBuffer.current.push(candidate);
+        switch (type) {
+          case 'offer': {
+            await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp as RTCSessionDescriptionInit));
+            hasRemoteDescRef.current = true;
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+            await sendSignal('answer', { sdp: answer });
+            await flushIceCandidates();
+            break;
           }
-          break;
+          case 'answer': {
+            await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp as RTCSessionDescriptionInit));
+            hasRemoteDescRef.current = true;
+            await flushIceCandidates();
+            break;
+          }
+          case 'ice-candidate': {
+            const candidate = payload.candidate as RTCIceCandidateInit;
+            if (hasRemoteDescRef.current) {
+              try {
+                await pc.addIceCandidate(new RTCIceCandidate(candidate));
+              } catch { /* ignore late ICE candidates */ }
+            } else {
+              iceCandidateBuffer.current.push(candidate);
+            }
+            break;
+          }
+          case 'hangup': {
+            useCallStore.getState().endCall('Remote user ended the call');
+            break;
+          }
         }
-        case 'hangup': {
-          useCallStore.getState().endCall('Remote user ended the call');
-          break;
-        }
-      }
+      } catch { /* prevent unhandled rejection from crashing the app */ }
     },
     [sendSignal, flushIceCandidates]
   );
@@ -259,24 +259,29 @@ export function useWebRTCCall({ callId, localUserId, remoteUserId, isCaller }: U
     if (!localStreamRef.current) return;
     const currentTrack = localStreamRef.current.getVideoTracks()[0];
     const facingMode = currentTrack?.getSettings().facingMode === 'user' ? 'environment' : 'user';
-    currentTrack?.stop();
 
-    const newStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode, width: { ideal: 1280 }, height: { ideal: 720 } },
-      audio: false,
-    });
-    const newVideoTrack = newStream.getVideoTracks()[0];
+    try {
+      const newStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode, width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: false,
+      });
+      const newVideoTrack = newStream.getVideoTracks()[0];
 
-    if (pcRef.current) {
-      const sender = pcRef.current.getSenders().find((s) => s.track?.kind === 'video');
-      if (sender && newVideoTrack) {
-        await sender.replaceTrack(newVideoTrack);
+      currentTrack?.stop();
+
+      if (pcRef.current) {
+        const sender = pcRef.current.getSenders().find((s) => s.track?.kind === 'video');
+        if (sender && newVideoTrack) {
+          await sender.replaceTrack(newVideoTrack);
+        }
       }
-    }
 
-    localStreamRef.current.removeTrack(currentTrack);
-    localStreamRef.current.addTrack(newVideoTrack);
-    setLocalStream(new MediaStream(localStreamRef.current.getTracks()));
+      localStreamRef.current.removeTrack(currentTrack);
+      localStreamRef.current.addTrack(newVideoTrack);
+      setLocalStream(new MediaStream(localStreamRef.current.getTracks()));
+    } catch {
+      /* camera switch failed -- keep using the current camera */
+    }
   }, []);
 
   const toggleAudio = useCallback(() => {

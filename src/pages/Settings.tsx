@@ -39,24 +39,30 @@ export default function Settings() {
     );
     if (!doubleConfirm) return;
 
-    const { data } = await supabase.auth.getSession();
-    const token = data.session?.access_token;
+    try {
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
 
-    if (token) {
-      const response = await fetch('/api/delete-account', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      if (token) {
+        const response = await fetch('/api/delete-account', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+        });
 
-      if (response.ok) {
-        await supabase.auth.signOut();
-        navigate('/login');
+        if (response.ok) {
+          await supabase.auth.signOut();
+          navigate('/login');
+        } else {
+          showToast('Failed to delete account. Please contact support.');
+        }
       } else {
-        showToast('Failed to delete account. Please contact support.');
+        showToast('Session expired. Please log in again.');
       }
+    } catch {
+      showToast('Something went wrong. Please try again.');
     }
   };
 

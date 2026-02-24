@@ -153,6 +153,7 @@ export default function SpectatorPage() {
   // ═══════════════════════════════════════════════════
   const [isCoHosting, setIsCoHosting] = useState(false);
   const [coHostStream, setCoHostStream] = useState<MediaStream | null>(null);
+  const coHostChanRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const [pendingCoHostInvite, setPendingCoHostInvite] = useState<{ notifId: string; hostName: string; hostAvatar: string; streamKey: string; hostUserId: string } | null>(null);
 
   useEffect(() => {
@@ -220,8 +221,9 @@ export default function SpectatorPage() {
         myVideoRef.current.play().catch(() => {});
       }
 
-      // Announce presence to host via Supabase broadcast
+      if (coHostChanRef.current) { supabase.removeChannel(coHostChanRef.current); }
       const chan = supabase.channel(`cohost_presence_${effectiveStreamId}`);
+      coHostChanRef.current = chan;
       chan.subscribe((status) => {
         if (status === 'SUBSCRIBED') {
           chan.send({
@@ -252,6 +254,10 @@ export default function SpectatorPage() {
     if (coHostStream) {
       coHostStream.getTracks().forEach(t => t.stop());
       setCoHostStream(null);
+    }
+    if (coHostChanRef.current) {
+      supabase.removeChannel(coHostChanRef.current);
+      coHostChanRef.current = null;
     }
     setIsCoHosting(false);
     setIsMicMuted(true);
@@ -815,12 +821,9 @@ export default function SpectatorPage() {
       const xpGained = gift.coins;
       let currentXP = userXP + xpGained;
       let currentLevel = userLevel;
-      while (true) {
-        const xpNeeded = currentLevel * 1000;
-        if (currentXP >= xpNeeded && currentLevel < 300) {
-          currentLevel++;
-          currentXP -= xpNeeded;
-        } else break;
+      for (let i = 0; i < 300 && currentXP >= currentLevel * 1000 && currentLevel < 300; i++) {
+        currentXP -= currentLevel * 1000;
+        currentLevel++;
       }
       setUserLevel(currentLevel);
       setUserXP(currentXP);

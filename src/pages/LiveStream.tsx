@@ -2895,8 +2895,8 @@ export default function LiveStream() {
             {/* Base Video Layer */}
         {!isBattleMode && (
           <div
-            className={(isBroadcast || coHosts.length > 0) ? 'absolute inset-x-0 z-[25] flex flex-row h-[42dvh]' : 'relative w-full h-full'}
-            style={(isBroadcast || coHosts.length > 0) ? { top: '90px', filter: liveFilterCss !== 'none' ? liveFilterCss : undefined } : { filter: liveFilterCss !== 'none' ? liveFilterCss : undefined }}
+            className={coHosts.length > 0 ? 'absolute inset-x-0 z-[25] flex flex-row h-[42dvh]' : 'relative w-full h-full'}
+            style={coHosts.length > 0 ? { top: '90px', filter: liveFilterCss !== 'none' ? liveFilterCss : undefined } : { filter: liveFilterCss !== 'none' ? liveFilterCss : undefined }}
             onPointerDown={isBroadcast ? undefined : (e) => {
               if (e.target instanceof Element) {
                 const interactive = e.target.closest('button, a, input, textarea, select, [role="button"]');
@@ -2911,7 +2911,7 @@ export default function LiveStream() {
           >
             {/* Left: Host camera */}
             <div
-              className={(isBroadcast || coHosts.length > 0) ? 'w-1/2 relative' : 'relative w-full h-full'}
+              className={coHosts.length > 0 ? 'w-1/2 relative' : 'relative w-full h-full'}
               onPointerDown={isBroadcast ? (e) => {
                 if (e.target instanceof Element && e.target.closest('button, a, input, textarea, select, [role="button"]')) return;
                 handleLikeTap(e);
@@ -2982,8 +2982,8 @@ export default function LiveStream() {
             )}
             </div>
 
-            {/* Right: 8 co-host cells — invite (broadcaster) / join+reject (spectator) */}
-            {(() => {
+            {/* Right: co-host cells — only when at least one co-host invited or live */}
+            {coHosts.length > 0 && (() => {
               const cellSlots: Array<{ type: 'live' | 'invited' | 'pending' | 'empty'; host?: (typeof coHosts)[0] }> = [];
               coHosts.forEach(h => {
                 if (h.status === 'live' || h.status === 'accepted') cellSlots.push({ type: 'live', host: h });
@@ -3054,7 +3054,7 @@ export default function LiveStream() {
         {isBattleMode && (location.pathname.startsWith('/live') || location.pathname.startsWith('/watch')) && (
           <div
             className={`absolute inset-0 z-[80] flex flex-col ${isBroadcast ? 'pointer-events-none' : ''}`}
-            style={{ paddingTop: '110px', paddingBottom: isBroadcast ? '305px' : undefined }}
+            style={{ paddingTop: 'calc(110px - 5mm)', paddingBottom: isBroadcast ? '305px' : undefined }}
             onClick={(e) => {
               if (isBroadcast) return;
               e.stopPropagation();

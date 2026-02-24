@@ -447,7 +447,7 @@ export default function Profile() {
   if (routeUserId && resolvedUserId === null && !loading) {
     return (
       <div className="bg-[#13151A] text-white flex flex-col items-center justify-center min-h-[50vh] px-4">
-        <button onClick={() => navigate(-1)} className="absolute top-4 left-4 p-1">
+        <button onClick={() => navigate(-1)} className="absolute top-4 right-4 p-1">
           <img src="/Icons/Gold power buton.png" alt="Back" className="w-5 h-5" />
         </button>
         <p className="text-white/70 text-center">Profile not found.</p>
@@ -459,7 +459,7 @@ export default function Profile() {
   if (!loading && !profileData && !isOwnProfile) {
     return (
       <div className="bg-[#13151A] text-white flex flex-col items-center justify-center min-h-[50vh] px-4">
-        <button onClick={() => navigate(-1)} className="absolute top-4 left-4 p-1">
+        <button onClick={() => navigate(-1)} className="absolute top-4 right-4 p-1">
           <img src="/Icons/Gold power buton.png" alt="Back" className="w-5 h-5" />
         </button>
         <p className="text-white/70 text-center">Profile not found or couldn&apos;t load.</p>
@@ -474,18 +474,18 @@ export default function Profile() {
 
         {/* ═══ TOP BAR ═══ */}
         <header className="flex items-center justify-between pl-4 pr-4 pt-2 pb-2 relative z-20">
-          <button onClick={() => navigate(-1)} className="p-1" title="Back">
-            <img src="/Icons/Gold power buton.png" alt="Back" className="w-5 h-5" />
-          </button>
-          <div className="flex-1" />
           <div className="flex items-center gap-4">
-            <button type="button" onClick={() => setShowAccountMenu(true)} title="Menu" className="p-1">
-              <Menu size={22} className="text-white" />
-            </button>
             <button type="button" onClick={openSharePanel} title="Share profile" className="p-1 relative z-50">
               <img src="/Icons/Share Icon.png" alt="Share" className="w-6 h-6 object-contain" />
             </button>
+            <button type="button" onClick={() => setShowAccountMenu(true)} title="Menu" className="p-1">
+              <Menu size={22} className="text-white" />
+            </button>
           </div>
+          <div className="flex-1" />
+          <button onClick={() => navigate(-1)} className="p-1" title="Back">
+            <img src="/Icons/Gold power buton.png" alt="Back" className="w-5 h-5" />
+          </button>
         </header>
 
         {/* ═══ Account Menu Modal ═══ */}

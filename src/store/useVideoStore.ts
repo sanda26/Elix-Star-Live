@@ -81,15 +81,18 @@ export interface Video {
 interface VideoStore {
   videos: Video[];
   friendVideos: Video[];
+  stemVideos: Video[];
   likedVideos: string[];
   savedVideos: string[];
   followingUsers: string[];
   loading: boolean;
   friendsLoading: boolean;
+  stemLoading: boolean;
   
   // Video actions
   fetchVideos: () => Promise<void>;
   fetchFriendVideos: () => Promise<void>;
+  fetchStemVideos: () => Promise<void>;
   getVideoById: (videoId: string) => Video | undefined;
   addVideo: (video: Video) => void;
   removeVideo: (videoId: string) => void;
@@ -127,11 +130,13 @@ export const useVideoStore = create<VideoStore>()(
     (set, get) => ({
       videos: [],
       friendVideos: [],
+      stemVideos: [],
       likedVideos: [],
       savedVideos: [],
       followingUsers: [],
       loading: false,
       friendsLoading: false,
+      stemLoading: false,
 
       getVideoById: (videoId: string) => {
         const { friendVideos, videos } = get();
@@ -240,6 +245,111 @@ export const useVideoStore = create<VideoStore>()(
           set({ videos: mappedVideos, likedVideos: likedIds, followingUsers: followedUserIds, savedVideos: savedIds, loading: false });
         } catch (err) {
           set({ loading: false });
+        }
+      },
+
+      fetchStemVideos: async () => {
+        set({ stemLoading: true });
+        try {
+          const { data, error } = await supabase
+            .from('videos')
+            .select('*')
+            .eq('is_public', true)
+            .gte('views', 10000)
+            .order('views', { ascending: false })
+            .limit(50);
+
+          if (error || !data || data.length === 0) {
+            set({ stemVideos: [], stemLoading: false });
+            return;
+          }
+
+          const userIds = [...new Set(data.map((v: any) => v.user_id).filter(Boolean))];
+          let profilesMap: Record<string, any> = {};
+          if (userIds.length > 0) {
+            const { data: profiles } = await supabase
+              .from('profiles')
+              .select('user_id, username, display_name, avatar_url, is_creator')
+              .in('user_id', userIds);
+            if (profiles) {
+              profiles.forEach((p: any) => { profilesMap[p.user_id] = p; });
+            }
+          }
+
+          let likedIds: string[] = [];
+          let followedUserIds: string[] = [];
+          let savedIds: string[] = [];
+          let blockedUserIds: string[] = [];
+          try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+              const [{ data: likes }, { data: follows }, { data: saves }, { data: blocks }] = await Promise.all([
+                supabase.from('likes').select('video_id').eq('user_id', user.id),
+                supabase.from('followers').select('following_id').eq('follower_id', user.id),
+                supabase.from('saved_videos').select('video_id').eq('user_id', user.id),
+                supabase.from('blocked_users').select('blocked_id').eq('blocker_id', user.id),
+              ]);
+              likedIds = likes?.map((r: { video_id: string }) => r.video_id) ?? [];
+              followedUserIds = follows?.map((r: { following_id: string }) => r.following_id) ?? [];
+              savedIds = saves?.map((r: { video_id: string }) => r.video_id) ?? [];
+              blockedUserIds = blocks?.map((r: { blocked_id: string }) => r.blocked_id) ?? [];
+            }
+          } catch {}
+          const likedSet = new Set(likedIds);
+          const followedSet = new Set(followedUserIds);
+          const savedSet = new Set(savedIds);
+          const blockedSet = new Set(blockedUserIds);
+
+          const mappedVideos: Video[] = data
+            .filter((v: any) => !blockedSet.has(v.user_id))
+            .map((v: any) => {
+              const p = profilesMap[v.user_id] || {};
+              const uname = p.username || 'user';
+              return {
+                id: v.id,
+                url: v.url,
+                thumbnail: v.thumbnail_url || '',
+                duration: '0:15',
+                user: {
+                  id: v.user_id || 'unknown',
+                  username: uname,
+                  name: p.display_name || uname,
+                  avatar: p.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(uname)}`,
+                  level: 1,
+                  isVerified: !!p.is_creator,
+                  followers: 0,
+                  following: 0
+                },
+                description: v.description || v.caption || '',
+                hashtags: (() => {
+                  if (v.hashtags && Array.isArray(v.hashtags) && v.hashtags.length > 0) return v.hashtags;
+                  const text = v.description || v.caption || '';
+                  const matches = text.match(/#[\w\u00C0-\u024F]+/g);
+                  return matches ? matches.map((t: string) => t.slice(1)) : [];
+                })(),
+                music: { id: 'original', title: 'Original Sound', artist: p.display_name || uname, duration: '0:15' },
+                stats: {
+                  views: v.views || 0,
+                  likes: v.likes || 0,
+                  comments: v.comments || 0,
+                  shares: v.shares || 0,
+                  saves: 0
+                },
+                createdAt: v.created_at,
+                location: v.location || undefined,
+                isLiked: likedSet.has(v.id),
+                isSaved: savedSet.has(v.id),
+                isFollowing: followedSet.has(v.user_id),
+                comments: [],
+                quality: 'auto',
+                privacy: v.is_public ? 'public' : 'private',
+                duetWithVideoId: v.duet_with_video_id || undefined
+              };
+            });
+
+          set({ stemVideos: mappedVideos, stemLoading: false });
+        } catch (err) {
+          set({ stemLoading: false });
         }
       },
 

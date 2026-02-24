@@ -99,20 +99,20 @@ export default function LiveDiscover() {
         {/* Header */}
         <div className="flex items-center justify-between px-4 pt-[calc(env(safe-area-inset-top,0px)+10px)] pb-2">
           <div className="flex items-center gap-2.5">
-            <button onClick={() => navigate('/feed')} className="p-1" title="Back">
-              <img src="/Icons/Gold power buton.png" alt="Back" className="w-5 h-5" />
+            <button
+              onClick={fetchLiveStreams}
+              className="w-7 h-7 rounded-full bg-white/5 flex items-center justify-center"
+              title="Refresh"
+            >
+              <RefreshCw size={12} className={`text-white/40 ${loading ? 'animate-spin' : ''}`} />
             </button>
             <span className="text-white font-bold text-base">Live</span>
             {creators.length > 0 && (
               <span className="text-white/30 text-xs font-medium">{creators.length} streaming</span>
             )}
           </div>
-          <button
-            onClick={fetchLiveStreams}
-            className="w-7 h-7 rounded-full bg-white/5 flex items-center justify-center"
-            title="Refresh"
-          >
-            <RefreshCw size={12} className={`text-white/40 ${loading ? 'animate-spin' : ''}`} />
+          <button onClick={() => navigate('/feed')} className="p-1" title="Back">
+            <img src="/Icons/Gold power buton.png" alt="Back" className="w-5 h-5" />
           </button>
         </div>
 

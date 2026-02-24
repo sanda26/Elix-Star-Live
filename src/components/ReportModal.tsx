@@ -209,8 +209,8 @@ export default function ReportModal({ isOpen, onClose, videoId, contentType, con
 
   if (showSuccess) {
     return (
-      <div className="fixed inset-0 z-modals bg-[#13151A] flex items-center justify-center p-4">
-        <div className="bg-[#13151A] rounded-2xl p-6 max-w-sm w-full text-center">
+      <div className="fixed inset-0 z-modals bg-[#13151A] flex items-center justify-center p-4" onClick={onClose}>
+        <div className="bg-[#13151A] rounded-2xl p-6 max-w-sm w-full text-center" onClick={(e) => e.stopPropagation()}>
           <div className="w-16 h-16 bg-[#C9A96E]/20 rounded-full flex items-center justify-center mx-auto mb-4">
             <div className="w-8 h-8 bg-[#C9A96E] rounded-full flex items-center justify-center">
               <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">

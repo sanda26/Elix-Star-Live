@@ -174,14 +174,14 @@ export default function VideoFeed() {
               className="w-full h-auto pointer-events-none"
               style={{ filter: 'drop-shadow(0 0 20px rgba(201,169,110,0.4)) drop-shadow(0 4px 30px rgba(201,169,110,0.2)) drop-shadow(0 2px 8px rgba(0,0,0,0.6))' }}
             />
-            <div className="absolute inset-0 flex items-center pointer-events-auto">
-              <button onClick={() => navigate('/live', { replace: true })} className="h-full bg-transparent border-0 p-0 m-0" style={{ width: '13%' }} title="Live" />
-              <button onClick={() => navigate('/discover')} className="h-full bg-transparent border-0 p-0 m-0" style={{ width: '12%' }} title="STEM" />
-              <button onClick={() => navigate('/discover')} className="h-full bg-transparent border-0 p-0 m-0" style={{ width: '15%' }} title="Explore" />
-              <button onClick={() => navigate('/following')} className="h-full bg-transparent border-0 p-0 m-0" style={{ width: '18%' }} title="Following" />
-              <button onClick={() => navigate('/shop')} className="h-full bg-transparent border-0 p-0 m-0" style={{ width: '12%' }} title="Shop" />
-              <button onClick={() => navigate('/feed', { replace: true })} className="h-full bg-transparent border-0 p-0 m-0" style={{ width: '15%' }} title="For You" />
-              <button onClick={() => navigate('/search')} className="h-full bg-transparent border-0 p-0 m-0" style={{ width: '15%' }} title="Search" />
+            <div className="absolute inset-0 flex items-center pointer-events-auto z-10">
+              <button type="button" onClick={() => navigate('/live', { replace: true })} className="h-full w-full bg-transparent border-0 p-0 m-0 cursor-pointer" style={{ width: '13%', minWidth: 0 }} title="Live" />
+              <button type="button" onClick={() => navigate('/stem')} className="h-full w-full bg-transparent border-0 p-0 m-0 cursor-pointer" style={{ width: '12%', minWidth: 0 }} title="STEM" />
+              <button type="button" onClick={() => navigate('/discover')} className="h-full w-full bg-transparent border-0 p-0 m-0 cursor-pointer" style={{ width: '15%', minWidth: 0 }} title="Explore" />
+              <button type="button" onClick={() => navigate('/following')} className="h-full w-full bg-transparent border-0 p-0 m-0 cursor-pointer" style={{ width: '18%', minWidth: 0 }} title="Following" />
+              <button type="button" onClick={() => navigate('/shop')} className="h-full w-full bg-transparent border-0 p-0 m-0 cursor-pointer" style={{ width: '12%', minWidth: 0 }} title="Shop" />
+              <button type="button" onClick={() => navigate('/feed', { replace: true })} className="h-full w-full bg-transparent border-0 p-0 m-0 cursor-pointer" style={{ width: '15%', minWidth: 0 }} title="For You" />
+              <button type="button" onClick={() => navigate('/search')} className="h-full w-full bg-transparent border-0 p-0 m-0 cursor-pointer" style={{ width: '15%', minWidth: 0 }} title="Search" />
             </div>
           </div>
         </div>

@@ -35,6 +35,7 @@ import {
   Coins,
   Lock,
   Flag,
+  Eye,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { GIFTS } from '../lib/gifts';
@@ -713,6 +714,10 @@ export default function LiveStream() {
   const MAX_CO_HOSTS = 12;
 
   const inviteCoHost = async (creator: { id: string; name: string; avatar?: string }) => {
+    if (!isBroadcast || !isMyStreamLive) {
+      showToast('You must be live to invite co-hosts');
+      return;
+    }
     if (coHosts.length >= MAX_CO_HOSTS) return;
     if (coHosts.some(h => h.userId === creator.id)) return;
 
@@ -852,8 +857,8 @@ export default function LiveStream() {
     const myName = user.username || user.name || 'Creator';
     await supabase.from('notifications').insert({
       user_id: req.requesterId,
-      type: req.type === 'cohost' ? 'cohost_invite' : 'battle_invite',
-      title: req.type === 'cohost' ? 'Co-Host Invite' : 'Battle Invite',
+      type: req.type === 'cohost' ? 'cohost_accepted' : 'battle_accepted',
+      title: req.type === 'cohost' ? 'Co-Host Accepted' : 'Battle Accepted',
       body: `@${myName} accepted your request!`,
       data: {
         actor_id: user.id,
@@ -2888,25 +2893,32 @@ export default function LiveStream() {
             {/* Base Video Layer */}
         {!isBattleMode && (
           <div
-            className="relative w-full h-full"
+            className={isBroadcast ? 'flex flex-row w-full h-full' : 'relative w-full h-full'}
             style={{ filter: liveFilterCss !== 'none' ? liveFilterCss : undefined }}
-            onPointerDown={(e) => {
-              if (isBattleMode && isBroadcast) return;
+            onPointerDown={isBroadcast ? undefined : (e) => {
               if (e.target instanceof Element) {
                 const interactive = e.target.closest('button, a, input, textarea, select, [role="button"]');
                 if (interactive) return;
               }
-              // Normal Like Tap
               handleLikeTap(e);
-              
               const now = Date.now();
               const last = lastScreenTapRef.current;
               lastScreenTapRef.current = now;
-              if (now - last <= 320) {
-                handleComboClick();
-              }
+              if (now - last <= 320) handleComboClick();
             }}
           >
+            {/* Left: Host video (broadcaster) or full area (viewer) */}
+            <div
+              className={isBroadcast ? 'flex-1 min-w-0 relative' : 'relative w-full h-full'}
+              onPointerDown={isBroadcast ? (e) => {
+                if (e.target instanceof Element && e.target.closest('button, a, input, textarea, select, [role="button"]')) return;
+                handleLikeTap(e);
+                const now = Date.now();
+                const last = lastScreenTapRef.current;
+                lastScreenTapRef.current = now;
+                if (now - last <= 320) handleComboClick();
+              } : undefined}
+            >
             {/* Main broadcaster camera / Viewer with WebRTC stream */}
             {isBroadcast || isBattleParticipant ? (
               <>
@@ -2973,134 +2985,49 @@ export default function LiveStream() {
                 {cameraError}
               </div>
             )}
+            </div>
 
-            {/* ═══ MULTI-HOST GRID — between header and chat ═══ */}
-            {isBroadcast && liveCoHosts.length > 0 && !isBattleMode && (
-              <div
-                className="absolute left-0 right-0 z-[15] pointer-events-none"
-                style={{
-                  top: 'calc(env(safe-area-inset-top, 0px) + 85px)',
-                  bottom: 'calc(25dvh + 55px + env(safe-area-inset-bottom, 0px) + 3mm)',
-                }}
-              >
-                {/* FEATURED LAYOUT: 1 big on left + small grid on right (when 9+ hosts and one is featured) */}
-                {featuredHost ? (
-                  <div className="w-full h-full flex gap-[2px] p-1 pointer-events-auto">
-                    {/* Featured host — left half */}
-                    <div className="w-1/2 h-full relative overflow-hidden rounded-xl bg-[#13151A] border-2 border-[#C9A96E]/50 shadow-lg">
-                      {(() => {
-                        const peer = remotePeers.find(p => p.userId === featuredHost.userId);
-                        return peer?.stream ? (
-                          <video ref={el => { if (el && peer.stream) el.srcObject = peer.stream; }} autoPlay playsInline muted={featuredHost.isMuted} className="w-full h-full object-cover" />
-                        ) : (
-                          <img src={featuredHost.avatar} alt={featuredHost.name} className="w-full h-full object-cover" />
-                        );
-                      })()}
-                      <img src="/Icons/Profile icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[1]" />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/20 pointer-events-none" />
-                      <div className="absolute bottom-2 left-2 flex items-center gap-1 bg-black/60 backdrop-blur-sm rounded-full px-2 py-1">
-                        <Crown size={10} className="text-white" />
-                        <span className="text-white text-[11px] font-bold truncate max-w-[80px]">{featuredHost.name}</span>
+            {/* Right: Co-host / viewer list with Request (same as reference picture) — only when broadcaster */}
+            {isBroadcast && (
+              <div className="w-[130px] flex-shrink-0 h-full flex flex-col bg-[#13151A]/90 border-l border-white/10 overflow-hidden">
+                <div className="flex-1 overflow-y-auto no-scrollbar py-1 px-1 space-y-1">
+                  {liveCoHosts.map(host => (
+                    <div key={host.id} className="flex items-center gap-2 py-1.5 px-1.5 rounded-lg bg-white/5 border border-[#C9A96E]/20">
+                      <div className="w-9 h-9 rounded-full overflow-hidden flex-shrink-0 bg-[#1C1E24]">
+                        {host.avatar ? <img src={host.avatar} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[#C9A96E] text-xs font-bold">{(host.name || '?').charAt(0)}</div>}
                       </div>
-                      {featuredHost.isMuted && (
-                        <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-red-500/80 flex items-center justify-center">
-                          <MicOff size={10} className="text-white" />
-                        </div>
-                      )}
-                      <button onClick={() => removeCoHost(featuredHost.id)} className="absolute top-2 left-2 w-5 h-5 rounded-full bg-red-500/80 flex items-center justify-center pointer-events-auto">
-                        <X size={10} className="text-black" />
-                      </button>
-                      <button onClick={() => toggleFeatured(featuredHost.id)} className="absolute top-2 right-10 px-2 py-1 rounded-full bg-black/60 flex items-center gap-1 pointer-events-auto">
-                        <span className="text-white text-[8px] font-bold">Minimize</span>
-                      </button>
-                      <button onClick={() => toggleCoHostMute(featuredHost.id)} className="absolute bottom-2 right-2 w-6 h-6 rounded-full bg-black/60 flex items-center justify-center pointer-events-auto">
-                        {featuredHost.isMuted ? <MicOff size={12} className="text-red-400" /> : <Mic size={12} className="text-white" />}
-                      </button>
-                    </div>
-
-                    {/* Small hosts — right half grid */}
-                    <div className="w-1/2 h-full overflow-y-auto no-scrollbar">
-                      <div
-                        className="grid gap-[2px] h-full"
-                        style={{
-                          gridTemplateColumns: `repeat(${smallHosts.length <= 4 ? 2 : 3}, 1fr)`,
-                          gridAutoRows: 'min-content',
-                        }}
-                      >
-                        {smallHosts.map(host => {
-                          const peer = remotePeers.find(p => p.userId === host.userId);
-                          return (
-                          <div key={host.id} className="relative overflow-hidden rounded-lg bg-[#13151A] border border-white/10 aspect-square">
-                            {peer?.stream ? (
-                              <video ref={el => { if (el && peer.stream) el.srcObject = peer.stream; }} autoPlay playsInline muted={host.isMuted} className="w-full h-full object-cover" />
-                            ) : (
-                              <img src={host.avatar} alt={host.name} className="w-full h-full object-cover" />
-                            )}
-                            <img src="/Icons/Profile icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[1]" />
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
-                            <div className="absolute bottom-0.5 left-0.5 bg-black/60 backdrop-blur-sm rounded-full px-1 py-0.5">
-                              <span className="text-white text-[7px] font-bold truncate block max-w-[40px]">{host.name}</span>
-                            </div>
-                            {host.isMuted && (
-                              <div className="absolute top-0.5 right-0.5 w-3 h-3 rounded-full bg-red-500/80 flex items-center justify-center">
-                                <MicOff size={6} className="text-white" />
-                              </div>
-                            )}
-                            <button onClick={() => removeCoHost(host.id)} className="absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-red-500/80 flex items-center justify-center pointer-events-auto">
-                              <X size={6} className="text-black" />
-                            </button>
-                            <button onClick={() => toggleFeatured(host.id)} className="absolute bottom-0.5 right-0.5 w-4 h-4 rounded-full bg-black/60 flex items-center justify-center pointer-events-auto" title="Make featured">
-                              <Crown size={8} className="text-white/60" />
-                            </button>
-                          </div>
-                          );
-                        })}
+                      <div className="min-w-0 flex-1">
+                        <p className="text-white text-[10px] font-bold truncate">{host.name}</p>
+                        <p className="text-green-400 text-[9px] font-semibold flex items-center gap-0.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" /> Live
+                        </p>
                       </div>
                     </div>
-                  </div>
-                ) : (
-                  /* NORMAL LAYOUT: equal square tiles in grid */
-                  <div className="w-full h-full flex items-start justify-center p-1 pointer-events-auto overflow-y-auto no-scrollbar">
-                    <div
-                      className="grid gap-[2px] w-full"
-                      style={{
-                        gridTemplateColumns: `repeat(${hostGridCols}, 1fr)`,
-                      }}
-                    >
-                      {liveCoHosts.map(host => {
-                        const peer = remotePeers.find(p => p.userId === host.userId);
-                        return (
-                        <div key={host.id} className="relative overflow-hidden rounded-xl bg-[#13151A] border border-white/10 shadow-lg aspect-square">
-                          {peer?.stream ? (
-                            <video ref={el => { if (el && peer.stream) el.srcObject = peer.stream; }} autoPlay playsInline muted={host.isMuted} className="w-full h-full object-cover" />
-                          ) : (
-                            <img src={host.avatar} alt={host.name} className="w-full h-full object-cover" />
-                          )}
-                          <img src="/Icons/Profile icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[1]" />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/20 pointer-events-none" />
-                          <div className="absolute bottom-1 left-1 flex items-center gap-1 bg-black/60 backdrop-blur-sm rounded-full px-1.5 py-0.5">
-                            <span className="text-white text-[9px] font-bold truncate max-w-[50px]">{host.name}</span>
-                          </div>
-                          {host.isMuted && (
-                            <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-red-500/80 flex items-center justify-center">
-                              <MicOff size={8} className="text-white" />
-                            </div>
-                          )}
-                          <button onClick={() => removeCoHost(host.id)} className="absolute top-1 left-1 w-4 h-4 rounded-full bg-red-500/80 flex items-center justify-center pointer-events-auto">
-                            <X size={8} className="text-black" />
-                          </button>
-                          <button onClick={() => toggleFeatured(host.id)} className="absolute top-1 right-7 w-5 h-5 rounded-full bg-black/60 flex items-center justify-center pointer-events-auto" title="Make big">
-                            <Crown size={10} className="text-white/60" />
-                          </button>
-                          <button onClick={() => toggleCoHostMute(host.id)} className="absolute bottom-1 right-1 w-5 h-5 rounded-full bg-black/60 flex items-center justify-center pointer-events-auto">
-                            {host.isMuted ? <MicOff size={10} className="text-red-400" /> : <Mic size={10} className="text-white" />}
-                          </button>
+                  ))}
+                  {activeViewers
+                    .filter(v => v.id !== user?.id && !coHosts.some(h => h.userId === v.id))
+                    .map(v => (
+                      <div key={v.id} className="flex items-center gap-2 py-1.5 px-1.5 rounded-lg bg-white/5 border border-white/10">
+                        <div className="w-9 h-9 rounded-full overflow-hidden flex-shrink-0 bg-[#1C1E24]">
+                          {v.avatar ? <img src={v.avatar} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[#C9A96E] text-xs font-bold">{(v.displayName || v.username || '?').charAt(0)}</div>}
                         </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
+                        <div className="min-w-0 flex-1">
+                          <p className="text-white text-[10px] font-bold truncate">{v.displayName || v.username || 'Viewer'}</p>
+                          <div className="flex items-center gap-1 text-white/50">
+                            <Eye size={10} className="flex-shrink-0" />
+                            <span className="text-[9px]">{viewerCount}</span>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => inviteCoHost({ id: v.id, name: v.displayName || v.username || 'Viewer', avatar: v.avatar })}
+                          className="flex-shrink-0 px-2 py-1 rounded-md bg-[#C9A96E] text-black text-[9px] font-bold active:scale-95"
+                        >
+                          Request
+                        </button>
+                      </div>
+                    ))}
+                </div>
               </div>
             )}
           </div>
@@ -5083,8 +5010,8 @@ export default function LiveStream() {
 
       {/* Moderation warning (AI flag + assist; first detection only) */}
       {showModerationWarning && (
-        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/70">
-          <div className="bg-[#1C1E24] border border-white/10 rounded-xl p-6 max-w-sm w-full shadow-xl">
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/70" onClick={() => { setShowModerationWarning(false); setModerationWarningMessage(''); }}>
+          <div className="bg-[#1C1E24] border border-white/10 rounded-xl p-6 max-w-sm w-full shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center gap-2 mb-3">
               <AlertTriangle className="w-6 h-6 text-amber-500 flex-shrink-0" />
               <h3 className="font-semibold text-white">Safety reminder</h3>

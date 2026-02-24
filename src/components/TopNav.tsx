@@ -56,61 +56,68 @@ export const TopNav = () => {
             }}
           />
           
-          <div className="absolute inset-0 flex items-center pointer-events-auto">
+          <div className="absolute inset-0 flex items-center pointer-events-auto z-10">
             <button
+              type="button"
               onClick={() => navigate('/live', { replace: true })}
               onMouseEnter={() => setHoveredTopTabIndex(0)}
               onMouseLeave={() => setHoveredTopTabIndex(null)}
-              className="h-full bg-transparent focus:outline-none active:bg-transparent appearance-none border-0 p-0 m-0"
-              style={{ width: '13%', WebkitTapHighlightColor: 'transparent' } as React.CSSProperties}
+              className="h-full w-full bg-transparent focus:outline-none active:bg-transparent appearance-none border-0 p-0 m-0 cursor-pointer"
+              style={{ width: '13%', minWidth: 0, WebkitTapHighlightColor: 'transparent' } as React.CSSProperties}
               title="Live"
             />
             <button
-              onClick={() => navigate('/discover')}
+              type="button"
+              onClick={() => navigate('/stem')}
               onMouseEnter={() => setHoveredTopTabIndex(1)}
               onMouseLeave={() => setHoveredTopTabIndex(null)}
-              className="h-full bg-transparent focus:outline-none active:bg-transparent appearance-none border-0 p-0 m-0"
-              style={{ width: '12%', WebkitTapHighlightColor: 'transparent' } as React.CSSProperties}
+              className="h-full w-full bg-transparent focus:outline-none active:bg-transparent appearance-none border-0 p-0 m-0 cursor-pointer"
+              style={{ width: '12%', minWidth: 0, WebkitTapHighlightColor: 'transparent' } as React.CSSProperties}
               title="STEM"
             />
             <button
+              type="button"
               onClick={() => navigate('/discover')}
               onMouseEnter={() => setHoveredTopTabIndex(2)}
               onMouseLeave={() => setHoveredTopTabIndex(null)}
-              className="h-full bg-transparent focus:outline-none active:bg-transparent appearance-none border-0 p-0 m-0"
-              style={{ width: '15%', WebkitTapHighlightColor: 'transparent' } as React.CSSProperties}
+              className="h-full w-full bg-transparent focus:outline-none active:bg-transparent appearance-none border-0 p-0 m-0 cursor-pointer"
+              style={{ width: '15%', minWidth: 0, WebkitTapHighlightColor: 'transparent' } as React.CSSProperties}
               title="Explore"
             />
             <button
+              type="button"
               onClick={() => navigate('/following')}
               onMouseEnter={() => setHoveredTopTabIndex(3)}
               onMouseLeave={() => setHoveredTopTabIndex(null)}
-              className="h-full bg-transparent focus:outline-none active:bg-transparent appearance-none border-0 p-0 m-0"
-              style={{ width: '18%', WebkitTapHighlightColor: 'transparent' } as React.CSSProperties}
+              className="h-full w-full bg-transparent focus:outline-none active:bg-transparent appearance-none border-0 p-0 m-0 cursor-pointer"
+              style={{ width: '18%', minWidth: 0, WebkitTapHighlightColor: 'transparent' } as React.CSSProperties}
               title="Following"
             />
             <button
+              type="button"
               onClick={() => navigate('/shop')}
               onMouseEnter={() => setHoveredTopTabIndex(4)}
               onMouseLeave={() => setHoveredTopTabIndex(null)}
-              className="h-full bg-transparent focus:outline-none active:bg-transparent appearance-none border-0 p-0 m-0"
-              style={{ width: '12%', WebkitTapHighlightColor: 'transparent' } as React.CSSProperties}
+              className="h-full w-full bg-transparent focus:outline-none active:bg-transparent appearance-none border-0 p-0 m-0 cursor-pointer"
+              style={{ width: '12%', minWidth: 0, WebkitTapHighlightColor: 'transparent' } as React.CSSProperties}
               title="Shop"
             />
             <button
+              type="button"
               onClick={() => navigate('/feed')}
               onMouseEnter={() => setHoveredTopTabIndex(5)}
               onMouseLeave={() => setHoveredTopTabIndex(null)}
-              className="h-full bg-transparent focus:outline-none active:bg-transparent appearance-none border-0 p-0 m-0"
-              style={{ width: '15%', WebkitTapHighlightColor: 'transparent' } as React.CSSProperties}
+              className="h-full w-full bg-transparent focus:outline-none active:bg-transparent appearance-none border-0 p-0 m-0 cursor-pointer"
+              style={{ width: '15%', minWidth: 0, WebkitTapHighlightColor: 'transparent' } as React.CSSProperties}
               title="For You"
             />
             <button
+              type="button"
               onClick={() => navigate('/search')}
               onMouseEnter={() => setHoveredTopTabIndex(6)}
               onMouseLeave={() => setHoveredTopTabIndex(null)}
-              className="h-full bg-transparent focus:outline-none active:bg-transparent appearance-none border-0 p-0 m-0"
-              style={{ width: '15%', WebkitTapHighlightColor: 'transparent' } as React.CSSProperties}
+              className="h-full w-full bg-transparent focus:outline-none active:bg-transparent appearance-none border-0 p-0 m-0 cursor-pointer"
+              style={{ width: '15%', minWidth: 0, WebkitTapHighlightColor: 'transparent' } as React.CSSProperties}
               title="Search"
             />
           </div>

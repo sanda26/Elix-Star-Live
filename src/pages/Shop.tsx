@@ -160,12 +160,12 @@ export default function Shop() {
     <div className="bg-[#13151A] text-white flex justify-center px-2 min-h-screen">
       <div className="w-full max-w-[480px] flex flex-col pb-24">
         <div className="sticky top-0 bg-[#13151A] z-10 px-4 py-3 flex items-center justify-between border-b border-white/5">
-          <button onClick={() => navigate(-1)} className="p-1">
-            <img src="/Icons/Gold power buton.png" alt="Back" className="w-5 h-5" />
-          </button>
-          <h1 className="text-lg font-bold text-gold-metallic">Shop</h1>
           <button onClick={() => setShowCreate(true)} className="p-1" title="Sell item">
             <Plus size={22} className="text-[#C9A96E]" />
+          </button>
+          <h1 className="text-lg font-bold text-gold-metallic">Shop</h1>
+          <button onClick={() => navigate(-1)} className="p-1">
+            <img src="/Icons/Gold power buton.png" alt="Back" className="w-5 h-5" />
           </button>
         </div>
 

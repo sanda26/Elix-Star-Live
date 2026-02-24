@@ -22,6 +22,7 @@ export default function SearchPage() {
   const [searching, setSearching] = useState(false);
   const [visible, setVisible] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
+  const touchStart = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
   useEffect(() => {
     requestAnimationFrame(() => setVisible(true));
@@ -30,6 +31,18 @@ export default function SearchPage() {
   const closePanel = () => {
     setVisible(false);
     setTimeout(() => navigate(-1), 250);
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  };
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    const endX = e.changedTouches[0].clientX;
+    const endY = e.changedTouches[0].clientY;
+    const dx = endX - touchStart.current.x;
+    const dy = endY - touchStart.current.y;
+    const minSwipe = 80;
+    if (dy > minSwipe || Math.abs(dx) > minSwipe) closePanel(); // swipe down or to the side to close
   };
 
   const handleSearch = (e: React.FormEvent) => {
@@ -124,17 +137,25 @@ export default function SearchPage() {
         onClick={closePanel}
       />
 
-      {/* Panel slides up from bottom */}
+      {/* Panel — full screen */}
       <div
         ref={panelRef}
-        className="absolute bottom-0 left-0 right-0 flex justify-center transition-transform duration-250 ease-out"
-        style={{ transform: visible ? 'translateY(0)' : 'translateY(100%)', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+        className="absolute inset-0 flex justify-center transition-transform duration-250 ease-out"
+        style={{ transform: visible ? 'translateY(0)' : 'translateY(100%)' }}
       >
-        <div className="w-full max-w-[480px] bg-[#13151A] rounded-t-3xl border-2 border-[#C9A96E] max-h-[40dvh] flex flex-col overflow-hidden mb-[90px]" style={{ boxShadow: '0 -8px 30px rgba(0,0,0,0.5), 0 0 15px rgba(212,175,55,0.3)' }}>
-          
-          {/* Top drag handle */}
-          <div className="flex justify-center pt-3 pb-1">
-            <div className="w-10 h-1 rounded-full bg-[#C9A96E]/30" />
+        <div className="w-full max-w-[480px] bg-[#13151A] rounded-t-3xl border-2 border-[#C9A96E] min-h-full flex flex-col overflow-hidden pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)]" style={{ boxShadow: '0 -8px 30px rgba(0,0,0,0.5), 0 0 15px rgba(212,175,55,0.3)' }}>
+          {/* Top: drag handle + power (back) — swipe down here to close */}
+          <div
+            className="flex items-center justify-between px-2 pt-2 pb-1"
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
+          >
+            <div className="flex-1 flex justify-center">
+              <div className="w-10 h-1 rounded-full bg-[#C9A96E]/30" />
+            </div>
+            <button type="button" onClick={closePanel} className="p-1 -mr-1" title="Back">
+              <img src="/Icons/Gold power buton.png" alt="Back" className="w-5 h-5" />
+            </button>
           </div>
 
           {/* Search bar */}

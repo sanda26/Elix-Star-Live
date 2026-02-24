@@ -186,13 +186,13 @@ export default function Discover() {
 
         {/* ═══ HEADER with gold frame ═══ */}
         <div className="mx-2 mt-2 rounded-t-2xl border-2 border-b-0 border-[#C9A96E] bg-[#13151A] z-10 shrink-0" style={{ boxShadow: '0 0 8px rgba(212,175,55,0.3)' }}>
-          <div className="px-3 pt-[env(safe-area-inset-top,8px)] pb-1 flex items-center justify-between relative">
-            <button onClick={() => navigate(-1)} className="p-1 z-10" title="Back">
-              <img src="/Icons/Gold power buton.png" alt="Back" className="w-5 h-5" />
-            </button>
-            <h1 className="text-sm font-bold text-gold-metallic absolute left-1/2 transform -translate-x-1/2">Explore</h1>
+          <div className="px-3 pt-[calc(env(safe-area-inset-top,8px)+4px)] pb-1 flex items-center justify-between relative">
             <button onClick={() => document.getElementById('discover-search')?.focus()} className="p-1 z-10" title="Search">
               <Search className="w-4 h-4 text-[#C9A96E]" />
+            </button>
+            <h1 className="text-sm font-bold text-gold-metallic absolute left-1/2 transform -translate-x-1/2">Explore</h1>
+            <button onClick={() => navigate(-1)} className="p-1 z-10" title="Back">
+              <img src="/Icons/Gold power buton.png" alt="Back" className="w-5 h-5" />
             </button>
           </div>
 

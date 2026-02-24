@@ -101,7 +101,9 @@ export default function Inbox() {
           .eq('user_id', currentUserId)
           .order('created_at', { ascending: false })
           .limit(50);
-        if (data) setNotifications(data.map((n: any) => ({
+        if (data) setNotifications(data
+          .filter((n: any) => n.type !== 'battle_invite' && n.type !== 'cohost_invite' && n.type !== 'battle_accepted' && n.type !== 'cohost_accepted')
+          .map((n: any) => ({
           id: n.id,
           type: n.type || 'system',
           actor_id: n.data?.actor_id || '',
@@ -509,66 +511,7 @@ export default function Inbox() {
               </>
             )}
 
-            {/* Battle Invites */}
-            {(activeFilter === 'main' || activeFilter === 'requests') && notifications.filter(n => n.type === 'battle_invite' && !n.is_read).map(notif => (
-                <div key={notif.id} className="flex items-center gap-3 w-full">
-                    <div className="w-12 h-12 rounded-full bg-red-500/20 border border-red-500/30 flex items-center justify-center flex-shrink-0 overflow-hidden relative">
-                        {(notif.rawData?.host_avatar || notif.image_url) ? (
-                            <img src={notif.rawData?.host_avatar || notif.image_url} alt="" className="absolute inset-0 w-full h-full object-cover" />
-                        ) : (
-                            <Sword className="w-5 h-5 text-red-400" />
-                        )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                        <h3 className="font-bold text-sm text-gold-metallic">Battle Invite</h3>
-                        <p className="text-white text-xs truncate">{notif.body || 'Someone invited you to battle!'}</p>
-                        <div className="flex gap-2 mt-1.5">
-                            <button
-                                onClick={async () => {
-                                    try {
-                                        await supabase.from('notifications').update({ is_read: true }).eq('id', notif.id);
-                                        setNotifications(prev => prev.filter(n => n.id !== notif.id));
-                                    } catch { /* ignore */ }
-                                }}
-                                className="px-3 py-1 rounded-lg bg-white/5 border border-white/10 text-white/60 text-[10px] font-bold active:scale-95 transition-all"
-                            >
-                                Decline
-                            </button>
-                            <button
-                                onClick={async () => {
-                                    try {
-                                        await supabase.from('notifications').update({ is_read: true }).eq('id', notif.id);
-                                        const hostUserId = notif.rawData?.actor_id || notif.actor_id;
-                                        const streamKey = notif.rawData?.stream_key;
-                                        if (currentUserId) {
-                                            const { data: myProfile } = await supabase.from('profiles').select('username, avatar_url').eq('user_id', currentUserId).single();
-                                            await supabase.from('notifications').insert({
-                                                user_id: hostUserId,
-                                                type: 'battle_accepted',
-                                                title: 'Battle Accepted',
-                                                body: `@${myProfile?.username || 'User'} accepted your battle invite!`,
-                                                data: {
-                                                    actor_id: currentUserId,
-                                                    accepted_name: myProfile?.username || 'User',
-                                                    accepted_avatar: myProfile?.avatar_url || '',
-                                                    stream_key: streamKey,
-                                                },
-                                            });
-                                        }
-                                        setNotifications(prev => prev.filter(n => n.id !== notif.id));
-                                        if (streamKey) navigate(`/live/${streamKey}?battle=1`);
-                                    } catch {
-                                        showToast('Failed to accept');
-                                    }
-                                }}
-                                className="px-3 py-1 rounded-lg bg-[#C9A96E] text-black text-[10px] font-bold active:scale-95 transition-all"
-                            >
-                                Accept & Join
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            ))}
+            {/* Battle / Co-host invites: not shown in Inbox — use banner on live page only */}
 
             {/* System Notification — hide "check out this profile" / profile promo so inbox shows messages, not profile */}
             {(activeFilter === 'main') && notifications

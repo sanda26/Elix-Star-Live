@@ -28,6 +28,7 @@ import {
   Crown,
   Trophy,
   Plus,
+  PlusCircle,
 } from 'lucide-react';
 import { GiftPanel } from '../components/GiftPanel';
 import { GIFTS } from '../lib/gifts';

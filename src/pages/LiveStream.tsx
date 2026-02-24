@@ -109,6 +109,7 @@ export default function LiveStream() {
   const opponentVideoRef = useRef<HTMLVideoElement>(null);
   const player3VideoRef = useRef<HTMLVideoElement>(null);
   const player4VideoRef = useRef<HTMLVideoElement>(null);
+  const coHostVideoRefs = useRef<Map<string, HTMLVideoElement>>(new Map());
   const battlePeerRef = useRef<RTCPeerConnection | null>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const cameraStreamRef = useRef<MediaStream | null>(null);
@@ -885,6 +886,8 @@ export default function LiveStream() {
         host_name: myName,
         host_avatar: user.avatar || '',
         stream_key: effectiveStreamId,
+        accepted_name: req.requesterName,
+        accepted_avatar: req.requesterAvatar || '',
       },
     });
     if (req.type === 'cohost') {
@@ -939,6 +942,7 @@ export default function LiveStream() {
     chan.on('broadcast', { event: 'cohost_joined' }, (payload: any) => {
       const { userId, name, avatar } = payload.payload || {};
       if (!userId) return;
+      if (userId === user?.id) return;
       setCoHosts(prev => {
         const existing = prev.find(h => h.userId === userId);
         if (existing) {
@@ -1252,6 +1256,28 @@ export default function LiveStream() {
   // ═══════════════════════════════════════════════════════════════
   const isBattleParticipant = !isBroadcast && new URLSearchParams(location.search).get('battle') === '1';
   const [battleParticipantStream, setBattleParticipantStream] = useState<MediaStream | null>(null);
+  const [coHostJoinerStream, setCoHostJoinerStream] = useState<MediaStream | null>(null);
+
+  useEffect(() => {
+    if (!isCoHostJoiner || isBroadcast || !user?.id) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'user' },
+          audio: { echoCancellation: true, noiseSuppression: true },
+        });
+        if (cancelled) { stream.getTracks().forEach(t => t.stop()); return; }
+        setCoHostJoinerStream(stream);
+      } catch {
+        showToast('Camera access needed to co-host');
+      }
+    })();
+    return () => {
+      cancelled = true;
+      setCoHostJoinerStream(prev => { if (prev) prev.getTracks().forEach(t => t.stop()); return null; });
+    };
+  }, [isCoHostJoiner, isBroadcast, user?.id]);
 
   useEffect(() => {
     if (!isBattleParticipant || battleParticipantStream) return;
@@ -1283,14 +1309,14 @@ export default function LiveStream() {
     videoRef.current.play().catch(() => {});
   }, [isBattleParticipant, battleParticipantStream]);
 
-  const localStreamForWebRTC = isBroadcast ? cameraStream : battleParticipantStream;
-  const isRegularViewer = !isBroadcast && !isBattleParticipant;
-  const webrtcEnabled = isBroadcast || isBattleParticipant || isRegularViewer;
+  const localStreamForWebRTC = isBroadcast ? cameraStream : (isBattleParticipant ? battleParticipantStream : (isCoHostJoiner ? coHostJoinerStream : null));
+  const isRegularViewer = !isBroadcast && !isBattleParticipant && !isCoHostJoiner;
+  const webrtcEnabled = isBroadcast || isBattleParticipant || isRegularViewer || isCoHostJoiner;
   const { remotePeers, error: webrtcError } = useLiveWebRTC({
     roomId: effectiveStreamId,
     localUserId: user?.id || '',
     localStream: localStreamForWebRTC,
-    enabled: webrtcEnabled && !!(isBroadcast ? localStreamForWebRTC : true),
+    enabled: webrtcEnabled && (isBroadcast ? !!localStreamForWebRTC : isCoHostJoiner ? !!coHostJoinerStream : true),
   });
 
   useEffect(() => {
@@ -1344,7 +1370,21 @@ export default function LiveStream() {
         }
       }
     }
-  }, [remotePeers, isBattleMode, isBroadcast, isBattleParticipant, isRegularViewer]);
+
+    if (isBroadcast && !isBattleMode && remotePeers.length > 0) {
+      const liveList = coHosts.filter(h => (h.status === 'live' || h.status === 'accepted') && h.userId !== user?.id);
+      liveList.forEach(h => {
+        const peer = remotePeers.find(p => p.userId === h.userId);
+        const el = coHostVideoRefs.current.get(h.userId);
+        if (el && peer?.stream) {
+          if (el.srcObject !== peer.stream) {
+            el.srcObject = peer.stream;
+            el.play().catch(() => {});
+          }
+        }
+      });
+    }
+  }, [remotePeers, isBattleMode, isBroadcast, isBattleParticipant, isRegularViewer, coHosts, user?.id]);
 
   useEffect(() => {
     if (webrtcError) {
@@ -3008,7 +3048,8 @@ export default function LiveStream() {
             {/* Right: co-host cells — only when at least one co-host invited or live */}
             {coHosts.length > 0 && (() => {
               const cellSlots: Array<{ type: 'live' | 'invited' | 'pending' | 'empty'; host?: (typeof coHosts)[0] }> = [];
-              coHosts.forEach(h => {
+              const list = isBroadcast ? coHosts.filter(h => h.userId !== user?.id) : coHosts;
+              list.forEach(h => {
                 if (h.status === 'live' || h.status === 'accepted') cellSlots.push({ type: 'live', host: h });
                 else if (h.status === 'invited') cellSlots.push({ type: 'invited', host: h });
                 else if (h.status === 'pending_accept') cellSlots.push({ type: 'pending', host: h });
@@ -3020,14 +3061,20 @@ export default function LiveStream() {
                     <div key={i} className="relative bg-[#13151A] flex flex-col items-center justify-center p-1">
                       {slot.type === 'live' && slot.host ? (
                         <>
-                          <div className="absolute top-1 left-1 flex items-center gap-0.5">
+                          <video
+                            ref={(el) => { if (el) coHostVideoRefs.current.set(slot.host!.userId, el); else coHostVideoRefs.current.delete(slot.host!.userId); }}
+                            className="absolute inset-0 w-full h-full object-cover rounded-sm"
+                            autoPlay
+                            playsInline
+                            muted
+                          />
+                          <div className="absolute top-1 left-1 flex items-center gap-0.5 z-10">
                             <Eye size={9} className="text-green-400" />
                             <span className="text-green-400 text-[9px] font-bold">{viewerCount}</span>
                           </div>
-                          <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-cyan-400/60 bg-[#1C1E24]">
-                            {slot.host.avatar ? <img src={slot.host.avatar} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[#C9A96E] text-base font-bold">{(slot.host.name || '?').charAt(0)}</div>}
+                          <div className="absolute bottom-0 left-0 right-0 py-0.5 px-1 bg-black/50 rounded-b-sm z-10">
+                            <p className="text-white text-[9px] font-bold truncate text-center">{slot.host.name}</p>
                           </div>
-                          <p className="text-white text-[9px] font-bold mt-0.5 truncate max-w-[95%] text-center">{slot.host.name}</p>
                         </>
                       ) : slot.type === 'invited' && slot.host ? (
                         <>

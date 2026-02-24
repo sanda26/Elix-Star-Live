@@ -515,7 +515,7 @@ export default function Create() {
         <div className="flex-1 flex flex-col min-h-0 px-4">
           <div className="flex items-center justify-between mb-1.5">
             <h2 className="text-white/80 font-bold text-xs uppercase tracking-wider">Templates</h2>
-            <button onClick={() => setShowSearch(!showSearch)} className="w-6 h-6 rounded-full flex items-center justify-center">
+            <button title="Search templates" onClick={() => setShowSearch(!showSearch)} className="w-6 h-6 rounded-full flex items-center justify-center">
               <Search className="w-3.5 h-3.5 text-white/40" />
             </button>
           </div>
@@ -583,9 +583,9 @@ export default function Create() {
           >
             Post
           </button>
-          <button className="text-[11px] font-black text-[#C9A96E] uppercase tracking-wide border-b border-[#C9A96E] pb-px">
+          <span className="text-[11px] font-black text-[#C9A96E] uppercase tracking-wide border-b border-[#C9A96E] pb-px">
             Create
-          </button>
+          </span>
           <button
             onClick={() => openCamera('live')}
             className="text-[11px] font-semibold text-white/40 uppercase tracking-wide"

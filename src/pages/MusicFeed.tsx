@@ -53,7 +53,7 @@ export default function MusicFeed() {
          <div className="flex-1">
             <h1 className="text-xl font-bold mb-1">Original Sound{songId ? ` #${songId}` : ''}</h1>
             <p className="text-white/60 text-sm mb-4">Trending</p>
-            <button className="bg-[#C9A96E] text-black px-6 py-1.5 rounded-sm font-semibold flex items-center gap-2 text-sm w-fit">
+            <button onClick={() => navigate('/create')} className="bg-[#C9A96E] text-black px-6 py-1.5 rounded-sm font-semibold flex items-center gap-2 text-sm w-fit active:scale-95 transition-transform">
                <Play size={8} fill="black" /> Use this sound
             </button>
          </div>

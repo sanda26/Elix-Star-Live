@@ -3,6 +3,7 @@ import { Share2, Menu, Lock, Play, Heart, Camera, Sparkles, LogOut, UserPlus, X,
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
 import { supabase } from '../lib/supabase';
+import { showToast } from '../lib/toast';
 import { uploadAvatar } from '../lib/avatarUpload';
 import { AvatarRing } from '../components/AvatarRing';
 import { trackEvent } from '../lib/analytics';
@@ -51,6 +52,7 @@ export default function Profile() {
   const [showAccountMenu, setShowAccountMenu] = useState(false);
   const [shopItems, setShopItems] = useState<{ id: string; title: string; price: number; image_url: string | null }[]>([]);
   const [showSharePanel, setShowSharePanel] = useState(false);
+  const [shareQuery, setShareQuery] = useState('');
   const [showPromotePanel, setShowPromotePanel] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [shareFollowers, setShareFollowers] = useState<{ user_id: string; username: string; avatar_url: string | null }[]>([]);
@@ -544,7 +546,7 @@ export default function Profile() {
                 <h3 className="text-gold-metallic font-bold text-sm">Share to</h3>
                 <div className="flex-none w-[120px] bg-white/5 rounded-lg px-2 py-1.5 flex items-center gap-2 border border-[#C9A96E]/20">
                   <Search className="w-3.5 h-3.5 text-[#C9A96E]/40" />
-                  <input placeholder="Search..." className="bg-transparent text-white text-xs outline-none w-full placeholder:text-white/20" />
+                  <input placeholder="Search..." value={shareQuery ?? ''} onChange={(e) => setShareQuery(e.target.value)} className="bg-transparent text-white text-xs outline-none w-full placeholder:text-white/20" />
                 </div>
               </div>
 
@@ -586,7 +588,7 @@ export default function Profile() {
                       { name: 'WhatsApp', icon: <MessageCircle size={22} className="text-white" />, action: () => window.open(`https://wa.me/?text=${encodeURIComponent(`Check out ${displayName}'s profile on Elix! ${window.location.origin}/profile/${displayUserId}`)}`) },
                       { name: 'Facebook', icon: <Share2 size={22} className="text-white" />, action: () => window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(`${window.location.origin}/profile/${displayUserId}`)}`) },
                       { name: 'Twitter', icon: <Share2 size={22} className="text-white" />, action: () => window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(`Check out ${displayName} on Elix!`)}&url=${encodeURIComponent(`${window.location.origin}/profile/${displayUserId}`)}`) },
-                      { name: 'Copy Link', icon: <Copy size={22} className="text-white" />, action: () => { navigator.clipboard.writeText(`${window.location.origin}/profile/${displayUserId}`).then(() => alert('Profile link copied!')).catch(() => {}); } },
+                      { name: 'Copy Link', icon: <Copy size={22} className="text-white" />, action: () => { navigator.clipboard.writeText(`${window.location.origin}/profile/${displayUserId}`).then(() => showToast('Profile link copied!')).catch(() => showToast('Could not copy link')); } },
                       { name: 'Promote', icon: <TrendingUp size={22} className="text-white" />, action: () => { setShowSharePanel(false); setShowPromotePanel(true); } },
                       { name: 'Report', icon: <Flag size={22} className="text-red-400" />, isRed: true, action: () => { setShowSharePanel(false); setShowReportModal(true); } },
                     ].map((item) => (

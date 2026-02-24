@@ -173,6 +173,20 @@ export default function SpectatorPage() {
               hostUserId: row.data?.actor_id || '',
             });
           }
+          if (row?.type === 'cohost_accepted') {
+            const streamKey = row.data?.stream_key || '';
+            if (streamKey) {
+              showToast('Co-host request accepted! Joining...');
+              navigate(`/watch/${streamKey}?cohost=1`);
+            }
+          }
+          if (row?.type === 'battle_accepted') {
+            const streamKey = row.data?.stream_key || '';
+            if (streamKey) {
+              showToast('Battle request accepted! Joining...');
+              window.location.href = `/live/${streamKey}?battle=1`;
+            }
+          }
         }
       )
       .subscribe();
@@ -1149,7 +1163,7 @@ export default function SpectatorPage() {
               onChange={(e) => setInputValue(e.target.value)}
             />
             {inputValue.trim() && (
-              <button type="submit" className="text-[#C9A96E] flex-shrink-0">
+              <button type="submit" title="Send message" className="text-[#C9A96E] flex-shrink-0">
                 <Send size={16} />
               </button>
             )}
@@ -1495,7 +1509,7 @@ export default function SpectatorPage() {
                     {[
                       { name: 'WhatsApp', icon: <MessageCircle size={22} className="text-white" />, action: () => { window.open(`https://wa.me/?text=${encodeURIComponent('Watch this on Elix! ' + `${window.location.origin}/watch/${effectiveStreamId}`)}`); setShowSharePanel(false); } },
                       { name: 'Facebook', icon: <Share2 size={22} className="text-white" />, action: () => { window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(`${window.location.origin}/watch/${effectiveStreamId}`)}`); setShowSharePanel(false); } },
-                      { name: 'Copy Link', icon: <Copy size={22} className="text-white" />, action: () => { navigator.clipboard.writeText(`${window.location.origin}/watch/${effectiveStreamId}`); setShowSharePanel(false); } },
+                      { name: 'Copy Link', icon: <Copy size={22} className="text-white" />, action: () => { navigator.clipboard.writeText(`https://www.elixlive.co.uk/watch/${effectiveStreamId}`); showToast('Link copied!'); setShowSharePanel(false); } },
                       { name: 'Promote', icon: <TrendingUp size={22} className="text-white" />, action: () => { setShowSharePanel(false); setShowPromotePanel(true); } },
                       { name: 'Report', icon: <Flag size={22} className="text-red-400" />, isRed: true, action: () => { setIsReportModalOpen(true); setShowSharePanel(false); } },
                     ].map((item) => (

@@ -3890,14 +3890,14 @@ export default function LiveStream() {
                 <span className="text-white/60 text-[8px] font-medium">Battle</span>
               </div>
               <div className="flex flex-col items-center gap-0.5">
-                <button type="button" onClick={() => setShowSharePanel(true)} className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform relative">
+                <button type="button" title="Share" onClick={() => setShowSharePanel(true)} className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform relative">
                   <Share2 size={20} className="text-[#C9A96E] relative z-[2]" />
                   <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-125 translate-y-0.5" />
                 </button>
                 <span className="text-white/60 text-[8px] font-medium">Share</span>
               </div>
               <div className="flex flex-col items-center gap-0.5">
-                <button type="button" onClick={() => setIsMoreMenuOpen(true)} className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg relative">
+                <button type="button" title="More options" onClick={() => setIsMoreMenuOpen(true)} className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg relative">
                   <MoreVertical size={20} className="text-[#C9A96E] relative z-[2]" />
                   <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-125 translate-y-0.5" />
                 </button>
@@ -5092,7 +5092,7 @@ export default function LiveStream() {
                 {[
                   { name: 'WhatsApp', icon: <MessageCircle size={22} className="text-white" />, action: () => { window.open(`https://wa.me/?text=${encodeURIComponent('Watch my LIVE on Elix! ' + window.location.href)}`); setShowSharePanel(false); } },
                   { name: 'Facebook', icon: <Share2 size={22} className="text-white" />, action: () => { window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}`); setShowSharePanel(false); } },
-                  { name: 'Copy Link', icon: <Copy size={22} className="text-white" />, action: () => { navigator.clipboard.writeText(`https://app.com/live/${effectiveStreamId}`); setShowSharePanel(false); } },
+                  { name: 'Copy Link', icon: <Copy size={22} className="text-white" />, action: () => { navigator.clipboard.writeText(`https://www.elixlive.co.uk/live/${effectiveStreamId}`); showToast('Link copied!'); setShowSharePanel(false); } },
                   { name: 'Promote', icon: <TrendingUp size={22} className="text-white" />, action: () => { setShowSharePanel(false); setShowPromotePanel(true); } },
                   { name: 'Report', icon: <Flag size={22} className="text-red-400" />, isRed: true, action: () => { setIsReportModalOpen(true); setShowSharePanel(false); } },
                   { name: 'Story', icon: <PlusCircle size={22} className="text-white" />, action: () => { navigate('/create'); setShowSharePanel(false); } },

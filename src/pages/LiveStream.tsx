@@ -700,8 +700,10 @@ export default function LiveStream() {
     userId: string;
     name: string;
     avatar: string;
-    status: 'invited' | 'accepted' | 'live';
+    status: 'invited' | 'accepted' | 'live' | 'pending_accept';
     isMuted: boolean;
+    _notifId?: string;
+    _streamKey?: string;
   };
   const [coHosts, setCoHosts] = useState<CoHost[]>([]);
   const [isInviteHostOpen, setIsInviteHostOpen] = useState(false);
@@ -2893,8 +2895,8 @@ export default function LiveStream() {
             {/* Base Video Layer */}
         {!isBattleMode && (
           <div
-            className={isBroadcast ? 'flex flex-row w-full h-full' : 'relative w-full h-full'}
-            style={{ filter: liveFilterCss !== 'none' ? liveFilterCss : undefined }}
+            className={(isBroadcast || coHosts.length > 0) ? 'absolute inset-x-0 z-[25] flex flex-row h-[42dvh]' : 'relative w-full h-full'}
+            style={(isBroadcast || coHosts.length > 0) ? { top: '90px', filter: liveFilterCss !== 'none' ? liveFilterCss : undefined } : { filter: liveFilterCss !== 'none' ? liveFilterCss : undefined }}
             onPointerDown={isBroadcast ? undefined : (e) => {
               if (e.target instanceof Element) {
                 const interactive = e.target.closest('button, a, input, textarea, select, [role="button"]');
@@ -2907,9 +2909,9 @@ export default function LiveStream() {
               if (now - last <= 320) handleComboClick();
             }}
           >
-            {/* Left: Host video (broadcaster) or full area (viewer) */}
+            {/* Left: Host camera */}
             <div
-              className={isBroadcast ? 'flex-1 min-w-0 relative' : 'relative w-full h-full'}
+              className={(isBroadcast || coHosts.length > 0) ? 'w-1/2 relative' : 'relative w-full h-full'}
               onPointerDown={isBroadcast ? (e) => {
                 if (e.target instanceof Element && e.target.closest('button, a, input, textarea, select, [role="button"]')) return;
                 handleLikeTap(e);
@@ -2919,7 +2921,6 @@ export default function LiveStream() {
                 if (now - last <= 320) handleComboClick();
               } : undefined}
             >
-            {/* Main broadcaster camera / Viewer with WebRTC stream */}
             {isBroadcast || isBattleParticipant ? (
               <>
                 <video
@@ -2930,13 +2931,7 @@ export default function LiveStream() {
                   muted
                   style={isBroadcast ? { transform: 'scaleX(-1)' } : undefined}
                 />
-                {isBroadcast && (
-                  <div className="absolute top-3 left-3 z-20 pointer-events-none">
-                    <div className="px-2.5 py-1 rounded-md bg-[#13151A]/70 backdrop-blur-sm border border-white/15">
-                      <span className="text-white text-[11px] font-bold tracking-wide">Host</span>
-                    </div>
-                  </div>
-                )}
+                {/* Host label removed */}
               </>
             ) : (
               <>
@@ -2987,49 +2982,71 @@ export default function LiveStream() {
             )}
             </div>
 
-            {/* Right: Co-host / viewer list with Request (same as reference picture) — only when broadcaster */}
-            {isBroadcast && (
-              <div className="w-[130px] flex-shrink-0 h-full flex flex-col bg-[#13151A]/90 border-l border-white/10 overflow-hidden">
-                <div className="flex-1 overflow-y-auto no-scrollbar py-1 px-1 space-y-1">
-                  {liveCoHosts.map(host => (
-                    <div key={host.id} className="flex items-center gap-2 py-1.5 px-1.5 rounded-lg bg-white/5 border border-[#C9A96E]/20">
-                      <div className="w-9 h-9 rounded-full overflow-hidden flex-shrink-0 bg-[#1C1E24]">
-                        {host.avatar ? <img src={host.avatar} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[#C9A96E] text-xs font-bold">{(host.name || '?').charAt(0)}</div>}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-white text-[10px] font-bold truncate">{host.name}</p>
-                        <p className="text-green-400 text-[9px] font-semibold flex items-center gap-0.5">
-                          <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" /> Live
-                        </p>
-                      </div>
+            {/* Right: 8 co-host cells — invite (broadcaster) / join+reject (spectator) */}
+            {(() => {
+              const cellSlots: Array<{ type: 'live' | 'invited' | 'pending' | 'empty'; host?: (typeof coHosts)[0] }> = [];
+              coHosts.forEach(h => {
+                if (h.status === 'live' || h.status === 'accepted') cellSlots.push({ type: 'live', host: h });
+                else if (h.status === 'invited') cellSlots.push({ type: 'invited', host: h });
+                else if (h.status === 'pending_accept') cellSlots.push({ type: 'pending', host: h });
+              });
+              while (cellSlots.length < 8) cellSlots.push({ type: 'empty' });
+              return (
+                <div className="w-1/2 h-full grid grid-cols-2 grid-rows-4 gap-[1px] bg-[#1a1c22]">
+                  {cellSlots.slice(0, 8).map((slot, i) => (
+                    <div key={i} className="relative bg-[#13151A] flex flex-col items-center justify-center p-1">
+                      {slot.type === 'live' && slot.host ? (
+                        <>
+                          <div className="absolute top-1 left-1 flex items-center gap-0.5">
+                            <Eye size={9} className="text-green-400" />
+                            <span className="text-green-400 text-[9px] font-bold">{viewerCount}</span>
+                          </div>
+                          <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-cyan-400/60 bg-[#1C1E24]">
+                            {slot.host.avatar ? <img src={slot.host.avatar} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[#C9A96E] text-base font-bold">{(slot.host.name || '?').charAt(0)}</div>}
+                          </div>
+                          <p className="text-white text-[9px] font-bold mt-0.5 truncate max-w-[95%] text-center">{slot.host.name}</p>
+                        </>
+                      ) : slot.type === 'invited' && slot.host ? (
+                        <>
+                          <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-[#C9A96E]/40 bg-[#1C1E24]">
+                            {slot.host.avatar ? <img src={slot.host.avatar} alt="" className="w-full h-full object-cover opacity-60" /> : <div className="w-full h-full flex items-center justify-center text-[#C9A96E]/60 text-base font-bold">{(slot.host.name || '?').charAt(0)}</div>}
+                          </div>
+                          <p className="text-white/60 text-[9px] font-bold mt-0.5 truncate max-w-[95%] text-center">{slot.host.name}</p>
+                          <span className="text-[#C9A96E]/70 text-[8px] font-semibold">Invited</span>
+                        </>
+                      ) : slot.type === 'pending' && slot.host ? (
+                        <>
+                          <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-[#C9A96E] bg-[#1C1E24]">
+                            {slot.host.avatar ? <img src={slot.host.avatar} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[#C9A96E] text-sm font-bold">{(slot.host.name || '?').charAt(0)}</div>}
+                          </div>
+                          <p className="text-white text-[8px] font-bold mt-0.5 truncate max-w-[95%] text-center">{slot.host.name}</p>
+                          <div className="flex gap-1 mt-0.5">
+                            <button type="button" title="Join" onClick={() => {
+                              const sk = (slot.host as any)?._streamKey || effectiveStreamId;
+                              if (isBroadcast) { acceptJoinRequest(); } else {
+                                setCoHosts(prev => prev.map(h => h.id === slot.host!.id ? { ...h, status: 'live' } : h));
+                                supabase.from('notifications').insert({ user_id: slot.host!.userId, type: 'cohost_accepted', title: 'Co-Host Accepted', body: `@${user?.username || 'User'} accepted!`, data: { actor_id: user?.id, accepted_name: user?.username, accepted_avatar: user?.avatar || '', stream_key: sk } }).then(() => {});
+                                navigate(`/watch/${sk}?cohost=1`);
+                              }
+                            }} className="px-2 py-0.5 rounded bg-green-600 text-white text-[8px] font-bold active:scale-95">Join</button>
+                            <button type="button" title="Reject" onClick={() => {
+                              if (isBroadcast) { declineJoinRequest(); } else { setCoHosts(prev => prev.filter(h => h.id !== slot.host!.id)); }
+                            }} className="px-2 py-0.5 rounded bg-red-600 text-white text-[8px] font-bold active:scale-95">Reject</button>
+                          </div>
+                        </>
+                      ) : (
+                        <button type="button" onClick={() => isBroadcast ? setIsInviteHostOpen(true) : setShowViewerList(true)} className="flex flex-col items-center justify-center w-full h-full active:scale-95">
+                          <div className="w-12 h-12 rounded-full border-2 border-dashed border-white/20 flex items-center justify-center">
+                            <span className="text-white/30 text-2xl font-light">+</span>
+                          </div>
+                          <p className="text-white/30 text-[9px] font-semibold mt-0.5">{isBroadcast ? 'Invite' : 'Request'}</p>
+                        </button>
+                      )}
                     </div>
                   ))}
-                  {activeViewers
-                    .filter(v => v.id !== user?.id && !coHosts.some(h => h.userId === v.id))
-                    .map(v => (
-                      <div key={v.id} className="flex items-center gap-2 py-1.5 px-1.5 rounded-lg bg-white/5 border border-white/10">
-                        <div className="w-9 h-9 rounded-full overflow-hidden flex-shrink-0 bg-[#1C1E24]">
-                          {v.avatar ? <img src={v.avatar} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[#C9A96E] text-xs font-bold">{(v.displayName || v.username || '?').charAt(0)}</div>}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-white text-[10px] font-bold truncate">{v.displayName || v.username || 'Viewer'}</p>
-                          <div className="flex items-center gap-1 text-white/50">
-                            <Eye size={10} className="flex-shrink-0" />
-                            <span className="text-[9px]">{viewerCount}</span>
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => inviteCoHost({ id: v.id, name: v.displayName || v.username || 'Viewer', avatar: v.avatar })}
-                          className="flex-shrink-0 px-2 py-1 rounded-md bg-[#C9A96E] text-black text-[9px] font-bold active:scale-95"
-                        >
-                          Request
-                        </button>
-                      </div>
-                    ))}
                 </div>
-              </div>
-            )}
+              );
+            })()}
           </div>
         )}
 
@@ -3037,13 +3054,27 @@ export default function LiveStream() {
         {isBattleMode && (location.pathname.startsWith('/live') || location.pathname.startsWith('/watch')) && (
           <div
             className={`absolute inset-0 z-[80] flex flex-col ${isBroadcast ? 'pointer-events-none' : ''}`}
-            style={{ paddingTop: isBroadcast ? '90px' : '90px', paddingBottom: isBroadcast ? '305px' : undefined }}
+            style={{ paddingTop: '110px', paddingBottom: isBroadcast ? '305px' : undefined }}
             onClick={(e) => {
               if (isBroadcast) return;
               e.stopPropagation();
               handleScreenTap(e);
             }}
           >
+            {/* Battle timer — overlay on top of screen/video */}
+            <div className="fixed top-0 left-0 right-0 z-[9999] pointer-events-none flex justify-center max-w-[480px] mx-auto py-1.5 px-2 bg-gradient-to-b from-black/50 to-transparent" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 4cm - 6mm)' }}>
+              <div className="flex items-center gap-0.5">
+                <div className="relative w-[18px] h-[18px] flex items-center justify-center">
+                  <svg viewBox="0 0 40 44" className="absolute inset-0 w-full h-full drop-shadow-md">
+                    <path d="M20 2 L36 10 L36 26 Q36 38 20 42 Q4 38 4 26 L4 10 Z" fill="url(#vsGrad2)" stroke="rgba(255,255,255,0.5)" strokeWidth="1.5"/>
+                    <defs><linearGradient id="vsGrad2" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor="#DC143C"/><stop offset="50%" stopColor="#8B0000"/><stop offset="100%" stopColor="#1E90FF"/></linearGradient></defs>
+                  </svg>
+                  <span className="relative z-10 text-white text-[6px] font-black italic drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">VS</span>
+                </div>
+                <span className="text-white text-[11px] font-black tabular-nums drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">{formatTime(battleTime)}</span>
+              </div>
+            </div>
+
             {battleCountdown != null && (
               <div className="absolute inset-0 z-[260] pointer-events-none flex items-center justify-center">
                 {/* LUXURY BATTLE COUNTDOWN */}
@@ -3093,46 +3124,18 @@ export default function LiveStream() {
                     {/* Fan Club Removed */}
                   </div>
 
-                  {/* Score Bar — Red vs Blue, center = VS + timer (plain, no boxes) */}
-                  <button
-                    type="button"
-                    onClick={(e) => { 
-                      e.stopPropagation(); 
-                      if (isBroadcast) {
-                        toggleBattle(); 
-                      } else {
-                        spawnHeartFromClient(e.clientX, e.clientY);
-                      }
-                    }}
-                    className="relative z-20 w-full h-6 overflow-hidden shadow-2xl pointer-events-auto flex-none cursor-pointer active:scale-[0.99] transition-transform"
-                  >
-                    <div className="absolute inset-0 flex">
+                  {/* Battle Score Bar */}
+                  <div className="relative z-20 w-full flex-none overflow-hidden" style={{ height: '18px' }}>
+                    <div
+                      className="absolute inset-0 flex cursor-pointer pointer-events-auto"
+                      onClick={(e) => { e.stopPropagation(); if (isBroadcast) { toggleBattle(); } else { spawnHeartFromClient(e.clientX, e.clientY); } }}
+                    >
                       <div className="h-full transition-all duration-500 ease-out" style={{ width: `${leftPct}%`, backgroundImage: 'linear-gradient(90deg, #DC143C, #FF1744, #C41E3A)' }} />
                       <div className="h-full flex-1 transition-all duration-500 ease-out" style={{ backgroundImage: 'linear-gradient(90deg, #1E90FF, #4169E1, #0047AB)' }} />
                     </div>
-                    <div className="relative z-10 h-full flex items-center justify-between px-2">
-                      <div className="text-white font-black text-[11px] tabular-nums drop-shadow-md">{(typeof redTeamScore === 'number' && Number.isFinite(redTeamScore) ? redTeamScore : 0).toLocaleString()}</div>
-                      <div className="text-white font-black text-[11px] tabular-nums drop-shadow-md">{(typeof blueTeamScore === 'number' && Number.isFinite(blueTeamScore) ? blueTeamScore : 0).toLocaleString()}</div>
-                    </div>
-                  </button>
-
-                  {/* VS shield + Timer — centered, overlapping video top (matching reference) */}
-                  <div className="absolute left-1/2 -translate-x-1/2 z-30 flex items-center gap-0 pointer-events-none" style={{ top: 'calc(1rem - 2px)' }}>
-                    <div className="relative w-10 h-10 flex items-center justify-center">
-                      <svg viewBox="0 0 40 44" className="absolute inset-0 w-full h-full drop-shadow-lg">
-                        <path d="M20 2 L36 10 L36 26 Q36 38 20 42 Q4 38 4 26 L4 10 Z" fill="url(#vsGrad)" stroke="rgba(255,255,255,0.3)" strokeWidth="1"/>
-                        <defs>
-                          <linearGradient id="vsGrad" x1="0" y1="0" x2="1" y2="1">
-                            <stop offset="0%" stopColor="#DC143C"/>
-                            <stop offset="50%" stopColor="#8B0000"/>
-                            <stop offset="100%" stopColor="#1E90FF"/>
-                          </linearGradient>
-                        </defs>
-                      </svg>
-                      <span className="relative z-10 text-white text-[11px] font-black italic drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]">VS</span>
-                    </div>
-                    <div className="px-2 py-1 rounded-md bg-[#13151A]/90 backdrop-blur-sm border border-white/20 shadow-lg -ml-1">
-                      <span className="text-white text-sm font-black tabular-nums drop-shadow-md">{formatTime(battleTime)}</span>
+                    <div className="absolute inset-0 z-10 flex items-center justify-between px-2 pointer-events-none">
+                      <span className="text-white font-black text-[14px] tabular-nums drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">{(typeof redTeamScore === 'number' && Number.isFinite(redTeamScore) ? redTeamScore : 0).toLocaleString()}</span>
+                      <span className="text-white font-black text-[14px] tabular-nums drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">{(typeof blueTeamScore === 'number' && Number.isFinite(blueTeamScore) ? blueTeamScore : 0).toLocaleString()}</span>
                     </div>
                   </div>
 
@@ -3155,12 +3158,6 @@ export default function LiveStream() {
                       className={`w-1/2 h-full overflow-hidden relative bg-[#13151A] pointer-events-auto border-r border-white/5 ${is4Player ? 'border-b' : ''}`}
                     >
                       <video ref={videoRef} className="w-full h-full object-cover transform scale-x-[-1]" autoPlay playsInline muted />
-                      {/* Host label — top-left corner */}
-                      <div className="absolute top-2 left-2 z-20 pointer-events-none">
-                        <div className="px-2 py-0.5 rounded bg-[#13151A]/80 backdrop-blur-sm border border-white/20">
-                          <span className="text-white text-[10px] font-bold tracking-wide">Host</span>
-                        </div>
-                      </div>
                       <div className="absolute bottom-2 right-2 z-10 pointer-events-auto flex items-center gap-1">
                         <div onClick={(e) => { e.stopPropagation(); togglePlayerMute('me'); }}>
                           {mutedPlayers['me'] ? <VolumeX className="w-5 h-5 text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]" strokeWidth={2.5} /> : <Volume2 className="w-5 h-5 text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]" strokeWidth={2.5} />}

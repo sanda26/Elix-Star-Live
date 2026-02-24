@@ -30,65 +30,64 @@ export default function BattleInviteModal({
   const [liveStreams, setLiveStreams] = useState<LiveStream[]>([]);
   const [selectedStream, setSelectedStream] = useState<LiveStream | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadingList, setLoadingList] = useState(false);
+
+  const loadLiveStreams = async (silent = false) => {
+    if (!silent) setLoadingList(true);
+    const timeout = new Promise<never>((_, rej) => setTimeout(() => rej(new Error('timeout')), 12000));
+    try {
+      await Promise.race([timeout, (async () => {
+        const { data: streams, error: streamError } = await supabase
+          .from('live_streams')
+          .select('id, user_id, title, thumbnail_url, viewer_count')
+          .eq('is_live', true)
+          .neq('user_id', hostUserId)
+          .order('viewer_count', { ascending: false })
+          .limit(20);
+
+        if (streamError) throw streamError;
+        if (!streams || streams.length === 0) { setLiveStreams([]); return; }
+
+        const userIds = [...new Set(streams.map(s => s.user_id))];
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('user_id, username, avatar_url')
+          .in('user_id', userIds);
+
+        const profileMap = new Map();
+        (profiles || []).forEach((p: any) => profileMap.set(p.user_id, p));
+
+        setLiveStreams(streams.map((s: any) => {
+          const creator = profileMap.get(s.user_id);
+          return {
+            id: s.id, user_id: s.user_id, title: s.title,
+            thumbnail_url: s.thumbnail_url, viewer_count: s.viewer_count,
+            creator: { username: creator?.username || 'Unknown', avatar_url: creator?.avatar_url || null }
+          };
+        }));
+      })()]);
+    } catch {
+      if (!silent) showToast('Could not load streams. Tap Refresh.');
+    } finally {
+      setLoadingList(false);
+    }
+  };
 
   useEffect(() => {
     if (isOpen) {
+      setSelectedStream(null);
       loadLiveStreams();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
-  const loadLiveStreams = async () => {
-    try {
-      // 1. Fetch live streams
-      const { data: streams, error: streamError } = await supabase
-        .from('live_streams')
-        .select('id, user_id, title, thumbnail_url, viewer_count')
-        .eq('is_live', true)
-        .neq('user_id', hostUserId)
-        .order('viewer_count', { ascending: false })
-        .limit(20);
-
-      if (streamError) throw streamError;
-
-      if (!streams || streams.length === 0) {
-        setLiveStreams([]);
-        return;
-      }
-
-      // 2. Fetch creators for these streams manually (safe way)
-      const userIds = [...new Set(streams.map(s => s.user_id))];
-      const { data: profiles, error: profileError } = await supabase
-        .from('profiles')
-        .select('user_id, username, avatar_url')
-        .in('user_id', userIds);
-
-
-
-      const profileMap = new Map();
-      (profiles || []).forEach((p: any) => profileMap.set(p.user_id, p));
-
-      // 3. Map data
-      const mapped = streams.map((s: any) => {
-        const creator = profileMap.get(s.user_id);
-        return {
-          id: s.id,
-          user_id: s.user_id,
-          title: s.title,
-          thumbnail_url: s.thumbnail_url,
-          viewer_count: s.viewer_count,
-          creator: {
-            username: creator?.username || 'Unknown',
-            avatar_url: creator?.avatar_url || null
-          }
-        };
-      });
-      
-      setLiveStreams(mapped);
-    } catch (error: any) {
-
-    }
-  };
+  // Always refresh list periodically while modal is open
+  useEffect(() => {
+    if (!isOpen) return;
+    const interval = setInterval(() => loadLiveStreams(true), 25 * 1000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   const sendInvite = async () => {
     if (!selectedStream) return;
@@ -101,7 +100,9 @@ export default function BattleInviteModal({
       });
 
       showToast('Battle invitation sent!');
+      setSelectedStream(null);
       onClose();
+      loadLiveStreams(true).catch(() => {});
     } catch (error) {
 
       showToast('Failed to send battle invitation');
@@ -138,12 +139,19 @@ export default function BattleInviteModal({
               <Users className="w-5 h-5 text-white/60" />
               <span className="text-sm font-semibold">Select Opponent</span>
             </div>
-            <button onClick={loadLiveStreams} className="text-xs text-white hover:underline">
-              Refresh
+            <button
+              onClick={() => loadLiveStreams()}
+              disabled={loadingList}
+              className="text-xs text-white hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loadingList ? 'Refreshing...' : 'Refresh'}
             </button>
           </div>
 
-          {liveStreams.length === 0 && (
+          {loadingList && liveStreams.length === 0 && (
+            <div className="text-center py-12 text-white/60">Loading live streams...</div>
+          )}
+          {!loadingList && liveStreams.length === 0 && (
             <div className="text-center py-12 text-white/40">No live streams available</div>
           )}
 

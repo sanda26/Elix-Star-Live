@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Search, Radio } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../store/useAuthStore';
@@ -18,12 +18,12 @@ interface SuggestedUser {
 export default function FriendsFeed() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const { videos, fetchVideos, loading } = useVideoStore();
+  const { friendVideos, fetchFriendVideos, friendsLoading: loading } = useVideoStore();
   const [suggestedUsers, setSuggestedUsers] = useState<SuggestedUser[]>([]);
   const [myFollowers, setMyFollowers] = useState<SuggestedUser[]>([]);
-  const [friendVideoIds, setFriendVideoIds] = useState<string[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
+  const friendVideoIds = friendVideos.map((v) => v.id);
 
   useEffect(() => {
     const fetchMyFollowers = async () => {
@@ -33,20 +33,31 @@ export default function FriendsFeed() {
           .from('followers')
           .select('follower_id')
           .eq('following_id', user.id)
-          .limit(50);
-        const ids = (followData || []).map((f: { follower_id: string }) => f.follower_id);
+          .order('created_at', { ascending: false })
+          .limit(200);
+        const ids = (followData || [])
+          .map((f: { follower_id: string }) => f.follower_id)
+          .filter((id: string) => id !== user?.id);
         if (ids.length === 0) { setMyFollowers([]); return; }
         const { data: profiles } = await supabase
           .from('profiles')
           .select('user_id, username, display_name, avatar_url')
           .in('user_id', ids);
         if (profiles) {
-          setMyFollowers(profiles.map((p: { user_id: string; username?: string; display_name?: string; avatar_url?: string }) => ({
-            id: p.user_id,
-            username: p.username || 'user',
-            name: p.display_name || p.username || 'User',
-            avatar_url: p.avatar_url,
-          })));
+          const blocklist = ['', 'user', 'demo', 'test', 'unknown', 'anonymous', 'guest'];
+          const list = (profiles as { user_id: string; username?: string; display_name?: string; avatar_url?: string }[])
+            .filter((p) => p.user_id !== user?.id)
+            .filter((p) => {
+              const name = (p.display_name || p.username || '').trim().toLowerCase();
+              return name !== '' && !blocklist.includes(name) && name.length >= 2;
+            })
+            .map((p) => ({
+              id: p.user_id,
+              username: p.username || 'user',
+              name: p.display_name || p.username || 'User',
+              avatar_url: p.avatar_url,
+            }));
+          setMyFollowers(list);
         }
       } catch { setMyFollowers([]); }
     };
@@ -78,50 +89,10 @@ export default function FriendsFeed() {
       } catch {}
     };
 
-    const loadFriendVideos = async () => {
-      if (!user?.id) return;
-      await fetchVideos();
-      try {
-        const { data: followData } = await supabase
-          .from('followers')
-          .select('following_id')
-          .eq('follower_id', user.id);
-        const followingIds = new Set((followData || []).map((f: any) => f.following_id));
-        if (followingIds.size > 0) {
-          const ids = videos.filter(v => followingIds.has(v.user.id)).map(v => v.id);
-          if (ids.length > 0) {
-            setFriendVideoIds(ids);
-            return;
-          }
-        }
-      } catch {}
-    };
-
     fetchMyFollowers();
     fetchUsers();
-    loadFriendVideos();
-  }, [user?.id]);
-
-  useEffect(() => {
-    if (friendVideoIds.length === 0 && videos.length > 0 && user?.id) {
-      loadFriendVideosDirect();
-    }
-  }, [videos.length]);
-
-  const loadFriendVideosDirect = async () => {
-    if (!user?.id) return;
-    try {
-      const { data: followData } = await supabase
-        .from('followers')
-        .select('following_id')
-        .eq('follower_id', user.id);
-      const followingIds = new Set((followData || []).map((f: any) => f.following_id));
-      if (followingIds.size > 0) {
-        const ids = videos.filter(v => followingIds.has(v.user.id)).map(v => v.id);
-        if (ids.length > 0) setFriendVideoIds(ids);
-      }
-    } catch {}
-  };
+    fetchFriendVideos();
+  }, [user?.id, fetchFriendVideos]);
 
   const handleScroll = () => {
     if (!containerRef.current) return;
@@ -132,6 +103,27 @@ export default function FriendsFeed() {
       setActiveIndex(index);
     }
   };
+
+  // Keep active index in sync with visible slide (so video play/pause works when scrolling)
+  useEffect(() => {
+    if (!containerRef.current || friendVideoIds.length === 0) return;
+    const container = containerRef.current;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+          const idx = Number((entry.target as HTMLElement).dataset.slideIndex);
+          if (!Number.isNaN(idx) && idx >= 0 && idx < friendVideoIds.length) {
+            setActiveIndex(idx);
+          }
+        });
+      },
+      { root: container, rootMargin: '0px', threshold: 0.51 }
+    );
+    const slides = container.querySelectorAll('[data-slide-index]');
+    slides.forEach((el) => observer.observe(el));
+    return () => observer.disconnect();
+  }, [friendVideoIds.length]);
 
   const handleVideoEnd = (index: number) => {
     if (!containerRef.current || index >= friendVideoIds.length - 1) return;
@@ -157,9 +149,9 @@ export default function FriendsFeed() {
           </div>
         </div>
 
-        {/* Circles */}
+        {/* Circles — Create first, then all followers (scroll left), then suggested */}
         <div className="px-3 py-2">
-          <div className="flex gap-3 overflow-x-auto no-scrollbar">
+          <div className="flex gap-3 overflow-x-auto overflow-y-hidden no-scrollbar" style={{ WebkitOverflowScrolling: 'touch' }}>
             <button
               type="button"
               onClick={() => navigate('/create')}
@@ -167,22 +159,19 @@ export default function FriendsFeed() {
             >
               <div className="relative" style={{ width: 85, height: 85 }}>
                 <img src="/Icons/Profile icon.png" alt="" className="w-full h-full object-contain" />
+                {(user?.avatar || (user?.id && typeof localStorage !== 'undefined' ? localStorage.getItem('elix_avatar_' + user.id) : null)) && (
+                  <img
+                    src={user?.avatar || (user?.id && typeof localStorage !== 'undefined' ? localStorage.getItem('elix_avatar_' + user.id) : null) || ''}
+                    alt="You"
+                    className="absolute rounded-full object-cover"
+                    style={{ width: 52, height: 52, top: '45%', left: '51%', transform: 'translate(-50%, -50%)', zIndex: -1 }}
+                  />
+                )}
               </div>
               <div className="text-[11px] text-white/80 truncate w-full text-center">Create</div>
             </button>
 
-            <button
-              type="button"
-              onClick={() => navigate('/profile')}
-              className="flex-shrink-0 flex flex-col items-center gap-1" style={{ width: 95, minWidth: 95 }}
-            >
-              <div className="relative" style={{ width: 85, height: 85 }}>
-                <img src="/Icons/Profile icon.png" alt="" className="w-full h-full object-contain" />
-              </div>
-              <div className="text-[11px] text-white/80 truncate w-full text-center">Followers</div>
-            </button>
-
-            {myFollowers.slice(0, 20).map((u) => (
+            {myFollowers.filter((u) => u.id !== user?.id && (u.name || u.username || '').trim().toLowerCase() !== 'user').map((u) => (
               <button
                 key={u.id}
                 type="button"
@@ -195,67 +184,101 @@ export default function FriendsFeed() {
                     alt=""
                     className="w-full h-full object-contain"
                   />
-                  {u.avatar_url && (
+                  {u.avatar_url ? (
                     <img
                       src={u.avatar_url}
-                      alt={u.username}
+                      alt={u.name || u.username}
                       className="absolute rounded-full object-cover"
                       style={{ width: 52, height: 52, top: '45%', left: '51%', transform: 'translate(-50%, -50%)', zIndex: -1 }}
                     />
+                  ) : (
+                    <span className="absolute text-[#C9A96E] font-bold text-xl z-10" style={{ top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}>
+                      {(u.name || u.username || 'U').charAt(0).toUpperCase()}
+                    </span>
                   )}
                 </div>
-                <div className="text-[11px] text-white/80 truncate w-full text-center">{u.username}</div>
+                <div className="text-[11px] text-white/80 truncate w-full text-center">{u.name || u.username}</div>
               </button>
             ))}
 
-            {suggestedUsers.slice(0, 20).map((u) => (
+            {suggestedUsers.filter((u) => u.id !== user?.id && (u.name || u.username || '').trim().toLowerCase() !== 'user').map((u) => (
               <button
                 key={u.id}
                 type="button"
                 onClick={() => u.is_live ? navigate(`/watch/${u.id}`) : navigate(`/profile/${u.id}`)}
                 className="flex-shrink-0 flex flex-col items-center gap-1" style={{ width: 95, minWidth: 95 }}
               >
-                <div className="relative" style={{ width: 85, height: 85 }}>
-                  <img
-                    src="/Icons/Profile icon.png"
-                    alt=""
-                    className="w-full h-full object-contain"
-                    style={u.is_live ? { filter: 'hue-rotate(-30deg) saturate(2) brightness(1.1)' } : undefined}
-                  />
-                  {u.avatar_url && (
-                    <img
-                      src={u.avatar_url}
-                      alt={u.username}
-                      className="absolute rounded-full object-cover"
-                      style={{ width: 52, height: 52, top: '45%', left: '51%', transform: 'translate(-50%, -50%)', zIndex: -1 }}
-                    />
-                  )}
-                  {u.is_live && (
-                    <div className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-red-500 rounded-full flex items-center gap-1 z-10">
-                      <Radio size={8} className="text-white" />
-                      <span className="text-[8px] font-bold text-white uppercase">Live</span>
-                    </div>
+                <div className="relative flex items-center justify-center" style={{ width: 90, height: 90 }}>
+                  {u.is_live ? (
+                    <>
+                      <div className="absolute inset-0 rounded-full border-4 border-red-500" style={{ width: 90, height: 90 }} />
+                      <div className="relative rounded-full overflow-hidden flex items-center justify-center" style={{ width: 78, height: 78 }}>
+                        <img
+                          src="/Icons/Profile icon.png"
+                          alt=""
+                          className="w-full h-full object-contain"
+                        />
+                        {u.avatar_url ? (
+                          <img
+                            src={u.avatar_url}
+                            alt={u.name || u.username}
+                            className="absolute rounded-full object-cover"
+                            style={{ width: 48, height: 48, top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: -1 }}
+                          />
+                        ) : (
+                          <span className="absolute text-[#C9A96E] font-bold text-lg z-10" style={{ top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}>
+                            {(u.name || u.username || 'U').charAt(0).toUpperCase()}
+                          </span>
+                        )}
+                      </div>
+                      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 bg-red-500 text-white text-[9px] font-bold px-2 py-0.5 rounded z-20 whitespace-nowrap">
+                        LIVE
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="relative" style={{ width: 85, height: 85 }}>
+                        <img
+                          src="/Icons/Profile icon.png"
+                          alt=""
+                          className="w-full h-full object-contain"
+                        />
+                        {u.avatar_url ? (
+                          <img
+                            src={u.avatar_url}
+                            alt={u.name || u.username}
+                            className="absolute rounded-full object-cover"
+                            style={{ width: 52, height: 52, top: '45%', left: '51%', transform: 'translate(-50%, -50%)', zIndex: -1 }}
+                          />
+                        ) : (
+                          <span className="absolute text-[#C9A96E] font-bold text-xl z-10" style={{ top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}>
+                            {(u.name || u.username || 'U').charAt(0).toUpperCase()}
+                          </span>
+                        )}
+                      </div>
+                    </>
                   )}
                 </div>
-                <div className="text-[11px] text-white/80 truncate w-full text-center">{u.username}</div>
+                <div className="text-[11px] text-white/80 truncate w-full text-center">{u.name || u.username}</div>
               </button>
             ))}
           </div>
         </div>
         </div>
 
-        {/* Video feed below circles */}
+        {/* Video feed — full-height scroll so each video fills screen and plays when in view */}
         <div
           ref={containerRef}
-          className="flex-1 overflow-y-scroll snap-y snap-mandatory"
-          style={{ scrollSnapType: 'y mandatory' }}
+          className="flex-1 min-h-0 overflow-y-scroll snap-y snap-mandatory overscroll-none"
+          style={{ scrollSnapType: 'y mandatory', WebkitOverflowScrolling: 'touch' }}
           onScroll={handleScroll}
         >
           {friendVideoIds.map((videoId, index) => (
             <div
               key={`friend-${videoId}-${index}`}
-              className="w-full snap-start relative flex justify-center bg-[#13151A] px-2 pb-2"
-              style={{ height: '100%', scrollSnapAlign: 'start', scrollSnapStop: 'always' }}
+              data-slide-index={index}
+              className="w-full min-h-full snap-start snap-always relative flex justify-center bg-[#13151A] px-2 pb-2"
+              style={{ height: '100%', minHeight: '100%', scrollSnapAlign: 'start', scrollSnapStop: 'always' }}
             >
               <div className="w-full h-full relative rounded-b-2xl overflow-hidden border-2 border-t-0 border-[#C9A96E]" style={{ boxShadow: '0 0 8px rgba(212,175,55,0.3)' }}>
                 <EnhancedVideoPlayer

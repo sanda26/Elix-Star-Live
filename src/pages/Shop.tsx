@@ -8,14 +8,16 @@ import { showToast } from '../lib/toast';
 
 interface ShopItem {
   id: string;
-  seller_id: string;
+  user_id: string;
+  seller_id?: string; // alias for user_id when reading from join
   title: string;
   description: string;
   price: number;
-  currency: string;
+  currency?: string;
   image_url: string | null;
   category: string;
-  status: 'active' | 'sold' | 'removed';
+  status?: string;
+  is_active?: boolean;
   created_at: string;
   seller?: { username: string; avatar_url: string | null; display_name: string | null };
 }
@@ -43,16 +45,30 @@ export default function Shop() {
     try {
       let query = supabase
         .from('shop_items')
-        .select('*, seller:profiles!seller_id(username, avatar_url, display_name)')
-        .eq('status', 'active')
+        .select('*')
+        .eq('is_active', true)
         .order('created_at', { ascending: false });
 
       if (activeFilter !== 'all') {
         query = query.eq('category', activeFilter);
       }
 
-      const { data } = await query.limit(50);
-      setItems((data as ShopItem[]) || []);
+      const { data: rows, error } = await query.limit(50);
+      if (error) throw error;
+      const list = (rows as ShopItem[]) || [];
+      if (list.length > 0) {
+        const userIds = [...new Set(list.map((i: ShopItem) => i.user_id).filter(Boolean))];
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('user_id, username, display_name, avatar_url')
+          .in('user_id', userIds);
+        const byId: Record<string, { username: string; display_name: string | null; avatar_url: string | null }> = {};
+        (profiles || []).forEach((p: { user_id: string; username?: string; display_name?: string | null; avatar_url?: string | null }) => {
+          byId[p.user_id] = { username: p.username || 'user', display_name: p.display_name || null, avatar_url: p.avatar_url || null };
+        });
+        list.forEach((item: ShopItem) => { item.seller = byId[item.user_id]; });
+      }
+      setItems(list);
     } catch {
       setItems([]);
     }
@@ -84,16 +100,17 @@ export default function Shop() {
         }
       }
 
-      await supabase.from('shop_items').insert({
-        seller_id: user.id,
+      const { error: insertError } = await supabase.from('shop_items').insert({
+        user_id: user.id,
         title: newTitle.trim(),
         description: newDescription.trim(),
-        price: parseFloat(newPrice),
-        currency: 'USD',
+        price: Math.round(parseFloat(newPrice)),
         image_url: imageUrl,
         category: newCategory,
-        status: 'active',
+        is_active: true,
       });
+
+      if (insertError) throw insertError;
 
       showToast('Item listed!');
       setShowCreate(false);
@@ -104,8 +121,9 @@ export default function Shop() {
       setNewImage(null);
       setNewImagePreview(null);
       fetchItems();
-    } catch {
-      showToast('Failed to create listing');
+    } catch (err: unknown) {
+      const msg = err && typeof err === 'object' && 'message' in err ? String((err as { message: string }).message) : 'Failed to create listing';
+      showToast(msg);
     }
     setCreating(false);
   };
@@ -197,14 +215,14 @@ export default function Shop() {
                     <p className="text-[11px] text-white/40 mt-1 line-clamp-2">{item.description}</p>
                   )}
                   <div className="flex items-center gap-2 mt-2">
-                    <button onClick={() => navigate(`/profile/${item.seller_id}`)} className="flex items-center gap-1.5 min-w-0 flex-1">
+                    <button onClick={() => navigate(`/profile/${item.user_id}`)} className="flex items-center gap-1.5 min-w-0 flex-1">
                       <AvatarRing src={(item.seller as any)?.avatar_url} alt="Seller" size={20} />
                       <span className="text-[11px] text-white/60 truncate">
                         {(item.seller as any)?.display_name || (item.seller as any)?.username || 'User'}
                       </span>
                     </button>
-                    {item.seller_id !== user?.id && (
-                      <button onClick={() => contactSeller(item.seller_id)} className="p-1.5 rounded-full bg-[#C9A96E]/20" title="Message seller">
+                    {item.user_id !== user?.id && (
+                      <button onClick={() => contactSeller(item.user_id)} className="p-1.5 rounded-full bg-[#C9A96E]/20" title="Message seller">
                         <MessageCircle size={14} className="text-[#C9A96E]" />
                       </button>
                     )}

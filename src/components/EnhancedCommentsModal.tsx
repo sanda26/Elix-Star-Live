@@ -38,6 +38,7 @@ export default function CommentsModal({ isOpen, onClose, videoId }: CommentsModa
   const commentsEndRef = useRef<HTMLDivElement>(null);
   
   const { user } = useAuthStore();
+  const { getVideoById, updateVideo } = useVideoStore();
 
   // Fetch comments when modal opens
   useEffect(() => {
@@ -51,29 +52,33 @@ export default function CommentsModal({ isOpen, onClose, videoId }: CommentsModa
       setLoading(true);
       const { data, error } = await supabase
         .from('comments')
-        .select(`
-          *,
-          profiles!comments_user_id_fkey (
-            username,
-            avatar_url,
-            level
-          )
-        `)
+        .select('*')
         .eq('video_id', videoId)
         .is('parent_id', null)
         .order('created_at', { ascending: sortBy === 'oldest' });
 
       if (error) throw error;
 
-      // Transform data and fetch replies for each comment
+      const rows = data || [];
+      const userIds = [...new Set(rows.map((c: any) => c.user_id).filter(Boolean))];
+      let profilesMap: Record<string, { username?: string; avatar_url?: string; level?: number }> = {};
+      if (userIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('user_id, username, avatar_url, level')
+          .in('user_id', userIds);
+        (profiles || []).forEach((p: any) => { profilesMap[p.user_id] = p; });
+      }
+
       const commentsWithReplies = await Promise.all(
-        (data || []).map(async (comment: any) => {
+        rows.map(async (comment: any) => {
           const replies = await fetchReplies(comment.id);
+          const profile = profilesMap[comment.user_id] || {};
           return {
             ...comment,
-            username: comment.profiles?.username || 'Unknown',
-            avatar_url: comment.profiles?.avatar_url || '',
-            level: comment.profiles?.level || 1,
+            username: profile.username || 'Unknown',
+            avatar_url: profile.avatar_url || '',
+            level: profile.level ?? 1,
             replies,
             reply_count: replies.length
           };
@@ -82,7 +87,7 @@ export default function CommentsModal({ isOpen, onClose, videoId }: CommentsModa
 
       setComments(commentsWithReplies);
     } catch (error) {
-
+      console.error('Failed to fetch comments:', error);
     } finally {
       setLoading(false);
     }
@@ -92,27 +97,33 @@ export default function CommentsModal({ isOpen, onClose, videoId }: CommentsModa
     try {
       const { data, error } = await supabase
         .from('comments')
-        .select(`
-          *,
-          profiles!comments_user_id_fkey (
-            username,
-            avatar_url,
-            level
-          )
-        `)
+        .select('*')
         .eq('parent_id', parentId)
         .order('created_at', { ascending: true });
 
       if (error) throw error;
 
-      return (data || []).map((reply: any) => ({
-        ...reply,
-        username: reply.profiles?.username || 'Unknown',
-        avatar_url: reply.profiles?.avatar_url || '',
-        level: reply.profiles?.level || 1
-      }));
+      const rows = data || [];
+      if (rows.length === 0) return [];
+      const userIds = [...new Set(rows.map((r: any) => r.user_id).filter(Boolean))];
+      let profilesMap: Record<string, { username?: string; avatar_url?: string; level?: number }> = {};
+      if (userIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('user_id, username, avatar_url, level')
+          .in('user_id', userIds);
+        (profiles || []).forEach((p: any) => { profilesMap[p.user_id] = p; });
+      }
+      return rows.map((reply: any) => {
+        const profile = profilesMap[reply.user_id] || {};
+        return {
+          ...reply,
+          username: profile.username || 'Unknown',
+          avatar_url: profile.avatar_url || '',
+          level: profile.level ?? 1
+        };
+      });
     } catch (error) {
-
       return [];
     }
   };
@@ -132,23 +143,16 @@ export default function CommentsModal({ isOpen, onClose, videoId }: CommentsModa
       const { data, error } = await supabase
         .from('comments')
         .insert(commentData)
-        .select(`
-          *,
-          profiles!comments_user_id_fkey (
-            username,
-            avatar_url,
-            level
-          )
-        `)
+        .select('*')
         .single();
 
       if (error) throw error;
 
       const newCommentFormatted = {
         ...data,
-        username: data.profiles?.username || user.username,
-        avatar_url: data.profiles?.avatar_url || '',
-        level: data.profiles?.level || user.level || 1,
+        username: user.username || 'User',
+        avatar_url: user.avatar || '',
+        level: user.level ?? 1,
         replies: [],
         reply_count: 0
       };
@@ -168,12 +172,19 @@ export default function CommentsModal({ isOpen, onClose, videoId }: CommentsModa
       } else {
         // Add top-level comment
         setComments(prev => [newCommentFormatted, ...prev]);
+        // Update video comment count in store so the player UI stays in sync
+        const video = getVideoById(videoId);
+        if (video) {
+          updateVideo(videoId, {
+            stats: { ...video.stats, comments: video.stats.comments + 1 }
+          });
+        }
       }
 
       setNewComment('');
       setReplyingTo(null);
     } catch (error) {
-
+      console.error('Failed to add comment:', error);
     }
   };
 

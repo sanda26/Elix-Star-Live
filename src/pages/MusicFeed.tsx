@@ -46,14 +46,15 @@ export default function MusicFeed() {
            <img src="/Icons/Gold power buton.png" alt="Back" className="w-5 h-5" />
          </button>
          <div className="flex gap-4">
-         <div className="w-24 h-24 bg-[#1C1E24] rounded-md flex items-center justify-center shrink-0">
-            <Music size={40} className="text-white/50" />
+         <div className="w-12 h-12 rounded-full overflow-hidden flex items-center justify-center shrink-0 relative">
+            <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-cover pointer-events-none" />
+            <Music size={20} className="text-white/90 relative z-[1]" />
          </div>
          <div className="flex-1">
             <h1 className="text-xl font-bold mb-1">Original Sound{songId ? ` #${songId}` : ''}</h1>
             <p className="text-white/60 text-sm mb-4">Trending</p>
             <button className="bg-[#C9A96E] text-black px-6 py-1.5 rounded-sm font-semibold flex items-center gap-2 text-sm w-fit">
-               <Play size={14} fill="black" /> Use this sound
+               <Play size={8} fill="black" /> Use this sound
             </button>
          </div>
          </div>
@@ -73,12 +74,14 @@ export default function MusicFeed() {
         ) : (
           videos.map((video) => (
             <div key={video.id} className="aspect-[3/4] bg-[#13151A] relative cursor-pointer" onClick={() => navigate('/')}>
-               <video 
-                 src={video.video_url} 
-                 className="w-full h-full object-cover" 
-                 muted 
-                 loop 
-                 onMouseOver={e => e.currentTarget.play()} 
+               <video
+                 src={video.video_url}
+                 className="w-full h-full object-cover"
+                 muted
+                 loop
+                 playsInline
+                 preload="auto"
+                 onMouseOver={e => e.currentTarget.play()}
                  onMouseOut={e => { e.currentTarget.pause(); e.currentTarget.currentTime = 0; }}
                />
             </div>

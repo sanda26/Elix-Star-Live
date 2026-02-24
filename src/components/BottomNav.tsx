@@ -23,14 +23,13 @@ export const BottomNav = () => {
          style={{ bottom: '0', paddingBottom: 'var(--safe-bottom)' }}>
       <div className="flex justify-center px-1 bg-transparent">
         <div className="relative w-full max-w-[480px] mx-auto">
-          <div className="absolute inset-x-4 top-1/2 -translate-y-1/2 h-[200%] rounded-full pointer-events-none" style={{background:'radial-gradient(ellipse at center, rgba(201,169,110,0.15) 0%, rgba(201,169,110,0.05) 40%, transparent 70%)'}} />
           <img 
             src="/navbar-bg.png" 
             alt="" 
             className="relative w-full h-auto pointer-events-none block"
             draggable={false}
             style={{
-              filter: 'drop-shadow(0 0 20px rgba(201,169,110,0.4)) drop-shadow(0 -4px 30px rgba(201,169,110,0.2)) drop-shadow(0 0 8px rgba(0,0,0,0.6))',
+              filter: 'drop-shadow(0 0 8px rgba(0,0,0,0.6))',
             }}
           />
           

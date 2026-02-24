@@ -14,6 +14,17 @@ export const IAP_PRODUCTS = {
   'com.elixstarlive.coins_5000': { coins: 5000, label: '5,000 Coins' },
 } as const;
 
+// Promote boost product IDs (Apple IAP) — match goals: views £5, likes £10, profile £20, followers £30
+export const PROMOTE_PRODUCTS = {
+  'com.elixstarlive.promote_views':     { goal: 'views',     label: 'More video views',      amountGbp: 5  },
+  'com.elixstarlive.promote_likes':     { goal: 'likes',     label: 'More likes & comments', amountGbp: 10 },
+  'com.elixstarlive.promote_profile':   { goal: 'profile',   label: 'More profile views',    amountGbp: 20 },
+  'com.elixstarlive.promote_followers': { goal: 'followers', label: 'More followers',        amountGbp: 30 },
+} as const;
+
+export const PROMOTE_PRODUCT_IDS = Object.keys(PROMOTE_PRODUCTS) as PromoteProductId[];
+export type PromoteProductId = keyof typeof PROMOTE_PRODUCTS;
+
 export const IAP_PRODUCT_IDS = Object.keys(IAP_PRODUCTS) as IAPProductId[];
 export type IAPProductId = keyof typeof IAP_PRODUCTS;
 
@@ -142,6 +153,43 @@ export async function purchaseProduct(productId: IAPProductId): Promise<IAPPurch
       receipt,
       coins: IAP_PRODUCTS[productId]?.coins ?? 0,
     };
+  } catch (err: any) {
+    const msg = err?.message || String(err);
+    if (msg.includes('cancel') || msg.includes('Cancel') || msg.includes('USER_CANCELED')) {
+      return { success: false, error: 'Purchase cancelled' };
+    }
+    return { success: false, error: msg || 'Purchase failed' };
+  }
+}
+
+/**
+ * Purchase a promote boost via Apple/Google IAP. Does NOT credit coins.
+ * Client must then call POST /api/promote-iap-complete with transactionId, receipt, goal, contentType, contentId.
+ */
+export async function purchasePromoteProduct(productId: PromoteProductId): Promise<{ success: boolean; transactionId?: string; receipt?: string; error?: string }> {
+  if (!platform.isNative) {
+    return { success: false, error: 'Promote via IAP is only available in the app' };
+  }
+
+  const mod = await getPlugin();
+  if (!mod) return { success: false, error: 'Purchase service not available' };
+
+  const available = await isBillingAvailable();
+  if (!available) return { success: false, error: 'Purchases are not supported on this device' };
+
+  try {
+    const result = await mod.NativePurchases.purchaseProduct({
+      productIdentifier: productId,
+      productType: mod.PURCHASE_TYPE.INAPP,
+      quantity: 1,
+    });
+
+    const transactionId = result.transactionId;
+    const receipt = result.receipt || result.purchaseToken || '';
+
+    if (!transactionId) return { success: false, error: 'Purchase could not be verified' };
+
+    return { success: true, transactionId, receipt };
   } catch (err: any) {
     const msg = err?.message || String(err);
     if (msg.includes('cancel') || msg.includes('Cancel') || msg.includes('USER_CANCELED')) {

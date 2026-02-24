@@ -13,6 +13,28 @@
   scrollbar-width: none;
 }
 
+/* New followers panel: show scrollbar */
+.new-followers-panel-scroll {
+  -ms-overflow-style: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(201, 169, 110, 0.6) rgba(255, 255, 255, 0.08);
+}
+.new-followers-panel-scroll::-webkit-scrollbar {
+  display: block;
+  width: 6px;
+}
+.new-followers-panel-scroll::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 3px;
+}
+.new-followers-panel-scroll::-webkit-scrollbar-thumb {
+  background: rgba(201, 169, 110, 0.6);
+  border-radius: 3px;
+}
+.new-followers-panel-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(201, 169, 110, 0.8);
+}
+
 @layer base {
   :root {
     --color-primary: #6B46C1;

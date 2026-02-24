@@ -1044,53 +1044,28 @@ export default function LiveStream() {
         showToast('Camera access denied');
       }
 
-      // Announce arrival to host via broadcast
+      // Announce arrival to host — the shared battle_room channel effect handles
+      // WebRTC signaling (offer/answer/ICE). We just need to send joiner_arrived
+      // once the channel is ready.
       const myName = user?.username || user?.name || 'Player';
       const myAv = user?.avatar || '';
-      const battleChan = supabase.channel(`battle_room_${effectiveStreamId}`);
-      battleChan.send({
-        type: 'broadcast',
-        event: 'joiner_arrived',
-        payload: { userId: user?.id, name: myName, avatar: myAv },
-      }).then(() => {});
 
-      // Create WebRTC offer after a short delay (let host set up peer)
-      setTimeout(async () => {
+      const sendArrival = () => {
+        const battleChan = supabase.channel(`battle_room_${effectiveStreamId}`);
+        battleChan.send({
+          type: 'broadcast',
+          event: 'joiner_arrived',
+          payload: { userId: user?.id, name: myName, avatar: myAv },
+        }).catch(() => {});
+      };
+
+      // Retry arrival announcement a few times to ensure host receives it
+      const delays = [1500, 4000, 8000];
+      for (const delay of delays) {
+        await new Promise(r => setTimeout(r, delay));
         if (cancelled) return;
-        const rtcConfig: RTCConfiguration = { iceServers: [
-          { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun1.l.google.com:19302' },
-          { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
-          { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
-          { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
-        ], iceCandidatePoolSize: 10 };
-        if (battlePeerRef.current) { battlePeerRef.current.close(); }
-        const pc = new RTCPeerConnection(rtcConfig);
-        battlePeerRef.current = pc;
-
-        pc.onicecandidate = (e) => {
-          if (e.candidate) {
-            battleChan.send({ type: 'broadcast', event: 'rtc_ice', payload: { candidate: e.candidate.toJSON(), from: 'joiner' } }).then(() => {});
-          }
-        };
-        pc.ontrack = (e) => {
-          if (opponentVideoRef.current && e.streams[0]) {
-            opponentVideoRef.current.srcObject = e.streams[0];
-            opponentVideoRef.current.play().catch(() => {});
-          }
-        };
-
-        const camStream = cameraStreamRef.current;
-        if (camStream) {
-          camStream.getTracks().forEach(t => pc.addTrack(t, camStream));
-        }
-
-        try {
-          const offer = await pc.createOffer();
-          await pc.setLocalDescription(offer);
-          battleChan.send({ type: 'broadcast', event: 'rtc_offer', payload: { sdp: offer } }).then(() => {});
-        } catch {}
-      }, 1500);
+        sendArrival();
+      }
     })();
     return () => {
       cancelled = true;
@@ -1195,7 +1170,26 @@ export default function LiveStream() {
       }
     });
 
-    chan.subscribe();
+    chan.subscribe((status: string) => {
+      if (status !== 'SUBSCRIBED') return;
+      // Joiner: once channel is subscribed, wait for camera then create offer
+      if (isBattleJoiner && !isBroadcast) {
+        setTimeout(async () => {
+          // Wait for camera stream to be ready (up to 5s)
+          let waitMs = 0;
+          while (!cameraStreamRef.current && waitMs < 5000) {
+            await new Promise(r => setTimeout(r, 500));
+            waitMs += 500;
+          }
+          const pc = setupPeer(true);
+          try {
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            chan.send({ type: 'broadcast', event: 'rtc_offer', payload: { sdp: offer } }).then(() => {});
+          } catch {}
+        }, 2500);
+      }
+    });
     return () => {
       supabase.removeChannel(chan);
       if (battlePeerRef.current) { battlePeerRef.current.close(); battlePeerRef.current = null; }
@@ -1467,7 +1461,6 @@ export default function LiveStream() {
         await supabase.from('chat_threads').update({ last_message: msgText, last_at: new Date().toISOString() }).eq('id', threadId);
       }
       setShareSentTo(prev => new Set(prev).add(targetUserId));
-      showToast('Shared!');
     } catch {}
   };
 
@@ -2916,14 +2909,23 @@ export default function LiveStream() {
           >
             {/* Main broadcaster camera / Viewer with WebRTC stream */}
             {isBroadcast || isBattleParticipant ? (
-              <video
-                ref={videoRef}
-                className="w-full h-full object-cover"
-                autoPlay
-                playsInline
-                muted
-                style={isBroadcast ? { transform: 'scaleX(-1)' } : undefined}
-              />
+              <>
+                <video
+                  ref={videoRef}
+                  className="w-full h-full object-cover"
+                  autoPlay
+                  playsInline
+                  muted
+                  style={isBroadcast ? { transform: 'scaleX(-1)' } : undefined}
+                />
+                {isBroadcast && (
+                  <div className="absolute top-3 left-3 z-20 pointer-events-none">
+                    <div className="px-2.5 py-1 rounded-md bg-[#13151A]/70 backdrop-blur-sm border border-white/15">
+                      <span className="text-white text-[11px] font-bold tracking-wide">Host</span>
+                    </div>
+                  </div>
+                )}
+              </>
             ) : (
               <>
                 <video
@@ -3181,15 +3183,31 @@ export default function LiveStream() {
                       <div className="h-full transition-all duration-500 ease-out" style={{ width: `${leftPct}%`, backgroundImage: 'linear-gradient(90deg, #DC143C, #FF1744, #C41E3A)' }} />
                       <div className="h-full flex-1 transition-all duration-500 ease-out" style={{ backgroundImage: 'linear-gradient(90deg, #1E90FF, #4169E1, #0047AB)' }} />
                     </div>
-                    <div className="relative z-10 h-full flex items-center justify-between px-3">
-                      <div className="text-white font-black text-[8px] tabular-nums drop-shadow-md">{(typeof redTeamScore === 'number' && Number.isFinite(redTeamScore) ? redTeamScore : 0).toLocaleString()}</div>
-                      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-1.5">
-                        <span className="text-white text-[10px] font-black italic drop-shadow-md">VS</span>
-                        <span className="text-white text-[10px] font-black tabular-nums">{formatTime(battleTime)}</span>
-                      </div>
-                      <div className="text-white font-black text-[8px] tabular-nums drop-shadow-md">{(typeof blueTeamScore === 'number' && Number.isFinite(blueTeamScore) ? blueTeamScore : 0).toLocaleString()}</div>
+                    <div className="relative z-10 h-full flex items-center justify-between px-2">
+                      <div className="text-white font-black text-[11px] tabular-nums drop-shadow-md">{(typeof redTeamScore === 'number' && Number.isFinite(redTeamScore) ? redTeamScore : 0).toLocaleString()}</div>
+                      <div className="text-white font-black text-[11px] tabular-nums drop-shadow-md">{(typeof blueTeamScore === 'number' && Number.isFinite(blueTeamScore) ? blueTeamScore : 0).toLocaleString()}</div>
                     </div>
                   </button>
+
+                  {/* VS shield + Timer — centered, overlapping video top (matching reference) */}
+                  <div className="absolute left-1/2 -translate-x-1/2 z-30 flex items-center gap-0 pointer-events-none" style={{ top: 'calc(1rem - 2px)' }}>
+                    <div className="relative w-10 h-10 flex items-center justify-center">
+                      <svg viewBox="0 0 40 44" className="absolute inset-0 w-full h-full drop-shadow-lg">
+                        <path d="M20 2 L36 10 L36 26 Q36 38 20 42 Q4 38 4 26 L4 10 Z" fill="url(#vsGrad)" stroke="rgba(255,255,255,0.3)" strokeWidth="1"/>
+                        <defs>
+                          <linearGradient id="vsGrad" x1="0" y1="0" x2="1" y2="1">
+                            <stop offset="0%" stopColor="#DC143C"/>
+                            <stop offset="50%" stopColor="#8B0000"/>
+                            <stop offset="100%" stopColor="#1E90FF"/>
+                          </linearGradient>
+                        </defs>
+                      </svg>
+                      <span className="relative z-10 text-white text-[11px] font-black italic drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]">VS</span>
+                    </div>
+                    <div className="px-2 py-1 rounded-md bg-[#13151A]/90 backdrop-blur-sm border border-white/20 shadow-lg -ml-1">
+                      <span className="text-white text-sm font-black tabular-nums drop-shadow-md">{formatTime(battleTime)}</span>
+                    </div>
+                  </div>
 
                   {/* Spectator Tap Indicator: 1 tap = 5 pts, then done */}
                   {!isBroadcast && battleTime > 0 && !battleWinner && (
@@ -3210,6 +3228,12 @@ export default function LiveStream() {
                       className={`w-1/2 h-full overflow-hidden relative bg-[#13151A] pointer-events-auto border-r border-white/5 ${is4Player ? 'border-b' : ''}`}
                     >
                       <video ref={videoRef} className="w-full h-full object-cover transform scale-x-[-1]" autoPlay playsInline muted />
+                      {/* Host label — top-left corner */}
+                      <div className="absolute top-2 left-2 z-20 pointer-events-none">
+                        <div className="px-2 py-0.5 rounded bg-[#13151A]/80 backdrop-blur-sm border border-white/20">
+                          <span className="text-white text-[10px] font-bold tracking-wide">Host</span>
+                        </div>
+                      </div>
                       <div className="absolute bottom-2 right-2 z-10 pointer-events-auto flex items-center gap-1">
                         <div onClick={(e) => { e.stopPropagation(); togglePlayerMute('me'); }}>
                           {mutedPlayers['me'] ? <VolumeX className="w-5 h-5 text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]" strokeWidth={2.5} /> : <Volume2 className="w-5 h-5 text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]" strokeWidth={2.5} />}
@@ -4017,7 +4041,7 @@ export default function LiveStream() {
                                       data: { actor_id: user?.id, accepted_name: myUsername, accepted_avatar: user?.avatar || '', stream_key: sk },
                                     }).then(() => {});
                                     showToast(`Joining co-host...`);
-                                    if (sk) window.location.href = `/watch/${sk}?cohost=1`;
+                                    if (sk) navigate(`/live/${sk}?cohost=1`);
                                   }
                                 }}
                               >
@@ -4685,52 +4709,59 @@ export default function LiveStream() {
 
               {!IS_STORE_BUILD && (
               <button type="button" onClick={() => { setShowTestCoinsModal(true); setTestCoinsStep(sessionStorage.getItem('elix_test_coins_unlocked') ? 'amount' : 'password'); setTestCoinsPwd(''); setTestCoinsError(''); setTestCoinsAmount(''); setIsMoreMenuOpen(false); }} className="flex flex-col items-center gap-1.5 active:scale-95 transition-transform">
-                <div className="w-11 h-11 rounded-full bg-[#13151A] flex items-center justify-center border border-[#C9A96E]/30 shadow-[0_0_8px_rgba(201,169,110,0.1)]">
-                  <Coins className="w-[18px] h-[18px] text-[#C9A96E]" strokeWidth={1.8} />
+                <div className="w-11 h-11 rounded-full relative flex items-center justify-center">
+                  <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[1]" />
+                  <Coins className="w-[18px] h-[18px] text-[#C9A96E] relative z-[2]" strokeWidth={1.8} />
                 </div>
                 <span className="text-[10px] font-semibold text-white/70">Test</span>
               </button>
               )}
 
               <button type="button" onClick={() => { setShowSharePanel(true); setIsMoreMenuOpen(false); }} className="flex flex-col items-center gap-1.5 active:scale-95 transition-transform">
-                <div className="w-11 h-11 rounded-full bg-[#13151A] flex items-center justify-center border border-[#C9A96E]/30 shadow-[0_0_8px_rgba(201,169,110,0.1)]">
-                  <Share2 className="w-[18px] h-[18px] text-[#C9A96E]" strokeWidth={1.8} />
+                <div className="w-11 h-11 rounded-full relative flex items-center justify-center">
+                  <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[1]" />
+                  <Share2 className="w-[18px] h-[18px] text-[#C9A96E] relative z-[2]" strokeWidth={1.8} />
                 </div>
                 <span className="text-[10px] font-semibold text-white/70">Share</span>
               </button>
 
               <button type="button" disabled={!isBroadcast} onClick={() => { flipCamera(); setIsMoreMenuOpen(false); }} className="flex flex-col items-center gap-1.5 active:scale-95 transition-transform disabled:opacity-40">
-                <div className="w-11 h-11 rounded-full bg-[#13151A] flex items-center justify-center border border-[#C9A96E]/30 shadow-[0_0_8px_rgba(201,169,110,0.1)]">
-                  <RefreshCw className="w-[18px] h-[18px] text-[#C9A96E]" strokeWidth={1.8} />
+                <div className="w-11 h-11 rounded-full relative flex items-center justify-center">
+                  <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[1]" />
+                  <RefreshCw className="w-[18px] h-[18px] text-[#C9A96E] relative z-[2]" strokeWidth={1.8} />
                 </div>
                 <span className="text-[10px] font-semibold text-white/70">Flip</span>
               </button>
 
               <button type="button" disabled={!isBroadcast} onClick={() => { toggleMic(); setIsMoreMenuOpen(false); }} className="flex flex-col items-center gap-1.5 active:scale-95 transition-transform disabled:opacity-40">
-                <div className="w-11 h-11 rounded-full bg-[#13151A] flex items-center justify-center border border-[#C9A96E]/30 shadow-[0_0_8px_rgba(201,169,110,0.1)]">
-                  {isMicMuted ? <MicOff className="w-[18px] h-[18px] text-[#C9A96E]" strokeWidth={1.8} /> : <Mic className="w-[18px] h-[18px] text-[#C9A96E]" strokeWidth={1.8} />}
+                <div className="w-11 h-11 rounded-full relative flex items-center justify-center">
+                  <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[1]" />
+                  {isMicMuted ? <MicOff className="w-[18px] h-[18px] text-[#C9A96E] relative z-[2]" strokeWidth={1.8} /> : <Mic className="w-[18px] h-[18px] text-[#C9A96E] relative z-[2]" strokeWidth={1.8} />}
                 </div>
                 <span className="text-[10px] font-semibold text-white/70">{isMicMuted ? 'Unmute' : 'Mute'}</span>
               </button>
 
               <button type="button" onClick={() => { setIsChatVisible((v) => !v); setIsMoreMenuOpen(false); }} className="flex flex-col items-center gap-1.5 active:scale-95 transition-transform">
-                <div className="w-11 h-11 rounded-full bg-[#13151A] flex items-center justify-center border border-[#C9A96E]/30 shadow-[0_0_8px_rgba(201,169,110,0.1)]">
-                  <MessageCircle className="w-[18px] h-[18px] text-[#C9A96E]" strokeWidth={1.8} />
+                <div className="w-11 h-11 rounded-full relative flex items-center justify-center">
+                  <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[1]" />
+                  <MessageCircle className="w-[18px] h-[18px] text-[#C9A96E] relative z-[2]" strokeWidth={1.8} />
                 </div>
                 <span className="text-[10px] font-semibold text-white/70">{isChatVisible ? 'Hide Chat' : 'Show Chat'}</span>
               </button>
 
               <button type="button" onClick={() => { setIsReportModalOpen(true); setIsMoreMenuOpen(false); }} className="flex flex-col items-center gap-1.5 active:scale-95 transition-transform">
-                <div className="w-11 h-11 rounded-full bg-[#13151A] flex items-center justify-center border border-red-500/30 shadow-[0_0_8px_rgba(239,68,68,0.1)]">
-                  <Flag className="w-[18px] h-[18px] text-red-400" strokeWidth={1.8} />
+                <div className="w-11 h-11 rounded-full relative flex items-center justify-center">
+                  <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[1]" />
+                  <Flag className="w-[18px] h-[18px] text-red-400 relative z-[2]" strokeWidth={1.8} />
                 </div>
                 <span className="text-[10px] font-semibold text-red-400/70">Report</span>
               </button>
 
               {isBattleMode && battleWinner && isBroadcast && (
                 <button type="button" onClick={() => { setBattleTime(300); setMyScore(0); setOpponentScore(0); setPlayer3Score(0); setPlayer4Score(0); setBattleWinner(null); setBattleCountdown(3); reachedThresholdsRef.current.clear(); setIsMoreMenuOpen(false); }} className="flex flex-col items-center gap-1.5 active:scale-95 transition-transform">
-                  <div className="w-11 h-11 rounded-full bg-[#13151A] flex items-center justify-center border border-[#C9A96E]/30 shadow-[0_0_8px_rgba(201,169,110,0.1)]">
-                    <RefreshCw className="w-[18px] h-[18px] text-[#C9A96E]" strokeWidth={1.8} />
+                  <div className="w-11 h-11 rounded-full relative flex items-center justify-center">
+                    <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[1]" />
+                    <RefreshCw className="w-[18px] h-[18px] text-[#C9A96E] relative z-[2]" strokeWidth={1.8} />
                   </div>
                   <span className="text-[10px] font-semibold text-white/70">Rematch</span>
                 </button>
@@ -4738,8 +4769,9 @@ export default function LiveStream() {
 
               {isBattleMode && isBroadcast && !battleWinner && battleTime > 0 && (
                 <button type="button" onClick={() => { startSpeedChallenge(); setIsMoreMenuOpen(false); }} className="flex flex-col items-center gap-1.5 active:scale-95 transition-transform">
-                  <div className="w-11 h-11 rounded-full bg-[#13151A] flex items-center justify-center border border-[#C9A96E]/30 shadow-[0_0_8px_rgba(201,169,110,0.1)]">
-                    <Zap className="w-[18px] h-[18px] text-[#C9A96E]" strokeWidth={1.8} />
+                  <div className="w-11 h-11 rounded-full relative flex items-center justify-center">
+                    <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[1]" />
+                    <Zap className="w-[18px] h-[18px] text-[#C9A96E] relative z-[2]" strokeWidth={1.8} />
                   </div>
                   <span className="text-[10px] font-semibold text-white/70">Speed</span>
                 </button>
@@ -4975,22 +5007,28 @@ export default function LiveStream() {
               <div className="w-10 h-1 bg-white/20 rounded-full" />
             </div>
 
-            {/* Followers icon + Followers row */}
-            <div className="flex gap-3 overflow-x-auto overflow-y-hidden pb-3 flex-shrink-0 px-4 no-scrollbar">
-              <button type="button" onClick={() => { setShowSharePanel(false); navigate('/create'); }} className="flex-shrink-0 flex flex-col items-center gap-0.5 min-w-[48px] active:scale-95 transition-transform">
-                <div className="w-14 h-14 rounded-full overflow-hidden flex items-center justify-center bg-[#13151A]">
-                  <img src="/Icons/Profile icon.png" alt="" className="w-full h-full object-contain scale-[1.21] translate-y-[1mm]" />
+            {/* Create + Followers row — Create first, then people to share to */}
+            <div className="flex gap-3 overflow-x-auto overflow-y-hidden pb-3 flex-shrink-0 px-4 no-scrollbar" style={{ marginLeft: '-2mm' }}>
+              <button
+                type="button"
+                onClick={() => { navigate('/create'); setShowSharePanel(false); }}
+                className="flex flex-col items-center gap-1.5 min-w-[80px] active:scale-95 transition-transform flex-shrink-0"
+              >
+                <div className="relative w-20 h-20 flex items-center justify-center">
+                  <img src="/Icons/Profile icon.png" alt="" className="w-full h-full object-contain" />
+                  <Plus size={28} className="text-[#C9A96E] absolute" strokeWidth={2.5} />
                 </div>
-                <span className="text-white/60 text-[9px] font-medium">Followers</span>
+                <span className="text-white/80 text-[11px] font-medium">Create</span>
               </button>
               {shareFollowers.filter(f => f.username?.toLowerCase().includes(shareQuery.toLowerCase())).map((f) => (
                 <button
                   key={f.user_id}
-                  className="flex flex-col items-center gap-0.5 min-w-[48px] active:scale-95 transition-transform"
+                  className="flex flex-col items-center gap-1 min-w-[64px] active:scale-95 transition-transform"
+                  style={{ marginTop: '6mm' }}
                   onClick={() => sendShareToFollower(f.user_id)}
                 >
-                  <AvatarRing src={f.avatar_url || '/Icons/Profile icon.png'} alt={f.username} size={36} />
-                  <span className="text-white/60 text-[9px] font-medium truncate w-12 text-center">{shareSentTo.has(f.user_id) ? 'Sent' : f.username || 'User'}</span>
+                  <AvatarRing src={f.avatar_url || '/Icons/Profile icon.png'} alt={f.username} size={56} />
+                  <span className="text-white/60 text-[10px] font-medium truncate w-16 text-center">{shareSentTo.has(f.user_id) ? 'Sent' : f.username || 'User'}</span>
                 </button>
               ))}
             </div>
@@ -5001,8 +5039,7 @@ export default function LiveStream() {
                 {[
                   { name: 'WhatsApp', icon: <MessageCircle size={22} className="text-white" />, action: () => { window.open(`https://wa.me/?text=${encodeURIComponent('Watch my LIVE on Elix! ' + window.location.href)}`); setShowSharePanel(false); } },
                   { name: 'Facebook', icon: <Share2 size={22} className="text-white" />, action: () => { window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}`); setShowSharePanel(false); } },
-                  { name: 'Copy Link', icon: <Copy size={22} className="text-white" />, action: () => { navigator.clipboard.writeText(`https://app.com/live/${effectiveStreamId}`); showToast('Link copied!'); setShowSharePanel(false); } },
-                  { name: 'Message', icon: <Send size={22} className="text-white" />, action: () => { window.open(`sms:?body=${encodeURIComponent('Watch my LIVE on Elix! ' + window.location.href)}`); setShowSharePanel(false); } },
+                  { name: 'Copy Link', icon: <Copy size={22} className="text-white" />, action: () => { navigator.clipboard.writeText(`https://app.com/live/${effectiveStreamId}`); setShowSharePanel(false); } },
                   { name: 'Promote', icon: <TrendingUp size={22} className="text-white" />, action: () => { setShowSharePanel(false); setShowPromotePanel(true); } },
                   { name: 'Report', icon: <Flag size={22} className="text-red-400" />, isRed: true, action: () => { setIsReportModalOpen(true); setShowSharePanel(false); } },
                   { name: 'Story', icon: <PlusCircle size={22} className="text-white" />, action: () => { navigate('/create'); setShowSharePanel(false); } },

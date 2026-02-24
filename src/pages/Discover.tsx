@@ -73,16 +73,33 @@ export default function Discover() {
 
   const loadTrending = async () => {
     setLoading(true);
+    setTrendingVideos([]);
     try {
-      const { data, error } = await supabase
+      const { data: videoRows, error: videoError } = await supabase
         .from('videos')
-        .select('*, creator:profiles!user_id(username, avatar_url)')
+        .select('*')
         .eq('is_public', true)
-        .order('engagement_score', { ascending: false })
+        .order('created_at', { ascending: false })
         .limit(30);
 
-      if (error) throw error;
-      setTrendingVideos(data || []);
+      if (videoError) throw videoError;
+      const list = videoRows || [];
+
+      if (list.length > 0) {
+        const userIds = [...new Set(list.map((v: any) => v.user_id).filter(Boolean))];
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('user_id, username, avatar_url')
+          .in('user_id', userIds);
+        const profileMap: Record<string, { username: string; avatar_url: string | null }> = {};
+        (profiles || []).forEach((p: any) => {
+          profileMap[p.user_id] = { username: p.username || 'User', avatar_url: p.avatar_url ?? null };
+        });
+        setTrendingVideos(list.map((v: any) => ({
+          ...v,
+          creator: profileMap[v.user_id] ? { username: profileMap[v.user_id].username, avatar_url: profileMap[v.user_id].avatar_url } : { username: 'User', avatar_url: null },
+        })));
+      }
     } catch {
       setTrendingVideos([]);
     } finally {
@@ -132,7 +149,7 @@ export default function Discover() {
       const [videosRes, usersRes] = await Promise.all([
         supabase
           .from('videos')
-          .select('*, creator:profiles!user_id(username, avatar_url)')
+          .select('*')
           .eq('is_public', true)
           .ilike('description', `%${searchQuery}%`)
           .limit(20),
@@ -143,10 +160,19 @@ export default function Discover() {
           .limit(20),
       ]);
 
-      setSearchResults({
-        videos: videosRes.data || [],
-        users: usersRes.data || [],
-      });
+      const videoList = videosRes.data || [];
+      if (videoList.length > 0) {
+        const userIds = [...new Set(videoList.map((v: any) => v.user_id).filter(Boolean))];
+        const { data: profiles } = await supabase.from('profiles').select('user_id, username, avatar_url').in('user_id', userIds);
+        const profileMap: Record<string, { username: string; avatar_url: string | null }> = {};
+        (profiles || []).forEach((p: any) => { profileMap[p.user_id] = { username: p.username || 'User', avatar_url: p.avatar_url ?? null }; });
+        setSearchResults({
+          videos: videoList.map((v: any) => ({ ...v, creator: profileMap[v.user_id] || { username: 'User', avatar_url: null } })),
+          users: usersRes.data || [],
+        });
+      } else {
+        setSearchResults({ videos: [], users: usersRes.data || [] });
+      }
     } catch {
       setSearchResults({ videos: [], users: [] });
     } finally {

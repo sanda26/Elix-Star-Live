@@ -20,6 +20,7 @@ import {
   Radio,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useAuthStore } from '../store/useAuthStore';
 import { setCachedCameraStream } from '../lib/cameraStream';
 import { type SoundTrack, fetchSoundTracksFromDatabase } from '../lib/soundLibrary';
 import { supabase } from '../lib/supabase';
@@ -206,6 +207,7 @@ const FEATURE_TOOLS = [
 
 export default function Create() {
   const navigate = useNavigate();
+  const user = useAuthStore((s) => s.user);
   const [view, setView] = useState<CreateView>('main');
   const [mode, setMode] = useState<CreateMode>('create');
   const [isSoundOpen, setIsSoundOpen] = useState(false);
@@ -469,7 +471,17 @@ export default function Create() {
             <img src="/Icons/Gold power buton.png" alt="Close" className="w-5 h-5 object-contain" />
           </button>
           <h1 className="text-sm font-black tracking-wider text-[#C9A96E] uppercase">Create</h1>
-          <div className="w-7" />
+          <div className="w-9 h-9 flex items-center justify-center flex-shrink-0 rounded-full overflow-hidden bg-[#1C1E24]">
+            {(user?.avatar || (user?.id && typeof localStorage !== 'undefined' && localStorage.getItem('elix_avatar_' + user.id))) ? (
+              <img
+                src={user?.avatar || (user?.id ? localStorage.getItem('elix_avatar_' + user.id) : null) || ''}
+                alt="You"
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <img src="/Icons/Profile icon.png" alt="" className="w-full h-full object-contain" />
+            )}
+          </div>
         </div>
 
         {/* Feature Tools Row */}

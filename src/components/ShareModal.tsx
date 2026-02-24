@@ -1,25 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  Link, 
   Download,
   MessageCircle,
   Share2,
   Check,
   QrCode,
-  Code,
   Copy,
-  Search,
   Send,
   TrendingUp,
   Flag,
-  PlusCircle,
-  UserPlus,
-  UserMinus,
-  X,
   Trash2,
+  Users2,
+  Plus,
 } from 'lucide-react';
-import { showToast } from '../lib/toast';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../store/useAuthStore';
 import { AvatarRing } from './AvatarRing';
@@ -51,6 +45,7 @@ interface ShareModalProps {
 export default function ShareModal({ isOpen, onClose, video, onReport, onJoin, isFollowing, onDeleteVideo }: ShareModalProps) {
   const navigate = useNavigate();
   const [copiedLink, setCopiedLink] = useState(false);
+  const [showQrCode, setShowQrCode] = useState(false);
   const [showPromotePanel, setShowPromotePanel] = useState(false);
   const { user } = useAuthStore();
   const [shareQuery, setShareQuery] = useState('');
@@ -64,14 +59,11 @@ export default function ShareModal({ isOpen, onClose, video, onReport, onJoin, i
   const loadFollowers = async () => {
     if (!user?.id) return;
     try {
+      // Only people who follow you (your followers), not people you follow
       const { data: followData } = await supabase.from('followers').select('follower_id').eq('following_id', user.id).limit(50);
-      const { data: followingData } = await supabase.from('followers').select('following_id').eq('follower_id', user.id).limit(50);
-      const ids = new Set<string>();
-      (followData || []).forEach((f: any) => ids.add(f.follower_id));
-      (followingData || []).forEach((f: any) => ids.add(f.following_id));
-      ids.delete(user.id);
-      if (ids.size === 0) { setFollowers([]); return; }
-      const { data: profiles } = await supabase.from('profiles').select('user_id, username, avatar_url').in('user_id', Array.from(ids));
+      const ids = (followData || []).map((f: { follower_id: string }) => f.follower_id);
+      if (ids.length === 0) { setFollowers([]); return; }
+      const { data: profiles } = await supabase.from('profiles').select('user_id, username, avatar_url').in('user_id', ids);
       setFollowers(profiles || []);
     } catch { setFollowers([]); }
   };
@@ -104,7 +96,6 @@ export default function ShareModal({ isOpen, onClose, video, onReport, onJoin, i
     try {
       await navigator.clipboard.writeText(videoUrl);
       setCopiedLink(true);
-      showToast('Link copied!');
       setTimeout(() => setCopiedLink(false), 2000);
     } catch {}
   };
@@ -117,16 +108,16 @@ export default function ShareModal({ isOpen, onClose, video, onReport, onJoin, i
     { name: 'Twitter', color: '#1DA1F2', icon: <Share2 size={22} className="text-white" />, action: () => window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(videoUrl)}`) },
     { name: 'Copy Link', color: '#C9A96E', icon: copiedLink ? <Check size={22} className="text-white" /> : <Copy size={22} className="text-white" />, action: handleCopyLink },
     { name: 'Email', color: '#EA4335', icon: <Send size={22} className="text-white" />, action: () => window.open(`mailto:?subject=Check out this video&body=${encodeURIComponent(shareText + '\n\n' + videoUrl)}`) },
-    { name: 'Messages', color: '#00C853', icon: <MessageCircle size={22} className="text-white" />, action: () => window.open(`sms:?body=${encodeURIComponent(shareText + ' ' + videoUrl)}`) },
   ];
 
   const isOwnVideo = !!user?.id && !!video.user?.id && user.id === video.user.id;
   const actionItems = [
+    { name: 'Duet', icon: <Users2 size={22} className="text-white" />, action: () => { onClose(); navigate(`/upload?duet=${video.id}`); } },
     { name: 'Promote', color: '#C9A96E', icon: <TrendingUp size={22} className="text-white" />, action: () => { onClose(); setShowPromotePanel(true); } },
     { name: 'Report', color: '#EF4444', icon: <Flag size={22} className="text-white" />, action: () => { onClose(); if (onReport) onReport(); } },
-    { name: 'Share', icon: <Share2 size={22} className="text-white" />, action: () => { if (navigator.share) navigator.share({ title: `Video by @${video.user.username}`, text: shareText, url: videoUrl }); } },
-    { name: 'Download', icon: <Download size={22} className="text-white" />, action: async () => { try { const res = await fetch(video.url, { mode: 'cors' }); const blob = await res.blob(); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `video_${video.id}.mp4`; a.click(); URL.revokeObjectURL(url); showToast('Download started'); } catch { const a = document.createElement('a'); a.href = video.url; a.download = `video_${video.id}.mp4`; a.target = '_blank'; a.click(); showToast('Download started'); } } },
-    { name: 'QR Code', icon: <QrCode size={22} className="text-white" />, action: handleCopyLink },
+    { name: 'Share', icon: <Share2 size={22} className="text-white" />, action: () => { if (navigator.share) { navigator.share({ title: `Video by @${video.user.username}`, text: shareText, url: videoUrl }).then(() => onClose()).catch(() => {}); } else { handleCopyLink(); } } },
+    { name: 'Download', icon: <Download size={22} className="text-white" />, action: async () => { try { const res = await fetch(video.url, { mode: 'cors' }); const blob = await res.blob(); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `video_${video.id}.mp4`; a.click(); URL.revokeObjectURL(url); } catch { const a = document.createElement('a'); a.href = video.url; a.download = `video_${video.id}.mp4`; a.target = '_blank'; a.click(); } } },
+    { name: 'QR Code', icon: <QrCode size={22} className="text-white" />, action: () => setShowQrCode(true) },
     ...(isOwnVideo && onDeleteVideo ? [{ name: 'Delete video', icon: <Trash2 size={22} className="text-red-400" />, action: () => { if (window.confirm('Delete this video? This cannot be undone.')) { onDeleteVideo(); onClose(); } }, isRed: true }] : []),
   ];
 
@@ -138,34 +129,57 @@ export default function ShareModal({ isOpen, onClose, video, onReport, onJoin, i
         className="bg-[#1C1E24]/95 backdrop-blur-md w-full max-w-[480px] rounded-t-2xl overflow-hidden flex flex-col border-t border-[#C9A96E]/20 h-[38vh] shadow-2xl mb-[90px]"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex justify-center pt-2 pb-1">
-          <div className="w-10 h-1 bg-white/20 rounded-full" />
+        <div className="flex items-center justify-between px-4 pt-1 pb-1">
+          <div className="w-10" />
+          <div className="w-10 h-1 bg-white/20 rounded-full flex-shrink-0" />
+          <button type="button" onClick={onClose} className="flex-shrink-0 w-10 h-10 flex items-center justify-center active:scale-95 transition-transform" aria-label="Close">
+            <img src="/Icons/Gold power buton.png" alt="" className="w-5 h-5 object-contain" />
+          </button>
         </div>
 
-        {/* Followers row + Followers icon on right */}
-        <div className="flex gap-3 overflow-x-auto overflow-y-hidden px-4 pb-3 flex-shrink-0 no-scrollbar items-center">
-          {filteredFollowers.length > 0 && filteredFollowers.map((f) => (
-              <button
-                key={f.user_id}
-                className="flex flex-col items-center gap-0.5 min-w-[48px] flex-shrink-0 active:scale-95 transition-transform"
-                onClick={() => sendShareTo(f.user_id)}
-              >
-                <AvatarRing src={f.avatar_url || '/Icons/Profile icon.png'} alt={f.username} size={36} />
-                <span className="text-white/60 text-[9px] font-medium truncate w-12 text-center">
-                  {sentTo.has(f.user_id) ? 'Sent' : f.username || 'User'}
-                </span>
-              </button>
-            ))}
-          <button type="button" onClick={() => { onClose(); navigate('/create'); }} className="flex-shrink-0 flex flex-col items-center gap-0.5 min-w-[48px] active:scale-95 transition-transform ml-auto">
-            <div className="w-14 h-14 rounded-full overflow-hidden flex items-center justify-center bg-[#13151A]">
-              <img src="/Icons/Profile icon.png" alt="" className="w-full h-full object-contain scale-[1.21] translate-y-[1mm]" />
+        {/* Create + Followers row — same as LiveStream share panel */}
+        <div className="flex gap-3 overflow-x-auto overflow-y-hidden pb-3 flex-shrink-0 px-4 no-scrollbar" style={{ marginLeft: '-2mm' }}>
+          <button
+            type="button"
+            onClick={() => { onClose(); navigate('/create'); }}
+            className="flex flex-col items-center gap-1.5 min-w-[80px] active:scale-95 transition-transform flex-shrink-0"
+          >
+            <div className="relative w-20 h-20 flex items-center justify-center">
+              <img src="/Icons/Profile icon.png" alt="" className="w-full h-full object-contain" />
+              <Plus size={28} className="text-[#C9A96E] absolute" strokeWidth={2.5} />
             </div>
-            <span className="text-white/60 text-[9px] font-medium">Followers</span>
+            <span className="text-white/80 text-[11px] font-medium">Create</span>
           </button>
+          {filteredFollowers.length > 0 && filteredFollowers.map((f) => (
+            <button
+              key={f.user_id}
+              className="flex flex-col items-center gap-1 min-w-[64px] flex-shrink-0 active:scale-95 transition-transform"
+              style={{ marginTop: '6mm' }}
+              onClick={() => sendShareTo(f.user_id)}
+            >
+              <AvatarRing src={f.avatar_url || '/Icons/Profile icon.png'} alt={f.username} size={56} />
+              <span className="text-white/60 text-[10px] font-medium truncate w-16 text-center">
+                {sentTo.has(f.user_id) ? 'Sent' : f.username || 'User'}
+              </span>
+            </button>
+          ))}
         </div>
 
         {/* All share options — compact grid, scrollable */}
         <div className="flex-1 overflow-y-scroll overflow-x-hidden min-h-0 px-4 pb-2 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-white/5 [&::-webkit-scrollbar-thumb]:bg-[#C9A96E]/60 [&::-webkit-scrollbar-thumb]:rounded-full" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(201,169,110,0.6) transparent' }}>
+          {showQrCode && (
+            <div className="pt-2 pb-3 flex flex-col items-center gap-2 border-b border-white/10 mb-2">
+              <div className="flex items-center justify-between w-full">
+                <span className="text-white/80 text-sm font-medium">Scan to open video</span>
+                <button type="button" onClick={() => setShowQrCode(false)} className="text-white/70 hover:text-white text-xs px-2 py-1 rounded">Close</button>
+              </div>
+              <img
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=112x112&data=${encodeURIComponent(videoUrl)}`}
+                alt="QR code for video link"
+                className="w-28 h-28 rounded-lg bg-white p-1.5"
+              />
+            </div>
+          )}
           <div className="grid grid-cols-5 gap-y-3 gap-x-1.5 pt-1 auto-rows-fr">
             {socialPlatforms.map((item) => (
               <button

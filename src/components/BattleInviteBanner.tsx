@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Sword, Crown } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../store/useAuthStore';
 import { showToast } from '../lib/toast';
@@ -15,6 +16,7 @@ interface PendingInvite {
 
 export function BattleInviteBanner() {
   const user = useAuthStore(s => s.user);
+  const navigate = useNavigate();
   const [pendingInvite, setPendingInvite] = useState<PendingInvite | null>(null);
 
   // Only show invites received in the last 2 minutes — old ones are stale
@@ -162,7 +164,7 @@ export function BattleInviteBanner() {
     if (invite.type === 'battle') {
       window.location.href = `/live/${invite.streamKey}?battle=1`;
     } else {
-      window.location.href = `/watch/${invite.streamKey}?cohost=1`;
+      navigate(`/live/${invite.streamKey}?cohost=1`);
     }
   };
 

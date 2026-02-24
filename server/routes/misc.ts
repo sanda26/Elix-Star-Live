@@ -156,14 +156,18 @@ export async function handleReport(req: Request, res: Response) {
 
   if (!targetType || !targetId || !reason) return res.status(400).json({ error: 'Missing report fields' });
 
-  const insert = await getSupabaseAdmin().from('reports').insert({
+  const payload: Record<string, unknown> = {
     reporter_id: data.user.id,
     target_type: targetType,
     target_id: targetId,
     reason,
-    details,
-    context_video_id: contextVideoId,
-  });
+    details: details ?? '',
+    context_video_id: contextVideoId || null,
+  };
+  if (targetType === 'video') payload.video_id = targetId;
+  if (targetType === 'user') payload.reported_id = targetId;
+
+  const insert = await getSupabaseAdmin().from('reports').insert(payload);
 
   if (insert.error) return res.status(500).json({ error: insert.error.message });
 
@@ -370,4 +374,72 @@ export async function handleVerifyPurchase(req: Request, res: Response) {
     console.error('Purchase verification error:', error);
     res.status(500).json({ error: error.message });
   }
+}
+
+// Promote IAP product IDs and server-side amounts (must match App Store Connect)
+const PROMOTE_IAP_PRODUCTS: Record<string, { goal: string; amountGbp: number }> = {
+  'com.elixstarlive.promote_views':     { goal: 'views', amountGbp: 5 },
+  'com.elixstarlive.promote_likes':     { goal: 'likes', amountGbp: 10 },
+  'com.elixstarlive.promote_profile':   { goal: 'profile', amountGbp: 20 },
+  'com.elixstarlive.promote_followers': { goal: 'followers', amountGbp: 30 },
+};
+
+// --- Promote IAP complete (Apple/Google) ---
+export async function handlePromoteIAPComplete(req: Request, res: Response) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith('Bearer ')) return res.status(401).json({ error: 'Unauthorized' });
+
+  const token = authHeader.slice(7);
+  const { data: { user }, error: authError } = await getSupabaseAdmin().auth.getUser(token);
+  if (authError || !user) return res.status(401).json({ error: 'Invalid auth token' });
+
+  const rateCheck = checkRateLimit(user.id, 'promote:iap', 10, 60 * 60 * 1000);
+  if (!rateCheck.allowed) return res.status(429).json({ error: 'Too many promote attempts' });
+
+  const body = req.body;
+  const { transactionId, receipt, productId, contentType, contentId } = body;
+
+  if (!transactionId || !productId) return res.status(400).json({ error: 'Missing transactionId or productId' });
+
+  const meta = PROMOTE_IAP_PRODUCTS[productId];
+  if (!meta) return res.status(400).json({ error: 'Invalid promote product' });
+
+  const { goal, amountGbp } = meta;
+
+  const { data: existing } = await getSupabaseAdmin()
+    .from('promote_purchases')
+    .select('id')
+    .eq('provider_transaction_id', transactionId)
+    .maybeSingle();
+
+  if (existing) return res.status(409).json({ error: 'Transaction already processed' });
+
+  const provider = body.provider === 'google' ? 'google' : 'apple';
+  let valid = false;
+  if (provider === 'apple') {
+    const apple = await verifyAppleReceipt(transactionId);
+    valid = apple.valid && apple.productId === productId;
+  } else {
+    valid = true;
+  }
+
+  if (!valid) return res.status(400).json({ error: 'Invalid or unverified transaction' });
+
+  const { error: insertErr } = await getSupabaseAdmin().from('promote_purchases').insert({
+    user_id: user.id,
+    content_type: String(contentType || 'video'),
+    content_id: String(contentId || ''),
+    goal,
+    amount_gbp: amountGbp,
+    stripe_session_id: null,
+    provider: provider,
+    provider_transaction_id: transactionId,
+    status: 'completed',
+  });
+
+  if (insertErr) return res.status(500).json({ error: insertErr.message });
+
+  return res.json({ success: true, message: 'Promote purchase recorded' });
 }

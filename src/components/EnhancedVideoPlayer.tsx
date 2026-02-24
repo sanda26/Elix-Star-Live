@@ -12,6 +12,9 @@ import {
   QrCode,
   Trash2,
   TrendingUp,
+  Copy,
+  Users2,
+  Play,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useVideoStore } from '../store/useVideoStore';
@@ -26,6 +29,7 @@ import UserProfileModal from './UserProfileModal';
 import ReportModal from './ReportModal';
 import PromotePanel from './PromotePanel';
 import { LevelBadge } from './LevelBadge';
+import { supabase } from '../lib/supabase';
 
 interface EnhancedVideoPlayerProps {
   videoId: string;
@@ -116,6 +120,7 @@ export default function EnhancedVideoPlayer({
   onProgress 
 }: EnhancedVideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const duetOriginalRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   
@@ -132,9 +137,11 @@ export default function EnhancedVideoPlayer({
   const [showReportModal, setShowReportModal] = useState(false);
   const [showPromotePanel, setShowPromotePanel] = useState(false);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
+  const [showQrCodeInMore, setShowQrCodeInMore] = useState(false);
   const [videoError, setVideoError] = useState(false);
   const [isDoubleClick, setIsDoubleClick] = useState(false);
   const [showHeartAnimation, setShowHeartAnimation] = useState(false);
+  const [duetOriginalUrl, setDuetOriginalUrl] = useState<string | null>(null);
   
   const navigate = useNavigate();
   const { muteAllSounds } = useSettingsStore();
@@ -146,24 +153,44 @@ export default function EnhancedVideoPlayer({
     incrementViews,
     deleteVideo,
   } = useVideoStore();
+  const getVideoById = useVideoStore((s) => s.getVideoById);
   const authUserId = useAuthStore((s) => s.user?.id ?? null);
   
-  const video = videos.find(v => v.id === videoId);
+  const video = getVideoById(videoId);
+  const originalVideo = video?.duetWithVideoId ? getVideoById(video.duetWithVideoId) : undefined;
   const effectiveMuted = muteAllSounds || isMuted;
+  const duetOriginalSrc = originalVideo?.url ?? duetOriginalUrl ?? '';
+  const isDuetLayout = !!(video?.duetWithVideoId && (originalVideo || duetOriginalUrl));
+
+  // When duet original is not in store, fetch its URL for side-by-side playback
+  useEffect(() => {
+    if (!video?.duetWithVideoId || originalVideo) {
+      setDuetOriginalUrl(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase.from('videos').select('url').eq('id', video.duetWithVideoId!).single();
+      if (!cancelled && data?.url) setDuetOriginalUrl(data.url);
+    })();
+    return () => { cancelled = true; };
+  }, [video?.duetWithVideoId, originalVideo]);
   
   // Video playback controls
   const togglePlay = useCallback(() => {
     if (isPlaying) {
       videoRef.current?.pause();
+      duetOriginalRef.current?.pause();
       audioRef.current?.pause();
     } else {
       videoRef.current?.play().catch(() => {});
+      if (isDuetLayout && duetOriginalSrc) duetOriginalRef.current?.play().catch(() => {});
       if (!effectiveMuted && audioRef.current) {
         audioRef.current.play().catch(() => {});
       }
     }
     setIsPlaying(prev => !prev);
-  }, [effectiveMuted, isPlaying]);
+  }, [effectiveMuted, isDuetLayout, isPlaying, duetOriginalSrc]);
 
   const toggleMute = () => {
     if (muteAllSounds) {
@@ -231,30 +258,55 @@ export default function EnhancedVideoPlayer({
     };
   }, [onProgress, onVideoEnd]);
 
-  // Auto-play/pause based on visibility
+  // Auto-play based on visibility — try with sound first; if blocked (e.g. iOS), fall back to muted
   useEffect(() => {
     if (isActive) {
       const el = videoRef.current;
-      if (!el) return;
       setVideoError(false);
-
-      // Try unmuted first (works after user interaction)
-      el.muted = muteAllSounds;
-      el.volume = volume;
-      const playResult = el.play();
-      if (playResult && typeof playResult.catch === 'function') {
-        playResult.catch(() => {
-          // Browser blocked unmuted autoplay — retry muted
-          el.muted = true;
-          setIsMuted(true);
-          el.play().catch(() => {});
+      const runPlay = (videoEl: HTMLVideoElement) => {
+        videoEl.volume = volume;
+        if (muteAllSounds) {
+          videoEl.muted = true;
+          videoEl.play().then(() => { setIsPlaying(true); setIsMuted(true); }).catch(() => {});
+          return;
+        }
+        videoEl.muted = false;
+        videoEl.play()
+          .then(() => {
+            setIsPlaying(true);
+            setIsMuted(false);
+          })
+          .catch(() => {
+            videoEl.muted = true;
+            videoEl.play().then(() => {
+              setIsPlaying(true);
+              setIsMuted(true);
+              trackEvent('video_autoplay_sound_blocked', { videoId });
+            }).catch(() => {});
+          });
+      };
+      const onCanPlay = () => {
+        const v = videoRef.current;
+        if (v) runPlay(v);
+      };
+      if (el) {
+        runPlay(el);
+        el.addEventListener('canplay', onCanPlay);
+      } else {
+        requestAnimationFrame(() => {
+          const videoEl = videoRef.current;
+          if (videoEl) runPlay(videoEl);
         });
       }
 
-      setIsPlaying(true);
-      if (!muteAllSounds) setIsMuted(false);
       incrementViews(videoId);
       trackEvent('video_view', { videoId });
+
+      const duetEl = duetOriginalRef.current;
+      if (duetEl && isDuetLayout && duetOriginalSrc) {
+        duetEl.muted = true;
+        duetEl.play().catch(() => {});
+      }
 
       const audio = audioRef.current;
       if (audio && video?.music?.previewUrl) {
@@ -268,10 +320,17 @@ export default function EnhancedVideoPlayer({
           audio.play().catch(() => {});
         }
       }
+
+      return () => {
+        if (el) el.removeEventListener('canplay', onCanPlay);
+      };
     } else {
       const v = videoRef.current;
       if (v?.pause) {
         try { v.pause(); } catch { void 0; }
+      }
+      if (duetOriginalRef.current?.pause) {
+        try { duetOriginalRef.current.pause(); } catch { void 0; }
       }
       setIsPlaying(false);
       const a = audioRef.current;
@@ -279,7 +338,7 @@ export default function EnhancedVideoPlayer({
         try { a.pause(); } catch { void 0; }
       }
     }
-  }, [incrementViews, isActive, muteAllSounds, video?.music?.previewUrl, videoId, volume]);
+  }, [incrementViews, isActive, isDuetLayout, muteAllSounds, originalVideo, video?.music?.previewUrl, videoId, volume]);
 
   useEffect(() => {
     if (!muteAllSounds) return;
@@ -360,6 +419,14 @@ export default function EnhancedVideoPlayer({
     setIsMoreMenuOpen(true);
   };
 
+  const videoPageUrl = typeof window !== 'undefined' ? `${window.location.origin}/video/${videoId}` : '';
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(videoPageUrl);
+      showToast('Link copied!');
+    } catch {}
+  };
+
   const handleDownload = () => {
     if (!video?.url) return;
     const a = document.createElement('a');
@@ -414,6 +481,39 @@ export default function EnhancedVideoPlayer({
       >
         <div className="w-full h-full" style={{ margin: 0, padding: 0 }}>
         <audio ref={audioRef} preload="auto" className="hidden" />
+        {isDuetLayout && duetOriginalSrc ? (
+          <div className="absolute inset-0 flex flex-row">
+            <div className="w-1/2 h-full flex-shrink-0 bg-black">
+              <video
+                ref={duetOriginalRef}
+                src={duetOriginalSrc}
+                className="w-full h-full object-contain"
+                loop
+                playsInline
+                muted
+                preload="auto"
+                poster=""
+              />
+            </div>
+            <div className="w-1/2 h-full flex-shrink-0">
+              <video
+                ref={videoRef}
+                src={video.url}
+                className="w-full h-full object-cover"
+                loop
+                playsInline
+                preload="auto"
+                muted={effectiveMuted}
+                onClick={handleVideoClick}
+                poster=""
+                onError={() => {
+                  setIsPlaying(false);
+                  setVideoError(true);
+                }}
+              />
+            </div>
+          </div>
+        ) : (
         <video
           ref={videoRef}
           src={video.url}
@@ -423,17 +523,28 @@ export default function EnhancedVideoPlayer({
           preload="auto"
           muted={effectiveMuted}
           onClick={handleVideoClick}
+          poster=""
           onError={() => {
             setIsPlaying(false);
             setVideoError(true);
           }}
         />
+        )}
 
 
 
         {videoError && (
           <div className="absolute inset-0 flex items-center justify-center bg-[#13151A] z-10">
             <span className="text-white/50 text-sm">Video unavailable</span>
+          </div>
+        )}
+
+        {/* Center play/pause overlay — same on For You, Friends, Following; play icon when paused */}
+        {!videoError && !isPlaying && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-[5]">
+            <div className="w-16 h-16 rounded-full bg-black/40 flex items-center justify-center backdrop-blur-sm">
+              <Play className="w-8 h-8 text-white" fill="white" strokeWidth={2} />
+            </div>
           </div>
         )}
 
@@ -469,42 +580,49 @@ export default function EnhancedVideoPlayer({
         }}
       >
         
-        {/* Profile Avatar */}
+        {/* Profile Avatar — one gold circle (Profile icon), profile picture inside; no extra circle, no initials */}
         <div className="relative mb-1">
           <div 
-            className="cursor-pointer hover:scale-105 transition-transform relative"
+            className="cursor-pointer hover:scale-105 transition-transform relative flex items-center justify-center overflow-hidden"
             style={{width:'48px',height:'48px'}}
             onClick={handleProfileClick}
           >
             <img 
-              src={video.user.avatar} 
-              alt={video.user.username} 
-              className="absolute rounded-full object-cover"
-              style={{width:'32px',height:'32px',top:'50%',left:'50%',transform:'translate(-50%,-55%)'}}
-            />
-            <img 
               src="/Icons/Profile icon.png" 
               alt="" 
-              className="relative z-10 w-full h-full object-contain"
+              className="absolute inset-0 w-full h-full object-contain pointer-events-none"
             />
+            {video.user.avatar ? (
+              <img 
+                src={video.user.avatar} 
+                alt={video.user.username} 
+                className="absolute rounded-full object-cover pointer-events-none"
+                style={{ width: '58%', height: '58%', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}
+              />
+            ) : null}
           </div>
         </div>
 
-        {/* Like Button */}
+        {/* Like Button — Music Icon gold circle around Like icon; red when liked */}
         <button 
           onClick={handleLike}
-          className="hover:scale-105 active:scale-95 transition-transform relative"
+          className="hover:scale-105 active:scale-95 transition-transform relative rounded-full overflow-hidden flex items-center justify-center"
           style={{width:'48px',height:'48px'}}
           title="Like"
         >
           <img 
+            src="/Icons/Music Icon.png" 
+            alt="" 
+            className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+          />
+          <img 
             src="/Icons/Like Icon.png" 
             alt="Like" 
-            className="absolute inset-0 w-full h-full object-contain transition-all duration-300 z-[2]"
-            style={video.isLiked ? {filter:'brightness(0.5) sepia(1) hue-rotate(-30deg) saturate(10)'} : {}}
+            className="absolute inset-0 w-full h-full object-contain transition-all duration-300 z-[1] scale-75"
+            style={video.isLiked ? {filter:'brightness(0) saturate(100%) invert(27%) sepia(98%) saturate(5000%) hue-rotate(350deg) brightness(1.15) contrast(1.2)'} : {}}
           />
         </button>
-        <span className={`text-[10px] font-semibold -mt-1 ${video.isLiked ? 'text-red-500' : 'text-white'}`}>{formatNumber(video.stats.likes)}</span>
+        <span className="text-[10px] font-semibold -mt-1 text-white">{formatNumber(Math.max(0, video.stats.likes))}</span>
 
         {/* Comment Button */}
         <button 
@@ -530,7 +648,7 @@ export default function EnhancedVideoPlayer({
             className={`absolute inset-0 w-full h-full object-contain z-[2] ${video.isSaved ? 'brightness-125 drop-shadow-[0_0_8px_rgba(201,169,110,0.6)]' : ''}`}
           />
         </button>
-        <span className="text-white text-[10px] font-semibold -mt-1">{formatNumber(video.stats.saves || 0)}</span>
+        <span className="text-white text-[10px] font-semibold -mt-1">{formatNumber(Math.max(0, video.stats.saves || 0))}</span>
 
         {/* Share Button */}
         <button 
@@ -568,7 +686,7 @@ export default function EnhancedVideoPlayer({
       <div className="absolute z-[10] left-4 bottom-[120px] md:bottom-[150px] w-[70%] pb-4 pointer-events-none">
         <div className="flex items-center gap-2 mb-2">
           <LevelBadge level={video.user.level ?? 1} size={10} layout="fixed" avatar={video.user.avatar} />
-          <h3 className="text-white font-bold text-shadow-md">{video.user.username}</h3>
+          <h3 className="text-white font-bold text-shadow-md">{video.user.name || video.user.username}</h3>
           {video.user.isVerified && (
             <div className="w-4 h-4 bg-[#C9A96E] rounded-full flex items-center justify-center">
               <div className="w-2 h-2 bg-white rounded-full" />
@@ -633,6 +751,7 @@ export default function EnhancedVideoPlayer({
         isOpen={showShareModal}
         onClose={() => setShowShareModal(false)}
         video={video}
+        onReport={() => { setShowShareModal(false); setShowReportModal(true); trackEvent('video_report_open', { videoId }); }}
         onDeleteVideo={isOwnVideo ? handleDeleteVideo : undefined}
       />
       
@@ -658,7 +777,75 @@ export default function EnhancedVideoPlayer({
               </div>
             </div>
             <div className="p-4 overflow-y-auto overflow-x-hidden min-h-0 flex-1">
+              {showQrCodeInMore && (
+                <div className="mb-3 p-3 rounded-xl bg-white/5 border border-white/10 flex flex-col items-center gap-2">
+                  <span className="text-white/80 text-sm font-medium">Scan to open video</span>
+                  <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=112x112&data=${encodeURIComponent(videoPageUrl)}`}
+                    alt="QR code"
+                    className="w-28 h-28 rounded-lg bg-white p-1.5"
+                  />
+                  <button type="button" onClick={() => setShowQrCodeInMore(false)} className="text-[#C9A96E] text-xs font-semibold">Close</button>
+                </div>
+              )}
               <div className="grid grid-cols-4 gap-y-4 gap-x-2">
+                <button
+                  type="button"
+                  onClick={() => { handleCopyLink(); setIsMoreMenuOpen(false); }}
+                  className="flex flex-col items-center gap-1.5 active:scale-95 transition-transform"
+                >
+                  <div className="relative w-11 h-11 rounded-full bg-[#13151A] overflow-hidden flex items-center justify-center">
+                    <Copy className="relative z-[2] w-[18px] h-[18px] text-white" strokeWidth={1.8} />
+                    <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-125 translate-y-0.5" />
+                  </div>
+                  <span className="text-[10px] font-semibold text-white/70">Copy Link</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { handleDownload(); setIsMoreMenuOpen(false); }}
+                  className="flex flex-col items-center gap-1.5 active:scale-95 transition-transform"
+                >
+                  <div className="relative w-11 h-11 rounded-full bg-[#13151A] overflow-hidden flex items-center justify-center">
+                    <Download className="relative z-[2] w-[18px] h-[18px] text-white" strokeWidth={1.8} />
+                    <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-125 translate-y-0.5" />
+                  </div>
+                  <span className="text-[10px] font-semibold text-white/70">Download</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setIsMoreMenuOpen(false); navigate(`/upload?duet=${videoId}`); }}
+                  className="flex flex-col items-center gap-1.5 active:scale-95 transition-transform"
+                >
+                  <div className="relative w-11 h-11 rounded-full bg-[#13151A] overflow-hidden flex items-center justify-center">
+                    <Users2 className="relative z-[2] w-[18px] h-[18px] text-white" strokeWidth={1.8} />
+                    <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-125 translate-y-0.5" />
+                  </div>
+                  <span className="text-[10px] font-semibold text-white/70">Duet</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowQrCodeInMore((v) => !v)}
+                  className="flex flex-col items-center gap-1.5 active:scale-95 transition-transform"
+                >
+                  <div className="relative w-11 h-11 rounded-full bg-[#13151A] overflow-hidden flex items-center justify-center">
+                    <QrCode className="relative z-[2] w-[18px] h-[18px] text-white" strokeWidth={1.8} />
+                    <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-125 translate-y-0.5" />
+                  </div>
+                  <span className="text-[10px] font-semibold text-white/70">QR Code</span>
+                </button>
+                {isOwnVideo && (
+                  <button
+                    type="button"
+                    onClick={() => { handleDeleteVideo(); setIsMoreMenuOpen(false); }}
+                    className="flex flex-col items-center gap-1.5 active:scale-95 transition-transform"
+                  >
+                    <div className="relative w-11 h-11 rounded-full bg-[#13151A] overflow-hidden flex items-center justify-center">
+                      <Trash2 className="relative z-[2] w-[18px] h-[18px] text-red-400" strokeWidth={1.8} />
+                      <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-125 translate-y-0.5" />
+                    </div>
+                    <span className="text-[10px] font-semibold text-red-400/70">Delete video</span>
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => { setIsMoreMenuOpen(false); handleShare(); }}

@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { setCachedCameraStream } from '../lib/cameraStream';
 import { RefreshCw, Zap, Clock, Music, Check, Play, Square, RotateCcw, ZoomIn, ZoomOut, Wand2 } from 'lucide-react';
 import { useVideoStore } from '../store/useVideoStore';
@@ -41,10 +41,39 @@ export default function Upload() {
   const [showAITools, setShowAITools] = useState(false);
   const [activeFilter, setActiveFilter] = useState('none');
   const [activeEnhance, setActiveEnhance] = useState('none');
+  const [duetSourceVideoId, setDuetSourceVideoId] = useState<string | null>(null);
+  const [duetSourceVideoUrl, setDuetSourceVideoUrl] = useState<string | null>(null);
+  const duetSourceVideoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
     fetchSoundTracksFromDatabase().then(setBuiltInTracks);
   }, []);
+
+  const [searchParams] = useSearchParams();
+  const duetParam = searchParams.get('duet');
+
+  useEffect(() => {
+    if (!duetParam) {
+      setDuetSourceVideoId(null);
+      setDuetSourceVideoUrl(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data, error } = await supabase.from('videos').select('id, url').eq('id', duetParam).eq('is_public', true).single();
+        if (cancelled || error || !data?.url) {
+          if (!cancelled) { setDuetSourceVideoId(null); setDuetSourceVideoUrl(null); }
+          return;
+        }
+        setDuetSourceVideoId(data.id);
+        setDuetSourceVideoUrl(data.url);
+      } catch {
+        if (!cancelled) { setDuetSourceVideoId(null); setDuetSourceVideoUrl(null); }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [duetParam]);
 
   const { addVideo, fetchVideos } = useVideoStore();
 
@@ -85,7 +114,8 @@ export default function Upload() {
     isFollowing: false,
     comments: [],
     quality: 'auto' as const,
-    privacy: 'public' as const
+    privacy: 'public' as const,
+    duetWithVideoId: row.duet_with_video_id || undefined
   });
 
   type UploadMusic = {
@@ -434,13 +464,14 @@ export default function Upload() {
           description: normalizedCaption,
           hashtags: hashtags,
           isPrivate: false,
-          music: musicMeta
+          music: musicMeta,
+          duetWithVideoId: duetSourceVideoId || undefined,
         });
 
         // Put new video directly at top of For You so it shows immediately (video already in DB = stays forever)
         const { data: row } = await supabase
           .from('videos')
-          .select('id, url, thumbnail_url, caption, created_at, views, likes, user_id, hashtags, location')
+          .select('id, url, thumbnail_url, caption, created_at, views, likes, user_id, hashtags, location, duet_with_video_id')
           .eq('id', videoId)
           .single();
         if (row) {
@@ -511,15 +542,45 @@ export default function Upload() {
        {recordedVideoUrl ? (
          <>
            <div className="relative z-10 w-full mx-auto h-[100dvh] bg-[#13151A] flex flex-col items-center justify-center">
+              {duetSourceVideoUrl ? (
+                <div className="absolute inset-0 flex flex-row">
+                  <div className="w-1/2 h-full flex-shrink-0 bg-black">
+                    <video
+                      src={duetSourceVideoUrl}
+                      className="w-full h-full object-contain"
+                      playsInline
+                      muted
+                      loop
+                      autoPlay
+                    />
+                  </div>
+                  <div className="w-1/2 h-full flex-shrink-0">
+                    <video
+                      ref={videoRef}
+                      src={recordedVideoUrl}
+                      className="w-full h-full object-cover z-0"
+                      controls={false}
+                      autoPlay
+                      loop
+                      muted
+                      playsInline
+                      style={{ filter: activeFilter !== 'none' || activeEnhance !== 'none' ? [activeFilter !== 'none' ? activeFilter : '', activeEnhance !== 'none' ? activeEnhance : ''].filter(Boolean).join(' ') : undefined }}
+                    />
+                  </div>
+                </div>
+              ) : (
               <video
                   ref={videoRef}
-                  src={recordedVideoUrl} 
-                  className="w-full h-full object-cover z-0" 
+                  src={recordedVideoUrl}
+                  className="w-full h-full object-cover z-0"
                   controls={false}
-                  autoPlay 
+                  autoPlay
                   loop
+                  muted
+                  playsInline
                   style={{ filter: activeFilter !== 'none' || activeEnhance !== 'none' ? [activeFilter !== 'none' ? activeFilter : '', activeEnhance !== 'none' ? activeEnhance : ''].filter(Boolean).join(' ') : undefined }}
               />
+              )}
                
                {/* Preview Top Controls - icon pack on right */}
                <div className="absolute top-[2%] left-0 right-0 z-20 flex items-center justify-between pointer-events-auto px-4">
@@ -606,7 +667,6 @@ export default function Upload() {
                           <div className="w-4 h-4 border-2 border-white rounded-sm relative overflow-hidden z-[2]">
                               <div className="absolute top-0.5 right-0.5 w-1 h-1 bg-white rounded-full"></div>
                           </div>
-                          <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-[1.32] translate-y-0.5" />
                       </div>
                       <span className="text-white font-bold text-[10px] shadow-black drop-shadow-md">Upload</span>
                   </button>
@@ -620,7 +680,6 @@ export default function Upload() {
                     >
                         <div className="w-9 h-9 rounded-full bg-[#13151A] border border-[#C9A96E]/30 flex items-center justify-center relative group-hover:scale-110 transition-transform">
                             <Wand2 size={18} className="text-[#C9A96E] relative z-[2]" />
-                            <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-[1.32] translate-y-0.5" />
                         </div>
                         <span className="text-white font-bold text-[10px] shadow-black drop-shadow-md">AI Studio</span>
                     </button>
@@ -631,7 +690,6 @@ export default function Upload() {
                     >
                         <div className="w-9 h-9 bg-[#13151A] rounded-full flex items-center justify-center text-white border border-[#C9A96E]/30 relative">
                             <RotateCcw size={18} className="text-[#C9A96E] relative z-[2]" />
-                            <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-[1.32] translate-y-0.5" />
                         </div>
                         <span className="text-white font-bold text-[10px] shadow-black drop-shadow-md">Retake</span>
                     </button>
@@ -643,7 +701,6 @@ export default function Upload() {
                     >
                         <div className="w-9 h-9 bg-red-600 rounded-full flex items-center justify-center text-white font-bold shadow-lg border-2 border-white group-hover:scale-110 transition-transform relative">
                             <Check size={18} className="relative z-[2]" />
-                            <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-[1.32] translate-y-0.5" />
                         </div>
                         <span className="text-white font-bold text-[10px] shadow-black drop-shadow-md">{isPosting ? 'Posting' : 'Post'}</span>
                     </button>
@@ -676,16 +733,44 @@ export default function Upload() {
         <>
           {/* Container Principal */}
           <div className="relative z-10 w-full h-[100dvh] mb-0 pointer-events-none bg-[#13151A] shadow-2xl overflow-hidden">
-              
-              {/* Camera Preview Layer */}
-              <video 
+              {/* Duet layout: left = source video, right = camera */}
+              {duetSourceVideoUrl ? (
+                <div className="absolute inset-0 flex flex-row">
+                  <div className="w-1/2 h-full flex-shrink-0 bg-black">
+                    <video
+                      ref={duetSourceVideoRef}
+                      src={duetSourceVideoUrl}
+                      className="w-full h-full object-contain"
+                      playsInline
+                      muted
+                      loop
+                      autoPlay
+                    />
+                  </div>
+                  <div className="w-1/2 h-full flex-shrink-0 relative">
+                    <video
+                      ref={videoRef}
+                      autoPlay
+                      playsInline
+                      muted
+                      className={`absolute inset-0 w-full h-full object-cover z-0 ${cameraError ? 'hidden' : ''}`}
+                      style={{ transform: `scale(${zoomLevel}) scaleX(-1)`, transformOrigin: 'center center' }}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <>
+              {/* Camera Preview Layer (non-duet) */}
+              <video
                 ref={videoRef}
-                autoPlay 
-                playsInline 
+                autoPlay
+                playsInline
                 muted
                 className={`absolute inset-0 w-full h-full object-cover z-0 ${cameraError ? 'hidden' : ''}`}
                 style={{ transform: `scale(${zoomLevel}) scaleX(-1)`, transformOrigin: 'center center' }}
               />
+                </>
+              )}
 
               {cameraError && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center z-[5] bg-[#13151A] text-white p-6 text-center">
@@ -722,7 +807,6 @@ export default function Upload() {
                   <div className="absolute top-0 right-[5%] bottom-0 flex flex-col items-center gap-4 py-2" style={{ paddingTop: 'max(0.5rem, env(safe-area-inset-top))' }}>
                     <button onClick={() => navigate('/feed')} className="w-9 h-9 rounded-full flex items-center justify-center bg-[#13151A] border border-[#C9A96E]/30 relative" title="Close">
                       <img src="/Icons/Gold power buton.png" alt="Close" className="w-5 h-5 relative z-[2]" />
-                      <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-[1.32] translate-y-0.5" />
                     </button>
                     <button 
                       className="w-9 h-9 rounded-full flex items-center justify-center bg-[#13151A] border border-[#C9A96E]/30 relative"
@@ -730,7 +814,6 @@ export default function Upload() {
                       title="Add sound"
                     >
                       <Music size={18} className="text-[#C9A96E] relative z-[2]" />
-                      <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-[1.32] translate-y-0.5" />
                     </button>
                     <button 
                       className="w-9 h-9 rounded-full flex items-center justify-center bg-[#13151A] border border-[#C9A96E]/30 relative"
@@ -739,7 +822,6 @@ export default function Upload() {
                       aria-label="Zoom out"
                     >
                       <ZoomOut size={18} className="text-[#C9A96E] relative z-[2]" />
-                      <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-[1.32] translate-y-0.5" />
                     </button>
                     <button 
                       className="w-9 h-9 rounded-full flex items-center justify-center bg-[#13151A] border border-[#C9A96E]/30 relative"
@@ -748,7 +830,6 @@ export default function Upload() {
                       aria-label="Zoom in"
                     >
                       <ZoomIn size={18} className="text-[#C9A96E] relative z-[2]" />
-                      <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-[1.32] translate-y-0.5" />
                     </button>
                     <button 
                       className="w-9 h-9 rounded-full flex items-center justify-center bg-[#13151A] border border-[#C9A96E]/30 relative"
@@ -772,7 +853,6 @@ export default function Upload() {
                       title="Flip Camera"
                     >
                       <RefreshCw size={18} className="text-[#C9A96E] relative z-[2]" />
-                      <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-[1.32] translate-y-0.5" />
                     </button>
                     <button 
                       className="w-9 h-9 rounded-full flex items-center justify-center bg-[#13151A] border border-[#C9A96E]/30 relative"
@@ -780,7 +860,6 @@ export default function Upload() {
                       title="Speed"
                     >
                       <span className="text-[#C9A96E] font-bold text-xs relative z-[2]">1x</span>
-                      <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-[1.32] translate-y-0.5" />
                     </button>
                     <button 
                       className="w-9 h-9 rounded-full flex items-center justify-center bg-[#13151A] border border-[#C9A96E]/30 relative"
@@ -788,7 +867,6 @@ export default function Upload() {
                       title="Beauty"
                     >
                       <span className="text-[#C9A96E] text-xs relative z-[2]">✨</span>
-                      <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-[1.32] translate-y-0.5" />
                     </button>
                     <button 
                       className="w-9 h-9 rounded-full flex items-center justify-center bg-[#13151A] border border-[#C9A96E]/30 relative"
@@ -796,7 +874,6 @@ export default function Upload() {
                       title="Timer"
                     >
                       <Clock size={18} className="text-[#C9A96E] relative z-[2]" />
-                      <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-[1.32] translate-y-0.5" />
                     </button>
                     <button 
                       className="w-9 h-9 rounded-full flex items-center justify-center bg-[#13151A] border border-[#C9A96E]/30 relative"
@@ -804,7 +881,6 @@ export default function Upload() {
                       title="Flash"
                     >
                       <Zap size={18} className="text-[#C9A96E] relative z-[2]" />
-                      <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-[1.32] translate-y-0.5" />
                     </button>
                     <button 
                       className="w-9 h-9 rounded-full bg-[#13151A] border border-[#C9A96E]/30 flex items-center justify-center relative"
@@ -812,7 +888,6 @@ export default function Upload() {
                       title="AI Effects"
                     >
                       <Wand2 size={18} className="text-[#C9A96E] relative z-[2]" />
-                      <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-[1.32] translate-y-0.5" />
                     </button>
                   </div>
 
@@ -826,7 +901,6 @@ export default function Upload() {
                             title="Done"
                           >
                               <Check size={24} className="relative z-[2]" />
-                              <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-[1.32] translate-y-0.5" />
                           </button>
                       )}
 
@@ -854,7 +928,6 @@ export default function Upload() {
                         <div className="w-4 h-4 border-2 border-white rounded-sm relative overflow-hidden z-[2]">
                             <div className="absolute top-0.5 right-0.5 w-1 h-1 bg-white rounded-full"></div>
                         </div>
-                        <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-[1.32] translate-y-0.5" />
                     </div>
                     <span className="text-white text-[10px] font-bold shadow-black drop-shadow-md">Upload</span>
                   </button>

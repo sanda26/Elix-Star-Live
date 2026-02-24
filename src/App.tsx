@@ -12,6 +12,8 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { OfflineBanner } from './components/OfflineBanner';
 import { IncomingCallModal } from './components/IncomingCallModal';
 import { subscribeToIncomingCalls } from './lib/callService';
+import { supabase } from './lib/supabase';
+import { showToast } from './lib/toast';
 
 
 // Lazy-loaded page components for code splitting
@@ -128,6 +130,36 @@ function App() {
     }
   }, [user]);
 
+  // One toast when user receives a private message (someone else sent it)
+  useEffect(() => {
+    if (!user?.id) return;
+    const channel = supabase
+      .channel('dm-notifications')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages' },
+        async (payload) => {
+          const row = payload.new as { sender_id: string; thread_id: string };
+          if (row.sender_id === user.id) return;
+          const { data: thread } = await supabase
+            .from('chat_threads')
+            .select('user1_id, user2_id')
+            .eq('id', row.thread_id)
+            .single();
+          if (!thread || (thread.user1_id !== user.id && thread.user2_id !== user.id)) return;
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('display_name, username')
+            .eq('user_id', row.sender_id)
+            .single();
+          const name = profile?.display_name || profile?.username || 'Someone';
+          showToast(`New message from ${name}`, 3000);
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [user?.id]);
+
   const isFullScreen =
     location.pathname === '/' ||
     location.pathname === '/feed' ||
@@ -179,11 +211,11 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-text font-sans">
+    <div className="fixed inset-0 w-full h-[100dvh] flex flex-col bg-background text-text font-sans overflow-hidden">
 
       <OfflineBanner />
       <IncomingCallModal />
-      <main className={cn("min-h-screen mx-auto max-w-[480px]", showBottomNav && !isFullScreen && "pt-topbar pb-nav")}>
+      <main className={cn("flex-1 w-full min-h-0 mx-auto max-w-[480px] overflow-auto", showBottomNav && !isFullScreen && "pt-topbar pb-nav")}>
         <ErrorBoundary>
         <Suspense fallback={<PageLoader />}>
         <Routes>

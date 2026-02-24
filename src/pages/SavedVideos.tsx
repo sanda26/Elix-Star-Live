@@ -83,6 +83,7 @@ export default function SavedVideos() {
                     src={video.url}
                     className="w-full h-full object-cover"
                     muted
+                    playsInline
                     preload="metadata"
                     onMouseOver={e => e.currentTarget.play()}
                     onMouseOut={e => { e.currentTarget.pause(); e.currentTarget.currentTime = 0; }}

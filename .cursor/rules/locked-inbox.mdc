@@ -1,0 +1,18 @@
+---
+description: Inbox page is locked; never modify src/pages/Inbox.tsx
+globs: src/pages/Inbox.tsx
+alwaysApply: true
+---
+
+# Locked Page: Inbox — Do Not Touch
+
+**Never modify `src/pages/Inbox.tsx`.**
+
+This page is locked. Do not edit, refactor, or change it.
+
+- Do not touch this file for any reason.
+- Do not "improve", "fix", "update", or "optimize" it.
+- Do not include it in any multi-file changes or feature work.
+- If a task would require editing Inbox, skip this file entirely and do not suggest changes to it.
+
+Consider this file off-limits.

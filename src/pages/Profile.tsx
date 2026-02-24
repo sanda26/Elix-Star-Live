@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Share2, Menu, Lock, Play, Heart, Camera, Sparkles, LogOut, UserPlus, X, Bookmark, Grid3X3, Coins, ShoppingBag, Repeat2, ChevronDown, ChevronRight, Store, Search, Copy, MessageCircle, Check, TrendingUp, Flag, Download } from 'lucide-react';
+import { Share2, Menu, Lock, Play, Heart, Camera, Sparkles, LogOut, UserPlus, X, Bookmark, Grid3X3, Coins, ShoppingBag, Repeat2, ChevronDown, ChevronRight, Store, Search, Copy, MessageCircle, Check, TrendingUp, Flag, Download, Plus } from 'lucide-react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
 import { supabase } from '../lib/supabase';
@@ -44,6 +44,7 @@ export default function Profile() {
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [videos, setVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(true);
+  const [videosLoading, setVideosLoading] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [avatarError, setAvatarError] = useState<string | null>(null);
   const [isFollowing, setIsFollowing] = useState(false);
@@ -55,10 +56,13 @@ export default function Profile() {
   const [shareFollowers, setShareFollowers] = useState<{ user_id: string; username: string; avatar_url: string | null }[]>([]);
   const [shareSent, setShareSent] = useState<Set<string>>(new Set());
   const [ranking, setRanking] = useState<number | null>(null);
+  const [resolvedUserId, setResolvedUserId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const isUuid = (s: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
   const isOwnProfile = !routeUserId || routeUserId === user?.id;
   const displayUserId = routeUserId || user?.id;
+  const effectiveUserId = resolvedUserId ?? displayUserId;
 
   const openSharePanel = async () => {
     setShowSharePanel(true);
@@ -90,7 +94,7 @@ export default function Profile() {
 
   const sendShareTo = async (targetUserId: string) => {
     if (!user?.id || shareSent.has(targetUserId)) return;
-    const profileUrl = `${window.location.origin}/profile/${displayUserId}`;
+    const profileUrl = `${window.location.origin}/profile/${effectiveUserId}`;
     const msgText = `Check out this profile: ${displayName} ${profileUrl}`;
     try {
       const { data: existing } = await supabase
@@ -116,40 +120,77 @@ export default function Profile() {
     } catch {}
   };
   
-  const displayName = profileData?.display_name || profileData?.username || user?.name || user?.email?.split('@')[0] || 'User';
-  const displayUsername = profileData?.username || user?.email?.split('@')[0] || 'user';
+  const displayName = isOwnProfile
+    ? (profileData?.display_name || profileData?.username || user?.name || user?.email?.split('@')[0] || 'User')
+    : (profileData?.display_name || profileData?.username || 'User');
+  const rawUsername = isOwnProfile
+    ? (profileData?.username || user?.email?.split('@')[0] || 'user')
+    : (profileData?.username || 'user');
+  const displayUsername = (rawUsername || '').replace(/^@+/, '');
   const localAvatar = isOwnProfile && user?.id ? localStorage.getItem('elix_avatar_' + user.id) : null;
-  const displayAvatar = localAvatar || profileData?.avatar_url || user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=random`;
+  const displayAvatar = isOwnProfile
+    ? (localAvatar || profileData?.avatar_url || user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=random`)
+    : (profileData?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=random`);
 
   useEffect(() => {
-    if (displayUserId) {
-      loadProfile();
-      loadVideos();
-      if (!isOwnProfile && user?.id) {
-        checkFollowing();
-      }
-    } else {
+    if (!displayUserId) {
       setLoading(false);
+      setResolvedUserId(null);
+      return;
     }
+    if (isUuid(displayUserId)) {
+      setResolvedUserId(displayUserId);
+      return;
+    }
+    const usernameClean = (displayUserId || '').replace(/^@+/, '');
+    supabase
+      .from('profiles')
+      .select('user_id')
+      .eq('username', usernameClean)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data?.user_id) setResolvedUserId(data.user_id);
+        else {
+          setResolvedUserId(null);
+          setProfileData(null);
+          setLoading(false);
+        }
+      })
+      .catch(() => {
+        setResolvedUserId(null);
+        setProfileData(null);
+        setLoading(false);
+      });
+  }, [displayUserId]);
+
+  useEffect(() => {
+    if (!effectiveUserId) return;
+    setLoading(true);
+    loadProfile();
+    loadVideos();
+    if (!isOwnProfile && user?.id) checkFollowing();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [displayUserId, activeTab]);
+  }, [effectiveUserId, activeTab]);
 
   const loadProfile = async () => {
-    if (!displayUserId) { setLoading(false); return; }
+    if (!effectiveUserId) { setLoading(false); return; }
 
     try {
-      const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000));
+      const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000));
       
       const fetchProfile = async () => {
         const { data, error } = await supabase
           .from('profiles')
           .select('*')
-          .eq('user_id', displayUserId)
+          .eq('user_id', effectiveUserId)
           .single();
 
         if (error || !data) {
+          if (effectiveUserId !== user?.id) {
+            return null;
+          }
           return {
-            user_id: displayUserId,
+            user_id: effectiveUserId,
             username: user?.username || user?.email?.split('@')[0] || 'user',
             display_name: user?.name || user?.email?.split('@')[0] || 'User',
             avatar_url: user?.avatar || null,
@@ -165,8 +206,8 @@ export default function Profile() {
         data.following_count = 0;
         try {
           const [{ count: followersCount }, { count: followingCount }] = await Promise.all([
-            supabase.from('followers').select('*', { count: 'exact', head: true }).eq('following_id', displayUserId),
-            supabase.from('followers').select('*', { count: 'exact', head: true }).eq('follower_id', displayUserId),
+            supabase.from('followers').select('*', { count: 'exact', head: true }).eq('following_id', effectiveUserId),
+            supabase.from('followers').select('*', { count: 'exact', head: true }).eq('follower_id', effectiveUserId),
           ]);
           data.followers_count = followersCount ?? 0;
           data.following_count = followingCount ?? 0;
@@ -177,7 +218,7 @@ export default function Profile() {
           const { data: userVideos } = await supabase
             .from('videos')
             .select('id')
-            .eq('user_id', displayUserId);
+            .eq('user_id', effectiveUserId);
           if (userVideos && userVideos.length > 0) {
             const videoIds = userVideos.map(v => v.id);
             const { count: totalLikes } = await supabase
@@ -192,79 +233,84 @@ export default function Profile() {
       };
 
       const data = await Promise.race([fetchProfile(), timeout]);
-      setProfileData(data);
-      trackEvent('profile_view', { user_id: displayUserId, is_own: isOwnProfile });
+      setProfileData(data ?? null);
+      trackEvent('profile_view', { user_id: effectiveUserId, is_own: isOwnProfile });
 
-      if (data.is_creator) {
+      if (data?.is_creator) {
         supabase.rpc('get_weekly_creator_ranking', { p_limit: 99 }).then(({ data: rankingData }) => {
           if (rankingData) {
-            const myRank = rankingData.find((r: any) => r.user_id === displayUserId);
+            const myRank = rankingData.find((r: any) => r.user_id === effectiveUserId);
             if (myRank) setRanking(myRank.rank);
           }
         }).catch(() => {});
       }
     } catch (_) {
-      setProfileData({
-        user_id: displayUserId,
-        username: user?.username || user?.email?.split('@')[0] || 'user',
-        display_name: user?.name || user?.email?.split('@')[0] || 'User',
-        avatar_url: user?.avatar || null,
-        bio: null,
-        followers_count: 0,
-        following_count: 0,
-        likes_count: 0,
-        is_creator: false,
-      } as ProfileData);
+      if (effectiveUserId === user?.id) {
+        setProfileData({
+          user_id: effectiveUserId,
+          username: user?.username || user?.email?.split('@')[0] || 'user',
+          display_name: user?.name || user?.email?.split('@')[0] || 'User',
+          avatar_url: user?.avatar || null,
+          bio: null,
+          followers_count: 0,
+          following_count: 0,
+          likes_count: 0,
+          is_creator: false,
+        } as ProfileData);
+      } else {
+        setProfileData(null);
+      }
     } finally {
       setLoading(false);
     }
   };
 
   const loadVideos = async () => {
-    if (!displayUserId) return;
-
+    if (!effectiveUserId) return;
+    setVideosLoading(true);
     try {
       let query = supabase.from('videos').select('id, thumbnail_url, views, is_public');
 
       if (activeTab === 'videos') {
-        query = query.eq('user_id', displayUserId).eq('is_public', true);
+        query = query.eq('user_id', effectiveUserId).eq('is_public', true);
       } else if (activeTab === 'private' && isOwnProfile) {
-        query = query.eq('user_id', displayUserId).eq('is_public', false);
+        query = query.eq('user_id', effectiveUserId).eq('is_public', false);
       } else if (activeTab === 'liked') {
         const { data: likes } = await supabase
           .from('likes')
           .select('video_id')
-          .eq('user_id', displayUserId);
+          .eq('user_id', effectiveUserId);
         const videoIds = likes?.map(l => l.video_id) || [];
-        if (videoIds.length === 0) { setVideos([]); return; }
+        if (videoIds.length === 0) { setVideos([]); setVideosLoading(false); return; }
         query = query.in('id', videoIds);
       } else if (activeTab === 'saved') {
         const { data: saved } = await supabase
           .from('saved_videos')
           .select('video_id')
-          .eq('user_id', displayUserId);
+          .eq('user_id', effectiveUserId);
         const videoIds = saved?.map(s => s.video_id) || [];
-        if (videoIds.length === 0) { setVideos([]); return; }
+        if (videoIds.length === 0) { setVideos([]); setVideosLoading(false); return; }
         query = query.in('id', videoIds);
       } else if (activeTab === 'reposts') {
         const { data: shares } = await supabase
           .from('shares')
           .select('video_id')
-          .eq('user_id', displayUserId);
+          .eq('user_id', effectiveUserId);
         const videoIds = shares?.map(s => s.video_id) || [];
-        if (videoIds.length === 0) { setVideos([]); return; }
+        if (videoIds.length === 0) { setVideos([]); setVideosLoading(false); return; }
         query = query.in('id', videoIds);
       } else if (activeTab === 'shop') {
         try {
           const { data: shopData } = await supabase
             .from('shop_items')
             .select('id, title, price, image_url')
-            .eq('seller_id', displayUserId)
-            .eq('status', 'active')
+            .eq('user_id', effectiveUserId)
+            .eq('is_active', true)
             .order('created_at', { ascending: false });
           setShopItems(shopData || []);
         } catch { setShopItems([]); }
         setVideos([]);
+        setVideosLoading(false);
         return;
       }
 
@@ -274,24 +320,26 @@ export default function Profile() {
       setVideos(data || []);
     } catch {
       setVideos([]);
+    } finally {
+      setVideosLoading(false);
     }
   };
 
   const checkFollowing = async () => {
-    if (!user?.id || !displayUserId || isOwnProfile) return;
+    if (!user?.id || !effectiveUserId || isOwnProfile) return;
 
     const { data } = await supabase
       .from('followers')
       .select('id')
       .eq('follower_id', user.id)
-      .eq('following_id', displayUserId)
+      .eq('following_id', effectiveUserId)
       .single();
 
     setIsFollowing(!!data);
   };
 
   const toggleFollow = async () => {
-    if (!user?.id || !displayUserId || isOwnProfile) return;
+    if (!user?.id || !effectiveUserId || isOwnProfile) return;
 
     const wasFollowing = isFollowing;
     setIsFollowing(!wasFollowing);
@@ -301,26 +349,26 @@ export default function Profile() {
           .from('followers')
           .delete()
           .eq('follower_id', user.id)
-          .eq('following_id', displayUserId);
+          .eq('following_id', effectiveUserId);
         if (error) throw error;
       } else {
         const { error } = await supabase
           .from('followers')
-          .insert({ follower_id: user.id, following_id: displayUserId });
+          .insert({ follower_id: user.id, following_id: effectiveUserId });
         if (error && error.code !== '23505') throw error;
-        trackEvent('user_follow', { target_user_id: displayUserId });
+        trackEvent('user_follow', { target_user_id: effectiveUserId });
       }
 
       // Sync video store so feed reflects the change without refresh
       const videoStore = useVideoStore.getState();
       const currentFollowing = videoStore.followingUsers;
       const updatedFollowing = wasFollowing
-        ? currentFollowing.filter((id: string) => id !== displayUserId)
-        : [...currentFollowing, displayUserId];
+        ? currentFollowing.filter((id: string) => id !== effectiveUserId)
+        : [...currentFollowing, effectiveUserId];
       useVideoStore.setState({
         followingUsers: updatedFollowing,
         videos: videoStore.videos.map(v =>
-          v.user.id === displayUserId ? { ...v, isFollowing: !wasFollowing } : v
+          v.user.id === effectiveUserId ? { ...v, isFollowing: !wasFollowing } : v
         ),
       });
       loadProfile();
@@ -392,8 +440,32 @@ export default function Profile() {
     }
   };
 
-  if (loading) {
-     return <div className="bg-[#13151A] text-white flex items-center justify-center">Loading...</div>;
+  if (!displayUserId) {
+     return <div className="bg-[#13151A] text-white flex items-center justify-center min-h-[50vh]">Loading...</div>;
+  }
+
+  if (routeUserId && resolvedUserId === null && !loading) {
+    return (
+      <div className="bg-[#13151A] text-white flex flex-col items-center justify-center min-h-[50vh] px-4">
+        <button onClick={() => navigate(-1)} className="absolute top-4 left-4 p-1">
+          <img src="/Icons/Gold power buton.png" alt="Back" className="w-5 h-5" />
+        </button>
+        <p className="text-white/70 text-center">Profile not found.</p>
+        <button onClick={() => navigate(-1)} className="mt-4 text-gold-metallic font-semibold text-sm">Go back</button>
+      </div>
+    );
+  }
+
+  if (!loading && !profileData && !isOwnProfile) {
+    return (
+      <div className="bg-[#13151A] text-white flex flex-col items-center justify-center min-h-[50vh] px-4">
+        <button onClick={() => navigate(-1)} className="absolute top-4 left-4 p-1">
+          <img src="/Icons/Gold power buton.png" alt="Back" className="w-5 h-5" />
+        </button>
+        <p className="text-white/70 text-center">Profile not found or couldn&apos;t load.</p>
+        <button onClick={() => navigate(-1)} className="mt-4 text-gold-metallic font-semibold text-sm">Go back</button>
+      </div>
+    );
   }
 
   return (
@@ -477,32 +549,33 @@ export default function Profile() {
               </div>
 
               <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 pb-4">
-                {/* Followers icon + Followers Row */}
+                {/* Create + Followers row — same as LiveStream share panel */}
                 <div className="w-full overflow-hidden shrink-0 mb-3">
-                  <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar items-center">
-                    <button type="button" onClick={() => { setShowSharePanel(false); navigate('/create'); }} className="flex-shrink-0 flex flex-col items-center gap-1 min-w-[56px] active:scale-95 transition-transform">
-                      <div className="w-[4.5rem] h-[4.5rem] rounded-full overflow-hidden flex items-center justify-center bg-[#13151A]">
-                        <img src="/Icons/Profile icon.png" alt="" className="w-full h-full object-contain scale-[1.21] translate-y-[1mm]" />
+                  <div className="flex gap-3 overflow-x-auto pb-3 no-scrollbar items-center px-4" style={{ marginLeft: '-2mm' }}>
+                    <button type="button" onClick={() => { setShowSharePanel(false); navigate('/create'); }} className="flex-shrink-0 flex flex-col items-center gap-1.5 min-w-[80px] active:scale-95 transition-transform">
+                      <div className="relative w-20 h-20 flex items-center justify-center">
+                        <img src="/Icons/Profile icon.png" alt="" className="w-full h-full object-contain" />
+                        <Plus size={28} className="text-[#C9A96E] absolute" strokeWidth={2.5} />
                       </div>
-                      <span className="text-white text-[9px] font-bold">Followers</span>
+                      <span className="text-white/80 text-[11px] font-medium">Create</span>
                     </button>
                     {shareFollowers.map((f) => (
-                        <button key={f.user_id} className="flex flex-col items-center gap-1 min-w-[56px] active:scale-95 transition-transform" onClick={() => sendShareTo(f.user_id)}>
-                          <div className="relative">
-                            <AvatarRing
-                              src={f.avatar_url || '/Icons/Profile icon.png'}
-                              alt={f.username || 'User'}
-                              size={48}
-                            />
-                            {shareSent.has(f.user_id) && (
-                              <div className="absolute bottom-0 right-0 w-4 h-4 bg-[#C9A96E] rounded-full flex items-center justify-center border-2 border-[#1C1E24]">
-                                <Check size={8} className="text-black" />
-                              </div>
-                            )}
-                          </div>
-                          <span className="text-white text-[9px] font-bold truncate max-w-[56px]">{shareSent.has(f.user_id) ? 'Sent' : f.username || 'User'}</span>
-                        </button>
-                      ))}
+                      <button key={f.user_id} className="flex flex-col items-center gap-1 min-w-[64px] active:scale-95 transition-transform" style={{ marginTop: '6mm' }} onClick={() => sendShareTo(f.user_id)}>
+                        <div className="relative">
+                          <AvatarRing
+                            src={f.avatar_url || '/Icons/Profile icon.png'}
+                            alt={f.username || 'User'}
+                            size={56}
+                          />
+                          {shareSent.has(f.user_id) && (
+                            <div className="absolute bottom-0 right-0 w-4 h-4 bg-[#C9A96E] rounded-full flex items-center justify-center border-2 border-[#1C1E24]">
+                              <Check size={8} className="text-black" />
+                            </div>
+                          )}
+                        </div>
+                        <span className="text-white/60 text-[10px] font-medium truncate w-16 text-center">{shareSent.has(f.user_id) ? 'Sent' : f.username || 'User'}</span>
+                      </button>
+                    ))}
                   </div>
                 </div>
 
@@ -514,7 +587,6 @@ export default function Profile() {
                       { name: 'Facebook', icon: <Share2 size={22} className="text-white" />, action: () => window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(`${window.location.origin}/profile/${displayUserId}`)}`) },
                       { name: 'Twitter', icon: <Share2 size={22} className="text-white" />, action: () => window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(`Check out ${displayName} on Elix!`)}&url=${encodeURIComponent(`${window.location.origin}/profile/${displayUserId}`)}`) },
                       { name: 'Copy Link', icon: <Copy size={22} className="text-white" />, action: () => { navigator.clipboard.writeText(`${window.location.origin}/profile/${displayUserId}`).then(() => alert('Profile link copied!')).catch(() => {}); } },
-                      { name: 'Messages', icon: <MessageCircle size={22} className="text-white" />, action: () => window.open(`sms:?body=${encodeURIComponent(`Check out ${displayName} on Elix! ${window.location.origin}/profile/${displayUserId}`)}`) },
                       { name: 'Promote', icon: <TrendingUp size={22} className="text-white" />, action: () => { setShowSharePanel(false); setShowPromotePanel(true); } },
                       { name: 'Report', icon: <Flag size={22} className="text-red-400" />, isRed: true, action: () => { setShowSharePanel(false); setShowReportModal(true); } },
                     ].map((item) => (
@@ -538,7 +610,7 @@ export default function Profile() {
           onClose={() => setShowPromotePanel(false)}
           contentType="profile"
           content={{
-            id: displayUserId,
+            id: effectiveUserId,
             title: `${displayName} on Elix`,
             thumbnail: displayAvatar,
             username: displayName,
@@ -723,27 +795,33 @@ export default function Profile() {
         {/* ═══ VIDEO GRID ═══ */}
         {activeTab !== 'shop' && (
           <div className="grid grid-cols-3 gap-[1px] flex-1">
-            {videos.map((video) => (
-              <button
-                key={video.id}
-                onClick={() => navigate(`/video/${video.id}`)}
-                className="aspect-[3/4] bg-[#1C1E24] relative group text-left"
-              >
-                <img 
-                  src={video.thumbnail_url || `https://ui-avatars.com/api/?name=Video&background=1C1E24&color=C9A96E&size=200`} 
-                  alt="Video" 
-                  className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition" 
-                />
-                {!video.is_public && (
-                  <div className="absolute top-2 right-2">
-                    <Lock size={14} className="text-white drop-shadow" />
-                  </div>
-                )}
-                <span className="absolute bottom-1.5 left-1.5 flex items-center gap-0.5 text-[11px] font-bold text-white drop-shadow-md">
-                  <Play size={10} fill="white" /> {formatNumber(video.views)}
-                </span>
-              </button>
-            ))}
+            {videosLoading && videos.length === 0 ? (
+              <div className="col-span-3 flex items-center justify-center py-16">
+                <div className="w-8 h-8 border-2 border-[#C9A96E] border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : (
+              videos.map((video) => (
+                <button
+                  key={video.id}
+                  onClick={() => navigate(`/video/${video.id}`)}
+                  className="aspect-[3/4] bg-[#1C1E24] relative group text-left"
+                >
+                  <img 
+                    src={video.thumbnail_url || `https://ui-avatars.com/api/?name=Video&background=1C1E24&color=C9A96E&size=200`} 
+                    alt="Video" 
+                    className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition" 
+                  />
+                  {!video.is_public && (
+                    <div className="absolute top-2 right-2">
+                      <Lock size={14} className="text-white drop-shadow" />
+                    </div>
+                  )}
+                  <span className="absolute bottom-1.5 left-1.5 flex items-center gap-0.5 text-[11px] font-bold text-white drop-shadow-md">
+                    <Play size={10} fill="white" /> {formatNumber(video.views)}
+                  </span>
+                </button>
+              ))
+            )}
           </div>
         )}
 
@@ -772,7 +850,7 @@ export default function Profile() {
           </div>
         )}
         
-        {!loading && activeTab !== 'shop' && videos.length === 0 && (
+        {!videosLoading && activeTab !== 'shop' && videos.length === 0 && (
           <div className="flex-1 flex items-center justify-center py-16 text-white/30 text-sm">
             {activeTab === 'videos' && 'No videos yet'}
             {activeTab === 'private' && 'No private videos'}
@@ -796,13 +874,13 @@ export default function Profile() {
 
       </div>
 
-      {showReportModal && displayUserId && (
+      {showReportModal && effectiveUserId && (
         <ReportModal
           isOpen={showReportModal}
           onClose={() => setShowReportModal(false)}
           videoId=""
           contentType="user"
-          contentId={displayUserId}
+          contentId={effectiveUserId}
         />
       )}
     </div>

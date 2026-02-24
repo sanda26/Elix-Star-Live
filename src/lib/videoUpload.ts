@@ -104,7 +104,7 @@ export class VideoUploadService {
   async uploadVideo(
     file: File,
     userId: string,
-    metadata: { description: string; hashtags: string[]; isPrivate: boolean; music?: any }
+    metadata: { description: string; hashtags: string[]; isPrivate: boolean; music?: any; duetWithVideoId?: string }
   ): Promise<string> {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -167,6 +167,7 @@ export class VideoUploadService {
         thumbnail_url: thumbnailUrl,
         description: metadata.description || '',
         is_public: !metadata.isPrivate,
+        ...(metadata.duetWithVideoId && { duet_with_video_id: metadata.duetWithVideoId }),
       };
       
       const { data, error } = await supabase

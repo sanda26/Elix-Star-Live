@@ -13,6 +13,7 @@ import {
   trackShare,
   trackFollow,
 } from '../lib/interactionTracker';
+import { showToast } from '../lib/toast';
 
 interface User {
   id: string;
@@ -74,17 +75,22 @@ export interface Video {
   comments: Comment[];
   quality?: 'auto' | '720p' | '1080p';
   privacy?: 'public' | 'friends' | 'private';
+  duetWithVideoId?: string;
 }
 
 interface VideoStore {
   videos: Video[];
+  friendVideos: Video[];
   likedVideos: string[];
   savedVideos: string[];
   followingUsers: string[];
   loading: boolean;
+  friendsLoading: boolean;
   
   // Video actions
   fetchVideos: () => Promise<void>;
+  fetchFriendVideos: () => Promise<void>;
+  getVideoById: (videoId: string) => Video | undefined;
   addVideo: (video: Video) => void;
   removeVideo: (videoId: string) => void;
   updateVideo: (videoId: string, updates: Partial<Video>) => void;
@@ -120,10 +126,17 @@ export const useVideoStore = create<VideoStore>()(
   persist(
     (set, get) => ({
       videos: [],
+      friendVideos: [],
       likedVideos: [],
       savedVideos: [],
       followingUsers: [],
       loading: false,
+      friendsLoading: false,
+
+      getVideoById: (videoId: string) => {
+        const { friendVideos, videos } = get();
+        return friendVideos.find((v) => v.id === videoId) ?? videos.find((v) => v.id === videoId);
+      },
 
       fetchVideos: async () => {
         set({ loading: true });
@@ -219,13 +232,121 @@ export const useVideoStore = create<VideoStore>()(
               isFollowing: followedSet.has(v.user_id),
               comments: [],
               quality: 'auto',
-              privacy: v.is_public ? 'public' : 'private'
+              privacy: v.is_public ? 'public' : 'private',
+              duetWithVideoId: v.duet_with_video_id || undefined
             };
           });
 
           set({ videos: mappedVideos, likedVideos: likedIds, followingUsers: followedUserIds, savedVideos: savedIds, loading: false });
         } catch (err) {
           set({ loading: false });
+        }
+      },
+
+      fetchFriendVideos: async () => {
+        set({ friendsLoading: true });
+        try {
+          const { data: { user: authUser } } = await supabase.auth.getUser();
+          if (!authUser?.id) {
+            set({ friendVideos: [], friendsLoading: false });
+            return;
+          }
+          const { data: followData } = await supabase
+            .from('followers')
+            .select('following_id')
+            .eq('follower_id', authUser.id);
+          const followingIds = (followData ?? []).map((f: { following_id: string }) => f.following_id).filter(Boolean);
+          if (followingIds.length === 0) {
+            set({ friendVideos: [], friendsLoading: false });
+            return;
+          }
+          const { data, error } = await supabase
+            .from('videos')
+            .select('*')
+            .eq('is_public', true)
+            .in('user_id', followingIds)
+            .order('created_at', { ascending: false })
+            .limit(50);
+          if (error || !data || data.length === 0) {
+            set({ friendVideos: [], friendsLoading: false });
+            return;
+          }
+          const userIds = [...new Set(data.map((v: any) => v.user_id).filter(Boolean))];
+          let profilesMap: Record<string, any> = {};
+          if (userIds.length > 0) {
+            const { data: profiles } = await supabase
+              .from('profiles')
+              .select('user_id, username, display_name, avatar_url, is_creator')
+              .in('user_id', userIds);
+            if (profiles) {
+              profiles.forEach((p: any) => { profilesMap[p.user_id] = p; });
+            }
+          }
+          let likedIds: string[] = [];
+          let followedUserIds: string[] = [];
+          let savedIds: string[] = [];
+          let blockedUserIds: string[] = [];
+          try {
+            const [{ data: likes }, { data: follows }, { data: saves }, { data: blocks }] = await Promise.all([
+              supabase.from('likes').select('video_id').eq('user_id', authUser.id),
+              supabase.from('followers').select('following_id').eq('follower_id', authUser.id),
+              supabase.from('saved_videos').select('video_id').eq('user_id', authUser.id),
+              supabase.from('blocked_users').select('blocked_id').eq('blocker_id', authUser.id),
+            ]);
+            likedIds = likes?.map((r: { video_id: string }) => r.video_id) ?? [];
+            followedUserIds = follows?.map((r: { following_id: string }) => r.following_id) ?? [];
+            savedIds = saves?.map((r: { video_id: string }) => r.video_id) ?? [];
+            blockedUserIds = blocks?.map((r: { blocked_id: string }) => r.blocked_id) ?? [];
+          } catch {}
+          const likedSet = new Set(likedIds);
+          const followedSet = new Set(followedUserIds);
+          const savedSet = new Set(savedIds);
+          const blockedSet = new Set(blockedUserIds);
+          const mappedVideos: Video[] = data
+            .filter((v: any) => !blockedSet.has(v.user_id))
+            .map((v: any) => {
+              const p = profilesMap[v.user_id] || {};
+              const uname = p.username || 'user';
+              return {
+                id: v.id,
+                url: v.url,
+                thumbnail: v.thumbnail_url || '',
+                duration: '0:15',
+                user: {
+                  id: v.user_id || 'unknown',
+                  username: uname,
+                  name: p.display_name || uname,
+                  avatar: p.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(uname)}`,
+                  level: 1,
+                  isVerified: !!p.is_creator,
+                  followers: 0,
+                  following: 0
+                },
+                description: v.description || v.caption || '',
+                hashtags: (() => {
+                  if (v.hashtags && Array.isArray(v.hashtags) && v.hashtags.length > 0) return v.hashtags;
+                  const text = v.description || v.caption || '';
+                  const matches = text.match(/#[\w\u00C0-\u024F]+/g);
+                  return matches ? matches.map((t: string) => t.slice(1)) : [];
+                })(),
+                music: { id: 'original', title: 'Original Sound', artist: p.display_name || uname, duration: '0:15' },
+                stats: { views: v.views || 0, likes: v.likes || 0, comments: v.comments || 0, shares: v.shares || 0, saves: 0 },
+                createdAt: v.created_at,
+                location: v.location || undefined,
+                isLiked: likedSet.has(v.id),
+                isSaved: savedSet.has(v.id),
+                isFollowing: followedSet.has(v.user_id),
+                comments: [],
+                quality: 'auto',
+                privacy: v.is_public ? 'public' : 'private',
+                duetWithVideoId: v.duet_with_video_id || undefined
+              };
+            });
+          set({ friendVideos: mappedVideos, friendsLoading: false });
+        } catch (err) {
+          set({ friendVideos: [], friendsLoading: false });
+        } finally {
+          set((s) => (s.friendsLoading ? { friendsLoading: false } : {}));
         }
       },
 
@@ -238,14 +359,16 @@ export const useVideoStore = create<VideoStore>()(
         videos: state.videos.filter(video => video.id !== videoId)
       })),
       
-      updateVideo: (videoId, updates) => set((state) => ({
-        videos: state.videos.map(video => 
-          video.id === videoId ? { ...video, ...updates } : video
-        )
-      })),
+      updateVideo: (videoId, updates) => set((state) => {
+        const upd = (video: Video) => video.id === videoId ? { ...video, ...updates } : video;
+        return {
+          videos: state.videos.map(upd),
+          friendVideos: state.friendVideos.map(upd),
+        };
+      }),
 
       deleteVideo: async (videoId) => {
-        const snapshot = get().videos;
+        const snapshot = get();
         try {
           const { data: auth } = await supabase.auth.getUser();
           const user = auth.user;
@@ -295,10 +418,9 @@ export const useVideoStore = create<VideoStore>()(
             throw new Error(deleteError.message || 'Failed to delete video.');
           }
 
-          set({ videos: get().videos.filter((v) => v.id !== videoId) });
+          set({ videos: get().videos.filter((v) => v.id !== videoId), friendVideos: get().friendVideos.filter((v) => v.id !== videoId) });
         } catch (err) {
-
-          set({ videos: snapshot });
+          set({ videos: snapshot.videos, friendVideos: snapshot.friendVideos });
           throw err instanceof Error ? err : new Error('Failed to delete video.');
         }
       },
@@ -306,11 +428,11 @@ export const useVideoStore = create<VideoStore>()(
       // Like actions (persist to likes table + update video engagement / FYP eligibility)
       toggleLike: async (videoId) => {
         const state = get();
-        const video = state.videos.find(v => v.id === videoId);
+        const video = state.getVideoById(videoId);
         if (!video) return;
 
         const wasLiked = video.isLiked;
-        const newLikes = wasLiked ? video.stats.likes - 1 : video.stats.likes + 1;
+        const newLikes = Math.max(0, wasLiked ? video.stats.likes - 1 : video.stats.likes + 1);
         const updatedStats = { ...video.stats, likes: newLikes };
         const score = calculateEngagementScore(updatedStats);
         const eligible = isEligibleForFyp(score);
@@ -319,12 +441,10 @@ export const useVideoStore = create<VideoStore>()(
           ? state.likedVideos.filter(id => id !== videoId)
           : [...state.likedVideos, videoId];
 
+        const likeUpdate = (v: Video) => v.id === videoId ? { ...v, isLiked: !wasLiked, stats: updatedStats } : v;
         set({
-          videos: state.videos.map(v =>
-            v.id === videoId
-              ? { ...v, isLiked: !wasLiked, stats: updatedStats }
-              : v
-          ),
+          videos: state.videos.map(likeUpdate),
+          friendVideos: state.friendVideos.map(likeUpdate),
           likedVideos: newLikedVideos
         });
 
@@ -346,8 +466,7 @@ export const useVideoStore = create<VideoStore>()(
             })
             .eq('id', videoId);
         } catch (err) {
-
-          set({ videos: state.videos, likedVideos: state.likedVideos });
+          set({ videos: state.videos, friendVideos: state.friendVideos, likedVideos: state.likedVideos });
         }
       },
 
@@ -359,7 +478,7 @@ export const useVideoStore = create<VideoStore>()(
       // Save actions — persist to Supabase
       toggleSave: async (videoId) => {
         const state = get();
-        const video = state.videos.find(v => v.id === videoId);
+        const video = state.getVideoById(videoId);
         if (!video) return;
 
         const wasSaved = video.isSaved;
@@ -367,16 +486,13 @@ export const useVideoStore = create<VideoStore>()(
           ? state.savedVideos.filter(id => id !== videoId)
           : [...state.savedVideos, videoId];
 
+        const newSaves = Math.max(0, wasSaved ? (video.stats.saves || 0) - 1 : (video.stats.saves || 0) + 1);
+        const saveUpdate = (v: Video) => v.id === videoId
+          ? { ...v, isSaved: !wasSaved, stats: { ...v.stats, saves: newSaves } }
+          : v;
         set({
-          videos: state.videos.map(v =>
-            v.id === videoId
-              ? {
-                  ...v,
-                  isSaved: !wasSaved,
-                  stats: { ...v.stats, saves: wasSaved ? v.stats.saves - 1 : v.stats.saves + 1 }
-                }
-              : v
-          ),
+          videos: state.videos.map(saveUpdate),
+          friendVideos: state.friendVideos.map(saveUpdate),
           savedVideos: newSavedVideos,
         });
 
@@ -389,14 +505,15 @@ export const useVideoStore = create<VideoStore>()(
             await supabase.from('saved_videos').insert({ user_id: user.id, video_id: videoId });
           }
         } catch {
-          // Revert on failure
+          const s = get();
+          const revertSaves = Math.max(0, wasSaved ? (video.stats.saves || 0) + 1 : (video.stats.saves || 0) - 1);
+          const revert = (v: Video) => v.id === videoId
+            ? { ...v, isSaved: wasSaved, stats: { ...v.stats, saves: revertSaves } }
+            : v;
           set({
-            videos: get().videos.map(v =>
-              v.id === videoId
-                ? { ...v, isSaved: wasSaved, stats: { ...v.stats, saves: wasSaved ? v.stats.saves + 1 : v.stats.saves - 1 } }
-                : v
-            ),
-            savedVideos: wasSaved ? [...get().savedVideos, videoId] : get().savedVideos.filter(id => id !== videoId),
+            videos: s.videos.map(revert),
+            friendVideos: s.friendVideos.map(revert),
+            savedVideos: wasSaved ? [...s.savedVideos, videoId] : s.savedVideos.filter(id => id !== videoId),
           });
         }
       },
@@ -410,47 +527,62 @@ export const useVideoStore = create<VideoStore>()(
       toggleFollow: async (userId) => {
         const state = get();
         const wasFollowing = state.followingUsers.includes(userId);
-        
+
+        const revert = () => {
+          set((s) => {
+            const followUpdate = (video: Video) => video.user.id === userId
+              ? { ...video, isFollowing: wasFollowing, user: { ...video.user, followers: video.user.followers } }
+              : video;
+            const followingUsers = wasFollowing ? [...s.followingUsers, userId] : s.followingUsers.filter(id => id !== userId);
+            return {
+              videos: s.videos.map(followUpdate),
+              friendVideos: s.friendVideos.map(followUpdate),
+              followingUsers
+            };
+          });
+        };
+
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          showToast('Please sign in to follow');
+          return;
+        }
+        if (user.id === userId) return; // can't follow self
+
         // Update local state immediately (optimistic)
         set((s) => {
           const newFollowingUsers = s.followingUsers.includes(userId)
             ? s.followingUsers.filter(id => id !== userId)
             : [...s.followingUsers, userId];
-
+          const followUpdate = (video: Video) => video.user.id === userId
+            ? {
+                ...video,
+                isFollowing: !video.isFollowing,
+                user: {
+                  ...video.user,
+                  followers: video.isFollowing ? video.user.followers - 1 : video.user.followers + 1
+                }
+              }
+            : video;
           return {
-            videos: s.videos.map(video =>
-              video.user.id === userId
-                ? {
-                    ...video,
-                    isFollowing: !video.isFollowing,
-                    user: {
-                      ...video.user,
-                      followers: video.isFollowing
-                        ? video.user.followers - 1
-                        : video.user.followers + 1
-                    }
-                  }
-                : video
-            ),
+            videos: s.videos.map(followUpdate),
+            friendVideos: s.friendVideos.map(followUpdate),
             followingUsers: newFollowingUsers
           };
         });
 
-        // Persist to DB
         try {
-          const { data: { user } } = await supabase.auth.getUser();
-          if (!user) return; // Should be logged in
-
           if (wasFollowing) {
-             // Unfollow
-             await supabase.from('followers').delete().eq('follower_id', user.id).eq('following_id', userId);
+            const { error } = await supabase.from('followers').delete().eq('follower_id', user.id).eq('following_id', userId);
+            if (error) throw error;
           } else {
-             // Follow
-             await supabase.from('followers').insert({ follower_id: user.id, following_id: userId });
-             trackFollow(userId).catch(() => {});
+            const { error } = await supabase.from('followers').insert({ follower_id: user.id, following_id: userId });
+            if (error && error.code !== '23505') throw error; // 23505 = unique, already following
+            if (!error) trackFollow(userId).catch(() => {});
           }
-        } catch (err) {
-          /* ignored */
+        } catch {
+          revert();
+          showToast('Couldn’t follow. Please try again.');
         }
       },
 
@@ -464,18 +596,15 @@ export const useVideoStore = create<VideoStore>()(
       // Share actions – increment share count + refresh FYP eligibility
       shareVideo: async (videoId) => {
         const state = get();
-        const video = state.videos.find(v => v.id === videoId);
+        const video = state.getVideoById(videoId);
         if (!video) return;
 
         const newShares = video.stats.shares + 1;
         const updatedStats = { ...video.stats, shares: newShares };
-
+        const shareUpdate = (v: Video) => v.id === videoId ? { ...v, stats: updatedStats } : v;
         set({
-          videos: state.videos.map(v =>
-            v.id === videoId
-              ? { ...v, stats: updatedStats }
-              : v
-          )
+          videos: state.videos.map(shareUpdate),
+          friendVideos: state.friendVideos.map(shareUpdate),
         });
 
         try {
@@ -489,7 +618,7 @@ export const useVideoStore = create<VideoStore>()(
       // Comment actions – also refresh FYP eligibility
       addComment: async (videoId, commentData) => {
         const state = get();
-        const video = state.videos.find(v => v.id === videoId);
+        const video = state.getVideoById(videoId);
         if (!video) return;
 
         // Get current user for optimistic UI
@@ -511,13 +640,12 @@ export const useVideoStore = create<VideoStore>()(
         
         const newCommentsCount = video.stats.comments + 1;
         const updatedStats = { ...video.stats, comments: newCommentsCount };
-
+        const commentUpdate = (v: Video) => v.id === videoId
+          ? { ...v, comments: [...v.comments, newComment], stats: updatedStats }
+          : v;
         set({
-          videos: state.videos.map(v =>
-            v.id === videoId
-              ? { ...v, comments: [...v.comments, newComment], stats: updatedStats }
-              : v
-          )
+          videos: state.videos.map(commentUpdate),
+          friendVideos: state.friendVideos.map(commentUpdate),
         });
 
         try {
@@ -536,15 +664,12 @@ export const useVideoStore = create<VideoStore>()(
 
           // Update the optimistic comment with real ID
           if (insertedComment) {
+             const commentIdUpdate = (v: Video) => v.id === videoId
+               ? { ...v, comments: v.comments.map(c => c.id === tempId ? { ...c, id: insertedComment.id } : c) }
+               : v;
              set(s => ({
-               videos: s.videos.map(v => 
-                 v.id === videoId 
-                   ? { 
-                       ...v, 
-                       comments: v.comments.map(c => c.id === tempId ? { ...c, id: insertedComment.id } : c) 
-                     } 
-                   : v
-               )
+               videos: s.videos.map(commentIdUpdate),
+               friendVideos: s.friendVideos.map(commentIdUpdate),
              }));
           }
 
@@ -556,19 +681,16 @@ export const useVideoStore = create<VideoStore>()(
       },
 
       deleteComment: async (videoId, commentId) => {
+        const commentDelUpdate = (video: Video) => video.id === videoId
+          ? {
+              ...video,
+              comments: video.comments.filter(c => c.id !== commentId),
+              stats: { ...video.stats, comments: Math.max(0, video.stats.comments - 1) }
+            }
+          : video;
         set((state) => ({
-          videos: state.videos.map(video => 
-            video.id === videoId 
-              ? { 
-                  ...video, 
-                  comments: video.comments.filter(c => c.id !== commentId),
-                  stats: {
-                    ...video.stats,
-                    comments: Math.max(0, video.stats.comments - 1)
-                  }
-                }
-              : video
-          )
+          videos: state.videos.map(commentDelUpdate),
+          friendVideos: state.friendVideos.map(commentDelUpdate),
         }));
         try {
           await supabase.from('comments').delete().eq('id', commentId);
@@ -579,31 +701,26 @@ export const useVideoStore = create<VideoStore>()(
 
       toggleCommentLike: async (videoId, commentId) => {
         const state = get();
-        const video = state.videos.find(v => v.id === videoId);
+        const video = state.getVideoById(videoId);
         if (!video) return;
         
         const comment = video.comments.find(c => c.id === commentId);
         if (!comment) return;
 
         const wasLiked = comment.isLiked;
-
-        set((state) => ({
-          videos: state.videos.map(video => 
-            video.id === videoId 
-              ? {
-                  ...video,
-                  comments: video.comments.map(c => 
-                    c.id === commentId 
-                      ? { 
-                          ...c, 
-                          isLiked: !wasLiked,
-                          likes: wasLiked ? c.likes - 1 : c.likes + 1
-                        }
-                      : c
-                  )
-                }
-              : video
-          )
+        const commentLikeUpdate = (v: Video) => v.id === videoId
+          ? {
+              ...v,
+              comments: v.comments.map(c =>
+                c.id === commentId
+                  ? { ...c, isLiked: !wasLiked, likes: wasLiked ? c.likes - 1 : c.likes + 1 }
+                  : c
+              )
+            }
+          : v;
+        set((s) => ({
+          videos: s.videos.map(commentLikeUpdate),
+          friendVideos: s.friendVideos.map(commentLikeUpdate),
         }));
 
         try {
@@ -623,18 +740,15 @@ export const useVideoStore = create<VideoStore>()(
       // Analytics
       incrementViews: async (videoId) => {
         const state = get();
-        const video = state.videos.find(v => v.id === videoId);
+        const video = state.getVideoById(videoId);
         if (!video) return;
 
         const newViews = video.stats.views + 1;
         const updatedStats = { ...video.stats, views: newViews };
-
+        const viewsUpdate = (v: Video) => v.id === videoId ? { ...v, stats: updatedStats } : v;
         set({
-          videos: state.videos.map(v =>
-            v.id === videoId
-              ? { ...v, stats: updatedStats }
-              : v
-          )
+          videos: state.videos.map(viewsUpdate),
+          friendVideos: state.friendVideos.map(viewsUpdate),
         });
 
         try {

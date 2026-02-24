@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import { TrendingUp, Play, UserPlus, FileText, Heart } from 'lucide-react';
-import { showToast } from '../lib/toast';
 import { useAuthStore } from '../store/useAuthStore';
-import { isStripeAllowed } from '../lib/platform';
-import { IS_STORE_BUILD } from '../config/build';
+import { isStripeAllowed, getPaymentMethod } from '../lib/platform';
+import { purchasePromoteProduct, type PromoteProductId } from '../lib/iap';
 
 export type PromoteContentType = 'video' | 'profile' | 'live';
 
@@ -38,33 +37,75 @@ export default function PromotePanel({ isOpen, onClose, contentType, content }: 
   const [selectedGoal, setSelectedGoal] = useState('likes');
   const [audience, setAudience] = useState<'default'>('default');
   const [isPaying, setIsPaying] = useState(false);
+  const [panelMessage, setPanelMessage] = useState<string | null>(null);
 
-  if (!isOpen || IS_STORE_BUILD) return null;
+  if (!isOpen) return null;
 
-  const fmt = (n: number) => new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n);
-  const priceByGoal: Record<string, string> = {
-    likes: fmt(10),
-    views: fmt(5),
-    followers: fmt(30),
-    profile: fmt(20),
-  };
-  const priceDisplay = priceByGoal[selectedGoal] || '£5 - £10';
-  const estimates: Record<string, string> = {
-    likes: '10 - 10K',
-    views: '5K - 500K',
-    followers: '5K',
-    profile: '300 - 30K',
-  };
+  const paymentMethod = getPaymentMethod();
+  const useAppleIAP = paymentMethod === 'apple-iap';
+  const useGoogleIAP = paymentMethod === 'google-play';
 
   const handlePay = async () => {
-    if (!isStripeAllowed()) {
-      showToast('Promote is available on web. Coming soon to app stores.');
-      return;
-    }
+    setPanelMessage(null);
     if (!user?.id) {
-      showToast('Please sign in to promote');
+      setPanelMessage('Please sign in to promote');
       return;
     }
+
+    if (useAppleIAP || useGoogleIAP) {
+      const productIdByGoal: Record<string, PromoteProductId> = {
+        views: 'com.elixstarlive.promote_views',
+        likes: 'com.elixstarlive.promote_likes',
+        profile: 'com.elixstarlive.promote_profile',
+        followers: 'com.elixstarlive.promote_followers',
+      };
+      const productId = productIdByGoal[selectedGoal];
+      if (!productId) {
+        setPanelMessage('Invalid goal');
+        return;
+      }
+      setIsPaying(true);
+      try {
+        const result = await purchasePromoteProduct(productId);
+        if (!result.success || !result.transactionId) {
+          setPanelMessage(result.error || 'Purchase failed');
+          return;
+        }
+        const apiBase = import.meta.env.VITE_API_URL || '';
+        const res = await fetch(`${apiBase}/api/promote-iap-complete`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+          },
+          body: JSON.stringify({
+            transactionId: result.transactionId,
+            receipt: result.receipt || '',
+            productId,
+            provider: useAppleIAP ? 'apple' : 'google',
+            contentType,
+            contentId: content?.id ?? '',
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.success) {
+          onClose();
+          return;
+        }
+        setPanelMessage(data.error || 'Failed to complete promote. Please try again.');
+      } catch {
+        setPanelMessage('Failed to complete promote. Please try again.');
+      } finally {
+        setIsPaying(false);
+      }
+      return;
+    }
+
+    if (!isStripeAllowed()) {
+      setPanelMessage('Promote is available on web or in the app.');
+      return;
+    }
+
     setIsPaying(true);
     try {
       const apiBase = import.meta.env.VITE_API_URL || '';
@@ -87,12 +128,27 @@ export default function PromotePanel({ isOpen, onClose, contentType, content }: 
         window.location.href = data.url;
         return;
       }
-      showToast(data.error || 'Failed to start checkout. Please try again.');
+      setPanelMessage(data.error || 'Failed to start checkout. Please try again.');
     } catch {
-      showToast('Failed to start checkout. Please try again.');
+      setPanelMessage('Failed to start checkout. Please try again.');
     } finally {
       setIsPaying(false);
     }
+  };
+
+  const fmt = (n: number) => new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n);
+  const priceByGoal: Record<string, string> = {
+    likes: fmt(10),
+    views: fmt(5),
+    followers: fmt(30),
+    profile: fmt(20),
+  };
+  const priceDisplay = priceByGoal[selectedGoal] || '£5 - £10';
+  const estimates: Record<string, string> = {
+    likes: '10 - 10K',
+    views: '5K - 500K',
+    followers: '5K',
+    profile: '300 - 30K',
   };
 
   const previewTitle = content?.title || content?.description || `#${content?.username || 'content'}`;
@@ -192,8 +248,14 @@ export default function PromotePanel({ isOpen, onClose, contentType, content }: 
         {/* Bottom payment bar - compact */}
         <div className="flex items-center justify-between px-3 py-2 border-t border-white/10 bg-[#13151A] flex-shrink-0">
           <div>
-            <p className="text-white font-bold text-base">{priceDisplay}</p>
-            <button type="button" className="text-white/50 text-[10px] underline">See price details</button>
+            {panelMessage ? (
+              <p className="text-red-400/90 text-xs max-w-[200px]">{panelMessage}</p>
+            ) : (
+              <>
+                <p className="text-white font-bold text-base">{priceDisplay}</p>
+                <button type="button" className="text-white/50 text-[10px] underline">See price details</button>
+              </>
+            )}
           </div>
           <button
             type="button"

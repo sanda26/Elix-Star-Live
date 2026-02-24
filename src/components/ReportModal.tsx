@@ -111,16 +111,27 @@ export default function ReportModal({ isOpen, onClose, videoId, contentType, con
       showToast('Please select a reason for reporting');
       return;
     }
-    if (!authToken) {
+    if (!authUserId) {
       showToast('Please sign in to submit a report.');
       return;
     }
 
     setIsSubmitting(true);
 
+    const targetId = (contentType === 'video' ? videoId : contentId || videoId).trim();
+    const done = () => {
+      setShowSuccess(true);
+      setTimeout(() => {
+        setShowSuccess(false);
+        onClose();
+        setSelectedReason('');
+        setAdditionalDetails('');
+      }, 2000);
+    };
+
     try {
-      const targetId = (contentType === 'video' ? videoId : contentId || videoId).trim();
-      const res = await fetch('/api/report', {
+      const apiBase = import.meta.env.VITE_API_URL || '';
+      const res = await fetch(`${apiBase}/api/report`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -130,28 +141,35 @@ export default function ReportModal({ isOpen, onClose, videoId, contentType, con
           targetType: contentType,
           targetId,
           reason: selectedReason,
-          details: additionalDetails,
-          contextVideoId: videoId,
+          details: additionalDetails || '',
+          contextVideoId: contentType === 'video' ? undefined : videoId,
         }),
       });
 
-      if (!res.ok) {
-        const data = await res.json().catch(() => null);
-        const message = data?.error || 'Failed to submit report. Please try again.';
-        throw new Error(message);
+      if (res.ok) {
+        done();
+        return;
       }
+      const data = await res.json().catch(() => null);
+      const apiError = data?.error || `Request failed (${res.status})`;
+      throw new Error(apiError);
+    } catch (apiErr) {
+      try {
+        const payload: Record<string, unknown> = {
+          reporter_id: authUserId,
+          reason: selectedReason,
+          details: additionalDetails || '',
+        };
+        if (contentType === 'video') payload.video_id = targetId;
+        if (contentType === 'user' && targetId) payload.reported_id = targetId;
 
-      setShowSuccess(true);
-      setTimeout(() => {
-        setShowSuccess(false);
-        onClose();
-        // Reset form
-        setSelectedReason('');
-        setAdditionalDetails('');
-      }, 2000);
-    } catch (error) {
-
-      showToast('Failed to submit report. Please try again.');
+        const { error } = await supabase.from('reports').insert(payload);
+        if (error) throw error;
+        done();
+      } catch (directErr) {
+        const msg = directErr instanceof Error ? directErr.message : 'Failed to submit report. Please try again.';
+        showToast(msg);
+      }
     } finally {
       setIsSubmitting(false);
     }

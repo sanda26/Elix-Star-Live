@@ -27,7 +27,7 @@ import {
   Lock,
   Crown,
   Trophy,
-  PlusCircle,
+  Plus,
 } from 'lucide-react';
 import { GiftPanel } from '../components/GiftPanel';
 import { GIFTS } from '../lib/gifts';
@@ -1468,26 +1468,23 @@ export default function SpectatorPage() {
                   </div>
                 </div>
                 <div className="w-full overflow-hidden shrink-0">
-                  <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar items-center">
-                    <button type="button" onClick={() => { setShowSharePanel(false); navigate('/create'); }} className="flex-shrink-0 flex flex-col items-center gap-1 min-w-[56px] active:scale-95 transition-transform">
-                      <div className="w-[4.5rem] h-[4.5rem] rounded-full overflow-hidden flex items-center justify-center bg-[#13151A]">
-                        <img src="/Icons/Profile icon.png" alt="" className="w-full h-full object-contain scale-[1.21] translate-y-[1mm]" />
+                  <div className="flex gap-3 overflow-x-auto pb-3 no-scrollbar items-center px-4" style={{ marginLeft: '-2mm' }}>
+                    <button type="button" onClick={() => { setShowSharePanel(false); navigate('/create'); }} className="flex-shrink-0 flex flex-col items-center gap-1.5 min-w-[80px] active:scale-95 transition-transform">
+                      <div className="relative w-20 h-20 flex items-center justify-center">
+                        <img src="/Icons/Profile icon.png" alt="" className="w-full h-full object-contain" />
+                        <Plus size={28} className="text-[#C9A96E] absolute" strokeWidth={2.5} />
                       </div>
-                      <span className="text-white text-[9px] font-bold">Followers</span>
+                      <span className="text-white/80 text-[11px] font-medium">Create</span>
                     </button>
                     {shareContacts.filter(c => c.name.toLowerCase().includes(shareQuery.toLowerCase())).map((u) => (
                       <button
                         key={u.id}
-                        className="flex flex-col items-center gap-1 min-w-[56px] active:scale-95 transition-transform"
+                        className="flex flex-col items-center gap-1 min-w-[64px] active:scale-95 transition-transform"
+                        style={{ marginTop: '6mm' }}
                         onClick={() => setShowSharePanel(false)}
                       >
-                        <div className="relative">
-                          <AvatarRing src={u.avatar || '/Icons/Profile icon.png'} alt={u.name} size={48} />
-                          <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-[#FF2D55] rounded-full flex items-center justify-center border-2 border-[#1a1a1a]">
-                            <Send size={7} className="text-white" />
-                          </div>
-                        </div>
-                        <span className="text-white text-[9px] font-bold truncate max-w-[56px]">{u.name}</span>
+                        <AvatarRing src={u.avatar || '/Icons/Profile icon.png'} alt={u.name} size={56} />
+                        <span className="text-white/60 text-[10px] font-medium truncate w-16 text-center">{u.name}</span>
                       </button>
                     ))}
                   </div>
@@ -1497,8 +1494,7 @@ export default function SpectatorPage() {
                     {[
                       { name: 'WhatsApp', icon: <MessageCircle size={22} className="text-white" />, action: () => { window.open(`https://wa.me/?text=${encodeURIComponent('Watch this on Elix! ' + `${window.location.origin}/watch/${effectiveStreamId}`)}`); setShowSharePanel(false); } },
                       { name: 'Facebook', icon: <Share2 size={22} className="text-white" />, action: () => { window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(`${window.location.origin}/watch/${effectiveStreamId}`)}`); setShowSharePanel(false); } },
-                      { name: 'Copy Link', icon: <Copy size={22} className="text-white" />, action: () => { navigator.clipboard.writeText(`${window.location.origin}/watch/${effectiveStreamId}`); showToast('Link copied!'); setShowSharePanel(false); } },
-                      { name: 'Message', icon: <MessageCircle size={22} className="text-white" />, action: () => { window.open(`sms:?body=${encodeURIComponent('Watch this on Elix! ' + `${window.location.origin}/watch/${effectiveStreamId}`)}`); setShowSharePanel(false); } },
+                      { name: 'Copy Link', icon: <Copy size={22} className="text-white" />, action: () => { navigator.clipboard.writeText(`${window.location.origin}/watch/${effectiveStreamId}`); setShowSharePanel(false); } },
                       { name: 'Promote', icon: <TrendingUp size={22} className="text-white" />, action: () => { setShowSharePanel(false); setShowPromotePanel(true); } },
                       { name: 'Report', icon: <Flag size={22} className="text-red-400" />, isRed: true, action: () => { setIsReportModalOpen(true); setShowSharePanel(false); } },
                     ].map((item) => (
@@ -1888,7 +1884,7 @@ export default function SpectatorPage() {
                             startCoHosting();
                           } else {
                             showToast(`Joining @${invite.hostName}'s stream...`);
-                            window.location.href = `/watch/${invite.streamKey}?cohost=1`;
+                            window.location.href = `/live/${invite.streamKey}?cohost=1`;
                           }
                         }}
                       >
@@ -1898,8 +1894,49 @@ export default function SpectatorPage() {
                   </div>
                 </div>
               ) : (
-                <div className="px-4 pb-6">
-                  <p className="text-white/70 text-sm">When the creator invites you to co-host, you&apos;ll see the invite here. You can accept or reject it.</p>
+                <div className="px-4 pb-6 flex flex-col items-center gap-3">
+                  <div className="w-16 h-16 rounded-full bg-[#C9A96E]/10 border border-[#C9A96E]/30 flex items-center justify-center">
+                    <Crown size={28} className="text-[#C9A96E]" />
+                  </div>
+                  <p className="text-white/70 text-sm text-center">
+                    {joinRequested
+                      ? 'Your request has been sent to the creator. Wait for them to accept.'
+                      : 'Request the creator to let you co-host their live stream.'}
+                  </p>
+                  <button
+                    type="button"
+                    disabled={joinRequested || !user?.id}
+                    onClick={async () => {
+                      if (!user?.id || !hostUserId || joinRequested) return;
+                      setJoinRequested(true);
+                      try {
+                        await supabase.from('notifications').insert({
+                          user_id: hostUserId,
+                          type: 'join_request',
+                          title: 'Co-Host Request',
+                          body: `@${viewerName} wants to co-host`,
+                          data: {
+                            actor_id: user.id,
+                            requester_name: viewerName,
+                            requester_avatar: viewerAvatar,
+                            request_type: 'cohost',
+                            stream_key: effectiveStreamId,
+                          },
+                        });
+                        showToast('Co-host request sent!');
+                      } catch {
+                        setJoinRequested(false);
+                        showToast('Failed to send request');
+                      }
+                    }}
+                    className={`w-full py-3 rounded-xl font-bold text-sm transition-all active:scale-95 ${
+                      joinRequested
+                        ? 'bg-white/10 text-white/40 cursor-not-allowed'
+                        : 'bg-[#C9A96E] text-black'
+                    }`}
+                  >
+                    {joinRequested ? 'Request Sent ✓' : 'Request to Co-Host'}
+                  </button>
                 </div>
               )}
             </div>

@@ -15,7 +15,8 @@ import {
   handleDeleteAccount,
   handleReport,
   handleSendNotification,
-  handleVerifyPurchase
+  handleVerifyPurchase,
+  handlePromoteIAPComplete,
 } from './routes/misc';
 import {
   handleForYouFeed,
@@ -85,6 +86,7 @@ app.post('/api/report', handleReport);
 app.post('/api/live/moderation/check', handleLiveModerationCheck);
 app.post('/api/send-notification', handleSendNotification);
 app.post('/api/verify-purchase', handleVerifyPurchase);
+app.post('/api/promote-iap-complete', handlePromoteIAPComplete);
 
 // Feed & Recommendation API
 app.get('/api/feed/foryou', handleForYouFeed);

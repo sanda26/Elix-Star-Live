@@ -467,21 +467,11 @@ export default function Create() {
 
         {/* Header */}
         <div className="flex items-center justify-between px-4 pt-[calc(env(safe-area-inset-top,0px)+8px)] pb-2">
-          <button onClick={() => navigate('/feed')} className="w-7 h-7 flex items-center justify-center">
+          <div className="w-7 h-7" aria-hidden />
+          <h1 className="text-sm font-black tracking-wider text-[#C9A96E] uppercase">Create</h1>
+          <button onClick={() => navigate('/feed')} className="w-7 h-7 flex items-center justify-center" aria-label="Close">
             <img src="/Icons/Gold power buton.png" alt="Close" className="w-5 h-5 object-contain" />
           </button>
-          <h1 className="text-sm font-black tracking-wider text-[#C9A96E] uppercase">Create</h1>
-          <div className="w-9 h-9 flex items-center justify-center flex-shrink-0 rounded-full overflow-hidden bg-[#1C1E24]">
-            {(user?.avatar || (user?.id && typeof localStorage !== 'undefined' && localStorage.getItem('elix_avatar_' + user.id))) ? (
-              <img
-                src={user?.avatar || (user?.id ? localStorage.getItem('elix_avatar_' + user.id) : null) || ''}
-                alt="You"
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <img src="/Icons/Profile icon.png" alt="" className="w-full h-full object-contain" />
-            )}
-          </div>
         </div>
 
         {/* Feature Tools Row */}

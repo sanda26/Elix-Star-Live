@@ -76,7 +76,8 @@ function LiveStreamKeyed() {
 function LiveStreamGuard() {
   const loc = useLocation();
   const params = (loc.pathname.match(/^\/live\/(.+)/) || [])[1];
-  if (params && params !== 'broadcast' && params !== 'start' && params !== 'watch' && !loc.search.includes('battle=1')) {
+  const isInviteJoin = loc.search.includes('battle=1') || loc.search.includes('cohost=1');
+  if (params && params !== 'broadcast' && params !== 'start' && params !== 'watch' && !isInviteJoin) {
     return <Navigate to={`/watch/${params}`} replace />;
   }
   return <LiveStreamKeyed />;

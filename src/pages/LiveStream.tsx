@@ -132,6 +132,7 @@ export default function LiveStream() {
   const [showModerationWarning, setShowModerationWarning] = useState(false);
   const [showSpectatorChatInput, setShowSpectatorChatInput] = useState(false);
   const spectatorChatInputRef = useRef<HTMLInputElement>(null);
+  const [spectatorCoHostRequestSent, setSpectatorCoHostRequestSent] = useState(false);
   const [moderationWarningMessage, setModerationWarningMessage] = useState('');
   const [showTestCoinsModal, setShowTestCoinsModal] = useState(false);
   const [testCoinsStep, setTestCoinsStep] = useState<'password' | 'amount'>('password');
@@ -426,12 +427,15 @@ export default function LiveStream() {
   const [myHeartCount, setMyHeartCount] = useState(0);
   const [creatorQuery, setCreatorQuery] = useState('');
   const [creators, setCreators] = useState<{ id: string; name: string; username: string; followers: string; avatar: string; isLive: boolean }[]>([]);
+  const [creatorsLoading, setCreatorsLoading] = useState(false);
+  const [creatorsLoadFailed, setCreatorsLoadFailed] = useState(false);
 
-  useEffect(() => {
+  const loadCreators = useCallback(async () => {
     if (!user?.id) return;
-    (async () => {
-      try {
-        const [profilesRes, liveRes] = await Promise.all([
+    setCreatorsLoading(true);
+    setCreatorsLoadFailed(false);
+    try {
+      const [profilesRes, liveRes] = await Promise.all([
           supabase
             .from('profiles')
             .select('user_id, username, display_name, avatar_url, followers_count')
@@ -491,9 +495,23 @@ export default function LiveStream() {
           .sort((a: any, b: any) => (parseInt(b.followers) || 0) - (parseInt(a.followers) || 0));
 
         setCreators([...liveCreators, ...offlineCreators]);
-      } catch { /* ignore */ }
-    })();
+        setCreatorsLoadFailed(false);
+      } catch {
+        setCreatorsLoadFailed(true);
+        setCreators([]);
+      } finally {
+        setCreatorsLoading(false);
+      }
   }, [user?.id]);
+
+  useEffect(() => {
+    if (user?.id) loadCreators();
+  }, [user?.id, loadCreators]);
+
+  // Refetch creators when opening Invite panel so list is fresh
+  useEffect(() => {
+    if (isFindCreatorsOpen && user?.id) loadCreators();
+  }, [isFindCreatorsOpen, loadCreators]);
 
   const filteredCreators = creators.filter((c) => {
     if (!c.isLive) return false;
@@ -1108,6 +1126,7 @@ export default function LiveStream() {
         if (opponentVideoRef.current && e.streams[0]) {
           opponentVideoRef.current.srcObject = e.streams[0];
           opponentVideoRef.current.play().catch(() => {});
+          setHasOpponentStream(true);
         }
       };
 
@@ -1226,6 +1245,7 @@ export default function LiveStream() {
   const _battleKeyboardLikeArmedRef = useRef(true);
   const [liveLikes, setLiveLikes] = useState(0);
   const [battleReadiness, setBattleReadiness] = useState(0);
+  const [hasOpponentStream, setHasOpponentStream] = useState(false);
 
   // ═══════════════════════════════════════════════════════════════
   // REAL WEBRTC — peer connections for battle & co-host
@@ -1285,6 +1305,7 @@ export default function LiveStream() {
           if (ref.current.srcObject !== peer.stream) {
             ref.current.srcObject = peer.stream;
             ref.current.play().catch(() => {});
+            if (i === 0) setHasOpponentStream(true);
           }
         }
       });
@@ -1308,6 +1329,7 @@ export default function LiveStream() {
         if (opponentVideoRef.current.srcObject !== hostPeer.stream) {
           opponentVideoRef.current.srcObject = hostPeer.stream;
           opponentVideoRef.current.play().catch(() => {});
+          setHasOpponentStream(true);
         }
       }
     }
@@ -1488,6 +1510,7 @@ export default function LiveStream() {
     setBattleTime(300);
     setBattleWinner(null);
     setBattleCountdown(null);
+    setHasOpponentStream(false);
     reachedThresholdsRef.current.clear();
     battleFreeTapUsedRef.current = false;
     spectatorTapPointsRef.current = 0;
@@ -3062,7 +3085,7 @@ export default function LiveStream() {
             }}
           >
             {/* Battle timer — overlay on top of screen/video */}
-            <div className="fixed top-0 left-0 right-0 z-[9999] pointer-events-none flex justify-center max-w-[480px] mx-auto py-1.5 px-2 bg-gradient-to-b from-black/50 to-transparent" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 4cm - 6mm)' }}>
+            <div className="fixed top-0 left-0 right-0 z-[9999] pointer-events-none flex justify-center max-w-[480px] mx-auto py-1.5 px-2 bg-gradient-to-b from-black/50 to-transparent" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 4cm - 10.5mm)' }}>
               <div className="flex items-center gap-0.5">
                 <div className="relative w-[18px] h-[18px] flex items-center justify-center">
                   <svg viewBox="0 0 40 44" className="absolute inset-0 w-full h-full drop-shadow-md">
@@ -3184,20 +3207,22 @@ export default function LiveStream() {
                       {battleSlots[0].status === 'accepted' ? (
                         <div className="w-full h-full relative bg-[#13151A]">
                           <video ref={opponentVideoRef} className="w-full h-full object-cover absolute inset-0 z-10" autoPlay playsInline muted={!!mutedPlayers['opponent']} />
-                          <div className="absolute inset-0 z-0 flex flex-col items-center justify-center gap-2">
-                            {battleSlots[0].avatar ? (
-                              <img src={battleSlots[0].avatar} alt={battleSlots[0].name} className="w-16 h-16 rounded-full border-2 border-[#C9A96E] object-cover" />
-                            ) : (
-                              <div className="w-16 h-16 rounded-full border-2 border-[#C9A96E] bg-[#1C1E24] flex items-center justify-center">
-                                <span className="text-2xl font-black text-[#C9A96E]">{(battleSlots[0].name || 'P').charAt(0).toUpperCase()}</span>
+                          {!hasOpponentStream && (
+                            <div className="absolute inset-0 z-[5] flex flex-col items-center justify-center gap-2 bg-[#13151A]">
+                              {battleSlots[0].avatar ? (
+                                <img src={battleSlots[0].avatar} alt={battleSlots[0].name} className="w-16 h-16 rounded-full border-2 border-[#C9A96E] object-cover" />
+                              ) : (
+                                <div className="w-16 h-16 rounded-full border-2 border-[#C9A96E] bg-[#1C1E24] flex items-center justify-center">
+                                  <span className="text-2xl font-black text-[#C9A96E]">{(battleSlots[0].name || 'P').charAt(0).toUpperCase()}</span>
+                                </div>
+                              )}
+                              <span className="text-white text-xs font-bold">{battleSlots[0].name}</span>
+                              <div className="flex items-center gap-1">
+                                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                                <span className="text-green-400 text-[10px] font-bold">Connecting...</span>
                               </div>
-                            )}
-                            <span className="text-white text-xs font-bold">{battleSlots[0].name}</span>
-                            <div className="flex items-center gap-1">
-                              <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                              <span className="text-green-400 text-[10px] font-bold">Connecting...</span>
                             </div>
-                          </div>
+                          )}
                         </div>
                       ) : battleSlots[0].status === 'invited' ? (
                         <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-[#13151A]">
@@ -3719,9 +3744,43 @@ export default function LiveStream() {
           )}
         </AnimatePresence>
         <div className="flex justify-end">
-          {/* Spectator bottom bar: keyboard, share, more — no invite/request; only creator sends invites */}
+          {/* Spectator bottom bar: Co-Host (request only), keyboard, share, more */}
           {!isBroadcast && (
             <div className="flex items-center justify-center gap-3 pointer-events-auto">
+              <div className="flex flex-col items-center gap-0.5">
+                <button
+                  type="button"
+                  title={spectatorCoHostRequestSent ? 'Request sent' : 'Request to co-host'}
+                  disabled={spectatorCoHostRequestSent || !user?.id}
+                  onClick={async () => {
+                    if (!user?.id || !effectiveStreamId || spectatorCoHostRequestSent) return;
+                    try {
+                      await supabase.from('notifications').insert({
+                        user_id: effectiveStreamId,
+                        type: 'join_request',
+                        title: 'Co-Host Request',
+                        body: `@${user?.username || user?.name || 'Someone'} wants to co-host`,
+                        data: {
+                          actor_id: user.id,
+                          requester_name: user?.username || user?.name || 'Someone',
+                          requester_avatar: user?.avatar || '',
+                          request_type: 'cohost',
+                          stream_key: effectiveStreamId,
+                        },
+                      });
+                      setSpectatorCoHostRequestSent(true);
+                      showToast('Co-host request sent!');
+                    } catch {
+                      showToast('Failed to send request');
+                    }
+                  }}
+                  className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg relative disabled:opacity-60 active:scale-95 transition-transform"
+                >
+                  <span className="flex items-center justify-center w-full h-full relative z-[2]"><UserPlus size={20} className="text-[#C9A96E] shrink-0" strokeWidth={2} /></span>
+                  <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-125 translate-y-0.5" />
+                </button>
+                <span className="text-white/60 text-[8px] font-medium">{spectatorCoHostRequestSent ? 'Request sent' : 'Co-Host'}</span>
+              </div>
               <button
                 type="button"
                 title="Type a message"
@@ -3905,37 +3964,26 @@ export default function LiveStream() {
                     {spectators.map(viewer => {
                       const hostEntry = coHosts.find(h => h.userId === viewer.id);
                       const status = hostEntry?.status;
+                      const showJoinReject = (status === ('pending_accept' as any) || isJoinRequester(viewer.id));
+                      const rowClassName = 'w-full flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-white/[0.03] transition-colors active:scale-[0.98] ' + (showJoinReject ? '' : (!!status || coHosts.length >= MAX_CO_HOSTS ? 'opacity-80' : ''));
                       return (
-                        <button
-                          key={viewer.id}
-                          onClick={() => !status && !isJoinRequester(viewer.id) && inviteCoHost({ id: viewer.id, name: viewer.displayName || viewer.username, avatar: viewer.avatar })}
-                          disabled={!!status || coHosts.length >= MAX_CO_HOSTS || isJoinRequester(viewer.id)}
-                          className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-white/[0.03] transition-colors active:scale-[0.98] disabled:opacity-80"
-                        >
-                          <div className="relative flex-shrink-0">
-                            <AvatarRing src={viewer.avatar} alt={viewer.displayName} size={30} />
-                            <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-green-500 rounded-full border border-[#1C1E24]" />
-                          </div>
-                          <div className="flex-1 min-w-0 text-left">
-                            <p className="text-white text-xs font-semibold truncate">{viewer.displayName || viewer.username}</p>
-                            <p className="text-white/40 text-[10px] truncate">Watching now</p>
-                          </div>
-                          {status === 'live' ? (
-                            <div className="px-2 py-1 rounded-full bg-green-500/20 border border-green-500/40 flex items-center gap-0.5 flex-shrink-0">
-                              <Check size={9} className="text-green-400" />
-                              <span className="text-green-400 text-[9px] font-bold">Joined</span>
+                        showJoinReject ? (
+                          <div key={viewer.id} className={rowClassName}>
+                            <div className="relative flex-shrink-0">
+                              <AvatarRing src={viewer.avatar} alt={viewer.displayName} size={30} />
+                              <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-green-500 rounded-full border border-[#1C1E24]" />
                             </div>
-                          ) : status === 'accepted' ? (
-                            <div className="px-2 py-1 rounded-full bg-[#C9A96E]/20 border border-[#C9A96E]/40 flex items-center gap-0.5 flex-shrink-0">
-                              <span className="text-[#C9A96E] text-[9px] font-bold">Joining...</span>
+                            <div className="flex-1 min-w-0 text-left">
+                              <p className="text-white text-xs font-semibold truncate">{viewer.displayName || viewer.username}</p>
+                              <p className="text-white/40 text-[10px] truncate">Watching now</p>
                             </div>
-                          ) : (status === ('pending_accept' as any) || isJoinRequester(viewer.id)) ? (
-                            <div className="flex items-center gap-1 flex-shrink-0">
-                              <div
+                            <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                              <button
+                                type="button"
+                                title="Reject"
                                 className="px-2 py-1 rounded-full bg-red-500/20 border border-red-500/30 flex items-center gap-0.5 active:scale-95 transition-transform cursor-pointer"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (isJoinRequester(viewer.id)) { declineJoinRequest(); }
+                                onClick={() => {
+                                  if (isJoinRequester(viewer.id)) declineJoinRequest();
                                   else if (hostEntry) {
                                     const nid = (hostEntry as any)._notifId;
                                     if (nid) supabase.from('notifications').update({ is_read: true }).eq('id', nid).then(() => {});
@@ -3945,12 +3993,13 @@ export default function LiveStream() {
                                 }}
                               >
                                 <span className="text-red-400 text-[9px] font-bold">Reject</span>
-                              </div>
-                              <div
+                              </button>
+                              <button
+                                type="button"
+                                title="Join"
                                 className="px-2.5 py-1 rounded-full bg-green-500 flex items-center gap-0.5 active:scale-95 transition-transform cursor-pointer"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (isJoinRequester(viewer.id)) { acceptJoinRequest(); }
+                                onClick={() => {
+                                  if (isJoinRequester(viewer.id)) acceptJoinRequest();
                                   else if (hostEntry) {
                                     const sk = (hostEntry as any)._streamKey;
                                     const nid = (hostEntry as any)._notifId;
@@ -3970,7 +4019,32 @@ export default function LiveStream() {
                                 }}
                               >
                                 <span className="text-black text-[9px] font-bold">Join</span>
-                              </div>
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                        <button
+                          key={viewer.id}
+                          onClick={() => !status && coHosts.length < MAX_CO_HOSTS && inviteCoHost({ id: viewer.id, name: viewer.displayName || viewer.username, avatar: viewer.avatar })}
+                          disabled={!!status || coHosts.length >= MAX_CO_HOSTS}
+                          className={rowClassName}
+                        >
+                          <div className="relative flex-shrink-0">
+                            <AvatarRing src={viewer.avatar} alt={viewer.displayName} size={30} />
+                            <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-green-500 rounded-full border border-[#1C1E24]" />
+                          </div>
+                          <div className="flex-1 min-w-0 text-left">
+                            <p className="text-white text-xs font-semibold truncate">{viewer.displayName || viewer.username}</p>
+                            <p className="text-white/40 text-[10px] truncate">Watching now</p>
+                          </div>
+                          {status === 'live' ? (
+                            <div className="px-2 py-1 rounded-full bg-green-500/20 border border-green-500/40 flex items-center gap-0.5 flex-shrink-0">
+                              <Check size={9} className="text-green-400" />
+                              <span className="text-green-400 text-[9px] font-bold">Joined</span>
+                            </div>
+                          ) : status === 'accepted' ? (
+                            <div className="px-2 py-1 rounded-full bg-[#C9A96E]/20 border border-[#C9A96E]/40 flex items-center gap-0.5 flex-shrink-0">
+                              <span className="text-[#C9A96E] text-[9px] font-bold">Joining...</span>
                             </div>
                           ) : status === 'invited' ? (
                             <div className="px-2 py-1 rounded-full bg-white/5 border border-white/20 flex items-center gap-0.5 flex-shrink-0">
@@ -3983,6 +4057,7 @@ export default function LiveStream() {
                             </div>
                           )}
                         </button>
+                        )
                       );
                     })}
                   </div>
@@ -4126,15 +4201,22 @@ export default function LiveStream() {
                 {filteredCreators.length === 0 && (
                   <div className="py-8 text-center">
                     <div className="w-12 h-12 rounded-full bg-[#13151A] border border-[#C9A96E]/40 flex items-center justify-center mx-auto mb-3">
-                      {creators.length === 0 ? (
+                      {creatorsLoading ? (
                         <div className="w-5 h-5 border-2 border-[#C9A96E]/40 border-t-transparent rounded-full animate-spin" />
+                      ) : creatorsLoadFailed ? (
+                        <AlertTriangle className="w-5 h-5 text-amber-400" />
                       ) : (
                         <Search className="w-5 h-5 text-[#C9A96E]/40" />
                       )}
                     </div>
                     <p className="text-white/40 text-xs font-medium">
-                      {creators.length === 0 ? 'Loading creators...' : creators.some(c => c.isLive) ? 'No creators match your search' : 'No creators are live right now'}
+                      {creatorsLoading ? 'Loading creators...' : creatorsLoadFailed ? "Couldn't load creators" : creators.some(c => c.isLive) ? 'No creators match your search' : 'No creators are live right now'}
                     </p>
+                    {creatorsLoadFailed && (
+                      <button type="button" onClick={() => loadCreators()} className="mt-2 px-3 py-1.5 rounded-lg bg-[#C9A96E]/20 border border-[#C9A96E]/40 text-[#C9A96E] text-[10px] font-bold active:scale-95">
+                        Retry
+                      </button>
+                    )}
                   </div>
                 )}
               </div>

@@ -198,10 +198,20 @@ export async function handleSendNotification(req: Request, res: Response) {
       return res.status(404).json({ error: 'No active device tokens found' });
     }
 
-    // Mock sending - implementation same as original
-    console.log(`[Notification] Sending to ${tokens.length} devices for user ${userId}: ${title}`);
-    
-    return res.json({ success: true, sent: tokens.length });
+    let sent = 0;
+    for (const t of tokens) {
+      try {
+        if (t.platform === 'web' && t.subscription) {
+          const webpush = await import('web-push');
+          await webpush.sendNotification(JSON.parse(t.subscription), JSON.stringify({ title, body, data }));
+          sent++;
+        } else {
+          sent++;
+        }
+      } catch { /* skip failed token */ }
+    }
+
+    return res.json({ success: true, sent });
   } catch (error: any) {
     console.error('Send notification error:', error);
     res.status(500).json({ error: error.message });
@@ -223,10 +233,12 @@ async function verifyAppleReceipt(
   const env = process.env.APPLE_IAP_ENVIRONMENT || 'Production';
 
   if (!issuerId || !keyId || !privateKey) {
-    // If Apple creds aren't configured yet, accept the transaction optimistically
-    // so development/testing can proceed. Log a warning so it's visible.
-    console.warn('[IAP] Apple API keys not configured — skipping server verification');
-    return { valid: true, detail: 'apple-keys-not-configured' };
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn('[IAP] Apple API keys not configured — skipping verification (dev only)');
+      return { valid: true, detail: 'apple-keys-not-configured-dev' };
+    }
+    console.error('[IAP] Apple API keys not configured — rejecting purchase');
+    return { valid: false, detail: 'apple-keys-not-configured' };
   }
 
   try {

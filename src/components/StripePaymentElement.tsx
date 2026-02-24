@@ -113,19 +113,8 @@ export const StripePaymentElement: React.FC<StripePaymentElementProps> = ({
       setLoading(false);
       return;
     }
-    // In production, we need a real backend to create payment intents
-    // For now, if no backend is available, we simulate success for testing UI
-    // BUT since user asked for REAL PRODUCTION, we should fail if no backend
-    
-    // Check if we are in a browser environment without a backend
-    // If so, we can't do real payments. 
-    // However, since we are "connecting to real services", we assume the backend exists or we use Supabase Edge Functions.
-    
-    // Let's assume we use a Supabase Edge Function for this
-    
     const fetchClientSecret = async () => {
         try {
-            // Replace with your actual Supabase Function URL
             const { data, error } = await supabase.functions.invoke('create-payment-intent', {
                 body: { 
                     amount: Math.round(coinPackage.price * 100),
@@ -149,12 +138,7 @@ export const StripePaymentElement: React.FC<StripePaymentElementProps> = ({
         }
     };
     
-    // fetchClientSecret(); 
-    // COMMENTED OUT: We don't have the edge function yet. 
-    // To prevent "breaking" the app for the user, we will show a "Service Unavailable" message instead of crashing
-    
-    setLoading(false);
-    // onError('Payment service is currently unavailable in this version.');
+    fetchClientSecret();
     
   }, [coinPackage]);
 

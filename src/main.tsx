@@ -34,6 +34,7 @@ try {
     </StrictMode>,
   )
 } catch (e) {
-
-  document.body.innerHTML = `<div style="padding:20px;color:red;font-family:monospace;background:#111;min-height:100vh"><h2>⚠️ Root Render Crash</h2><pre>${e instanceof Error ? e.message : String(e)}</pre></div>`;
+  if (import.meta.env.DEV) {
+    document.body.innerHTML = `<div style="padding:20px;color:red;font-family:monospace;background:#111;min-height:100vh"><h2>Root Render Crash</h2><pre>${e instanceof Error ? e.message : String(e)}</pre></div>`;
+  }
 }

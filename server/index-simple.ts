@@ -77,20 +77,6 @@ app.get('/env.js', (_req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   res.status(200).send('window.__ENV = Object.assign({}, window.__ENV || {}, ' + JSON.stringify(env) + ');');
 });
-// Debug endpoint to check files
-app.get('/debug', (req, res) => {
-  const debugInfo = {
-    distPath,
-    indexPath,
-    distExists: fs.existsSync(distPath),
-    indexExists: fs.existsSync(indexPath),
-    distContents: fs.existsSync(distPath) ? fs.readdirSync(distPath) : [],
-    cwd: process.cwd(),
-    nodeEnv: process.env.NODE_ENV
-  };
-  res.json(debugInfo);
-});
-
 // Serve static files with proper MIME types
 app.use(express.static(distPath, {
   setHeaders: (res, path) => {

@@ -14,6 +14,7 @@ import { IncomingCallModal } from './components/IncomingCallModal';
 import { subscribeToIncomingCalls } from './lib/callService';
 import { supabase } from './lib/supabase';
 import { showToast } from './lib/toast';
+import { websocket } from './lib/websocket';
 
 
 // Lazy-loaded page components for code splitting
@@ -148,6 +149,16 @@ function App() {
       analytics.setUserId(null);
     }
   }, [user]);
+
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        websocket.reconnectOnForeground();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, []);
 
   // One toast when user receives a private message (someone else sent it)
   useEffect(() => {

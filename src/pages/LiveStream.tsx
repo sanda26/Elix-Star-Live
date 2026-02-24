@@ -2139,6 +2139,35 @@ export default function LiveStream() {
   }, [isBattleMode, isBroadcast, isBattleJoiner]);
 
   useEffect(() => {
+    if (!isBroadcast) return;
+    const handleVisibility = async () => {
+      if (document.visibilityState !== 'visible') return;
+      const stream = cameraStreamRef.current;
+      const track = stream?.getVideoTracks()[0];
+      if (!track || track.readyState === 'ended') {
+        try {
+          const newStream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: cameraFacing },
+            audio: { echoCancellation: true, noiseSuppression: true },
+          });
+          cameraStreamRef.current = newStream;
+          setCameraStream(newStream);
+          newStream.getAudioTracks().forEach(t => (t.enabled = !isMicMuted));
+          if (videoRef.current) {
+            videoRef.current.srcObject = newStream;
+            videoRef.current.play().catch(() => {});
+          }
+        } catch { /* camera unavailable */ }
+      } else if (videoRef.current) {
+        videoRef.current.play().catch(() => {});
+      }
+      websocket.reconnectOnForeground();
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [isBroadcast, cameraFacing, isMicMuted]);
+
+  useEffect(() => {
     const stream = cameraStreamRef.current;
     if (!stream) return;
     stream.getAudioTracks().forEach((t) => (t.enabled = !isMicMuted));

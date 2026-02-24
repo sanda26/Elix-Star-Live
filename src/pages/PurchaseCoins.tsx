@@ -144,6 +144,7 @@ export default function PurchaseCoins() {
       if (!result.success) throw new Error(result.message);
     } catch (error) {
       showToast(error instanceof Error ? error.message : 'Purchase failed. Please try again.');
+    } finally {
       setLoading(false);
       setSelectedPackage(null);
     }

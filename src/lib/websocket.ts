@@ -144,6 +144,13 @@ class WebSocketService {
     }
   }
 
+  reconnectOnForeground() {
+    if (this.roomId && this.token && this.ws?.readyState !== WebSocket.OPEN && this.ws?.readyState !== WebSocket.CONNECTING) {
+      this.reconnectAttempts = 0;
+      this.connect(this.roomId, this.token);
+    }
+  }
+
   private attemptReconnect(code?: number) {
     // Don't reconnect on auth/policy failures — these won't succeed on retry
     if (code === 1008 || code === 1003 || code === 4001 || code === 4003) {

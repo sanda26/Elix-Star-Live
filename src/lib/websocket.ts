@@ -28,6 +28,8 @@ export type WebSocketEvent =
   | 'battle_tick'
   | 'battle_score'
   | 'battle_error'
+  | 'battle_ready'
+  | 'battle_ready_state'
   // WebRTC signaling events
   | 'rtc_offer'
   | 'rtc_answer'
@@ -53,12 +55,14 @@ export interface WebSocketMessage {
 class WebSocketService {
   private ws: WebSocket | null = null;
   private reconnectAttempts = 0;
-  private maxReconnectAttempts = 5;
+  private maxReconnectAttempts = 15;
   private reconnectDelay = 1000;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private listeners = new Map<WebSocketEvent, Set<(data: any) => void>>();
   private roomId: string | null = null;
   private token: string | null = null;
+  private pendingMessages: string[] = [];
+  private keepAliveTimer: ReturnType<typeof setInterval> | null = null;
 
   connect(roomId: string, token: string) {
     if (this.ws?.readyState === WebSocket.OPEN || this.ws?.readyState === WebSocket.CONNECTING) {
@@ -73,6 +77,11 @@ class WebSocketService {
       const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       wsUrl = `${proto}//${window.location.host}`;
     }
+    if (wsUrl.startsWith('https://')) {
+      wsUrl = wsUrl.replace('https://', 'wss://');
+    } else if (wsUrl.startsWith('http://')) {
+      wsUrl = wsUrl.replace('http://', 'ws://');
+    }
     if (!wsUrl.startsWith('ws://localhost') && wsUrl.startsWith('ws://')) {
       wsUrl = wsUrl.replace('ws://', 'wss://');
     }
@@ -80,6 +89,16 @@ class WebSocketService {
 
     this.ws.onopen = () => {
       this.reconnectAttempts = 0;
+      while (this.pendingMessages.length > 0) {
+        const msg = this.pendingMessages.shift()!;
+        try { this.ws?.send(msg); } catch {}
+      }
+      if (this.keepAliveTimer) clearInterval(this.keepAliveTimer);
+      this.keepAliveTimer = setInterval(() => {
+        if (this.ws?.readyState === WebSocket.OPEN) {
+          this.ws.send('ping');
+        }
+      }, 25000);
       this.handleMessage({ event: 'connected', data: {}, timestamp: new Date().toISOString() });
     };
 
@@ -101,19 +120,23 @@ class WebSocketService {
   }
 
   disconnect() {
-    // Clear any pending reconnect timer
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
+    if (this.keepAliveTimer) {
+      clearInterval(this.keepAliveTimer);
+      this.keepAliveTimer = null;
+    }
     if (this.ws) {
-      this.ws.onclose = null; // Prevent reconnect on intentional close
+      this.ws.onclose = null;
       this.ws.close();
       this.ws = null;
     }
     this.roomId = null;
     this.token = null;
     this.reconnectAttempts = 0;
+    this.pendingMessages = [];
   }
 
   isConnected(): boolean {
@@ -121,8 +144,11 @@ class WebSocketService {
   }
 
   send(event: string, data: any) {
+    const msg = JSON.stringify({ event, data, timestamp: new Date().toISOString() });
     if (this.ws?.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify({ event, data, timestamp: new Date().toISOString() }));
+      this.ws.send(msg);
+    } else if (this.roomId && this.pendingMessages.length < 50) {
+      this.pendingMessages.push(msg);
     }
   }
 

@@ -162,7 +162,7 @@ export function BattleInviteBanner() {
 
     showToast(`Joining @${invite.hostName}'s stream...`);
     if (invite.type === 'battle') {
-      window.location.href = `/live/${invite.streamKey}?battle=1`;
+      navigate(`/live/${invite.streamKey}?battle=1`);
     } else {
       navigate(`/live/${invite.streamKey}?cohost=1`);
     }

@@ -282,6 +282,8 @@ interface BattleSession {
   winner: 'host' | 'opponent' | 'draw' | null;
   timer: ReturnType<typeof setInterval> | null;
   createdAt: number;
+  hostReady: boolean;
+  opponentReady: boolean;
 }
 
 const battles = new Map<string, BattleSession>();     // roomId -> BattleSession
@@ -303,6 +305,8 @@ function createBattle(hostRoomId: string, hostUserId: string, hostName: string):
     winner: null,
     timer: null,
     createdAt: Date.now(),
+    hostReady: false,
+    opponentReady: false,
   };
   battles.set(hostRoomId, session);
   userBattleRoom.set(hostUserId, hostRoomId);
@@ -314,23 +318,37 @@ function joinBattle(roomId: string, opponentUserId: string, opponentName: string
   if (!session || session.status !== 'WAITING') return null;
   session.opponentUserId = opponentUserId;
   session.opponentName = opponentName;
-  session.status = 'COUNTDOWN';
   userBattleRoom.set(opponentUserId, roomId);
 
-  // Broadcast countdown (3, 2, 1) then start
   broadcastBattleState(roomId, session);
-
-  let countdown = 3;
-  const countdownTimer = setInterval(() => {
-    countdown--;
-    broadcastToRoom(roomId, 'battle_countdown', { count: countdown });
-    if (countdown <= 0) {
-      clearInterval(countdownTimer);
-      startBattleTimer(roomId);
-    }
-  }, 1000);
-
   return session;
+}
+
+function markBattleReady(roomId: string, userId: string) {
+  const session = battles.get(roomId);
+  if (!session || session.status !== 'WAITING') return;
+
+  if (userId === session.hostUserId) session.hostReady = true;
+  else if (userId === session.opponentUserId) session.opponentReady = true;
+
+  broadcastToRoom(roomId, 'battle_ready_state', {
+    hostReady: session.hostReady,
+    opponentReady: session.opponentReady,
+  });
+
+  if (session.hostReady && session.opponentReady) {
+    session.status = 'COUNTDOWN';
+    broadcastBattleState(roomId, session);
+    let countdown = 3;
+    const countdownTimer = setInterval(() => {
+      countdown--;
+      broadcastToRoom(roomId, 'battle_countdown', { count: countdown });
+      if (countdown <= 0) {
+        clearInterval(countdownTimer);
+        startBattleTimer(roomId);
+      }
+    }, 1000);
+  }
 }
 
 function startBattleTimer(roomId: string) {
@@ -433,6 +451,8 @@ function broadcastBattleState(roomId: string, session: BattleSession) {
     timeLeft: session.timeLeft,
     endsAt: session.endsAt,
     winner: session.winner,
+    hostReady: session.hostReady,
+    opponentReady: session.opponentReady,
   });
 }
 
@@ -606,6 +626,7 @@ wss.on('connection', async (ws: WebSocket, req) => {
 
   // Handle messages
   ws.on('message', async (data) => {
+    aliveClients.add(ws);
     try {
       let parsed: any;
       try {
@@ -828,7 +849,6 @@ async function handleMessage(client: Client, event: string, data: any) {
 
       // ═══ BATTLE EVENTS — server-controlled ═══
       case 'battle_create': {
-        // Host creates a battle session; optional opponentUserId/opponentName to start immediately
         const existing = battles.get(client.roomId);
         if (existing && existing.status !== 'ENDED') {
           sendToClient(client, 'battle_error', { message: 'Battle already active' });
@@ -840,30 +860,17 @@ async function handleMessage(client: Client, event: string, data: any) {
         if (opponentUserId || opponentName) {
           session.opponentUserId = opponentUserId;
           session.opponentName = opponentName;
-          session.status = 'COUNTDOWN';
           if (opponentUserId) userBattleRoom.set(opponentUserId, client.roomId);
-          broadcastBattleState(client.roomId, session);
-          let countdown = 3;
-          const countdownTimer = setInterval(() => {
-            countdown--;
-            broadcastToRoom(client.roomId, 'battle_countdown', { count: countdown });
-            if (countdown <= 0) {
-              clearInterval(countdownTimer);
-              startBattleTimer(client.roomId);
-            }
-          }, 1000);
-        } else {
-          sendToClient(client, 'battle_created', {
-            battleId: session.id,
-            status: session.status,
-          });
-          broadcastBattleState(client.roomId, session);
         }
+        sendToClient(client, 'battle_created', {
+          battleId: session.id,
+          status: session.status,
+        });
+        broadcastBattleState(client.roomId, session);
         break;
       }
 
       case 'battle_join': {
-        // Opponent joins the battle
         const battleSession = joinBattle(
           client.roomId,
           client.userId,
@@ -873,6 +880,12 @@ async function handleMessage(client: Client, event: string, data: any) {
           sendToClient(client, 'battle_error', { message: 'No battle to join' });
           break;
         }
+        break;
+      }
+
+      case 'battle_ready': {
+        const readyRoom = userBattleRoom.get(client.userId) || client.roomId;
+        markBattleReady(readyRoom, client.userId);
         break;
       }
 

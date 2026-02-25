@@ -629,15 +629,6 @@ export default function LiveStream() {
               return next;
             });
             showToast(`@${acceptedName} joined the battle!`);
-            // Transition to IN_BATTLE and broadcast state to all participants
-            setBattleState('IN_BATTLE');
-            setBattleTime(300);
-            setBattleCountdown(3);
-            supabase.channel(`battle_room_${effectiveStreamId}`).send({
-              type: 'broadcast',
-              event: 'battle_state',
-              payload: { state: 'IN_BATTLE', hostName: myCreatorName, hostAvatar: myAvatar },
-            }).then(() => {});
           }
         }
       )
@@ -670,7 +661,7 @@ export default function LiveStream() {
       }).then(() => {});
     } catch { /* fire-and-forget */ }
     showToast(`Joining @${invite.hostName}'s battle...`);
-    window.location.href = `/live/${invite.streamKey}?battle=1`;
+    navigate(`/live/${invite.streamKey}?battle=1`);
   };
 
   const declineBattleInvite = async () => {
@@ -841,28 +832,14 @@ export default function LiveStream() {
             const reqName = row.data?.requester_name || 'Someone';
             const reqAvatar = row.data?.requester_avatar || '';
             const reqId = row.data?.actor_id || '';
-            const reqType = row.data?.request_type === 'battle' ? 'battle' : 'cohost';
             setPendingJoinRequest({
               notifId: row.id,
               requesterName: reqName,
               requesterAvatar: reqAvatar,
               requesterId: reqId,
-              type: reqType,
+              type: 'cohost',
             });
-            if (reqType === 'cohost') {
-              showToast(`${reqName} wants to co-host`);
-            } else {
-              setBattleSlots(prev => {
-                if (prev.some(s => s.userId === reqId)) return prev;
-                const next = [...prev];
-                const emptyIdx = next.findIndex(s => s.status === 'empty');
-                if (emptyIdx !== -1) {
-                  next[emptyIdx] = { userId: reqId, name: reqName, status: 'pending_accept' as any, avatar: reqAvatar };
-                }
-                return next;
-              });
-              setIsFindCreatorsOpen(true);
-            }
+            showToast(`${reqName} wants to co-host`);
           }
         }
       )
@@ -878,8 +855,8 @@ export default function LiveStream() {
     const myName = user.username || user.name || 'Creator';
     await supabase.from('notifications').insert({
       user_id: req.requesterId,
-      type: req.type === 'cohost' ? 'cohost_accepted' : 'battle_accepted',
-      title: req.type === 'cohost' ? 'Co-Host Accepted' : 'Battle Accepted',
+      type: 'cohost_accepted',
+      title: 'Co-Host Accepted',
       body: `@${myName} accepted your request!`,
       data: {
         actor_id: user.id,
@@ -890,17 +867,15 @@ export default function LiveStream() {
         accepted_avatar: req.requesterAvatar || '',
       },
     });
-    if (req.type === 'cohost') {
-      setCoHosts(prev => [...prev, {
-        id: `host-${Date.now()}`,
-        userId: req.requesterId,
-        name: req.requesterName,
-        avatar: req.requesterAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(req.requesterName)}&background=121212&color=C9A96E`,
-        status: 'invited',
-        isMuted: false,
-      }]);
-    }
-    showToast(`Accepted @${req.requesterName}'s request!`);
+    setCoHosts(prev => [...prev, {
+      id: `host-${Date.now()}`,
+      userId: req.requesterId,
+      name: req.requesterName,
+      avatar: req.requesterAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(req.requesterName)}&background=121212&color=C9A96E`,
+      status: 'invited',
+      isMuted: false,
+    }]);
+    showToast(`Accepted @${req.requesterName}'s co-host request!`);
   };
 
   const declineJoinRequest = async () => {
@@ -1250,6 +1225,9 @@ export default function LiveStream() {
   const [liveLikes, setLiveLikes] = useState(0);
   const [battleReadiness, setBattleReadiness] = useState(0);
   const [hasOpponentStream, setHasOpponentStream] = useState(false);
+  const [iAmReady, setIAmReady] = useState(false);
+  const [hostIsReady, setHostIsReady] = useState(false);
+  const [opponentIsReady, setOpponentIsReady] = useState(false);
 
   // ═══════════════════════════════════════════════════════════════
   // REAL WEBRTC — peer connections for battle & co-host
@@ -1551,6 +1529,9 @@ export default function LiveStream() {
     setBattleWinner(null);
     setBattleCountdown(null);
     setHasOpponentStream(false);
+    setIAmReady(false);
+    setHostIsReady(false);
+    setOpponentIsReady(false);
     reachedThresholdsRef.current.clear();
     battleFreeTapUsedRef.current = false;
     spectatorTapPointsRef.current = 0;
@@ -2324,6 +2305,8 @@ export default function LiveStream() {
       setMyScore(data.hostScore || 0);
       setOpponentScore(data.opponentScore || 0);
       setBattleTime(data.timeLeft ?? 300);
+      if (data.hostReady != null) setHostIsReady(!!data.hostReady);
+      if (data.opponentReady != null) setOpponentIsReady(!!data.opponentReady);
       if (data.opponentName) {
         setBattleSlots(prev => {
           const next = [...prev];
@@ -2350,6 +2333,12 @@ export default function LiveStream() {
       if (!mounted) return;
       setBattleCountdown(data.count ?? null);
       if (data.count <= 0) setBattleCountdown(null);
+    };
+
+    const handleBattleReadyState = (data: any) => {
+      if (!mounted) return;
+      setHostIsReady(!!data.hostReady);
+      setOpponentIsReady(!!data.opponentReady);
     };
 
     const handleBattleEnded = (data: any) => {
@@ -2385,6 +2374,7 @@ export default function LiveStream() {
     websocket.on('battle_score', handleBattleScore);
     websocket.on('battle_countdown', handleBattleCountdown);
     websocket.on('battle_ended', handleBattleEnded);
+    websocket.on('battle_ready_state', handleBattleReadyState);
 
     const handleModerationWarning = (data: { message?: string }) => {
       if (!mounted) return;
@@ -2423,6 +2413,7 @@ export default function LiveStream() {
       websocket.off('battle_score', handleBattleScore);
       websocket.off('battle_countdown', handleBattleCountdown);
       websocket.off('battle_ended', handleBattleEnded);
+      websocket.off('battle_ready_state', handleBattleReadyState);
       websocket.off('moderation_warning', handleModerationWarning);
       websocket.off('moderation_pause', handleModerationPause);
       websocket.off('moderation_suspend', handleModerationSuspend);
@@ -3174,6 +3165,46 @@ export default function LiveStream() {
                 {/* LUXURY BATTLE COUNTDOWN */}
                 <div className="w-32 h-32 flex items-center justify-center animate-luxury-pulse relative">
                   <div className="text-white text-6xl font-black tabular-nums relative z-10 drop-shadow-[0_0_20px_rgba(230,179,106,1)]">{battleCountdown}</div>
+                </div>
+              </div>
+            )}
+
+            {battleCountdown == null && !battleWinner && battleState === 'INVITING' && battleSlots.some(s => s.status === 'accepted') && (
+              <div className="absolute inset-0 z-[250] flex items-center justify-center pointer-events-auto">
+                <div className="flex flex-col items-center gap-3 px-8 py-6 rounded-2xl bg-[#13151A]/80 backdrop-blur-xl border border-[#C9A96E]/30">
+                  <span className="text-white/70 text-xs font-semibold uppercase tracking-widest">Both players must be ready</span>
+                  <div className="flex items-center gap-4 mt-1">
+                    <div className="flex flex-col items-center gap-1">
+                      <div className={`w-3 h-3 rounded-full ${hostIsReady ? 'bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.6)]' : 'bg-white/20'}`} />
+                      <span className="text-white/50 text-[10px]">Host</span>
+                    </div>
+                    <div className="flex flex-col items-center gap-1">
+                      <div className={`w-3 h-3 rounded-full ${opponentIsReady ? 'bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.6)]' : 'bg-white/20'}`} />
+                      <span className="text-white/50 text-[10px]">Opponent</span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={iAmReady}
+                    onClick={() => {
+                      setIAmReady(true);
+                      websocket.send('battle_ready', {});
+                    }}
+                    className={`mt-2 px-8 py-2.5 rounded-lg text-sm font-bold active:scale-95 transition-all flex items-center justify-center gap-2 ${
+                      iAmReady
+                        ? 'bg-green-500/30 border border-green-400/40 text-green-300 cursor-default'
+                        : 'bg-[#C9A96E] text-black shadow-lg'
+                    }`}
+                  >
+                    {iAmReady ? (
+                      <><Check size={16} /> Ready</>
+                    ) : (
+                      <><Sword size={16} /> Ready Up</>
+                    )}
+                  </button>
+                  {iAmReady && !(hostIsReady && opponentIsReady) && (
+                    <span className="text-white/40 text-[10px] animate-pulse">Waiting for opponent...</span>
+                  )}
                 </div>
               </div>
             )}

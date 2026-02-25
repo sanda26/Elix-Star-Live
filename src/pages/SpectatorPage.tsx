@@ -181,13 +181,7 @@ export default function SpectatorPage() {
               navigate(`/watch/${streamKey}?cohost=1`);
             }
           }
-          if (row?.type === 'battle_accepted') {
-            const streamKey = row.data?.stream_key || '';
-            if (streamKey) {
-              showToast('Battle request accepted! Joining...');
-              window.location.href = `/live/${streamKey}?battle=1`;
-            }
-          }
+          
         }
       )
       .subscribe();
@@ -1942,7 +1936,7 @@ export default function SpectatorPage() {
                             startCoHosting();
                           } else {
                             showToast(`Joining @${invite.hostName}'s stream...`);
-                            window.location.href = `/live/${invite.streamKey}?cohost=1`;
+                            navigate(`/watch/${invite.streamKey}?cohost=1`);
                           }
                         }}
                       >

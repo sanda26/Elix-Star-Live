@@ -57,6 +57,17 @@ type LiveMessage = {
   isMod?: boolean;
 };
 
+const StreamVideo = ({ stream, className, style, ...props }: React.VideoHTMLAttributes<HTMLVideoElement> & { stream?: MediaStream }) => {
+  const ref = useRef<HTMLVideoElement>(null);
+  useEffect(() => {
+    if (ref.current && stream) {
+      ref.current.srcObject = stream;
+      ref.current.play().catch(() => {});
+    }
+  }, [stream]);
+  return <video ref={ref} autoPlay playsInline className={className} style={style} {...props} />;
+};
+
 export default function SpectatorPage() {
   const { streamId } = useParams<{ streamId: string }>();
   const navigate = useNavigate();
@@ -326,16 +337,7 @@ export default function SpectatorPage() {
   }, [hasStream]);
 
   useEffect(() => {
-    if (remotePeers.length === 0) return;
-    const broadcasterPeer = remotePeers[0];
-    if (!videoRef.current || !broadcasterPeer.stream) return;
-    const tracks = broadcasterPeer.stream.getTracks();
-    if (tracks.length === 0) return;
-    if (videoRef.current.srcObject !== broadcasterPeer.stream) {
-      videoRef.current.srcObject = broadcasterPeer.stream;
-    }
-    videoRef.current.play().catch(() => {});
-    setHasStream(true);
+    setHasStream(remotePeers.length > 0);
   }, [remotePeers]);
 
   useEffect(() => {
@@ -1000,11 +1002,9 @@ export default function SpectatorPage() {
               <div className="flex-1 min-h-0 flex flex-col">
                 <div className="flex flex-1 min-h-0">
                   <div className="w-1/2 h-full relative bg-black overflow-hidden border-r border-[#C9A96E]/20">
-                    <video
-                      ref={videoRef}
+                    <StreamVideo
+                      stream={remotePeers.find(p => p.id === hostUserId)?.stream || remotePeers[0]?.stream}
                       className="w-full h-full object-cover"
-                      playsInline
-                      autoPlay
                       style={{ opacity: hasStream ? 1 : 0 }}
                     />
                     <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-sm">
@@ -1019,12 +1019,19 @@ export default function SpectatorPage() {
 
                   {/* Opponent Video (Top/Right) */}
                   <div className="w-1/2 h-full relative bg-[#1C1E24] overflow-hidden flex items-center justify-center">
-                    <div className="text-center">
-                      <div className="w-12 h-12 rounded-full bg-[#13151A] border-2 border-blue-500 flex items-center justify-center mx-auto mb-2">
-                        <span className="text-xl">VS</span>
+                    {remotePeers.find(p => p.id === spectatorBattle.opponentUserId)?.stream ? (
+                      <StreamVideo
+                        stream={remotePeers.find(p => p.id === spectatorBattle.opponentUserId)?.stream}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="text-center">
+                        <div className="w-12 h-12 rounded-full bg-[#13151A] border-2 border-blue-500 flex items-center justify-center mx-auto mb-2">
+                          <span className="text-xl">VS</span>
+                        </div>
+                        <p className="text-white/60 text-xs font-bold truncate max-w-[80px]">{spectatorBattle.opponentName || 'Opponent'}</p>
                       </div>
-                      <p className="text-white/60 text-xs font-bold truncate max-w-[80px]">{spectatorBattle.opponentName || 'Opponent'}</p>
-                    </div>
+                    )}
                     {spectatorBattle.winner === 'opponent' && (
                       <div className="absolute inset-0 flex items-center justify-center bg-black/40">
                         <span className="text-4xl font-black text-blue-500 drop-shadow-lg rotate-[-12deg]">WINNER</span>
@@ -1136,14 +1143,31 @@ export default function SpectatorPage() {
                 </div>
               </div>
             </div>
+          ) : remotePeers.length > 1 ? (
+            /* MULTI-PEER GRID (Spectator view of Co-hosts) */
+            <div className="w-full h-full flex flex-col bg-black">
+              <div className="flex-1 relative border-b border-[#C9A96E]/20">
+                <StreamVideo
+                  stream={remotePeers.find(p => p.id === hostUserId)?.stream || remotePeers[0]?.stream}
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-sm">
+                  <span className="text-white text-[10px] font-bold">{hostName}</span>
+                </div>
+              </div>
+              <div className="flex-1 relative">
+                <StreamVideo
+                  stream={remotePeers.find(p => p.id !== hostUserId)?.stream || remotePeers[1]?.stream}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            </div>
           ) : (
             /* NORMAL FULL SCREEN: host video only */
             <>
-              <video
-                ref={videoRef}
+              <StreamVideo
+                stream={remotePeers.find(p => p.id === hostUserId)?.stream || remotePeers[0]?.stream}
                 className="absolute inset-0 w-full h-full object-cover"
-                playsInline
-                autoPlay
                 style={{ opacity: hasStream ? 1 : 0, transition: 'opacity 0.4s ease' }}
               />
               {!hasStream && (

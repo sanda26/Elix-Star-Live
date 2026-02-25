@@ -45,9 +45,8 @@ export function GiftOverlay({ videoSrc, onEnded, isBattleMode }: GiftOverlayProp
         className="w-full flex items-end justify-center overflow-hidden" 
         style={{ 
           height,
-          opacity: 0.7,
-          WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, transparent 10%, rgba(0,0,0,0.4) 25%, black 45%, black 60%, transparent 100%)',
-          maskImage: 'linear-gradient(to bottom, transparent 0%, transparent 10%, rgba(0,0,0,0.4) 25%, black 45%, black 60%, transparent 100%)',
+          WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, transparent 10%, rgba(0,0,0,0.3) 20%, rgba(0,0,0,0.6) 30%, black 45%, black 100%)',
+          maskImage: 'linear-gradient(to bottom, transparent 0%, transparent 10%, rgba(0,0,0,0.3) 20%, rgba(0,0,0,0.6) 30%, black 45%, black 100%)',
           WebkitMaskSize: '100% 100%',
           maskSize: '100% 100%',
           WebkitMaskRepeat: 'no-repeat',

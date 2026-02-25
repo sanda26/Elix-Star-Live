@@ -1860,7 +1860,7 @@ export default function SpectatorPage() {
         )}
 
         {/* CO-HOST PANEL — opened by co-host button or when invite arrives */}
-        {(showCoHostPanel || pendingCoHostInvite) && (
+        {showCoHostPanel && (
           <div className="fixed inset-0 z-[99999] flex flex-col justify-end max-w-[480px] mx-auto" style={{ height: '100%' }}>
             <div
               className="absolute inset-0 bg-black/40 pointer-events-auto"

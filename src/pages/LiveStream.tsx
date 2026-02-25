@@ -595,7 +595,6 @@ export default function LiveStream() {
               streamKey: row.data?.stream_key || '',
               hostUserId: inviterId,
             });
-            showToast(`⚔️ @${inviterName} wants to battle!`);
             setBattleSlots(prev => {
               if (prev.some(s => s.userId === inviterId)) return prev;
               const next = [...prev];
@@ -605,7 +604,6 @@ export default function LiveStream() {
               }
               return next;
             });
-            setIsFindCreatorsOpen(true);
           }
           if (row?.type === 'battle_accepted' && isBroadcast) {
             const acceptedUserId = row.data?.actor_id || '';
@@ -812,7 +810,7 @@ export default function LiveStream() {
                 _streamKey: inviteStreamKey,
               }];
             });
-            setIsInviteHostOpen(true);
+            
           }
           if (row?.type === 'cohost_accepted' && isBroadcast) {
             const acceptedUserId = row.data?.actor_id || '';

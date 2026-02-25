@@ -115,7 +115,7 @@ export default function LiveStream() {
   const cameraStreamRef = useRef<MediaStream | null>(null);
   const [viewerHasStream, setViewerHasStream] = useState(false);
   const setPromo = useLivePromoStore((s) => s.setPromo);
-  const updateUser = useAuthStore((s) => s.updateUser);
+  const { user, updateUser } = useAuthStore();
   const _rawStreamId = streamId;
   const PROMOTE_LIKES_THRESHOLD_LIVE = 100;
   const _PROMOTE_LIKES_THRESHOLD_BATTLE = 50;
@@ -126,7 +126,8 @@ export default function LiveStream() {
   const [messages, setMessages] = useState<LiveMessage[]>(() => []);
   const [coinBalance, setCoinBalance] = useState(0);
   const [inputValue, setInputValue] = useState('');
-  const isBroadcast = streamId === 'broadcast' || location.pathname === '/live/broadcast';
+  // Consolidate broadcast logic: host if streamId is broadcast OR if streamId matches my own user ID
+  const isBroadcast = streamId === 'broadcast' || location.pathname === '/live/broadcast' || (user?.id && streamId === user.id);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
@@ -165,8 +166,8 @@ export default function LiveStream() {
   const [isChatVisible, setIsChatVisible] = useState(true);
   const [viewerCount, setViewerCount] = useState(0);
   const [cameraFacing, setCameraFacing] = useState<'user' | 'environment'>('user');
-  const user = useAuthStore((s) => s.user);
-  const isBroadcaster = _rawStreamId === 'broadcast' || location.pathname === '/live/broadcast';
+  // user is already defined above
+  const isBroadcaster = isBroadcast;
   const effectiveStreamId = isBroadcaster ? (user?.id || 'broadcast') : (_rawStreamId || 'broadcast');
   const formatStreamName = (id: string) =>
     id
@@ -372,6 +373,10 @@ export default function LiveStream() {
             setViewerCount(Number(payload.new.viewer_count));
           }
           if (payload.new?.is_live === false) {
+            // Safety check: if I am the owner of this stream key, do NOT navigate away.
+            // This can happen if isBroadcast state is briefly out of sync or if we are navigating between modes.
+            if (user?.id && payload.new?.user_id === user.id) return;
+            
             showToast('Stream ended');
             navigate('/live', { replace: true });
           }

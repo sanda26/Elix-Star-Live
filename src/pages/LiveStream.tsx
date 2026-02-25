@@ -3272,15 +3272,15 @@ export default function LiveStream() {
           >
             {/* Battle timer — overlay on top of screen/video */}
             <div className="fixed top-0 left-0 right-0 z-[9999] pointer-events-none flex justify-center max-w-[480px] mx-auto py-1.5 px-2 bg-gradient-to-b from-black/50 to-transparent" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 4cm - 10.5mm)' }}>
-              <div className="flex items-center gap-0.5">
-                <div className="relative w-[18px] h-[18px] flex items-center justify-center">
+              <div className="flex items-center gap-1 bg-black/40 backdrop-blur-md rounded-full px-2 py-0.5 border border-white/10 shadow-sm">
+                <div className="relative w-[16px] h-[16px] flex items-center justify-center">
                   <svg viewBox="0 0 40 44" className="absolute inset-0 w-full h-full drop-shadow-md">
                     <path d="M20 2 L36 10 L36 26 Q36 38 20 42 Q4 38 4 26 L4 10 Z" fill="url(#vsGrad2)" stroke="rgba(255,255,255,0.5)" strokeWidth="1.5"/>
                     <defs><linearGradient id="vsGrad2" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor="#DC143C"/><stop offset="50%" stopColor="#8B0000"/><stop offset="100%" stopColor="#1E90FF"/></linearGradient></defs>
                   </svg>
-                  <span className="relative z-10 text-white text-[6px] font-black italic drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">VS</span>
+                  <span className="relative z-10 text-white text-[5px] font-black italic drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">VS</span>
                 </div>
-                <span className="text-white text-[11px] font-black tabular-nums drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">{formatTime(battleTime)}</span>
+                <span className="text-white text-[10px] font-black tabular-nums drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">{formatTime(battleTime)}</span>
               </div>
             </div>
 
@@ -3387,12 +3387,9 @@ export default function LiveStream() {
                         <div onClick={(e) => { e.stopPropagation(); togglePlayerMute('me'); }} title={mutedPlayers['me'] ? 'Unmute' : 'Mute'}>
                           {mutedPlayers['me'] ? <MicOff className="w-3 h-3 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={2.5} /> : <Mic className="w-3 h-3 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={2.5} />}
                         </div>
-                        <div onClick={(e) => { e.stopPropagation(); toggleCam(); }} title={isCamOff ? 'Camera on' : 'Camera off'}>
-                          {isCamOff ? <CameraOff className="w-3 h-3 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={2.5} /> : <Camera className="w-3 h-3 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={2.5} />}
-                        </div>
-                        <div onClick={(e) => { e.stopPropagation(); toggleBattle(); }}>
-                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FF4D6A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
-                        </div>
+                      </div>
+                      <div className="absolute bottom-1 right-1 z-10 pointer-events-auto flex items-center justify-center cursor-pointer hover:scale-105 active:scale-95 transition-transform" onClick={(e) => { e.stopPropagation(); toggleBattle(); }} title="End Battle">
+                        <img src="/Icons/Gold power buton.png" alt="End Battle" className="w-5 h-5 object-contain drop-shadow-md" />
                       </div>
 
 
@@ -3461,9 +3458,7 @@ export default function LiveStream() {
                           <div onClick={(e) => { e.stopPropagation(); togglePlayerMute('opponent'); }} title={mutedPlayers['opponent'] ? 'Unmute' : 'Mute'}>
                             {mutedPlayers['opponent'] ? <MicOff className="w-3 h-3 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={2.5} /> : <Mic className="w-3 h-3 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={2.5} />}
                           </div>
-                          <div onClick={(e) => { e.stopPropagation(); togglePlayerCamera('opponent'); }} title={cameraOffPlayers['opponent'] ? 'Camera on' : 'Camera off'}>
-                            {cameraOffPlayers['opponent'] ? <CameraOff className="w-3 h-3 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={2.5} /> : <Camera className="w-3 h-3 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={2.5} />}
-                          </div>
+
                           <div onClick={(e) => { e.stopPropagation(); removePlayerFromSlot(0); }}>
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FF4D6A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
                           </div>
@@ -3550,9 +3545,6 @@ export default function LiveStream() {
                             <div onClick={(e) => { e.stopPropagation(); togglePlayerMute('player3'); }} title={mutedPlayers['player3'] ? 'Unmute' : 'Mute'}>
                               {mutedPlayers['player3'] ? <MicOff className="w-3 h-3 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={2.5} /> : <Mic className="w-3 h-3 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={2.5} />}
                             </div>
-                            <div onClick={(e) => { e.stopPropagation(); togglePlayerCamera('player3'); }} title={cameraOffPlayers['player3'] ? 'Camera on' : 'Camera off'}>
-                              {cameraOffPlayers['player3'] ? <CameraOff className="w-3 h-3 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={2.5} /> : <Camera className="w-3 h-3 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={2.5} />}
-                            </div>
                             <div onClick={(e) => { e.stopPropagation(); removePlayerFromSlot(1); }}>
                               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FF4D6A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
                             </div>
@@ -3634,9 +3626,6 @@ export default function LiveStream() {
                           <div className="absolute top-1 right-1 z-10 pointer-events-auto flex items-center gap-0.5">
                             <div onClick={(e) => { e.stopPropagation(); togglePlayerMute('player4'); }} title={mutedPlayers['player4'] ? 'Unmute' : 'Mute'}>
                               {mutedPlayers['player4'] ? <MicOff className="w-3 h-3 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={2.5} /> : <Mic className="w-3 h-3 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={2.5} />}
-                            </div>
-                            <div onClick={(e) => { e.stopPropagation(); togglePlayerCamera('player4'); }} title={cameraOffPlayers['player4'] ? 'Camera on' : 'Camera off'}>
-                              {cameraOffPlayers['player4'] ? <CameraOff className="w-3 h-3 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={2.5} /> : <Camera className="w-3 h-3 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={2.5} />}
                             </div>
                             <div onClick={(e) => { e.stopPropagation(); removePlayerFromSlot(2); }}>
                               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FF4D6A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>

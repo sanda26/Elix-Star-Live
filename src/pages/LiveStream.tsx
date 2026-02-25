@@ -1097,47 +1097,11 @@ export default function LiveStream() {
     };
   }, [isBattleJoiner, user?.id, effectiveStreamId]);
 
-  // Battle room channel: sync battle state + WebRTC signaling between host and joiner
-  // Only subscribe if broadcaster or actual battle joiner
+  // Battle room channel: joiner arrival notification only (WebRTC handled by useLiveWebRTC)
   useEffect(() => {
     if (!effectiveStreamId || (!isBroadcast && !isBattleJoiner)) return;
     const chan = supabase.channel(`battle_room_${effectiveStreamId}`);
-    const rtcConfig: RTCConfiguration = { iceServers: [
-      { urls: 'stun:stun.l.google.com:19302' },
-      { urls: 'stun:stun1.l.google.com:19302' },
-      { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
-      { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
-      { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
-    ], iceCandidatePoolSize: 10 };
 
-    const setupPeer = (isOfferer: boolean) => {
-      if (battlePeerRef.current) { battlePeerRef.current.close(); }
-      const pc = new RTCPeerConnection(rtcConfig);
-      battlePeerRef.current = pc;
-
-      pc.onicecandidate = (e) => {
-        if (e.candidate) {
-          chan.send({ type: 'broadcast', event: 'rtc_ice', payload: { candidate: e.candidate.toJSON(), from: isBroadcast ? 'host' : 'joiner' } }).then(() => {});
-        }
-      };
-
-      pc.ontrack = (e) => {
-        if (opponentVideoRef.current && e.streams[0]) {
-          opponentVideoRef.current.srcObject = e.streams[0];
-          opponentVideoRef.current.play().catch(() => {});
-          setHasOpponentStream(true);
-        }
-      };
-
-      const stream = cameraStreamRef.current;
-      if (stream) {
-        stream.getTracks().forEach(t => pc.addTrack(t, stream));
-      }
-
-      return pc;
-    };
-
-    // Host receives joiner arrival → update slot UI, server drives state transitions
     chan.on('broadcast', { event: 'joiner_arrived' }, async (msg: any) => {
       if (!isBroadcast || !isBattleModeRef.current) return;
       const { userId, name, avatar } = msg.payload;
@@ -1149,72 +1113,15 @@ export default function LiveStream() {
         }
         return next;
       });
-      showToast(`@${name} connected!`);
-      setupPeer(false);
     });
 
-    // WebRTC: receive offer (host side) — only when in battle
-    chan.on('broadcast', { event: 'rtc_offer' }, async (msg: any) => {
-      if (!isBroadcast || !isBattleModeRef.current) return;
-      const pc = battlePeerRef.current || setupPeer(false);
-      try {
-        await pc.setRemoteDescription(new RTCSessionDescription(msg.payload.sdp));
-        const answer = await pc.createAnswer();
-        await pc.setLocalDescription(answer);
-        chan.send({ type: 'broadcast', event: 'rtc_answer', payload: { sdp: answer } }).then(() => {});
-      } catch {}
-    });
-
-    // WebRTC: receive answer (joiner side)
-    chan.on('broadcast', { event: 'rtc_answer' }, async (msg: any) => {
-      if (isBroadcast) return;
-      const pc = battlePeerRef.current;
-      if (!pc) return;
-      try {
-        await pc.setRemoteDescription(new RTCSessionDescription(msg.payload.sdp));
-      } catch {}
-    });
-
-    // WebRTC: receive ICE candidates
-    chan.on('broadcast', { event: 'rtc_ice' }, async (msg: any) => {
-      const fromHost = msg.payload.from === 'host';
-      if ((isBroadcast && fromHost) || (!isBroadcast && !fromHost)) return;
-      const pc = battlePeerRef.current;
-      if (!pc) return;
-      try {
-        await pc.addIceCandidate(new RTCIceCandidate(msg.payload.candidate));
-      } catch {}
-    });
-
-    // Battle state transitions are now driven by server WS events (battle_state_sync, battle_countdown, battle_ended)
-    // Keep Supabase broadcast only for WebRTC signaling and ENDED cleanup
     chan.on('broadcast', { event: 'battle_state' }, (msg: any) => {
-      const payload = msg.payload;
-      if (payload.state === 'ENDED' && isBattleModeRef.current) {
+      if (msg.payload?.state === 'ENDED' && isBattleModeRef.current) {
         if (battlePeerRef.current) { battlePeerRef.current.close(); battlePeerRef.current = null; }
       }
     });
 
-    chan.subscribe((status: string) => {
-      if (status !== 'SUBSCRIBED') return;
-      // Joiner: once channel is subscribed, wait for camera then create offer
-      if (isBattleJoiner && !isBroadcast) {
-        setTimeout(async () => {
-          // Wait for camera stream to be ready (up to 5s)
-          let waitMs = 0;
-          while (!cameraStreamRef.current && waitMs < 5000) {
-            await new Promise(r => setTimeout(r, 500));
-            waitMs += 500;
-          }
-          const pc = setupPeer(true);
-          try {
-            const offer = await pc.createOffer();
-            await pc.setLocalDescription(offer);
-            chan.send({ type: 'broadcast', event: 'rtc_offer', payload: { sdp: offer } }).then(() => {});
-          } catch {}
-        }, 2500);
-      }
-    });
+    chan.subscribe();
     return () => {
       supabase.removeChannel(chan);
       if (battlePeerRef.current) { battlePeerRef.current.close(); battlePeerRef.current = null; }
@@ -1325,12 +1232,12 @@ export default function LiveStream() {
       remotePeers.forEach((peer, i) => {
         if (i >= slotRefs.length) return;
         const ref = slotRefs[i];
-        if (ref.current && peer.stream) {
+        if (ref.current && peer.stream && peer.stream.getTracks().length > 0) {
           if (ref.current.srcObject !== peer.stream) {
             ref.current.srcObject = peer.stream;
-            ref.current.play().catch(() => {});
-            if (i === 0) setHasOpponentStream(true);
           }
+          ref.current.play().catch(() => {});
+          if (i === 0) setHasOpponentStream(true);
         }
       });
 
@@ -1349,12 +1256,12 @@ export default function LiveStream() {
 
     if (isBattleParticipant && remotePeers.length > 0) {
       const hostPeer = remotePeers[0];
-      if (opponentVideoRef.current && hostPeer.stream) {
+      if (opponentVideoRef.current && hostPeer.stream && hostPeer.stream.getTracks().length > 0) {
         if (opponentVideoRef.current.srcObject !== hostPeer.stream) {
           opponentVideoRef.current.srcObject = hostPeer.stream;
-          opponentVideoRef.current.play().catch(() => {});
-          setHasOpponentStream(true);
         }
+        opponentVideoRef.current.play().catch(() => {});
+        setHasOpponentStream(true);
       }
     }
 

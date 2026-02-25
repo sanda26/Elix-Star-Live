@@ -168,7 +168,10 @@ export default function SpectatorPage() {
     opponentName?: string; 
     player3Name?: string; 
     player4Name?: string; 
-    winner?: string 
+    winner?: string;
+    opponentUserId?: string;
+    player3UserId?: string;
+    player4UserId?: string;
   } | null>(null);
 
   // ═══════════════════════════════════════════════════
@@ -649,6 +652,9 @@ export default function SpectatorPage() {
           opponentName: data.opponentName || '',
           player3Name: data.player3Name || '',
           player4Name: data.player4Name || '',
+          opponentUserId: data.opponentUserId || '',
+          player3UserId: data.player3UserId || '',
+          player4UserId: data.player4UserId || '',
         });
       } else if (data.status === 'ENDED') {
         setSpectatorBattle(prev => prev ? { ...prev, active: false, winner: data.winner } : null);
@@ -1003,7 +1009,7 @@ export default function SpectatorPage() {
                 <div className="flex flex-1 min-h-0">
                   <div className="w-1/2 h-full relative bg-black overflow-hidden border-r border-[#C9A96E]/20">
                     <StreamVideo
-                      stream={remotePeers.find(p => p.id === hostUserId)?.stream || remotePeers[0]?.stream}
+                      stream={remotePeers.find(p => p.userId === hostUserId)?.stream || remotePeers[0]?.stream}
                       className="w-full h-full object-cover"
                       style={{ opacity: hasStream ? 1 : 0 }}
                     />
@@ -1019,9 +1025,9 @@ export default function SpectatorPage() {
 
                   {/* Opponent Video (Top/Right) */}
                   <div className="w-1/2 h-full relative bg-[#1C1E24] overflow-hidden flex items-center justify-center">
-                    {remotePeers.find(p => p.id === spectatorBattle.opponentUserId)?.stream ? (
+                    {remotePeers.find(p => p.userId === spectatorBattle.opponentUserId)?.stream ? (
                       <StreamVideo
-                        stream={remotePeers.find(p => p.id === spectatorBattle.opponentUserId)?.stream}
+                        stream={remotePeers.find(p => p.userId === spectatorBattle.opponentUserId)?.stream}
                         className="w-full h-full object-cover"
                       />
                     ) : (
@@ -1147,27 +1153,27 @@ export default function SpectatorPage() {
             /* MULTI-PEER GRID (Spectator view of Co-hosts) */
             <div className="w-full h-full flex flex-col bg-black">
               <div className="flex-1 relative border-b border-[#C9A96E]/20">
-                <StreamVideo
-                  stream={remotePeers.find(p => p.id === hostUserId)?.stream || remotePeers[0]?.stream}
-                  className="w-full h-full object-cover"
-                />
-                <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-sm">
-                  <span className="text-white text-[10px] font-bold">{hostName}</span>
-                </div>
-              </div>
-              <div className="flex-1 relative">
-                <StreamVideo
-                  stream={remotePeers.find(p => p.id !== hostUserId)?.stream || remotePeers[1]?.stream}
-                  className="w-full h-full object-cover"
-                />
-              </div>
+                 <StreamVideo
+                   stream={remotePeers.find(p => p.userId === hostUserId)?.stream || remotePeers[0]?.stream}
+                   className="w-full h-full object-cover"
+                 />
+                 <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-sm">
+                   <span className="text-white text-[10px] font-bold">{hostName}</span>
+                 </div>
+               </div>
+               <div className="flex-1 relative">
+                 <StreamVideo
+                   stream={remotePeers.find(p => p.userId !== hostUserId)?.stream || remotePeers[1]?.stream}
+                   className="w-full h-full object-cover"
+                 />
+               </div>
             </div>
           ) : (
             /* NORMAL FULL SCREEN: host video only */
             <>
               <StreamVideo
-                stream={remotePeers.find(p => p.id === hostUserId)?.stream || remotePeers[0]?.stream}
-                className="absolute inset-0 w-full h-full object-cover"
+                 stream={remotePeers.find(p => p.userId === hostUserId)?.stream || remotePeers[0]?.stream}
+                 className="absolute inset-0 w-full h-full object-cover"
                 style={{ opacity: hasStream ? 1 : 0, transition: 'opacity 0.4s ease' }}
               />
               {!hasStream && (

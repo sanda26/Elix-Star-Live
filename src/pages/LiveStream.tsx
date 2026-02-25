@@ -3071,8 +3071,8 @@ export default function LiveStream() {
           </div>
         )}
 
-        {/* Battle Split Screen Overlay - Only on live/watch routes so it never appears on profile or other pages */}
-        {isBattleMode && (location.pathname.startsWith('/live') || location.pathname.startsWith('/watch')) && (
+        {/* Battle Split Screen Overlay — only shown when at least one opponent is invited/accepted */}
+        {isBattleMode && battleSlots.some(s => s.status !== 'empty') && (location.pathname.startsWith('/live') || location.pathname.startsWith('/watch')) && (
           <div
             className={`absolute inset-0 z-[80] flex flex-col ${isBroadcast ? 'pointer-events-none' : ''}`}
             style={{ paddingTop: 'calc(110px - 5mm)', paddingBottom: isBroadcast ? '305px' : undefined }}
@@ -3744,8 +3744,8 @@ export default function LiveStream() {
           )}
         </AnimatePresence>
         <div className="flex justify-end">
-          {/* Spectator bottom bar: Co-Host (request only), keyboard, share, more */}
-          {!isBroadcast && (
+          {/* Spectator bottom bar: Co-Host (request only), keyboard, share, more — hidden during gift animation */}
+          {!isBroadcast && !currentGift && (
             <div className="flex items-center justify-center gap-3 pointer-events-auto">
               <div className="flex flex-col items-center gap-0.5">
                 <button
@@ -3785,9 +3785,10 @@ export default function LiveStream() {
                 type="button"
                 title="Type a message"
                 onClick={() => setShowSpectatorChatInput(true)}
-                className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform relative"
+                className="rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform relative"
+                style={{ width: '40mm', height: '40mm' }}
               >
-                <MessageCircle size={20} className="text-[#C9A96E] relative z-[2]" />
+                <MessageCircle size={32} className="text-[#C9A96E] relative z-[2]" />
                 <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-125 translate-y-0.5" />
               </button>
               <button type="button" title="Share" onClick={() => setShowSharePanel(true)} className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform relative">
@@ -3801,7 +3802,7 @@ export default function LiveStream() {
             </div>
           )}
 
-          {isBroadcast && (
+          {isBroadcast && !currentGift && (
             <div className="flex items-center justify-center gap-3 pointer-events-auto">
               <div className="flex items-center justify-center gap-3 flex-shrink-0">
               {isBattleMode && battleWinner && (

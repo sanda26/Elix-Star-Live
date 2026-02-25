@@ -1453,12 +1453,21 @@ export default function LiveStream() {
     setIsBattleMode(false);
     setBattleState('LIVE_SOLO');
     setBattleTime(300);
+    setMyScore(0);
+    setOpponentScore(0);
+    setPlayer3Score(0);
+    setPlayer4Score(0);
     setBattleWinner(null);
     setBattleCountdown(null);
     setHasOpponentStream(false);
     setIAmReady(false);
     setHostIsReady(false);
     setOpponentIsReady(false);
+    setOpponentCreatorName('');
+    setGiftTarget('me');
+    setBattleGifterCoins({});
+    setPlayerGifters({});
+    setMutedPlayers({});
     reachedThresholdsRef.current.clear();
     battleFreeTapUsedRef.current = false;
     spectatorTapPointsRef.current = 0;
@@ -1481,7 +1490,10 @@ export default function LiveStream() {
     inviteTimersRef.current = [];
     setIsFindCreatorsOpen(false);
     setCreatorQuery('');
-    // Broadcast battle_end to all participants
+    if (opponentVideoRef.current) { opponentVideoRef.current.srcObject = null; }
+    if (player3VideoRef.current) { player3VideoRef.current.srcObject = null; }
+    if (player4VideoRef.current) { player4VideoRef.current.srcObject = null; }
+    if (battlePeerRef.current) { battlePeerRef.current.close(); battlePeerRef.current = null; }
     supabase.channel(`battle_room_${effectiveStreamId}`).send({
       type: 'broadcast',
       event: 'battle_state',
@@ -2167,9 +2179,11 @@ export default function LiveStream() {
       if (!mounted) return;
       setActiveViewers(prev => prev.filter(v => v.id !== data.user_id));
       setViewerCount(prev => Math.max(0, prev - 1));
-      // Remove co-host when they disconnect
       if (data.user_id) {
         setCoHosts(prev => prev.filter(h => h.userId !== data.user_id));
+        setBattleSlots(prev => prev.map(s =>
+          s.userId === data.user_id ? { userId: '', name: '', status: 'empty' as const, avatar: '' } : s
+        ));
       }
     };
 
@@ -2280,14 +2294,9 @@ export default function LiveStream() {
       if (data.winner === 'host') setBattleWinner('me');
       else if (data.winner === 'opponent') setBattleWinner('opponent');
       else setBattleWinner('draw' as any);
-      // Dismiss battle overlay after 5s so user isn't stuck on result screen
       battleEndedTimeoutRef.current = setTimeout(() => {
         battleEndedTimeoutRef.current = null;
-        if (mounted) {
-          setIsBattleMode(false);
-          setBattleWinner(null);
-          setBattleState('LIVE_SOLO');
-        }
+        if (mounted) endBattleCleanup();
       }, 5000);
     };
 

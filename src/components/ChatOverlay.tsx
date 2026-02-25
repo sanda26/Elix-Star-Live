@@ -82,6 +82,7 @@ export function ChatOverlay({ messages, variant = 'panel', compact = false, clas
     msOverflowStyle: 'none',
     paddingLeft: '0px',
     marginLeft: '0px',
+    marginTop: '1cm',
     alignItems: 'flex-start',
     width: '100%',
     pointerEvents: 'auto',

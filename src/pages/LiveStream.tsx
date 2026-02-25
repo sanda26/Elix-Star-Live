@@ -78,7 +78,31 @@ type UniverseTickerMessage = {
   receiver: string;
 };
 
-
+const DEMO_BATTLE_USER = { userId: 'demo-user', name: 'DemoPlayer', status: 'accepted' as const, avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=demo' };
+const DEMO_CHAT_MESSAGES: LiveMessage[] = [
+  { id: 'demo-1', username: 'Alex', text: '🔥 Great stream!', level: 5, avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=alex' },
+  { id: 'demo-2', username: 'Jordan', text: "Let's go! 💪", level: 3, avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=jordan' },
+  { id: 'demo-3', username: 'Sam', text: 'Sent a gift 🎁', level: 8, isGift: true, avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=sam' },
+  { id: 'demo-4', username: 'DemoPlayer', text: 'Ready for battle!', level: 4, avatar: DEMO_BATTLE_USER.avatar },
+];
+const DEMO_MVP_LEFT = [
+  { name: 'Alex', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=alex' },
+  { name: 'Jordan', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=jordan' },
+  { name: 'Sam', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=sam' },
+];
+const DEMO_MVP_RIGHT = [
+  { name: 'DemoPlayer', avatar: DEMO_BATTLE_USER.avatar },
+  { name: 'Mia', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=mia' },
+  { name: 'Jay', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=jay' },
+];
+const DEMO_CREATORS: { id: string; name: string; username: string; followers: string; avatar: string; isLive: boolean }[] = [
+  { id: 'demo-user', name: 'DemoPlayer', username: 'DemoPlayer', followers: '0', avatar: DEMO_BATTLE_USER.avatar, isLive: true },
+  { id: 'demo-alex', name: 'Alex', username: 'Alex', followers: '0', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=alex', isLive: true },
+  { id: 'demo-jordan', name: 'Jordan', username: 'Jordan', followers: '0', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=jordan', isLive: true },
+  { id: 'demo-sam', name: 'Sam', username: 'Sam', followers: '0', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=sam', isLive: true },
+  { id: 'demo-mia', name: 'Mia', username: 'Mia', followers: '0', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=mia', isLive: true },
+  { id: 'demo-jay', name: 'Jay', username: 'Jay', followers: '0', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=jay', isLive: true },
+];
 
 const EMOJI_LIST = ['😀','😂','🥰','😍','🔥','💯','👏','🎉','❤️','💜','💙','⭐','🌟','✨','🙌','👑','💎','🚀','🎵','💃','🕺','😎','🤩','💪','🫶','💖'];
 type LiveViewer = {
@@ -125,7 +149,7 @@ export default function LiveStream() {
   const [showRankingPanel, setShowRankingPanel] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
   const [currentGift, setCurrentGift] = useState<string | null>(null);
-  const [messages, setMessages] = useState<LiveMessage[]>([]);
+  const [messages, setMessages] = useState<LiveMessage[]>(() => [...DEMO_CHAT_MESSAGES]);
   const [coinBalance, setCoinBalance] = useState(0);
   const [inputValue, setInputValue] = useState('');
   const isBroadcast = streamId === 'broadcast' || location.pathname === '/live/broadcast';
@@ -523,6 +547,11 @@ export default function LiveStream() {
     if (!q) return true;
     return c.username.toLowerCase().includes(q) || c.name.toLowerCase().includes(q);
   });
+  const creatorsToInvite = React.useMemo(() => {
+    const q = creatorQuery.trim().toLowerCase();
+    const demos = !q ? DEMO_CREATORS : DEMO_CREATORS.filter((c) => c.username.toLowerCase().includes(q) || c.name.toLowerCase().includes(q));
+    return [...demos, ...filteredCreators];
+  }, [creatorQuery, filteredCreators]);
 
   // Battle Player Slots (P1 = creator, P2-P4 = invited players)
   type BattleSlot = { userId: string; name: string; status: 'empty' | 'invited' | 'accepted'; avatar: string };
@@ -537,6 +566,18 @@ export default function LiveStream() {
     const slotIndex = battleSlots.findIndex(s => s.status === 'empty');
     if (slotIndex === -1) return;
     if (battleSlots.some(s => s.userId === creatorId && s.status !== 'empty')) return;
+
+    const demoCreator = DEMO_CREATORS.find(c => c.id === creatorId);
+    if (demoCreator) {
+      const avatar = demoCreator.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(demoCreator.username)}&background=121212&color=C9A96E`;
+      setBattleSlots(prev => {
+        const next = [...prev];
+        next[slotIndex] = { userId: demoCreator.id, name: demoCreator.username, status: 'accepted', avatar };
+        return next;
+      });
+      showToast(`@${demoCreator.username} joined the battle!`);
+      return;
+    }
 
     const creator = creators.find(c => c.id === creatorId);
     if (!creator) return;
@@ -1137,6 +1178,11 @@ export default function LiveStream() {
   const [player3Score, setPlayer3Score] = useState(0);
   const [player4Score, setPlayer4Score] = useState(0);
   const [battleWinner, setBattleWinner] = useState<'me' | 'opponent' | 'player3' | 'player4' | 'draw' | null>(null);
+  const battleScoresRef = useRef({ myScore: 0, opponentScore: 0, player3Score: 0, player4Score: 0 });
+  useEffect(() => {
+    battleScoresRef.current = { myScore, opponentScore, player3Score, player4Score };
+  }, [myScore, opponentScore, player3Score, player4Score]);
+  const localBattleTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [giftTarget, setGiftTarget] = useState<'me' | 'opponent' | 'player3' | 'player4'>('me');
   const lastScreenTapRef = useRef<number>(0);
   const battleScoreTapWindowRef = useRef<{ windowStart: number; count: number }>({ windowStart: 0, count: 0 });
@@ -1484,6 +1530,10 @@ export default function LiveStream() {
     setSpeedChallengeTaps({ me: 0, opponent: 0, player3: 0, player4: 0 });
     setSpeedChallengeResult(null);
     setSpeedMultiplier(1);
+    if (localBattleTimerRef.current) {
+      clearInterval(localBattleTimerRef.current);
+      localBattleTimerRef.current = null;
+    }
     setBattleSlots([
       { userId: '', name: '', status: 'empty', avatar: '' },
       { userId: '', name: '', status: 'empty', avatar: '' },
@@ -1541,7 +1591,7 @@ export default function LiveStream() {
     battleScoreTapWindowRef.current = { windowStart: 0, count: 0 };
     battleTripleTapRef.current = { target: null, lastTapAt: 0, count: 0 };
     setBattleSlots([
-      { userId: '', name: '', status: 'empty', avatar: '' },
+      { userId: DEMO_BATTLE_USER.userId, name: DEMO_BATTLE_USER.name, status: 'accepted', avatar: DEMO_BATTLE_USER.avatar },
       { userId: '', name: '', status: 'empty', avatar: '' },
       { userId: '', name: '', status: 'empty', avatar: '' },
     ]);
@@ -1554,7 +1604,46 @@ export default function LiveStream() {
 
   // No auto-start - user must press Match to begin
 
-  // Countdown is server-driven via battle_countdown events
+  useEffect(() => {
+    if (battleCountdown === null || battleCountdown > 0) return;
+    setBattleState('IN_BATTLE');
+    setBattleCountdown(null);
+    setBattleTime(300);
+    localBattleTimerRef.current = setInterval(() => {
+      setBattleTime((t) => {
+        if (t <= 1) {
+          if (localBattleTimerRef.current) {
+            clearInterval(localBattleTimerRef.current);
+            localBattleTimerRef.current = null;
+          }
+          const s = battleScoresRef.current;
+          const me = s.myScore;
+          const opp = s.opponentScore;
+          const p3 = s.player3Score;
+          const p4 = s.player4Score;
+          const max = Math.max(me, opp, p3, p4);
+          const who: 'me' | 'opponent' | 'player3' | 'player4' | 'draw' | null =
+            [me, opp, p3, p4].filter((x) => x === max).length > 1 ? 'draw'
+              : max === me ? 'me' : max === opp ? 'opponent' : max === p3 ? 'player3' : 'player4';
+          setBattleWinner(who);
+          return 0;
+        }
+        return t - 1;
+      });
+    }, 1000);
+    return () => {
+      if (localBattleTimerRef.current) {
+        clearInterval(localBattleTimerRef.current);
+        localBattleTimerRef.current = null;
+      }
+    };
+  }, [battleCountdown]);
+
+  useEffect(() => {
+    if (battleCountdown == null || battleCountdown <= 0) return;
+    const id = setTimeout(() => setBattleCountdown((c) => (c != null && c > 0 ? c - 1 : null)), 1000);
+    return () => clearTimeout(id);
+  }, [battleCountdown]);
 
   const _startBattleWithCreator = (creatorId: string, creatorName: string) => {
     setOpponentCreatorName(creatorName);
@@ -3037,7 +3126,7 @@ export default function LiveStream() {
               });
               while (cellSlots.length < 8) cellSlots.push({ type: 'empty' });
               return (
-                <div className="w-1/2 h-full grid grid-cols-2 grid-rows-4 gap-[1px] bg-[#1a1c22]">
+                <div className="w-1/2 h-full grid grid-cols-3 grid-rows-3 gap-[1px] bg-[#1a1c22]">
                   {cellSlots.slice(0, 8).map((slot, i) => (
                     <div key={i} className="relative bg-[#13151A] flex flex-col items-center justify-center p-1">
                       {slot.type === 'live' && slot.host ? (
@@ -3108,8 +3197,8 @@ export default function LiveStream() {
           </div>
         )}
 
-        {/* Battle Split Screen Overlay — only shown when at least one opponent is invited/accepted */}
-        {isBattleMode && battleSlots.some(s => s.status !== 'empty') && (location.pathname.startsWith('/live') || location.pathname.startsWith('/watch')) && (
+        {/* Battle Split Screen Overlay — shown whenever in battle mode */}
+        {isBattleMode && (location.pathname.startsWith('/live') || location.pathname.startsWith('/watch')) && (
           <div
             className={`absolute inset-0 z-[80] flex flex-col ${isBroadcast ? 'pointer-events-none' : ''}`}
             style={{ paddingTop: 'calc(110px - 5mm)', paddingBottom: isBroadcast ? '305px' : undefined }}
@@ -3178,7 +3267,7 @@ export default function LiveStream() {
             {(() => {
               const is4Player = battleSlots[1].status !== 'empty' || battleSlots[2].status !== 'empty';
               return (
-                <div className={`relative w-full flex-none ${is4Player ? 'grid grid-rows-2 aspect-square' : 'flex flex-col h-[42dvh]'}`}>
+                <div className="relative w-full flex-none flex flex-col h-[42dvh]">
                   {/* Fan Club Button - Left of Battle Bar */}
                   <div className="absolute top-2 left-[20%] -translate-x-1/2 z-30 pointer-events-auto">
                     {/* Fan Club Removed */}
@@ -3210,8 +3299,8 @@ export default function LiveStream() {
                     </div>
                   )}
 
-                  {/* Top Row (or only row for 2-player): P1 & P2 */}
-                  <div className={`flex ${is4Player ? 'h-full' : 'flex-1'}`}>
+                  {/* Row 1: P1 & P2 — shares space with row 2 when 4-player */}
+                  <div className="flex flex-1 min-h-0">
                     <button
                       type="button"
                       onClick={(e) => { e.stopPropagation(); handleBattleTap('me'); setGiftTarget('me'); spawnHeartFromClient(e.clientX, e.clientY); }}
@@ -3313,9 +3402,9 @@ export default function LiveStream() {
                     </button>
                   </div>
 
-                  {/* Bottom Row: Player 3 & Player 4 - ONLY shown when 4 players */}
+                  {/* Bottom Row: P3 & P4 — only when 4 players, same container */}
                   {is4Player && (
-                    <div className="flex h-full">
+                    <div className="flex flex-1 min-h-0">
                       <button
                         type="button"
                         onClick={(e) => { e.stopPropagation(); setGiftTarget('player3'); spawnHeartFromClient(e.clientX, e.clientY); }}
@@ -3470,8 +3559,9 @@ export default function LiveStream() {
                 {[0, 1, 2].map((i) => {
                   const g = getTopGifters('me')[i];
                   const fallbackViewer = activeViewers[i];
-                  const src = g?.avatar || fallbackViewer?.avatar || '';
-                  const alt = g?.name || fallbackViewer?.displayName || '';
+                  const demoLeft = DEMO_MVP_LEFT[i];
+                  const src = g?.avatar || demoLeft?.avatar || fallbackViewer?.avatar || '';
+                  const alt = g?.name || demoLeft?.name || fallbackViewer?.displayName || '';
                   const isMvp = i === 0 && battleWinner && g;
                   return (
                     <div key={i} style={{ zIndex: 3 - i }} className="relative">
@@ -3502,8 +3592,9 @@ export default function LiveStream() {
                 {[0, 1, 2].map((i) => {
                   const g = getTopGifters('opponent')[i];
                   const fallbackViewer = activeViewers[3 + i];
-                  const src = g?.avatar || fallbackViewer?.avatar || '';
-                  const alt = g?.name || fallbackViewer?.displayName || '';
+                  const demoRight = DEMO_MVP_RIGHT[i];
+                  const src = g?.avatar || demoRight?.avatar || fallbackViewer?.avatar || '';
+                  const alt = g?.name || demoRight?.name || fallbackViewer?.displayName || '';
                   const isMvp = i === 0 && battleWinner && g;
                   return (
                     <div key={i} style={{ zIndex: 3 - i }} className="relative">
@@ -3726,7 +3817,8 @@ export default function LiveStream() {
             {/* MIDDLE ZONE: CHAT (Scrollable) */}
             <div className="chat-zone fixed left-0 right-0 bottom-[calc(50px+max(12px,env(safe-area-inset-bottom)))] z-[20] flex justify-center pointer-events-none">
               <div 
-                className="w-full max-w-[480px] h-[25dvh] max-h-[25dvh] overflow-y-auto pointer-events-auto bg-transparent"
+                className="w-full max-w-[480px] overflow-y-auto pointer-events-auto bg-transparent"
+                style={{ height: 'calc(25dvh + 2cm + 4mm)', maxHeight: 'calc(25dvh + 2cm + 4mm)' }}
                 onPointerDown={(e) => {
                   e.stopPropagation();
                   if (e.target instanceof Element) {
@@ -4133,7 +4225,8 @@ export default function LiveStream() {
             }}
           />
           <div
-            className="bg-[#1C1E24]/95 backdrop-blur-md rounded-t-2xl h-[40vh] flex flex-col shadow-2xl border-t border-[#C9A96E]/20 pointer-events-auto w-full relative z-10 overflow-hidden pb-safe"
+            className="bg-[#1C1E24]/95 backdrop-blur-md rounded-t-2xl flex flex-col shadow-2xl border-t border-[#C9A96E]/20 pointer-events-auto w-full relative z-10 overflow-hidden pb-safe"
+            style={{ height: 'calc(40vh - 2cm)' }}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Drag handle */}
@@ -4164,7 +4257,10 @@ export default function LiveStream() {
             {/* Creator list */}
             <div className="flex-1 overflow-y-auto px-2" style={{ scrollbarWidth: 'none' }}>
               <div className="space-y-1 pb-4">
-                {filteredCreators.map((c) => {
+                {creatorsToInvite.length === 0 ? (
+                  <p className="text-white/50 text-xs py-4 text-center">No live creators match your search. Try demo players above.</p>
+                ) : null}
+                {creatorsToInvite.map((c) => {
                   const slotStatus = battleSlots.find(s => s.userId === c.id)?.status;
                   const isInvited = slotStatus === 'invited';
                   const isAccepted = slotStatus === 'accepted';
@@ -4268,6 +4364,11 @@ export default function LiveStream() {
                   onClick={() => {
                     setIsFindCreatorsOpen(false);
                     const accepted = battleSlots.find(s => s.status === 'accepted');
+                    const isDemoOpponent = accepted?.userId === DEMO_BATTLE_USER.userId;
+                    if (isDemoOpponent) {
+                      setBattleCountdown(3);
+                      return;
+                    }
                     websocket.send('battle_create', {
                       hostName: myCreatorName,
                       opponentUserId: accepted?.userId ?? '',

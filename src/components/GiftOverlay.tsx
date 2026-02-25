@@ -8,7 +8,7 @@ interface GiftOverlayProps {
   isBattleMode?: boolean;
 }
 
-export function GiftOverlay({ videoSrc, onEnded, isBattleMode: _isBattleMode }: GiftOverlayProps) {
+export function GiftOverlay({ videoSrc, onEnded, isBattleMode }: GiftOverlayProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const { muteAllSounds } = useSettingsStore();
 
@@ -37,11 +37,14 @@ export function GiftOverlay({ videoSrc, onEnded, isBattleMode: _isBattleMode }: 
 
   const isVideo = videoSrc.endsWith('.webm') || videoSrc.endsWith('.mp4');
 
+  const height = isBattleMode ? '30vh' : '55vh';
+
   return (
     <div className="absolute left-0 right-0 bottom-[calc(env(safe-area-inset-bottom)-10px)] z-gift-overlay pointer-events-none flex justify-center">
       <div 
-        className="w-full h-[55vh] flex items-end justify-center overflow-hidden" 
+        className="w-full flex items-end justify-center overflow-hidden" 
         style={{ 
+          height,
           WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.3) 15%, black 35%, black 65%, transparent 100%)',
           maskImage: 'linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.3) 15%, black 35%, black 65%, transparent 100%)',
           WebkitMaskSize: '100% 100%',

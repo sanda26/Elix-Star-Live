@@ -274,12 +274,18 @@ interface BattleSession {
   hostName: string;
   opponentUserId: string;
   opponentName: string;
+  player3UserId: string;
+  player3Name: string;
+  player4UserId: string;
+  player4Name: string;
   hostScore: number;
   opponentScore: number;
+  player3Score: number;
+  player4Score: number;
   endsAt: number;         // Unix timestamp (ms) when battle ends
   timeLeft: number;       // computed from endsAt for convenience
   status: 'WAITING' | 'COUNTDOWN' | 'ACTIVE' | 'ENDED';
-  winner: 'host' | 'opponent' | 'draw' | null;
+  winner: 'host' | 'opponent' | 'player3' | 'player4' | 'draw' | null;
   timer: ReturnType<typeof setInterval> | null;
   createdAt: number;
   hostReady: boolean;
@@ -297,8 +303,14 @@ function createBattle(hostRoomId: string, hostUserId: string, hostName: string):
     hostName,
     opponentUserId: '',
     opponentName: '',
+    player3UserId: '',
+    player3Name: '',
+    player4UserId: '',
+    player4Name: '',
     hostScore: 0,
     opponentScore: 0,
+    player3Score: 0,
+    player4Score: 0,
     endsAt: 0,
     timeLeft: 300,
     status: 'WAITING',
@@ -313,13 +325,24 @@ function createBattle(hostRoomId: string, hostUserId: string, hostName: string):
   return session;
 }
 
-function joinBattle(roomId: string, opponentUserId: string, opponentName: string): BattleSession | null {
+function joinBattle(roomId: string, userId: string, userName: string): BattleSession | null {
   const session = battles.get(roomId);
   if (!session || session.status !== 'WAITING') return null;
-  session.opponentUserId = opponentUserId;
-  session.opponentName = opponentName;
-  userBattleRoom.set(opponentUserId, roomId);
-
+  
+  if (!session.opponentUserId) {
+    session.opponentUserId = userId;
+    session.opponentName = userName;
+  } else if (!session.player3UserId) {
+    session.player3UserId = userId;
+    session.player3Name = userName;
+  } else if (!session.player4UserId) {
+    session.player4UserId = userId;
+    session.player4Name = userName;
+  } else {
+    return null; // Full
+  }
+  
+  userBattleRoom.set(userId, roomId);
   broadcastBattleState(roomId, session);
   return session;
 }
@@ -344,6 +367,8 @@ function startBattleTimer(roomId: string) {
       timeLeft: s.timeLeft,
       hostScore: s.hostScore,
       opponentScore: s.opponentScore,
+      player3Score: s.player3Score,
+      player4Score: s.player4Score,
       endsAt: s.endsAt,
     });
 
@@ -353,19 +378,25 @@ function startBattleTimer(roomId: string) {
   }, 1000);
 }
 
-function addBattleScoreForTarget(roomId: string, target: 'host' | 'opponent', points: number) {
+function addBattleScoreForTarget(roomId: string, target: 'host' | 'opponent' | 'player3' | 'player4', points: number) {
   const session = battles.get(roomId);
   if (!session || session.status !== 'ACTIVE') return;
 
   if (target === 'host') {
     session.hostScore += points;
-  } else {
+  } else if (target === 'opponent') {
     session.opponentScore += points;
+  } else if (target === 'player3') {
+    session.player3Score += points;
+  } else if (target === 'player4') {
+    session.player4Score += points;
   }
 
   broadcastToRoom(roomId, 'battle_score', {
     hostScore: session.hostScore,
     opponentScore: session.opponentScore,
+    player3Score: session.player3Score,
+    player4Score: session.player4Score,
     lastScorer: target,
     points,
   });
@@ -381,10 +412,13 @@ function endBattle(roomId: string) {
   }
 
   session.status = 'ENDED';
-  if (session.hostScore > session.opponentScore) {
-    session.winner = 'host';
-  } else if (session.opponentScore > session.hostScore) {
-    session.winner = 'opponent';
+  const redTeam = session.hostScore + session.player3Score;
+  const blueTeam = session.opponentScore + session.player4Score;
+  
+  if (redTeam > blueTeam) {
+    session.winner = 'host'; // or 'red'
+  } else if (blueTeam > redTeam) {
+    session.winner = 'opponent'; // or 'blue'
   } else {
     session.winner = 'draw';
   }
@@ -392,6 +426,8 @@ function endBattle(roomId: string) {
   broadcastToRoom(roomId, 'battle_ended', {
     hostScore: session.hostScore,
     opponentScore: session.opponentScore,
+    player3Score: session.player3Score,
+    player4Score: session.player4Score,
     winner: session.winner,
     hostName: session.hostName,
     opponentName: session.opponentName,
@@ -402,7 +438,9 @@ function endBattle(roomId: string) {
     const s = battles.get(roomId);
     if (s) {
       userBattleRoom.delete(s.hostUserId);
-      userBattleRoom.delete(s.opponentUserId);
+      if (s.opponentUserId) userBattleRoom.delete(s.opponentUserId);
+      if (s.player3UserId) userBattleRoom.delete(s.player3UserId);
+      if (s.player4UserId) userBattleRoom.delete(s.player4UserId);
       battles.delete(roomId);
     }
   }, 10000);
@@ -419,8 +457,14 @@ function broadcastBattleState(roomId: string, session: BattleSession) {
     hostName: session.hostName,
     opponentUserId: session.opponentUserId,
     opponentName: session.opponentName,
+    player3UserId: session.player3UserId,
+    player3Name: session.player3Name,
+    player4UserId: session.player4UserId,
+    player4Name: session.player4Name,
     hostScore: session.hostScore,
     opponentScore: session.opponentScore,
+    player3Score: session.player3Score,
+    player4Score: session.player4Score,
     timeLeft: session.timeLeft,
     endsAt: session.endsAt,
     winner: session.winner,
@@ -578,8 +622,14 @@ wss.on('connection', async (ws: WebSocket, req) => {
         hostName: activeBattleOnJoin.hostName,
         opponentUserId: activeBattleOnJoin.opponentUserId,
         opponentName: activeBattleOnJoin.opponentName,
+        player3UserId: activeBattleOnJoin.player3UserId,
+        player3Name: activeBattleOnJoin.player3Name,
+        player4UserId: activeBattleOnJoin.player4UserId,
+        player4Name: activeBattleOnJoin.player4Name,
         hostScore: activeBattleOnJoin.hostScore,
         opponentScore: activeBattleOnJoin.opponentScore,
+        player3Score: activeBattleOnJoin.player3Score,
+        player4Score: activeBattleOnJoin.player4Score,
         timeLeft: activeBattleOnJoin.timeLeft,
         endsAt: activeBattleOnJoin.endsAt,
         winner: activeBattleOnJoin.winner,
@@ -897,8 +947,14 @@ async function handleMessage(client: Client, event: string, data: any) {
             hostName: currentBattle.hostName,
             opponentUserId: currentBattle.opponentUserId,
             opponentName: currentBattle.opponentName,
+            player3UserId: currentBattle.player3UserId,
+            player3Name: currentBattle.player3Name,
+            player4UserId: currentBattle.player4UserId,
+            player4Name: currentBattle.player4Name,
             hostScore: currentBattle.hostScore,
             opponentScore: currentBattle.opponentScore,
+            player3Score: currentBattle.player3Score,
+            player4Score: currentBattle.player4Score,
             timeLeft: currentBattle.timeLeft,
             endsAt: currentBattle.endsAt,
             winner: currentBattle.winner,
@@ -1157,6 +1213,8 @@ async function cleanupStaleStreams() {
 setTimeout(cleanupStaleStreams, 60_000);
 const staleCleanupTimer = setInterval(cleanupStaleStreams, 30_000);
 wss.on('close', () => { clearInterval(staleCleanupTimer); });
+
+
 
 // Start server
 console.log('Server build v3 — viewer count excludes host');

@@ -917,17 +917,17 @@ export default function LiveStream() {
   useEffect(() => {
     if (!isCoHostJoiner || !user?.id || isBroadcast) return;
 
-    const chan = supabase.channel(`cohost_presence_${effectiveStreamId}`);
-    chan.subscribe((status) => {
+    const chan = supabase.channel(`cohost_presence_${effectiveStreamId}`, {
+      config: { presence: { key: user.id } }
+    });
+    
+    chan.on('presence', { event: 'sync' }, () => {}).subscribe(async (status) => {
       if (status === 'SUBSCRIBED') {
-        chan.send({
-          type: 'broadcast',
-          event: 'cohost_joined',
-          payload: {
-            userId: user.id,
-            name: user.username || user.name || viewerName,
-            avatar: user.avatar || viewerAvatar,
-          },
+        await chan.track({
+          userId: user.id,
+          name: user.username || user.name || viewerName,
+          avatar: user.avatar || viewerAvatar,
+          joinedAt: new Date().toISOString(),
         });
       }
     });
@@ -935,38 +935,86 @@ export default function LiveStream() {
     return () => { supabase.removeChannel(chan); };
   }, [isCoHostJoiner, user?.id, effectiveStreamId, isBroadcast]);
 
-  // Host side: listen for co-hosts joining via broadcast channel
+  // Host side: listen for co-hosts joining via presence
   useEffect(() => {
     if (!isBroadcast || !user?.id) return;
 
-    const chan = supabase.channel(`cohost_presence_${effectiveStreamId}`);
-    chan.on('broadcast', { event: 'cohost_joined' }, (payload: any) => {
-      const { userId, name, avatar } = payload.payload || {};
-      if (!userId) return;
-      if (userId === user?.id) return;
-      setCoHosts(prev => {
-        const existing = prev.find(h => h.userId === userId);
-        if (existing) {
-          return prev.map(h => h.userId === userId ? { ...h, status: 'live' as const, name: name || h.name, avatar: avatar || h.avatar } : h);
-        }
-        return [...prev, {
-          id: `host-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-          userId,
-          name: name || 'Co-Host',
-          avatar: avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'C')}&background=121212&color=C9A96E`,
-          status: 'live' as const,
-          isMuted: false,
-        }];
-      });
-      showToast(`@${name} joined as co-host!`);
-      setMessages(prev => [...prev, {
-        id: Date.now().toString(),
-        username: 'System',
-        text: `${name} joined as co-host`,
-        isSystem: true,
-      }]);
+    const chan = supabase.channel(`cohost_presence_${effectiveStreamId}`, {
+      config: { presence: { key: user?.id } }
     });
-    chan.subscribe();
+
+    chan
+      .on('presence', { event: 'sync' }, () => {
+        const state = chan.presenceState();
+        const presences = Object.values(state).flat() as any[];
+        
+        setCoHosts(prev => {
+          const liveMap = new Map<string, any>();
+          presences.forEach(p => {
+            if (p.userId && p.userId !== user?.id) {
+              liveMap.set(p.userId, p);
+            }
+          });
+
+          const newCoHosts = [...prev];
+          // Update or remove existing
+          for (let i = newCoHosts.length - 1; i >= 0; i--) {
+            const host = newCoHosts[i];
+            if (liveMap.has(host.userId)) {
+              const p = liveMap.get(host.userId);
+              newCoHosts[i] = {
+                ...host,
+                status: 'live',
+                name: p.name || host.name,
+                avatar: p.avatar || host.avatar,
+              };
+              liveMap.delete(host.userId);
+            } else if (host.status === 'live') {
+              // Was live, but no longer in presence -> remove
+              newCoHosts.splice(i, 1);
+            }
+          }
+          // Add new
+          liveMap.forEach((p) => {
+            newCoHosts.push({
+              id: `host-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+              userId: p.userId,
+              name: p.name || 'Co-Host',
+              avatar: p.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.name || 'C')}&background=121212&color=C9A96E`,
+              status: 'live',
+              isMuted: false,
+            });
+          });
+          return newCoHosts;
+        });
+      })
+      .on('presence', { event: 'join' }, ({ newPresences }) => {
+        newPresences.forEach((p: any) => {
+          if (p.userId !== user?.id) {
+            showToast(`@${p.name || 'Someone'} joined as co-host!`);
+            setMessages(prev => [...prev, {
+              id: Date.now().toString(),
+              username: 'System',
+              text: `${p.name || 'Someone'} joined as co-host`,
+              isSystem: true,
+            }]);
+          }
+        });
+      })
+      .on('presence', { event: 'leave' }, ({ leftPresences }) => {
+        leftPresences.forEach((p: any) => {
+          if (p.userId !== user?.id) {
+            showToast(`@${p.name || 'Someone'} left co-host.`);
+             setMessages(prev => [...prev, {
+              id: Date.now().toString(),
+              username: 'System',
+              text: `${p.name || 'Someone'} left co-host`,
+              isSystem: true,
+            }]);
+          }
+        });
+      })
+      .subscribe();
 
     return () => { supabase.removeChannel(chan); };
   }, [isBroadcast, user?.id, effectiveStreamId]);
@@ -2316,16 +2364,28 @@ export default function LiveStream() {
       }
       setMyScore(data.hostScore || 0);
       setOpponentScore(data.opponentScore || 0);
+      setPlayer3Score(data.player3Score || 0);
+      setPlayer4Score(data.player4Score || 0);
       setBattleTime(data.timeLeft ?? 300);
       if (data.hostReady != null) setHostIsReady(!!data.hostReady);
       if (data.opponentReady != null) setOpponentIsReady(!!data.opponentReady);
-      if (data.opponentName) {
-        setBattleSlots(prev => {
-          const next = [...prev];
+      
+      setBattleSlots(prev => {
+        const next = [...prev];
+        // Opponent
+        if (data.opponentName) {
           next[0] = { userId: data.opponentUserId || '', name: data.opponentName, status: 'accepted', avatar: '' };
-          return next;
-        });
-      }
+        }
+        // Player 3
+        if (data.player3Name) {
+          next[1] = { userId: data.player3UserId || '', name: data.player3Name, status: 'accepted', avatar: '' };
+        }
+        // Player 4
+        if (data.player4Name) {
+          next[2] = { userId: data.player4UserId || '', name: data.player4Name, status: 'accepted', avatar: '' };
+        }
+        return next;
+      });
     };
 
     const handleBattleTick = (data: any) => {
@@ -2333,12 +2393,16 @@ export default function LiveStream() {
       setBattleTime(data.timeLeft ?? 0);
       setMyScore(data.hostScore ?? 0);
       setOpponentScore(data.opponentScore ?? 0);
+      setPlayer3Score(data.player3Score ?? 0);
+      setPlayer4Score(data.player4Score ?? 0);
     };
 
     const handleBattleScore = (data: any) => {
       if (!mounted) return;
       setMyScore(data.hostScore ?? 0);
       setOpponentScore(data.opponentScore ?? 0);
+      setPlayer3Score(data.player3Score ?? 0);
+      setPlayer4Score(data.player4Score ?? 0);
     };
 
     const handleBattleCountdown = (data: any) => {
@@ -2362,8 +2426,12 @@ export default function LiveStream() {
       setBattleState('ENDED');
       setMyScore(data.hostScore ?? 0);
       setOpponentScore(data.opponentScore ?? 0);
+      setPlayer3Score(data.player3Score ?? 0);
+      setPlayer4Score(data.player4Score ?? 0);
       if (data.winner === 'host') setBattleWinner('me');
       else if (data.winner === 'opponent') setBattleWinner('opponent');
+      else if (data.winner === 'player3') setBattleWinner('player3' as any); // cast for type safety
+      else if (data.winner === 'player4') setBattleWinner('player4' as any);
       else setBattleWinner('draw' as any);
       battleEndedTimeoutRef.current = setTimeout(() => {
         battleEndedTimeoutRef.current = null;
@@ -3256,7 +3324,7 @@ export default function LiveStream() {
             {(() => {
               const is4Player = battleSlots[1].status !== 'empty' || battleSlots[2].status !== 'empty';
               return (
-                <div className="relative w-full flex-none flex flex-col h-[36dvh]">
+                <div className={`relative w-full flex-none flex flex-col ${is4Player ? 'aspect-square' : 'h-[36dvh]'}`}>
                   {/* Fan Club Button - Left of Battle Bar */}
                   <div className="absolute top-2 left-[20%] -translate-x-1/2 z-30 pointer-events-auto">
                     {/* Fan Club Removed */}
@@ -3288,13 +3356,15 @@ export default function LiveStream() {
                     </div>
                   )}
 
-                  {/* Row 1: P1 & P2 — shares space with row 2 when 4-player */}
-                  <div className="flex flex-1 min-h-0">
-                    <button
-                      type="button"
-                      onClick={(e) => { e.stopPropagation(); handleBattleTap('me'); setGiftTarget('me'); spawnHeartFromClient(e.clientX, e.clientY); }}
-                      className={`w-1/2 h-full overflow-hidden relative bg-[#13151A] pointer-events-auto border-r border-white/5 ${is4Player ? 'border-b' : ''}`}
-                    >
+                  {/* Grid Container */}
+                  <div className="flex-1 min-h-0 flex flex-col">
+                    {/* Row 1: P1 & P2 */}
+                    <div className="flex flex-1 min-h-0">
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); handleBattleTap('me'); setGiftTarget('me'); spawnHeartFromClient(e.clientX, e.clientY); }}
+                        className={`w-1/2 h-full overflow-hidden relative bg-[#13151A] pointer-events-auto border-r border-white/5 ${is4Player ? 'border-b' : ''}`}
+                      >
                       <video ref={videoRef} className="w-full h-full object-cover transform scale-x-[-1]" autoPlay playsInline muted style={isCamOff ? { opacity: 0 } : undefined} />
                       {isCamOff && (
                         <div className="absolute inset-0 z-[5] flex flex-col items-center justify-center gap-1 bg-[#13151A]">
@@ -3421,7 +3491,7 @@ export default function LiveStream() {
                     </button>
                   </div>
 
-                  {/* Bottom Row: P3 & P4 — only when 4 players, same container */}
+                  {/* Row 2: P3 & P4 — only when 4 players, same container */}
                   {is4Player && (
                     <div className="flex flex-1 min-h-0">
                       <button
@@ -3598,8 +3668,9 @@ export default function LiveStream() {
                     </div>
                   )}
                 </div>
-              );
-            })()}
+              </div>
+            );
+          })()}
 
               {/* MVP Circles - outside below battle frame, 3 left + 3 right */}
             <div className="w-full px-3 py-2 flex items-center justify-between flex-none pointer-events-none mt-1 relative z-30">

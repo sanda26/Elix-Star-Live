@@ -147,7 +147,18 @@ export default function SpectatorPage() {
   // ═══════════════════════════════════════════════════
   // BATTLE STATE (spectator sees host's battle status)
   // ═══════════════════════════════════════════════════
-  const [spectatorBattle, setSpectatorBattle] = useState<{ active: boolean; hostScore: number; opponentScore: number; timeLeft: number; opponentName?: string; winner?: string } | null>(null);
+  const [spectatorBattle, setSpectatorBattle] = useState<{ 
+    active: boolean; 
+    hostScore: number; 
+    opponentScore: number; 
+    player3Score?: number; 
+    player4Score?: number; 
+    timeLeft: number; 
+    opponentName?: string; 
+    player3Name?: string; 
+    player4Name?: string; 
+    winner?: string 
+  } | null>(null);
 
   // ═══════════════════════════════════════════════════
   // CO-HOST STATE
@@ -217,18 +228,21 @@ export default function SpectatorPage() {
       }
 
       if (coHostChanRef.current) { supabase.removeChannel(coHostChanRef.current); }
-      const chan = supabase.channel(`cohost_presence_${effectiveStreamId}`);
+      const chan = supabase.channel(`cohost_presence_${effectiveStreamId}`, {
+        config: {
+          presence: {
+            key: user?.id,
+          },
+        },
+      });
       coHostChanRef.current = chan;
-      chan.subscribe((status) => {
+      chan.on('presence', { event: 'sync' }, () => {}).subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
-          chan.send({
-            type: 'broadcast',
-            event: 'cohost_joined',
-            payload: {
-              userId: user?.id,
-              name: user?.username || user?.name || viewerName,
-              avatar: user?.avatar || viewerAvatar,
-            },
+          await chan.track({
+            userId: user?.id,
+            name: user?.username || user?.name || viewerName,
+            avatar: user?.avatar || viewerAvatar,
+            joinedAt: new Date().toISOString(),
           });
         }
       });
@@ -622,14 +636,22 @@ export default function SpectatorPage() {
 
     const handleBattleStateSync = (data: any) => {
       if (!mounted) return;
-      if (data.status === 'active' || data.status === 'IN_BATTLE') {
-        setSpectatorBattle(prev => ({
+      if (data.status === 'active' || data.status === 'IN_BATTLE' || data.status === 'ACTIVE') {
+        setSpectatorBattle({
           active: true,
-          hostScore: prev?.hostScore || 0,
-          opponentScore: prev?.opponentScore || 0,
-          timeLeft: prev?.timeLeft || 300,
-          opponentName: data.opponentName || data.opponent_name || prev?.opponentName,
-        }));
+          hostScore: data.hostScore || 0,
+          opponentScore: data.opponentScore || 0,
+          player3Score: data.player3Score || 0,
+          player4Score: data.player4Score || 0,
+          timeLeft: data.timeLeft || 300,
+          opponentName: data.opponentName || '',
+          player3Name: data.player3Name || '',
+          player4Name: data.player4Name || '',
+        });
+      } else if (data.status === 'ENDED') {
+        setSpectatorBattle(prev => prev ? { ...prev, active: false, winner: data.winner } : null);
+      } else {
+        setSpectatorBattle(null);
       }
     };
 
@@ -641,6 +663,8 @@ export default function SpectatorPage() {
         timeLeft: data.timeLeft ?? prev.timeLeft,
         hostScore: data.hostScore ?? prev.hostScore,
         opponentScore: data.opponentScore ?? prev.opponentScore,
+        player3Score: data.player3Score ?? prev.player3Score,
+        player4Score: data.player4Score ?? prev.player4Score,
       } : null);
     };
 
@@ -650,6 +674,8 @@ export default function SpectatorPage() {
         ...prev,
         hostScore: data.hostScore ?? prev.hostScore,
         opponentScore: data.opponentScore ?? prev.opponentScore,
+        player3Score: data.player3Score ?? prev.player3Score,
+        player4Score: data.player4Score ?? prev.player4Score,
       } : null);
     };
 
@@ -660,7 +686,9 @@ export default function SpectatorPage() {
         active: false,
         hostScore: data.hostScore ?? prev.hostScore,
         opponentScore: data.opponentScore ?? prev.opponentScore,
-        winner: data.winner || (data.hostScore > data.opponentScore ? 'host' : data.hostScore < data.opponentScore ? 'opponent' : 'draw'),
+        player3Score: data.player3Score ?? prev.player3Score,
+        player4Score: data.player4Score ?? prev.player4Score,
+        winner: data.winner,
       } : null);
       setTimeout(() => setSpectatorBattle(null), 5000);
     };
@@ -949,7 +977,92 @@ export default function SpectatorPage() {
 
         {/* FULL SCREEN VIDEO AREA — live stream via WebRTC */}
         <div className="absolute inset-0 z-0 bg-[#13151A]">
-          {isCoHosting ? (
+          {spectatorBattle && spectatorBattle.active ? (
+            /* BATTLE MODE: Split screen for battle */
+            <div className={`w-full h-full flex flex-col ${spectatorBattle.player3Score !== undefined ? 'aspect-square' : ''}`}>
+              {/* Battle Header */}
+              <div className="absolute top-20 left-0 right-0 z-20 px-4 flex items-center justify-between">
+                <div className="flex flex-col items-center">
+                  <span className="text-white font-black text-2xl drop-shadow-md">{spectatorBattle.hostScore}</span>
+                  <span className="text-xs font-bold text-[#C9A96E]">{hostName}</span>
+                </div>
+                <div className="flex flex-col items-center">
+                   <div className="px-3 py-1 bg-red-600 rounded-full text-white font-bold text-xs">VS</div>
+                   <span className="text-white font-mono text-xs mt-1">{Math.floor(spectatorBattle.timeLeft / 60)}:{(spectatorBattle.timeLeft % 60).toString().padStart(2, '0')}</span>
+                </div>
+                <div className="flex flex-col items-center">
+                  <span className="text-white font-black text-2xl drop-shadow-md">{spectatorBattle.opponentScore}</span>
+                  <span className="text-xs font-bold text-blue-400">{spectatorBattle.opponentName || 'Opponent'}</span>
+                </div>
+              </div>
+
+              {/* Host Video (Top/Left) */}
+              <div className="flex-1 min-h-0 flex flex-col">
+                <div className="flex flex-1 min-h-0">
+                  <div className="w-1/2 h-full relative bg-black overflow-hidden border-r border-[#C9A96E]/20">
+                    <video
+                      ref={videoRef}
+                      className="w-full h-full object-cover"
+                      playsInline
+                      autoPlay
+                      style={{ opacity: hasStream ? 1 : 0 }}
+                    />
+                    <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-sm">
+                      <span className="text-white text-[10px] font-bold">{hostName}</span>
+                    </div>
+                    {spectatorBattle.winner === 'host' && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                        <span className="text-4xl font-black text-[#C9A96E] drop-shadow-lg rotate-[-12deg]">WINNER</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Opponent Video (Top/Right) */}
+                  <div className="w-1/2 h-full relative bg-[#1C1E24] overflow-hidden flex items-center justify-center">
+                    <div className="text-center">
+                      <div className="w-12 h-12 rounded-full bg-[#13151A] border-2 border-blue-500 flex items-center justify-center mx-auto mb-2">
+                        <span className="text-xl">VS</span>
+                      </div>
+                      <p className="text-white/60 text-xs font-bold truncate max-w-[80px]">{spectatorBattle.opponentName || 'Opponent'}</p>
+                    </div>
+                    {spectatorBattle.winner === 'opponent' && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                        <span className="text-4xl font-black text-blue-500 drop-shadow-lg rotate-[-12deg]">WINNER</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Row 2: Player 3 & 4 (if active) */}
+                {(spectatorBattle.player3Score !== undefined || spectatorBattle.player4Score !== undefined) && (
+                  <div className="flex flex-1 min-h-0 border-t border-[#C9A96E]/20">
+                     {/* Player 3 */}
+                    <div className="w-1/2 h-full relative bg-[#1C1E24] overflow-hidden flex items-center justify-center border-r border-[#C9A96E]/20">
+                      <div className="text-center">
+                        <p className="text-white/60 text-xs font-bold truncate max-w-[80px]">{spectatorBattle.player3Name || 'P3'}</p>
+                      </div>
+                      {spectatorBattle.winner === 'player3' && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                          <span className="text-4xl font-black text-[#C9A96E] drop-shadow-lg rotate-[-12deg]">WINNER</span>
+                        </div>
+                      )}
+                    </div>
+                     {/* Player 4 */}
+                    <div className="w-1/2 h-full relative bg-[#1C1E24] overflow-hidden flex items-center justify-center">
+                      <div className="text-center">
+                        <p className="text-white/60 text-xs font-bold truncate max-w-[80px]">{spectatorBattle.player4Name || 'P4'}</p>
+                      </div>
+                      {spectatorBattle.winner === 'player4' && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                          <span className="text-4xl font-black text-blue-500 drop-shadow-lg rotate-[-12deg]">WINNER</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : isCoHosting ? (
             /* SPLIT SCREEN: host on top, co-host (me) on bottom */
             <div className="w-full h-full flex flex-col">
               <div className="flex-1 relative bg-black overflow-hidden">

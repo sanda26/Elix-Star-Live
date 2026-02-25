@@ -104,6 +104,11 @@ const DEMO_CREATORS: { id: string; name: string; username: string; followers: st
   { id: 'demo-jay', name: 'Jay', username: 'Jay', followers: '0', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=jay', isLive: true },
 ];
 
+const DEMO_CO_HOSTS: { id: string; userId: string; name: string; avatar: string; status: 'invited' | 'accepted' | 'live'; isMuted: boolean }[] = [
+  { id: 'demo-ch-1', userId: 'demo-ch-1', name: 'Alex', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=alex', status: 'live', isMuted: false },
+  { id: 'demo-ch-2', userId: 'demo-ch-2', name: 'Jordan', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=jordan', status: 'invited', isMuted: false },
+];
+
 const EMOJI_LIST = ['😀','😂','🥰','😍','🔥','💯','👏','🎉','❤️','💜','💙','⭐','🌟','✨','🙌','👑','💎','🚀','🎵','💃','🕺','😎','🤩','💪','🫶','💖'];
 type LiveViewer = {
   id: string;
@@ -738,8 +743,12 @@ export default function LiveStream() {
 
   // Mute state per player pane
   const [mutedPlayers, setMutedPlayers] = useState<Record<string, boolean>>({});
+  const [cameraOffPlayers, setCameraOffPlayers] = useState<Record<string, boolean>>({});
   const togglePlayerMute = (player: string) => {
     setMutedPlayers(prev => ({ ...prev, [player]: !prev[player] }));
+  };
+  const togglePlayerCamera = (player: string) => {
+    setCameraOffPlayers(prev => ({ ...prev, [player]: !prev[player] }));
   };
 
   useEffect(() => {
@@ -784,6 +793,11 @@ export default function LiveStream() {
   useEffect(() => {
     if (!isMyStreamLive) setIsInviteHostOpen(false);
   }, [isMyStreamLive]);
+  useEffect(() => {
+    if (isBroadcast && isMyStreamLive && coHosts.length === 0) {
+      setCoHosts(DEMO_CO_HOSTS.map(h => ({ ...h, id: `host-${h.userId}-${Date.now()}` })));
+    }
+  }, [isBroadcast, isMyStreamLive]);
   const [hostSearchQuery, setHostSearchQuery] = useState('');
   const [featuredHostId, setFeaturedHostId] = useState<string | null>(null);
   const coHostTimersRef = useRef<NodeJS.Timeout[]>([]);
@@ -1026,6 +1040,10 @@ export default function LiveStream() {
     setCoHosts(prev => prev.map(h =>
       h.id === hostId ? { ...h, isMuted: !h.isMuted } : h
     ));
+  };
+  const [coHostCameraOff, setCoHostCameraOff] = useState<Record<string, boolean>>({});
+  const toggleCoHostCamera = (hostId: string) => {
+    setCoHostCameraOff(prev => ({ ...prev, [hostId]: !prev[hostId] }));
   };
 
   const liveCoHosts = coHosts.filter(h => h.status === 'live');
@@ -3024,8 +3042,8 @@ export default function LiveStream() {
             {/* Base Video Layer */}
         {!isBattleMode && (
           <div
-            className={coHosts.length > 0 ? 'absolute inset-x-0 z-[25] flex flex-row h-[42dvh]' : 'relative w-full h-full'}
-            style={coHosts.length > 0 ? { top: '90px', filter: liveFilterCss !== 'none' ? liveFilterCss : undefined } : { filter: liveFilterCss !== 'none' ? liveFilterCss : undefined }}
+            className={coHosts.length > 0 ? 'absolute inset-x-0 z-[25] flex flex-row' : 'relative w-full h-full'}
+            style={coHosts.length > 0 ? { top: '90px', height: 'calc(42dvh + 10mm)', filter: liveFilterCss !== 'none' ? liveFilterCss : undefined } : { filter: liveFilterCss !== 'none' ? liveFilterCss : undefined }}
             onPointerDown={isBroadcast ? undefined : (e) => {
               if (e.target instanceof Element) {
                 const interactive = e.target.closest('button, a, input, textarea, select, [role="button"]');
@@ -3038,9 +3056,9 @@ export default function LiveStream() {
               if (now - last <= 320) handleComboClick();
             }}
           >
-            {/* Left: Host camera */}
+            {/* Left: Host camera (big) */}
             <div
-              className={coHosts.length > 0 ? 'w-1/2 relative' : 'relative w-full h-full'}
+              className={coHosts.length > 0 ? 'flex-1 min-w-0 relative' : 'relative w-full h-full'}
               onPointerDown={isBroadcast ? (e) => {
                 if (e.target instanceof Element && e.target.closest('button, a, input, textarea, select, [role="button"]')) return;
                 handleLikeTap(e);
@@ -3061,8 +3079,25 @@ export default function LiveStream() {
                   style={isBroadcast ? { transform: 'scaleX(-1)', opacity: isCamOff ? 0 : 1, transition: 'opacity 0.3s ease' } : undefined}
                 />
                 {isCamOff && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-[#13151A] z-[5]">
-                    <CameraOff size={40} className="text-white/30" />
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-[#13151A] z-[5]">
+                    {(user?.avatar || myAvatar) ? (
+                      <img src={user?.avatar || myAvatar || ''} alt="" className="w-16 h-16 rounded-full border-2 border-[#C9A96E]/40 object-cover" />
+                    ) : (
+                      <div className="w-16 h-16 rounded-full border-2 border-[#C9A96E]/40 bg-[#1C1E24] flex items-center justify-center">
+                        <span className="text-2xl font-black text-[#C9A96E]/60">{(creatorName || user?.username || 'Me').charAt(0).toUpperCase()}</span>
+                      </div>
+                    )}
+                    <span className="text-white font-bold text-xs">{creatorName || user?.username || user?.displayName || 'Me'}</span>
+                  </div>
+                )}
+                {isBroadcast && coHosts.length > 0 && (
+                  <div className="absolute top-1 right-1 z-10 flex items-center gap-0.5 pointer-events-auto">
+                    <button type="button" onClick={(e) => { e.stopPropagation(); toggleMic(); }} className="p-0.5 rounded bg-black/50" title={isMicMuted ? 'Unmute' : 'Mute'}>
+                      {isMicMuted ? <MicOff className="w-3 h-3 text-white" strokeWidth={2.5} /> : <Mic className="w-3 h-3 text-white" strokeWidth={2.5} />}
+                    </button>
+                    <button type="button" onClick={(e) => { e.stopPropagation(); toggleCam(); }} className="p-0.5 rounded bg-black/50" title={isCamOff ? 'Camera on' : 'Camera off'}>
+                      {isCamOff ? <CameraOff className="w-3 h-3 text-white" strokeWidth={2.5} /> : <Camera className="w-3 h-3 text-white" strokeWidth={2.5} />}
+                    </button>
                   </div>
                 )}
               </>
@@ -3126,7 +3161,7 @@ export default function LiveStream() {
               });
               while (cellSlots.length < 8) cellSlots.push({ type: 'empty' });
               return (
-                <div className="w-1/2 h-full grid grid-cols-3 grid-rows-3 gap-[1px] bg-[#1a1c22]">
+                <div className="w-1/2 h-full grid grid-cols-2 grid-rows-4 gap-[1px] bg-[#1a1c22]">
                   {cellSlots.slice(0, 8).map((slot, i) => (
                     <div key={i} className="relative bg-[#13151A] flex flex-col items-center justify-center p-1">
                       {slot.type === 'live' && slot.host ? (
@@ -3136,12 +3171,25 @@ export default function LiveStream() {
                             className="absolute inset-0 w-full h-full object-cover rounded-sm"
                             autoPlay
                             playsInline
-                            muted
+                            muted={slot.host.isMuted}
+                            style={coHostCameraOff[slot.host.id] ? { display: 'none' } : undefined}
                           />
+                          {coHostCameraOff[slot.host.id] && (
+                            <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-[#13151A] z-[6] rounded-sm">
+                              {slot.host.avatar ? (
+                                <img src={slot.host.avatar} alt="" className="w-10 h-10 rounded-full border-2 border-[#C9A96E]/40 object-cover" />
+                              ) : (
+                                <div className="w-10 h-10 rounded-full border-2 border-[#C9A96E]/40 bg-[#1C1E24] flex items-center justify-center">
+                                  <span className="text-[#C9A96E]/60 text-sm font-bold">{(slot.host.name || '?').charAt(0)}</span>
+                                </div>
+                              )}
+                              <span className="text-white/90 text-[8px] font-bold truncate max-w-full px-1">{slot.host.name}</span>
+                            </div>
+                          )}
                           {(() => {
                             const el = coHostVideoRefs.current.get(slot.host!.userId);
                             const hasTracks = el?.srcObject && (el.srcObject as MediaStream).getVideoTracks().some(t => t.enabled);
-                            if (!hasTracks) return (
+                            if (!hasTracks && !coHostCameraOff[slot.host!.id]) return (
                               <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#13151A] z-[5]">
                                 <CameraOff size={20} className="text-white/30" />
                                 <span className="text-white/40 text-[8px] mt-1">{slot.host!.name}</span>
@@ -3149,8 +3197,13 @@ export default function LiveStream() {
                             );
                             return null;
                           })()}
-                          <div className="absolute bottom-0 left-0 right-0 py-0.5 px-1 bg-black/50 rounded-b-sm z-10">
-                            <p className="text-white text-[9px] font-bold truncate text-center">{slot.host.name}</p>
+                          <div className="absolute top-0.5 right-0.5 z-10 flex items-center gap-0.5 pointer-events-auto">
+                            <button type="button" onClick={(e) => { e.stopPropagation(); toggleCoHostMute(slot.host!.id); }} className="p-0.5 rounded bg-black/50" title={slot.host.isMuted ? 'Unmute' : 'Mute'}>
+                              {slot.host.isMuted ? <MicOff className="w-3 h-3 text-white" strokeWidth={2.5} /> : <Mic className="w-3 h-3 text-white" strokeWidth={2.5} />}
+                            </button>
+                            <button type="button" onClick={(e) => { e.stopPropagation(); toggleCoHostCamera(slot.host!.id); }} className="p-0.5 rounded bg-black/50" title={coHostCameraOff[slot.host.id] ? 'Camera on' : 'Camera off'}>
+                              {coHostCameraOff[slot.host.id] ? <CameraOff className="w-3 h-3 text-white" strokeWidth={2.5} /> : <Camera className="w-3 h-3 text-white" strokeWidth={2.5} />}
+                            </button>
                           </div>
                         </>
                       ) : slot.type === 'invited' && slot.host ? (
@@ -3306,10 +3359,25 @@ export default function LiveStream() {
                       onClick={(e) => { e.stopPropagation(); handleBattleTap('me'); setGiftTarget('me'); spawnHeartFromClient(e.clientX, e.clientY); }}
                       className={`w-1/2 h-full overflow-hidden relative bg-[#13151A] pointer-events-auto border-r border-white/5 ${is4Player ? 'border-b' : ''}`}
                     >
-                      <video ref={videoRef} className="w-full h-full object-cover transform scale-x-[-1]" autoPlay playsInline muted />
-                      <div className="absolute bottom-2 right-2 z-10 pointer-events-auto flex items-center gap-1">
-                        <div onClick={(e) => { e.stopPropagation(); togglePlayerMute('me'); }}>
-                          {mutedPlayers['me'] ? <VolumeX className="w-5 h-5 text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]" strokeWidth={2.5} /> : <Volume2 className="w-5 h-5 text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]" strokeWidth={2.5} />}
+                      <video ref={videoRef} className="w-full h-full object-cover transform scale-x-[-1]" autoPlay playsInline muted style={isCamOff ? { opacity: 0 } : undefined} />
+                      {isCamOff && (
+                        <div className="absolute inset-0 z-[5] flex flex-col items-center justify-center gap-1 bg-[#13151A]">
+                          {(user?.avatar || myAvatar) ? (
+                            <img src={user?.avatar || myAvatar || ''} alt="" className="w-12 h-12 rounded-full border-2 border-[#C9A96E]/40 object-cover" />
+                          ) : (
+                            <div className="w-12 h-12 rounded-full border-2 border-[#C9A96E]/40 bg-[#1C1E24] flex items-center justify-center">
+                              <span className="text-lg font-black text-[#C9A96E]/60">{(creatorName || user?.username || 'Me').charAt(0).toUpperCase()}</span>
+                            </div>
+                          )}
+                          <span className="text-white font-bold text-[10px] truncate max-w-full px-1">{creatorName || user?.username || user?.displayName || 'Me'}</span>
+                        </div>
+                      )}
+                      <div className="absolute top-1 right-1 z-10 pointer-events-auto flex items-center gap-0.5">
+                        <div onClick={(e) => { e.stopPropagation(); togglePlayerMute('me'); }} title={mutedPlayers['me'] ? 'Unmute' : 'Mute'}>
+                          {mutedPlayers['me'] ? <MicOff className="w-3 h-3 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={2.5} /> : <Mic className="w-3 h-3 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={2.5} />}
+                        </div>
+                        <div onClick={(e) => { e.stopPropagation(); toggleCam(); }} title={isCamOff ? 'Camera on' : 'Camera off'}>
+                          {isCamOff ? <CameraOff className="w-3 h-3 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={2.5} /> : <Camera className="w-3 h-3 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={2.5} />}
                         </div>
                         <div onClick={(e) => { e.stopPropagation(); toggleBattle(); }}>
                           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FF4D6A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
@@ -3332,8 +3400,20 @@ export default function LiveStream() {
                     >
                       {battleSlots[0].status === 'accepted' ? (
                         <div className="w-full h-full relative bg-[#13151A]">
-                          <video ref={opponentVideoRef} className="w-full h-full object-cover absolute inset-0 z-10" autoPlay playsInline muted={!!mutedPlayers['opponent']} />
-                          {!hasOpponentStream && (
+                          <video ref={opponentVideoRef} className="w-full h-full object-cover absolute inset-0 z-10" autoPlay playsInline muted={!!mutedPlayers['opponent']} style={cameraOffPlayers['opponent'] ? { display: 'none' } : undefined} />
+                          {cameraOffPlayers['opponent'] && (
+                            <div className="absolute inset-0 z-[11] flex flex-col items-center justify-center gap-2 bg-[#13151A]">
+                              {battleSlots[0].avatar ? (
+                                <img src={battleSlots[0].avatar} alt="" className="w-16 h-16 rounded-full border-2 border-[#C9A96E]/40 object-cover" />
+                              ) : (
+                                <div className="w-16 h-16 rounded-full border-2 border-[#C9A96E]/40 bg-[#1C1E24] flex items-center justify-center">
+                                  <span className="text-2xl font-black text-[#C9A96E]/60">{(battleSlots[0].name || 'P').charAt(0).toUpperCase()}</span>
+                                </div>
+                              )}
+                              <span className="text-white font-bold text-xs">{battleSlots[0].name}</span>
+                            </div>
+                          )}
+                          {!hasOpponentStream && !cameraOffPlayers['opponent'] && (
                             <div className="absolute inset-0 z-[5] flex flex-col items-center justify-center gap-2 bg-[#13151A]">
                               {battleSlots[0].avatar ? (
                                 <img src={battleSlots[0].avatar} alt={battleSlots[0].name} className="w-16 h-16 rounded-full border-2 border-[#C9A96E] object-cover" />
@@ -3366,9 +3446,12 @@ export default function LiveStream() {
                       )}
 
                       {battleSlots[0].status !== 'empty' && (
-                        <div className="absolute bottom-2 left-2 z-10 pointer-events-auto flex items-center gap-1">
-                          <div onClick={(e) => { e.stopPropagation(); togglePlayerMute('opponent'); }}>
-                            {mutedPlayers['opponent'] ? <VolumeX className="w-5 h-5 text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]" strokeWidth={2.5} /> : <Volume2 className="w-5 h-5 text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]" strokeWidth={2.5} />}
+                        <div className="absolute top-1 left-1 z-10 pointer-events-auto flex items-center gap-0.5">
+                          <div onClick={(e) => { e.stopPropagation(); togglePlayerMute('opponent'); }} title={mutedPlayers['opponent'] ? 'Unmute' : 'Mute'}>
+                            {mutedPlayers['opponent'] ? <MicOff className="w-3 h-3 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={2.5} /> : <Mic className="w-3 h-3 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={2.5} />}
+                          </div>
+                          <div onClick={(e) => { e.stopPropagation(); togglePlayerCamera('opponent'); }} title={cameraOffPlayers['opponent'] ? 'Camera on' : 'Camera off'}>
+                            {cameraOffPlayers['opponent'] ? <CameraOff className="w-3 h-3 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={2.5} /> : <Camera className="w-3 h-3 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={2.5} />}
                           </div>
                           <div onClick={(e) => { e.stopPropagation(); removePlayerFromSlot(0); }}>
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FF4D6A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
@@ -3412,8 +3495,20 @@ export default function LiveStream() {
                       >
                         {battleSlots[1].status === 'accepted' ? (
                           <div className="w-full h-full relative bg-[#13151A]">
-                            <video ref={player3VideoRef} className="w-full h-full object-cover" autoPlay playsInline muted={!!mutedPlayers['player3']} style={player3VideoRef.current?.srcObject ? {} : { display: 'none' }} />
-                            {!player3VideoRef.current?.srcObject && (
+                            <video ref={player3VideoRef} className="w-full h-full object-cover" autoPlay playsInline muted={!!mutedPlayers['player3']} style={player3VideoRef.current?.srcObject && !cameraOffPlayers['player3'] ? {} : { display: 'none' }} />
+                            {cameraOffPlayers['player3'] && (
+                              <div className="absolute inset-0 z-[11] flex flex-col items-center justify-center gap-1 bg-[#13151A]">
+                                {battleSlots[1].avatar ? (
+                                  <img src={battleSlots[1].avatar} alt="" className="w-12 h-12 rounded-full border-2 border-[#C9A96E]/40 object-cover" />
+                                ) : (
+                                  <div className="w-12 h-12 rounded-full border-2 border-[#C9A96E]/40 bg-[#1C1E24] flex items-center justify-center">
+                                    <span className="text-lg font-black text-[#C9A96E]/60">{(battleSlots[1].name || '?').charAt(0).toUpperCase()}</span>
+                                  </div>
+                                )}
+                                <span className="text-white font-bold text-[10px] truncate max-w-full px-1">{battleSlots[1].name}</span>
+                              </div>
+                            )}
+                            {!player3VideoRef.current?.srcObject && !cameraOffPlayers['player3'] && (
                               <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
                                 <img src={battleSlots[1].avatar} alt={battleSlots[1].name} className="w-12 h-12 rounded-full border-2 border-[#C9A96E] object-cover" />
                                 <span className="text-white text-[10px] font-bold">{battleSlots[1].name}</span>
@@ -3440,9 +3535,12 @@ export default function LiveStream() {
                         )}
 
                         {battleSlots[1].status !== 'empty' && (
-                          <div className="absolute bottom-2 right-2 z-10 pointer-events-auto flex items-center gap-1">
-                            <div onClick={(e) => { e.stopPropagation(); togglePlayerMute('player3'); }}>
-                              {mutedPlayers['player3'] ? <VolumeX className="w-5 h-5 text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]" strokeWidth={2.5} /> : <Volume2 className="w-5 h-5 text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]" strokeWidth={2.5} />}
+                          <div className="absolute top-1 right-1 z-10 pointer-events-auto flex items-center gap-0.5">
+                            <div onClick={(e) => { e.stopPropagation(); togglePlayerMute('player3'); }} title={mutedPlayers['player3'] ? 'Unmute' : 'Mute'}>
+                              {mutedPlayers['player3'] ? <MicOff className="w-3 h-3 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={2.5} /> : <Mic className="w-3 h-3 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={2.5} />}
+                            </div>
+                            <div onClick={(e) => { e.stopPropagation(); togglePlayerCamera('player3'); }} title={cameraOffPlayers['player3'] ? 'Camera on' : 'Camera off'}>
+                              {cameraOffPlayers['player3'] ? <CameraOff className="w-3 h-3 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={2.5} /> : <Camera className="w-3 h-3 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={2.5} />}
                             </div>
                             <div onClick={(e) => { e.stopPropagation(); removePlayerFromSlot(1); }}>
                               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FF4D6A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
@@ -3482,8 +3580,20 @@ export default function LiveStream() {
                       >
                         {battleSlots[2].status === 'accepted' ? (
                           <div className="w-full h-full relative bg-[#13151A]">
-                            <video ref={player4VideoRef} className="w-full h-full object-cover" autoPlay playsInline muted={!!mutedPlayers['player4']} style={player4VideoRef.current?.srcObject ? {} : { display: 'none' }} />
-                            {!player4VideoRef.current?.srcObject && (
+                            <video ref={player4VideoRef} className="w-full h-full object-cover" autoPlay playsInline muted={!!mutedPlayers['player4']} style={player4VideoRef.current?.srcObject && !cameraOffPlayers['player4'] ? {} : { display: 'none' }} />
+                            {cameraOffPlayers['player4'] && (
+                              <div className="absolute inset-0 z-[11] flex flex-col items-center justify-center gap-1 bg-[#13151A]">
+                                {battleSlots[2].avatar ? (
+                                  <img src={battleSlots[2].avatar} alt="" className="w-12 h-12 rounded-full border-2 border-[#C9A96E]/40 object-cover" />
+                                ) : (
+                                  <div className="w-12 h-12 rounded-full border-2 border-[#C9A96E]/40 bg-[#1C1E24] flex items-center justify-center">
+                                    <span className="text-lg font-black text-[#C9A96E]/60">{(battleSlots[2].name || '?').charAt(0).toUpperCase()}</span>
+                                  </div>
+                                )}
+                                <span className="text-white font-bold text-[10px] truncate max-w-full px-1">{battleSlots[2].name}</span>
+                              </div>
+                            )}
+                            {!player4VideoRef.current?.srcObject && !cameraOffPlayers['player4'] && (
                               <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
                                 <img src={battleSlots[2].avatar} alt={battleSlots[2].name} className="w-12 h-12 rounded-full border-2 border-[#C9A96E] object-cover" />
                                 <span className="text-white text-[10px] font-bold">{battleSlots[2].name}</span>
@@ -3510,9 +3620,12 @@ export default function LiveStream() {
                         )}
 
                         {battleSlots[2].status !== 'empty' && (
-                          <div className="absolute bottom-2 right-2 z-10 pointer-events-auto flex items-center gap-1">
-                            <div onClick={(e) => { e.stopPropagation(); togglePlayerMute('player4'); }}>
-                              {mutedPlayers['player4'] ? <VolumeX className="w-5 h-5 text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]" strokeWidth={2.5} /> : <Volume2 className="w-5 h-5 text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]" strokeWidth={2.5} />}
+                          <div className="absolute top-1 right-1 z-10 pointer-events-auto flex items-center gap-0.5">
+                            <div onClick={(e) => { e.stopPropagation(); togglePlayerMute('player4'); }} title={mutedPlayers['player4'] ? 'Unmute' : 'Mute'}>
+                              {mutedPlayers['player4'] ? <MicOff className="w-3 h-3 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={2.5} /> : <Mic className="w-3 h-3 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={2.5} />}
+                            </div>
+                            <div onClick={(e) => { e.stopPropagation(); togglePlayerCamera('player4'); }} title={cameraOffPlayers['player4'] ? 'Camera on' : 'Camera off'}>
+                              {cameraOffPlayers['player4'] ? <CameraOff className="w-3 h-3 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={2.5} /> : <Camera className="w-3 h-3 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={2.5} />}
                             </div>
                             <div onClick={(e) => { e.stopPropagation(); removePlayerFromSlot(2); }}>
                               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FF4D6A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
@@ -3845,6 +3958,23 @@ export default function LiveStream() {
                 )}
               </div>
             </div>
+
+      {/* Bottom: 2 demo co-hosts row (when live, no side grid) */}
+      {isBroadcast && isMyStreamLive && coHosts.length === 0 && (
+        <div className="fixed bottom-[calc(50px+max(12px,env(safe-area-inset-bottom))+8px)] left-0 right-0 z-[115] flex justify-center pointer-events-none max-w-[480px] mx-auto px-2">
+          <div className="flex gap-2 pointer-events-auto">
+            {DEMO_CO_HOSTS.map((demo, i) => (
+              <div key={demo.userId} className="flex flex-col items-center gap-0.5 rounded-lg bg-[#1C1E24]/90 backdrop-blur border border-[#C9A96E]/30 px-2 py-1.5">
+                <div className="w-10 h-10 rounded-full overflow-hidden border border-[#C9A96E]/40 bg-[#13151A]">
+                  <img src={demo.avatar} alt="" className="w-full h-full object-cover" />
+                </div>
+                <span className="text-white text-[10px] font-bold truncate max-w-[60px]">{demo.name}</span>
+                <span className="text-[#C9A96E]/80 text-[8px] font-semibold">{demo.status === 'live' ? 'Live' : 'Invited'}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* BOTTOM RIGHT: Action buttons (same area as before, aligned right) */}
       <div className="bottom-zone flex-none pointer-events-auto bg-transparent px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-2 min-h-[50px] flex flex-col items-end fixed bottom-0 left-0 right-0 z-[120] justify-end">

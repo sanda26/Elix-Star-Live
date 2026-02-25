@@ -38,12 +38,16 @@ export function GiftOverlay({ videoSrc, onEnded, isBattleMode: _isBattleMode }: 
   const isVideo = videoSrc.endsWith('.webm') || videoSrc.endsWith('.mp4');
 
   return (
-    <div className="absolute left-0 right-0 bottom-[calc(env(safe-area-inset-bottom)-10px)] z-gift-overlay pointer-events-none flex justify-center">
+    <div className="absolute left-0 right-0 bottom-[calc(env(safe-area-inset-bottom,0px)+60px)] z-gift-overlay pointer-events-none flex justify-center">
       <div 
-        className="w-full h-[65vh] flex items-end justify-center overflow-hidden" 
+        className="flex items-end justify-center overflow-hidden mx-auto"
         style={{ 
-          WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 25%, black 65%, transparent 100%)',
-          maskImage: 'linear-gradient(to bottom, transparent 0%, black 25%, black 65%, transparent 100%)',
+          width: '45vw',
+          maxWidth: '220px',
+          height: '30vh',
+          maxHeight: '280px',
+          WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 20%, black 70%, transparent 100%)',
+          maskImage: 'linear-gradient(to bottom, transparent 0%, black 20%, black 70%, transparent 100%)',
           WebkitMaskSize: '100% 100%',
           maskSize: '100% 100%',
           WebkitMaskRepeat: 'no-repeat',
@@ -54,7 +58,7 @@ export function GiftOverlay({ videoSrc, onEnded, isBattleMode: _isBattleMode }: 
           <video 
             ref={videoRef} 
             src={videoSrc} 
-            className="w-full h-full object-cover object-top opacity-100 drop-shadow-2xl elix-overlay-in" 
+            className="w-full h-full object-contain drop-shadow-2xl elix-overlay-in" 
             playsInline 
             preload="auto" 
             muted={muteAllSounds} 
@@ -67,7 +71,7 @@ export function GiftOverlay({ videoSrc, onEnded, isBattleMode: _isBattleMode }: 
           <img 
             src={videoSrc} 
             alt="Gift" 
-            className="w-full h-full object-cover object-top opacity-90 drop-shadow-2xl animate-bounce-small elix-overlay-in" 
+            className="w-full h-full object-contain drop-shadow-2xl animate-bounce-small elix-overlay-in" 
             onLoad={() => { 
               setTimeout(onEnded, 1500); 
             }} 

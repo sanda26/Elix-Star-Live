@@ -3189,45 +3189,7 @@ export default function LiveStream() {
               </div>
             )}
 
-            {battleCountdown == null && !battleWinner && battleState === 'INVITING' && battleSlots.some(s => s.status === 'accepted') && (
-              <div className="absolute inset-0 z-[250] flex items-center justify-center pointer-events-auto">
-                <div className="flex flex-col items-center gap-3 px-8 py-6 rounded-2xl bg-[#13151A]/80 backdrop-blur-xl border border-[#C9A96E]/30">
-                  <span className="text-white/70 text-xs font-semibold uppercase tracking-widest">Both players must be ready</span>
-                  <div className="flex items-center gap-4 mt-1">
-                    <div className="flex flex-col items-center gap-1">
-                      <div className={`w-3 h-3 rounded-full ${hostIsReady ? 'bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.6)]' : 'bg-white/20'}`} />
-                      <span className="text-white/50 text-[10px]">Host</span>
-                    </div>
-                    <div className="flex flex-col items-center gap-1">
-                      <div className={`w-3 h-3 rounded-full ${opponentIsReady ? 'bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.6)]' : 'bg-white/20'}`} />
-                      <span className="text-white/50 text-[10px]">Opponent</span>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    disabled={iAmReady}
-                    onClick={() => {
-                      setIAmReady(true);
-                      websocket.send('battle_ready', {});
-                    }}
-                    className={`mt-2 px-8 py-2.5 rounded-lg text-sm font-bold active:scale-95 transition-all flex items-center justify-center gap-2 ${
-                      iAmReady
-                        ? 'bg-green-500/30 border border-green-400/40 text-green-300 cursor-default'
-                        : 'bg-[#C9A96E] text-black shadow-lg'
-                    }`}
-                  >
-                    {iAmReady ? (
-                      <><Check size={16} /> Ready</>
-                    ) : (
-                      <><Sword size={16} /> Ready Up</>
-                    )}
-                  </button>
-                  {iAmReady && !(hostIsReady && opponentIsReady) && (
-                    <span className="text-white/40 text-[10px] animate-pulse">Waiting for opponent...</span>
-                  )}
-                </div>
-              </div>
-            )}
+            
 
 
 
@@ -4351,12 +4313,14 @@ export default function LiveStream() {
                   type="button"
                   onClick={() => {
                     setIsFindCreatorsOpen(false);
+                    setIAmReady(true);
                     const accepted = battleSlots.find(s => s.status === 'accepted');
                     websocket.send('battle_create', {
                       hostName: myCreatorName,
                       opponentUserId: accepted?.userId ?? '',
                       opponentName: accepted?.name ?? 'Opponent',
                     });
+                    setTimeout(() => websocket.send('battle_ready', {}), 500);
                   }}
                   className="w-full py-2.5 bg-[#C9A96E] text-black text-xs font-bold rounded-lg shadow-lg active:scale-95 transition-all flex items-center justify-center gap-1.5"
                 >

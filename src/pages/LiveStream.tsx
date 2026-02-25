@@ -78,37 +78,6 @@ type UniverseTickerMessage = {
   receiver: string;
 };
 
-const DEMO_BATTLE_USER = { userId: 'demo-user', name: 'DemoPlayer', status: 'accepted' as const, avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=demo' };
-const DEMO_CHAT_MESSAGES: LiveMessage[] = [
-  { id: 'demo-1', username: 'Alex', text: '🔥 Great stream!', level: 5, avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=alex' },
-  { id: 'demo-2', username: 'Jordan', text: "Let's go! 💪", level: 3, avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=jordan' },
-  { id: 'demo-3', username: 'Sam', text: 'Sent a gift 🎁', level: 8, isGift: true, avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=sam' },
-  { id: 'demo-4', username: 'DemoPlayer', text: 'Ready for battle!', level: 4, avatar: DEMO_BATTLE_USER.avatar },
-];
-const DEMO_MVP_LEFT = [
-  { name: 'Alex', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=alex' },
-  { name: 'Jordan', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=jordan' },
-  { name: 'Sam', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=sam' },
-];
-const DEMO_MVP_RIGHT = [
-  { name: 'DemoPlayer', avatar: DEMO_BATTLE_USER.avatar },
-  { name: 'Mia', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=mia' },
-  { name: 'Jay', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=jay' },
-];
-const DEMO_CREATORS: { id: string; name: string; username: string; followers: string; avatar: string; isLive: boolean }[] = [
-  { id: 'demo-user', name: 'DemoPlayer', username: 'DemoPlayer', followers: '0', avatar: DEMO_BATTLE_USER.avatar, isLive: true },
-  { id: 'demo-alex', name: 'Alex', username: 'Alex', followers: '0', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=alex', isLive: true },
-  { id: 'demo-jordan', name: 'Jordan', username: 'Jordan', followers: '0', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=jordan', isLive: true },
-  { id: 'demo-sam', name: 'Sam', username: 'Sam', followers: '0', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=sam', isLive: true },
-  { id: 'demo-mia', name: 'Mia', username: 'Mia', followers: '0', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=mia', isLive: true },
-  { id: 'demo-jay', name: 'Jay', username: 'Jay', followers: '0', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=jay', isLive: true },
-];
-
-const DEMO_CO_HOSTS: { id: string; userId: string; name: string; avatar: string; status: 'invited' | 'accepted' | 'live'; isMuted: boolean }[] = [
-  { id: 'demo-ch-1', userId: 'demo-ch-1', name: 'Alex', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=alex', status: 'live', isMuted: false },
-  { id: 'demo-ch-2', userId: 'demo-ch-2', name: 'Jordan', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=jordan', status: 'invited', isMuted: false },
-];
-
 const EMOJI_LIST = ['😀','😂','🥰','😍','🔥','💯','👏','🎉','❤️','💜','💙','⭐','🌟','✨','🙌','👑','💎','🚀','🎵','💃','🕺','😎','🤩','💪','🫶','💖'];
 type LiveViewer = {
   id: string;
@@ -154,7 +123,7 @@ export default function LiveStream() {
   const [showRankingPanel, setShowRankingPanel] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
   const [currentGift, setCurrentGift] = useState<string | null>(null);
-  const [messages, setMessages] = useState<LiveMessage[]>(() => [...DEMO_CHAT_MESSAGES]);
+  const [messages, setMessages] = useState<LiveMessage[]>(() => []);
   const [coinBalance, setCoinBalance] = useState(0);
   const [inputValue, setInputValue] = useState('');
   const isBroadcast = streamId === 'broadcast' || location.pathname === '/live/broadcast';
@@ -552,11 +521,7 @@ export default function LiveStream() {
     if (!q) return true;
     return c.username.toLowerCase().includes(q) || c.name.toLowerCase().includes(q);
   });
-  const creatorsToInvite = React.useMemo(() => {
-    const q = creatorQuery.trim().toLowerCase();
-    const demos = !q ? DEMO_CREATORS : DEMO_CREATORS.filter((c) => c.username.toLowerCase().includes(q) || c.name.toLowerCase().includes(q));
-    return [...demos, ...filteredCreators];
-  }, [creatorQuery, filteredCreators]);
+  const creatorsToInvite = React.useMemo(() => filteredCreators, [filteredCreators]);
 
   // Battle Player Slots (P1 = creator, P2-P4 = invited players)
   type BattleSlot = { userId: string; name: string; status: 'empty' | 'invited' | 'accepted'; avatar: string };
@@ -571,18 +536,6 @@ export default function LiveStream() {
     const slotIndex = battleSlots.findIndex(s => s.status === 'empty');
     if (slotIndex === -1) return;
     if (battleSlots.some(s => s.userId === creatorId && s.status !== 'empty')) return;
-
-    const demoCreator = DEMO_CREATORS.find(c => c.id === creatorId);
-    if (demoCreator) {
-      const avatar = demoCreator.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(demoCreator.username)}&background=121212&color=C9A96E`;
-      setBattleSlots(prev => {
-        const next = [...prev];
-        next[slotIndex] = { userId: demoCreator.id, name: demoCreator.username, status: 'accepted', avatar };
-        return next;
-      });
-      showToast(`@${demoCreator.username} joined the battle!`);
-      return;
-    }
 
     const creator = creators.find(c => c.id === creatorId);
     if (!creator) return;
@@ -793,11 +746,6 @@ export default function LiveStream() {
   useEffect(() => {
     if (!isMyStreamLive) setIsInviteHostOpen(false);
   }, [isMyStreamLive]);
-  useEffect(() => {
-    if (isBroadcast && isMyStreamLive && coHosts.length === 0) {
-      setCoHosts(DEMO_CO_HOSTS.map(h => ({ ...h, id: `host-${h.userId}-${Date.now()}` })));
-    }
-  }, [isBroadcast, isMyStreamLive]);
   const [hostSearchQuery, setHostSearchQuery] = useState('');
   const [featuredHostId, setFeaturedHostId] = useState<string | null>(null);
   const coHostTimersRef = useRef<NodeJS.Timeout[]>([]);
@@ -1609,7 +1557,7 @@ export default function LiveStream() {
     battleScoreTapWindowRef.current = { windowStart: 0, count: 0 };
     battleTripleTapRef.current = { target: null, lastTapAt: 0, count: 0 };
     setBattleSlots([
-      { userId: DEMO_BATTLE_USER.userId, name: DEMO_BATTLE_USER.name, status: 'accepted', avatar: DEMO_BATTLE_USER.avatar },
+      { userId: '', name: '', status: 'empty', avatar: '' },
       { userId: '', name: '', status: 'empty', avatar: '' },
       { userId: '', name: '', status: 'empty', avatar: '' },
     ]);
@@ -3220,19 +3168,7 @@ export default function LiveStream() {
                             {slot.host.avatar ? <img src={slot.host.avatar} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[#C9A96E] text-sm font-bold">{(slot.host.name || '?').charAt(0)}</div>}
                           </div>
                           <p className="text-white text-[8px] font-bold mt-0.5 truncate max-w-[95%] text-center">{slot.host.name}</p>
-                          <div className="flex gap-1 mt-0.5">
-                            <button type="button" title="Join" onClick={() => {
-                              const sk = (slot.host as any)?._streamKey || effectiveStreamId;
-                              if (isBroadcast) { acceptJoinRequest(); } else {
-                                setCoHosts(prev => prev.map(h => h.id === slot.host!.id ? { ...h, status: 'live' } : h));
-                                supabase.from('notifications').insert({ user_id: slot.host!.userId, type: 'cohost_accepted', title: 'Co-Host Accepted', body: `@${user?.username || 'User'} accepted!`, data: { actor_id: user?.id, accepted_name: user?.username, accepted_avatar: user?.avatar || '', stream_key: sk } }).then(() => {});
-                                navigate(`/watch/${sk}?cohost=1`);
-                              }
-                            }} className="px-2 py-0.5 rounded bg-green-600 text-white text-[8px] font-bold active:scale-95">Join</button>
-                            <button type="button" title="Reject" onClick={() => {
-                              if (isBroadcast) { declineJoinRequest(); } else { setCoHosts(prev => prev.filter(h => h.id !== slot.host!.id)); }
-                            }} className="px-2 py-0.5 rounded bg-red-600 text-white text-[8px] font-bold active:scale-95">Reject</button>
-                          </div>
+                          <span className="text-[#C9A96E]/70 text-[8px] font-semibold">Pending — use Co-Host panel</span>
                         </>
                       ) : (
                         <button type="button" onClick={() => isBroadcast ? setIsInviteHostOpen(true) : setShowViewerList(true)} className="flex flex-col items-center justify-center w-full h-full active:scale-95">
@@ -3672,9 +3608,8 @@ export default function LiveStream() {
                 {[0, 1, 2].map((i) => {
                   const g = getTopGifters('me')[i];
                   const fallbackViewer = activeViewers[i];
-                  const demoLeft = DEMO_MVP_LEFT[i];
-                  const src = g?.avatar || demoLeft?.avatar || fallbackViewer?.avatar || '';
-                  const alt = g?.name || demoLeft?.name || fallbackViewer?.displayName || '';
+                  const src = g?.avatar || fallbackViewer?.avatar || '';
+                  const alt = g?.name || fallbackViewer?.displayName || '';
                   const isMvp = i === 0 && battleWinner && g;
                   return (
                     <div key={i} style={{ zIndex: 3 - i }} className="relative">
@@ -3705,9 +3640,8 @@ export default function LiveStream() {
                 {[0, 1, 2].map((i) => {
                   const g = getTopGifters('opponent')[i];
                   const fallbackViewer = activeViewers[3 + i];
-                  const demoRight = DEMO_MVP_RIGHT[i];
-                  const src = g?.avatar || demoRight?.avatar || fallbackViewer?.avatar || '';
-                  const alt = g?.name || demoRight?.name || fallbackViewer?.displayName || '';
+                  const src = g?.avatar || fallbackViewer?.avatar || '';
+                  const alt = g?.name || fallbackViewer?.displayName || '';
                   const isMvp = i === 0 && battleWinner && g;
                   return (
                     <div key={i} style={{ zIndex: 3 - i }} className="relative">
@@ -3959,23 +3893,6 @@ export default function LiveStream() {
               </div>
             </div>
 
-      {/* Bottom: 2 demo co-hosts row (when live, no side grid) */}
-      {isBroadcast && isMyStreamLive && coHosts.length === 0 && (
-        <div className="fixed bottom-[calc(50px+max(12px,env(safe-area-inset-bottom))+8px)] left-0 right-0 z-[115] flex justify-center pointer-events-none max-w-[480px] mx-auto px-2">
-          <div className="flex gap-2 pointer-events-auto">
-            {DEMO_CO_HOSTS.map((demo, i) => (
-              <div key={demo.userId} className="flex flex-col items-center gap-0.5 rounded-lg bg-[#1C1E24]/90 backdrop-blur border border-[#C9A96E]/30 px-2 py-1.5">
-                <div className="w-10 h-10 rounded-full overflow-hidden border border-[#C9A96E]/40 bg-[#13151A]">
-                  <img src={demo.avatar} alt="" className="w-full h-full object-cover" />
-                </div>
-                <span className="text-white text-[10px] font-bold truncate max-w-[60px]">{demo.name}</span>
-                <span className="text-[#C9A96E]/80 text-[8px] font-semibold">{demo.status === 'live' ? 'Live' : 'Invited'}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* BOTTOM RIGHT: Action buttons (same area as before, aligned right) */}
       <div className="bottom-zone flex-none pointer-events-auto bg-transparent px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-2 min-h-[50px] flex flex-col items-end fixed bottom-0 left-0 right-0 z-[120] justify-end">
         <div className="w-full max-w-[480px] mx-auto flex flex-col items-end gap-0">
@@ -4153,7 +4070,7 @@ export default function LiveStream() {
         </div>
       )}
 
-      {/* ═══ INVITE HOST PANEL (Multi-Host, up to 12) ═══ */}
+      {/* ═══ INVITE CO-HOST PANEL — ONLY place for co-host/spectator Join & Reject ═══ */}
       {isInviteHostOpen && (
         <div className="fixed inset-0 z-[99999] flex flex-col justify-end max-w-[480px] mx-auto" style={{ height: '100%' }}>
           <div className="absolute inset-0 bg-black/40 pointer-events-auto" onClick={() => { (document.activeElement as HTMLElement)?.blur(); setIsInviteHostOpen(false); setHostSearchQuery(''); }} />
@@ -4388,13 +4305,13 @@ export default function LiveStream() {
             <div className="flex-1 overflow-y-auto px-2" style={{ scrollbarWidth: 'none' }}>
               <div className="space-y-1 pb-4">
                 {creatorsToInvite.length === 0 ? (
-                  <p className="text-white/50 text-xs py-4 text-center">No live creators match your search. Try demo players above.</p>
+                  <p className="text-white/50 text-xs py-4 text-center">No live creators match your search.</p>
                 ) : null}
                 {creatorsToInvite.map((c) => {
                   const slotStatus = battleSlots.find(s => s.userId === c.id)?.status;
                   const isInvited = slotStatus === 'invited';
                   const isAccepted = slotStatus === 'accepted';
-                  const isPendingAccept = slotStatus === ('pending_accept' as any);
+                  const isIncomingBattleInvite = !!(pendingInvite && pendingInvite.hostUserId === c.id);
                   const allFull = battleSlots.every(s => s.status !== 'empty');
 
                   const handleReject = (ev: React.MouseEvent) => {
@@ -4402,16 +4319,11 @@ export default function LiveStream() {
                     ev.stopPropagation();
                     setBattleSlots(prev => prev.map(s => s.userId === c.id ? { userId: '', name: '', status: 'empty' as const, avatar: '' } : s));
                     if (pendingInvite && pendingInvite.hostUserId === c.id) declineBattleInvite();
-                    else if (pendingJoinRequest && pendingJoinRequest.requesterId === c.id) declineJoinRequest();
                   };
                   const handleJoin = async (ev: React.MouseEvent) => {
                     ev.preventDefault();
                     ev.stopPropagation();
                     if (pendingInvite && pendingInvite.hostUserId === c.id) acceptBattleInvite();
-                    else if (pendingJoinRequest && pendingJoinRequest.requesterId === c.id) {
-                      await acceptJoinRequest();
-                      setBattleSlots(prev => prev.map(s => s.userId === c.id ? { ...s, status: 'accepted' as const } : s));
-                    }
                   };
 
                   return (
@@ -4431,7 +4343,7 @@ export default function LiveStream() {
                           <Check size={9} className="text-green-400" />
                           <span className="text-green-400 text-[9px] font-bold">Joined</span>
                         </div>
-                      ) : isPendingAccept ? (
+                      ) : isIncomingBattleInvite ? (
                         <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                           <button
                             type="button"
@@ -4494,11 +4406,6 @@ export default function LiveStream() {
                   onClick={() => {
                     setIsFindCreatorsOpen(false);
                     const accepted = battleSlots.find(s => s.status === 'accepted');
-                    const isDemoOpponent = accepted?.userId === DEMO_BATTLE_USER.userId;
-                    if (isDemoOpponent) {
-                      setBattleCountdown(3);
-                      return;
-                    }
                     websocket.send('battle_create', {
                       hostName: myCreatorName,
                       opponentUserId: accepted?.userId ?? '',
@@ -4636,7 +4543,7 @@ export default function LiveStream() {
         )}
       </AnimatePresence>
 
-      {/* ═══ VIEWER LIST PANEL ═══ */}
+      {/* ═══ VIEWER LIST PANEL (spectators only — no Join/Reject; use Invite Co-Host panel) ═══ */}
       {showViewerList && (
         <>
           <div

@@ -68,6 +68,22 @@ const StreamVideo = ({ stream, className, style, ...props }: React.VideoHTMLAttr
   return <video ref={ref} autoPlay playsInline className={className} style={style} {...props} />;
 };
 
+interface SpectatorBattleState {
+  active: boolean;
+  hostScore: number;
+  opponentScore: number;
+  player3Score?: number;
+  player4Score?: number;
+  timeLeft: number;
+  opponentName?: string;
+  player3Name?: string;
+  player4Name?: string;
+  winner?: string;
+  opponentUserId?: string;
+  player3UserId?: string;
+  player4UserId?: string;
+}
+
 export default function SpectatorPage() {
   const { streamId } = useParams<{ streamId: string }>();
   const navigate = useNavigate();
@@ -158,21 +174,7 @@ export default function SpectatorPage() {
   // ═══════════════════════════════════════════════════
   // BATTLE STATE (spectator sees host's battle status)
   // ═══════════════════════════════════════════════════
-  const [spectatorBattle, setSpectatorBattle] = useState<{ 
-    active: boolean; 
-    hostScore: number; 
-    opponentScore: number; 
-    player3Score?: number; 
-    player4Score?: number; 
-    timeLeft: number; 
-    opponentName?: string; 
-    player3Name?: string; 
-    player4Name?: string; 
-    winner?: string;
-    opponentUserId?: string;
-    player3UserId?: string;
-    player4UserId?: string;
-  } | null>(null);
+  const [spectatorBattle, setSpectatorBattle] = useState<SpectatorBattleState | null>(null);
 
   // ═══════════════════════════════════════════════════
   // CO-HOST STATE

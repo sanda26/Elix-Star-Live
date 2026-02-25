@@ -303,23 +303,30 @@ export default function SpectatorPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [hasStream, setHasStream] = useState(false);
 
-  const { remotePeers, error: webrtcError } = useLiveWebRTC({
+  const { remotePeers, error: webrtcError, joinRoom: retryJoinRoom } = useLiveWebRTC({
     roomId: effectiveStreamId,
     localUserId: user?.id || '',
     localStream: coHostStream,
     enabled: !!effectiveStreamId && !!user?.id && streamIsLive === true,
   });
+  const [showRetryButton, setShowRetryButton] = useState(false);
+  useEffect(() => {
+    if (hasStream) { setShowRetryButton(false); return; }
+    const t = setTimeout(() => { if (!hasStream) setShowRetryButton(true); }, 10000);
+    return () => clearTimeout(t);
+  }, [hasStream]);
 
   useEffect(() => {
     if (remotePeers.length === 0) return;
     const broadcasterPeer = remotePeers[0];
-    if (videoRef.current && broadcasterPeer.stream) {
-      if (videoRef.current.srcObject !== broadcasterPeer.stream) {
-        videoRef.current.srcObject = broadcasterPeer.stream;
-        videoRef.current.play().catch(() => {});
-        setHasStream(true);
-      }
+    if (!videoRef.current || !broadcasterPeer.stream) return;
+    const tracks = broadcasterPeer.stream.getTracks();
+    if (tracks.length === 0) return;
+    if (videoRef.current.srcObject !== broadcasterPeer.stream) {
+      videoRef.current.srcObject = broadcasterPeer.stream;
     }
+    videoRef.current.play().catch(() => {});
+    setHasStream(true);
   }, [remotePeers]);
 
   useEffect(() => {
@@ -332,11 +339,17 @@ export default function SpectatorPage() {
   useEffect(() => {
     if (!effectiveStreamId) return;
     (async () => {
-      const { data: stream } = await supabase
-        .from('live_streams')
-        .select('user_id, title, viewer_count, is_live')
-        .eq('stream_key', effectiveStreamId)
-        .maybeSingle();
+      let stream: any = null;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const { data } = await supabase
+          .from('live_streams')
+          .select('user_id, title, viewer_count, is_live')
+          .eq('stream_key', effectiveStreamId)
+          .maybeSingle();
+        stream = data;
+        if (stream?.is_live) break;
+        if (attempt < 2) await new Promise(r => setTimeout(r, 2000));
+      }
       if (!stream || !stream.is_live) {
         setStreamIsLive(false);
         showToast('Stream is offline');
@@ -473,11 +486,19 @@ export default function SpectatorPage() {
         schema: 'public',
         table: 'live_streams',
         filter: `stream_key=eq.${effectiveStreamId}`,
-      }, (payload: any) => {
+      }, async (payload: any) => {
         if (payload.new?.viewer_count != null) setViewerCount(payload.new.viewer_count);
         if (payload.new?.is_live === false) {
-          showToast('Stream ended');
-          setTimeout(() => navigate('/feed', { replace: true }), 2000);
+          await new Promise(r => setTimeout(r, 3000));
+          const { data: recheck } = await supabase
+            .from('live_streams')
+            .select('is_live')
+            .eq('stream_key', effectiveStreamId)
+            .maybeSingle();
+          if (!recheck || !recheck.is_live) {
+            showToast('Stream ended');
+            setTimeout(() => navigate('/feed', { replace: true }), 2000);
+          }
         }
       })
       .subscribe();
@@ -508,13 +529,13 @@ export default function SpectatorPage() {
       if (!mounted) return;
       roomStateReceived = true;
       const viewers = data.viewers;
-      const hid = hostUserIdRef.current || effectiveStreamId;
+      const hid = hostUserIdRef.current;
       if (Array.isArray(viewers)) {
         actualViewersRef.current.clear();
         roomUsers = viewers.map((v: any) => v.user_id).filter(Boolean);
         hostFoundInRoom = false;
         for (const v of viewers) {
-          if (v.user_id === hid || v.user_id === effectiveStreamId) {
+          if (v.user_id === hid || v.user_id === effectiveStreamId || v.is_host) {
             hostFoundInRoom = true;
           } else if (v.user_id && v.user_id !== user?.id) {
             actualViewersRef.current.set(v.user_id, {
@@ -523,6 +544,9 @@ export default function SpectatorPage() {
               level: v.level || 1,
             });
           }
+        }
+        if (!hostFoundInRoom && !hid) {
+          hostFoundInRoom = true;
         }
       }
     };
@@ -658,7 +682,16 @@ export default function SpectatorPage() {
 
     connect();
 
-    const goOffline = () => {
+    const goOffline = async () => {
+      if (!mounted) return;
+      try {
+        const { data: recheck } = await supabase
+          .from('live_streams')
+          .select('is_live')
+          .eq('stream_key', effectiveStreamId)
+          .maybeSingle();
+        if (recheck?.is_live) return;
+      } catch {}
       if (!mounted) return;
       showToast('Stream is offline');
       setStreamIsLive(false);
@@ -666,7 +699,6 @@ export default function SpectatorPage() {
       setTimeout(() => { if (mounted) navigate('/feed', { replace: true }); }, 2000);
     };
 
-    // After 6s: if host is not in the WS room, stream is dead
     const connectTimeout = setTimeout(() => {
       if (!mounted) return;
       const hid = hostUserIdRef.current;
@@ -674,15 +706,14 @@ export default function SpectatorPage() {
         hostFoundInRoom = false;
       }
       if (!hostFoundInRoom) goOffline();
-    }, 6000);
+    }, 15000);
 
-    // Hard timeout: if no video track received after 12s, stream is dead
     const videoTimeout = setTimeout(() => {
       if (!mounted) return;
       const vid = document.querySelector('video');
       const hasTrack = vid?.srcObject && (vid.srcObject as MediaStream).getVideoTracks().length > 0;
       if (!hasTrack && !hostFoundInRoom) goOffline();
-    }, 12000);
+    }, 25000);
 
     return () => {
       mounted = false;
@@ -1015,6 +1046,15 @@ export default function SpectatorPage() {
                     <div className="w-4 h-4 border-2 border-[#C9A96E] border-t-transparent rounded-full animate-spin" />
                     <span className="text-white/60 text-sm">Connecting to stream...</span>
                   </div>
+                  {showRetryButton && (
+                    <button
+                      type="button"
+                      onClick={() => { setShowRetryButton(false); retryJoinRoom(); setTimeout(() => { if (!hasStream) setShowRetryButton(true); }, 8000); }}
+                      className="mt-2 px-5 py-2 rounded-lg bg-[#C9A96E]/20 border border-[#C9A96E]/40 text-[#C9A96E] text-sm font-medium"
+                    >
+                      Tap to retry
+                    </button>
+                  )}
                 </div>
               )}
             </>

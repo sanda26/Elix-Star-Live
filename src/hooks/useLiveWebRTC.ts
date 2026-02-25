@@ -5,6 +5,9 @@ const ICE_SERVERS: RTCConfiguration = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:stun2.l.google.com:19302' },
+    { urls: 'stun:stun3.l.google.com:19302' },
+    { urls: 'stun:stun4.l.google.com:19302' },
     {
       urls: 'turn:openrelay.metered.ca:80',
       username: 'openrelayproject',
@@ -19,6 +22,21 @@ const ICE_SERVERS: RTCConfiguration = {
       urls: 'turn:openrelay.metered.ca:443?transport=tcp',
       username: 'openrelayproject',
       credential: 'openrelayproject',
+    },
+    {
+      urls: 'turn:global.relay.metered.ca:80',
+      username: 'dc2e3db7a1fe275ab60ece02',
+      credential: 'AqGNYz+RJpFpDhYe',
+    },
+    {
+      urls: 'turn:global.relay.metered.ca:443',
+      username: 'dc2e3db7a1fe275ab60ece02',
+      credential: 'AqGNYz+RJpFpDhYe',
+    },
+    {
+      urls: 'turn:global.relay.metered.ca:443?transport=tcp',
+      username: 'dc2e3db7a1fe275ab60ece02',
+      credential: 'AqGNYz+RJpFpDhYe',
     },
   ],
   iceCandidatePoolSize: 10,
@@ -147,6 +165,13 @@ export function useLiveWebRTC({ roomId, localUserId, localStream, enabled }: Use
     pc.oniceconnectionstatechange = () => {
       if (pc.iceConnectionState === 'failed') {
         pc.restartIce();
+      }
+      if (pc.iceConnectionState === 'disconnected') {
+        setTimeout(() => {
+          if (pc.iceConnectionState === 'disconnected') {
+            pc.restartIce();
+          }
+        }, 5000);
       }
     };
 
@@ -325,14 +350,35 @@ export function useLiveWebRTC({ roomId, localUserId, localStream, enabled }: Use
     websocket.on('rtc_ice_candidate', handleRtcIceCandidate);
     websocket.on('room_full', handleRoomFull);
 
-    joinRoom();
+    const tryJoin = () => {
+      if (websocket.isConnected()) {
+        joinRoom();
+      }
+    };
+    tryJoin();
 
-    // Retry rtc_join if no peers connect (handles race where
-    // broadcaster wasn't ready). Stops if room_full was received.
+    const hasConnectedPeer = () => {
+      for (const entry of peersRef.current.values()) {
+        if (entry.stream.getTracks().length > 0) return true;
+      }
+      return false;
+    };
+
+    const resetStuckPeers = () => {
+      if (roomFullReceived || hasConnectedPeer()) return;
+      peersRef.current.forEach((entry) => { try { entry.pc.close(); } catch {} });
+      peersRef.current.clear();
+      updateRemotePeers();
+      tryJoin();
+    };
+
     retryTimerIds.push(
-      setTimeout(() => { if (!roomFullReceived && peersRef.current.size === 0) joinRoom(); }, 5000),
-      setTimeout(() => { if (!roomFullReceived && peersRef.current.size === 0) joinRoom(); }, 12000),
-      setTimeout(() => { if (!roomFullReceived && peersRef.current.size === 0) joinRoom(); }, 25000),
+      setTimeout(() => { if (!roomFullReceived && !hasConnectedPeer()) tryJoin(); }, 3000),
+      setTimeout(() => { if (!roomFullReceived && !hasConnectedPeer()) tryJoin(); }, 7000),
+      setTimeout(() => { if (!roomFullReceived) resetStuckPeers(); }, 12000),
+      setTimeout(() => { if (!roomFullReceived && !hasConnectedPeer()) tryJoin(); }, 18000),
+      setTimeout(() => { if (!roomFullReceived) resetStuckPeers(); }, 25000),
+      setTimeout(() => { if (!roomFullReceived && !hasConnectedPeer()) tryJoin(); }, 32000),
     );
 
     return () => {

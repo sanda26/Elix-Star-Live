@@ -1221,7 +1221,7 @@ export default function LiveStream() {
     roomId: effectiveStreamId,
     localUserId: user?.id || '',
     localStream: localStreamForWebRTC,
-    enabled: webrtcEnabled && (isBroadcast ? !!localStreamForWebRTC : isCoHostJoiner ? !!coHostJoinerStream : true),
+    enabled: webrtcEnabled && (isBroadcast ? !!localStreamForWebRTC : isBattleParticipant ? !!battleParticipantStream : isCoHostJoiner ? !!coHostJoinerStream : true),
   });
 
   useEffect(() => {

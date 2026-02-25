@@ -3087,7 +3087,7 @@ export default function LiveStream() {
                         <span className="text-2xl font-black text-[#C9A96E]/60">{(creatorName || user?.username || 'Me').charAt(0).toUpperCase()}</span>
                       </div>
                     )}
-                    <span className="text-white font-bold text-xs">{creatorName || user?.username || user?.displayName || 'Me'}</span>
+                    <span className="text-white font-bold text-xs">{creatorName || user?.username || user?.name || 'Me'}</span>
                   </div>
                 )}
                 {isBroadcast && coHosts.length > 0 && (
@@ -3369,7 +3369,7 @@ export default function LiveStream() {
                               <span className="text-lg font-black text-[#C9A96E]/60">{(creatorName || user?.username || 'Me').charAt(0).toUpperCase()}</span>
                             </div>
                           )}
-                          <span className="text-white font-bold text-[10px] truncate max-w-full px-1">{creatorName || user?.username || user?.displayName || 'Me'}</span>
+                          <span className="text-white font-bold text-[10px] truncate max-w-full px-1">{creatorName || user?.username || user?.name || 'Me'}</span>
                         </div>
                       )}
                       <div className="absolute top-1 right-1 z-10 pointer-events-auto flex items-center gap-0.5">

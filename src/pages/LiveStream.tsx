@@ -36,6 +36,8 @@ import {
   Lock,
   Flag,
   Eye,
+  Camera,
+  CameraOff,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { GIFTS } from '../lib/gifts';
@@ -160,6 +162,7 @@ export default function LiveStream() {
   const [moderators, setModerators] = useState<Set<string>>(new Set());
 
   const [isMicMuted, setIsMicMuted] = useState(false);
+  const [isCamOff, setIsCamOff] = useState(false);
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
   const [isChatVisible, setIsChatVisible] = useState(true);
   const [viewerCount, setViewerCount] = useState(0);
@@ -2624,6 +2627,16 @@ export default function LiveStream() {
     if (stream) stream.getAudioTracks().forEach((t) => (t.enabled = !next));
   };
 
+  const toggleCam = () => {
+    const stream = cameraStreamRef.current;
+    if (!stream) return;
+    const videoTrack = stream.getVideoTracks()[0];
+    if (videoTrack) {
+      videoTrack.enabled = isCamOff;
+      setIsCamOff(!isCamOff);
+    }
+  };
+
   const flipCamera = async () => {
     if (!isBroadcast) return;
     setCameraFacing((prev) => (prev === 'user' ? 'environment' : 'user'));
@@ -2943,9 +2956,13 @@ export default function LiveStream() {
                   autoPlay
                   playsInline
                   muted
-                  style={isBroadcast ? { transform: 'scaleX(-1)' } : undefined}
+                  style={isBroadcast ? { transform: 'scaleX(-1)', opacity: isCamOff ? 0 : 1, transition: 'opacity 0.3s ease' } : undefined}
                 />
-                {/* Host label removed */}
+                {isCamOff && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-[#13151A] z-[5]">
+                    <CameraOff size={40} className="text-white/30" />
+                  </div>
+                )}
               </>
             ) : (
               <>
@@ -3019,10 +3036,17 @@ export default function LiveStream() {
                             playsInline
                             muted
                           />
-                          <div className="absolute top-1 left-1 flex items-center gap-0.5 z-10">
-                            <Eye size={9} className="text-green-400" />
-                            <span className="text-green-400 text-[9px] font-bold">{viewerCount}</span>
-                          </div>
+                          {(() => {
+                            const el = coHostVideoRefs.current.get(slot.host!.userId);
+                            const hasTracks = el?.srcObject && (el.srcObject as MediaStream).getVideoTracks().some(t => t.enabled);
+                            if (!hasTracks) return (
+                              <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#13151A] z-[5]">
+                                <CameraOff size={20} className="text-white/30" />
+                                <span className="text-white/40 text-[8px] mt-1">{slot.host!.name}</span>
+                              </div>
+                            );
+                            return null;
+                          })()}
                           <div className="absolute bottom-0 left-0 right-0 py-0.5 px-1 bg-black/50 rounded-b-sm z-10">
                             <p className="text-white text-[9px] font-bold truncate text-center">{slot.host.name}</p>
                           </div>
@@ -4746,6 +4770,14 @@ export default function LiveStream() {
                   {isMicMuted ? <MicOff className="w-[18px] h-[18px] text-[#C9A96E] relative z-[2]" strokeWidth={1.8} /> : <Mic className="w-[18px] h-[18px] text-[#C9A96E] relative z-[2]" strokeWidth={1.8} />}
                 </div>
                 <span className="text-[10px] font-semibold text-white/70">{isMicMuted ? 'Unmute' : 'Mute'}</span>
+              </button>
+
+              <button type="button" disabled={!isBroadcast} onClick={() => { toggleCam(); setIsMoreMenuOpen(false); }} className="flex flex-col items-center gap-1.5 active:scale-95 transition-transform disabled:opacity-40">
+                <div className="w-11 h-11 rounded-full relative flex items-center justify-center">
+                  <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[1]" />
+                  {isCamOff ? <CameraOff className="w-[18px] h-[18px] text-red-400 relative z-[2]" strokeWidth={1.8} /> : <Camera className="w-[18px] h-[18px] text-[#C9A96E] relative z-[2]" strokeWidth={1.8} />}
+                </div>
+                <span className="text-[10px] font-semibold text-white/70">{isCamOff ? 'Cam On' : 'Cam Off'}</span>
               </button>
 
               <button type="button" onClick={() => { setIsChatVisible((v) => !v); setIsMoreMenuOpen(false); }} className="flex flex-col items-center gap-1.5 active:scale-95 transition-transform">

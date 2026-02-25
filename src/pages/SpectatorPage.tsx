@@ -503,8 +503,9 @@ export default function SpectatorPage() {
   }, [effectiveStreamId, navigate]);
 
   // WebSocket: connect to room for real-time chat, gifts, join/leave
+  // Only connect after stream is verified live — avoids reconnect loop from racing with stream fetch
   useEffect(() => {
-    if (!effectiveStreamId || !user?.id) return;
+    if (!effectiveStreamId || !user?.id || !streamIsLive) return;
 
     let mounted = true;
 
@@ -725,7 +726,7 @@ export default function SpectatorPage() {
       websocket.off('battle_ended', handleBattleEnded);
       websocket.disconnect();
     };
-  }, [effectiveStreamId, user?.id]);
+  }, [effectiveStreamId, user?.id, streamIsLive]);
 
   // Fetch share followers (people you follow / who follow you)
   useEffect(() => {
@@ -1154,7 +1155,7 @@ export default function SpectatorPage() {
         </div>
 
         {/* CHAT — behind buttons, behind gift overlay, same as creator page */}
-        <div className="chat-zone fixed left-0 right-0 bottom-[calc(50px+max(12px,env(safe-area-inset-bottom)))] z-[5] flex justify-center pointer-events-none">
+        <div className="chat-zone fixed left-0 right-0 bottom-[calc(58px+max(12px,env(safe-area-inset-bottom)))] z-[5] flex justify-center pointer-events-none">
           <div className="w-full max-w-[480px] h-[25dvh] max-h-[25dvh] overflow-y-auto pointer-events-auto bg-transparent">
             <ChatOverlay
               messages={messages}
@@ -1169,7 +1170,7 @@ export default function SpectatorPage() {
 
         {/* COMBO BUTTON — above bottom buttons */}
         {showComboButton && lastSentGift && (
-          <div className="fixed bottom-[calc(55px+max(12px,env(safe-area-inset-bottom)))] right-3 z-[121] pointer-events-auto max-w-[480px]">
+          <div className="fixed bottom-[calc(63px+max(12px,env(safe-area-inset-bottom)))] right-3 z-[121] pointer-events-auto max-w-[480px]">
             <button
               type="button"
               onClick={handleComboClick}
@@ -1181,8 +1182,8 @@ export default function SpectatorPage() {
           </div>
         )}
 
-        {/* BOTTOM BAR — buttons in front of video, lifted 10mm up — hidden during gift animation */}
-        <div className={`fixed left-0 right-0 z-[120] pointer-events-auto flex justify-center ${currentGift ? 'hidden' : ''}`} style={{ bottom: '10mm' }}>
+        {/* BOTTOM BAR — buttons in front of video, lifted 18mm up from bottom — hidden during gift animation */}
+        <div className={`fixed left-0 right-0 z-[120] pointer-events-auto flex justify-center ${currentGift ? 'hidden' : ''}`} style={{ bottom: '18mm' }}>
           <div className="w-full max-w-[480px] px-3 pb-[max(8px,env(safe-area-inset-bottom))] pt-2 bg-transparent">
           <div className="flex items-center gap-2">
           <form
@@ -1859,9 +1860,9 @@ export default function SpectatorPage() {
           />
         )}
 
-        {/* CO-HOST PANEL — opened by co-host button or when invite arrives */}
+        {/* CO-HOST PANEL — same compact size as creator invite panel (40vh), not full screen */}
         {showCoHostPanel && (
-          <div className="fixed inset-0 z-[99999] flex flex-col justify-end max-w-[480px] mx-auto" style={{ height: '100%' }}>
+          <div className="fixed inset-0 z-[99999] flex flex-col justify-end max-w-[480px] mx-auto pointer-events-none">
             <div
               className="absolute inset-0 bg-black/40 pointer-events-auto"
               onClick={() => {
@@ -1873,10 +1874,10 @@ export default function SpectatorPage() {
               }}
             />
             <div
-              className="bg-[#1C1E24]/95 backdrop-blur-md rounded-t-2xl flex flex-col shadow-2xl border-t border-[#C9A96E]/20 pointer-events-auto w-full relative z-10 overflow-hidden pb-safe"
+              className="bg-[#1C1E24]/95 backdrop-blur-md rounded-t-2xl h-[40vh] max-h-[40vh] flex flex-col shadow-2xl border-t border-[#C9A96E]/20 pointer-events-auto w-full relative z-10 overflow-hidden pb-safe"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex justify-center pt-2 pb-1">
+              <div className="flex justify-center pt-2 pb-1 flex-shrink-0">
                 <div className="w-10 h-1 bg-white/20 rounded-full" />
               </div>
               <div className="flex items-center justify-between px-4 py-2 flex-shrink-0">
@@ -1889,7 +1890,7 @@ export default function SpectatorPage() {
                 </button>
               </div>
               {pendingCoHostInvite ? (
-                <div className="px-4 pb-4">
+                <div className="px-4 pb-4 overflow-y-auto flex-1 min-h-0">
                   <div className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg bg-white/[0.03]">
                     <div className="w-10 h-10 rounded-full border-2 border-[#C9A96E]/50 overflow-hidden bg-[#13151A] flex-shrink-0">
                       {pendingCoHostInvite.hostAvatar ? (
@@ -1946,7 +1947,7 @@ export default function SpectatorPage() {
                   </div>
                 </div>
               ) : (
-                <div className="px-4 pb-6 flex flex-col items-center gap-3">
+                <div className="px-4 pb-6 flex flex-col items-center gap-3 overflow-y-auto flex-1 min-h-0">
                   <div className="w-16 h-16 rounded-full bg-[#C9A96E]/10 border border-[#C9A96E]/30 flex items-center justify-center">
                     <Crown size={28} className="text-[#C9A96E]" />
                   </div>

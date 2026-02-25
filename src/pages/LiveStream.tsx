@@ -2991,7 +2991,7 @@ export default function LiveStream() {
         {!isBattleMode && (
           <div
             className={coHosts.length > 0 ? 'absolute inset-x-0 z-[25] flex flex-row' : 'relative w-full h-full'}
-            style={coHosts.length > 0 ? { top: '90px', height: 'calc(42dvh + 10mm)', filter: liveFilterCss !== 'none' ? liveFilterCss : undefined } : { filter: liveFilterCss !== 'none' ? liveFilterCss : undefined }}
+            style={coHosts.length > 0 ? { top: '90px', height: 'calc(36dvh + 10mm)', filter: liveFilterCss !== 'none' ? liveFilterCss : undefined } : { filter: liveFilterCss !== 'none' ? liveFilterCss : undefined }}
             onPointerDown={isBroadcast ? undefined : (e) => {
               if (e.target instanceof Element) {
                 const interactive = e.target.closest('button, a, input, textarea, select, [role="button"]');
@@ -3256,7 +3256,7 @@ export default function LiveStream() {
             {(() => {
               const is4Player = battleSlots[1].status !== 'empty' || battleSlots[2].status !== 'empty';
               return (
-                <div className="relative w-full flex-none flex flex-col h-[42dvh]">
+                <div className="relative w-full flex-none flex flex-col h-[36dvh]">
                   {/* Fan Club Button - Left of Battle Bar */}
                   <div className="absolute top-2 left-[20%] -translate-x-1/2 z-30 pointer-events-auto">
                     {/* Fan Club Removed */}
@@ -3862,7 +3862,7 @@ export default function LiveStream() {
             </div>
 
             {/* MIDDLE ZONE: CHAT (Scrollable) */}
-            <div className="chat-zone fixed left-0 right-0 bottom-[calc(50px+max(12px,env(safe-area-inset-bottom)))] z-[20] flex justify-center pointer-events-none">
+            <div className="chat-zone fixed left-0 right-0 bottom-[calc(58px+max(12px,env(safe-area-inset-bottom)))] z-[20] flex justify-center pointer-events-none">
               <div 
                 className="w-full max-w-[480px] overflow-y-auto pointer-events-auto bg-transparent"
                 style={{ height: 'calc(25dvh + 2cm + 4mm)', maxHeight: 'calc(25dvh + 2cm + 4mm)' }}
@@ -3894,7 +3894,7 @@ export default function LiveStream() {
             </div>
 
       {/* BOTTOM RIGHT: Action buttons (same area as before, aligned right) */}
-      <div className="bottom-zone flex-none pointer-events-auto bg-transparent px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-2 min-h-[50px] flex flex-col items-end fixed bottom-0 left-0 right-0 z-[120] justify-end">
+      <div className="bottom-zone flex-none pointer-events-auto bg-transparent px-3 pb-[max(8px,env(safe-area-inset-bottom))] pt-2 min-h-[44px] flex flex-col items-end fixed left-0 right-0 z-[120] justify-end" style={{ bottom: '8px' }}>
         <div className="w-full max-w-[480px] mx-auto flex flex-col items-end gap-0">
         {/* Combo Button - on top of 3 dots, 1cm up */}
         <AnimatePresence>

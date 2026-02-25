@@ -45,8 +45,9 @@ export function GiftOverlay({ videoSrc, onEnded, isBattleMode }: GiftOverlayProp
         className="w-full flex items-end justify-center overflow-hidden" 
         style={{ 
           height,
-          WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.3) 15%, black 35%, black 65%, transparent 100%)',
-          maskImage: 'linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.3) 15%, black 35%, black 65%, transparent 100%)',
+          opacity: 0.7,
+          WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, transparent 10%, rgba(0,0,0,0.4) 25%, black 45%, black 60%, transparent 100%)',
+          maskImage: 'linear-gradient(to bottom, transparent 0%, transparent 10%, rgba(0,0,0,0.4) 25%, black 45%, black 60%, transparent 100%)',
           WebkitMaskSize: '100% 100%',
           maskSize: '100% 100%',
           WebkitMaskRepeat: 'no-repeat',
@@ -57,7 +58,7 @@ export function GiftOverlay({ videoSrc, onEnded, isBattleMode }: GiftOverlayProp
           <video 
             ref={videoRef} 
             src={videoSrc} 
-            className="w-full h-full object-cover object-top opacity-100 drop-shadow-2xl elix-overlay-in" 
+            className="w-full h-full object-cover object-top drop-shadow-2xl elix-overlay-in" 
             playsInline 
             preload="auto" 
             muted={muteAllSounds} 
@@ -70,7 +71,7 @@ export function GiftOverlay({ videoSrc, onEnded, isBattleMode }: GiftOverlayProp
           <img 
             src={videoSrc} 
             alt="Gift" 
-            className="w-full h-full object-cover object-top opacity-90 drop-shadow-2xl animate-bounce-small elix-overlay-in" 
+            className="w-full h-full object-cover object-top drop-shadow-2xl animate-bounce-small elix-overlay-in" 
             onLoad={() => { 
               setTimeout(onEnded, 1500); 
             }} 

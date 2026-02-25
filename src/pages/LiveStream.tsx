@@ -595,6 +595,7 @@ export default function LiveStream() {
               streamKey: row.data?.stream_key || '',
               hostUserId: inviterId,
             });
+            showToast(`⚔️ @${inviterName} wants to battle!`);
             setBattleSlots(prev => {
               if (prev.some(s => s.userId === inviterId)) return prev;
               const next = [...prev];
@@ -660,8 +661,29 @@ export default function LiveStream() {
         },
       }).then(() => {});
     } catch { /* fire-and-forget */ }
-    showToast(`Joining @${invite.hostName}'s battle...`);
-    navigate(`/live/${invite.streamKey}?battle=1`);
+
+    if (isBroadcast) {
+      showToast(`Battle with @${invite.hostName} starting!`);
+      setIsBattleMode(true);
+      setBattleState('INVITING');
+      setOpponentCreatorName(invite.hostName);
+      setBattleSlots(prev => {
+        const next = [...prev];
+        const emptyIdx = next.findIndex(s => s.status === 'empty');
+        if (emptyIdx !== -1) {
+          next[emptyIdx] = { userId: invite.hostUserId, name: invite.hostName, status: 'accepted', avatar: invite.hostAvatar };
+        }
+        return next;
+      });
+      websocket.send('battle_create', {
+        hostName: myCreatorName,
+        opponentUserId: invite.hostUserId,
+        opponentName: invite.hostName,
+      });
+    } else {
+      showToast(`Joining @${invite.hostName}'s battle...`);
+      navigate(`/live/${invite.streamKey}?battle=1`);
+    }
   };
 
   const declineBattleInvite = async () => {

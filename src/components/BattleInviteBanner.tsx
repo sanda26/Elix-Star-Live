@@ -160,11 +160,16 @@ export function BattleInviteBanner() {
       }).then(() => {});
     } catch { /* fire-and-forget */ }
 
-    showToast(`Joining @${invite.hostName}'s stream...`);
-    if (invite.type === 'battle') {
-      navigate(`/live/${invite.streamKey}?battle=1`);
+    const isCurrentlyBroadcasting = window.location.pathname === '/live/broadcast';
+    if (invite.type === 'battle' && isCurrentlyBroadcasting) {
+      showToast(`Battle with @${invite.hostName} accepted! Use battle panel.`);
     } else {
-      navigate(`/live/${invite.streamKey}?cohost=1`);
+      showToast(`Joining @${invite.hostName}'s stream...`);
+      if (invite.type === 'battle') {
+        navigate(`/live/${invite.streamKey}?battle=1`);
+      } else {
+        navigate(`/live/${invite.streamKey}?cohost=1`);
+      }
     }
   };
 

@@ -725,7 +725,7 @@ export default function SpectatorPage() {
       websocket.off('battle_ended', handleBattleEnded);
       websocket.disconnect();
     };
-  }, [effectiveStreamId, user?.id, hostUserId]);
+  }, [effectiveStreamId, user?.id]);
 
   // Fetch share followers (people you follow / who follow you)
   useEffect(() => {

@@ -191,6 +191,7 @@ function App() {
   }, [user?.id]);
 
   // When creator accepts your co-host or battle request, show toast and navigate to stream
+  // Note: battle_accepted is sent to the HOST (creator) - they are already live, do NOT navigate
   useEffect(() => {
     if (!user?.id) return;
     const channel = supabase
@@ -208,10 +209,9 @@ function App() {
           if (t === 'cohost_accepted') {
             showToast('You were accepted to co-host! Joining...');
             navigate(`/live/${streamKey}?cohost=1`);
-          } else {
-            showToast('You were accepted to the battle! Joining...');
-            window.location.href = `/live/${streamKey}?battle=1`;
           }
+          // battle_accepted: recipient is the host (creator) who is already on /live/broadcast - do not navigate
+          // the joiner already navigates in LiveStream.acceptBattleInvite
         }
       )
       .subscribe();

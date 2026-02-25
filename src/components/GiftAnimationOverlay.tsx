@@ -66,7 +66,7 @@ export default function GiftAnimationOverlay({ streamId: _streamId }: GiftAnimat
   };
 
   return (
-    <div className="fixed inset-0 pointer-events-none z-gift-animations flex justify-center">
+    <div className="fixed inset-0 pointer-events-none z-[999996] flex justify-center">
       <div className="w-full max-w-[480px] relative">
         {/* Single gift banner — 1cm from top only; width/bottom unchanged */}
         <div className="absolute left-0 right-0 px-1" style={{ top: 'calc(1cm + 7mm)' }}>

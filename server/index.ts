@@ -324,33 +324,6 @@ function joinBattle(roomId: string, opponentUserId: string, opponentName: string
   return session;
 }
 
-function markBattleReady(roomId: string, userId: string) {
-  const session = battles.get(roomId);
-  if (!session || session.status !== 'WAITING') return;
-
-  if (userId === session.hostUserId) session.hostReady = true;
-  else if (userId === session.opponentUserId) session.opponentReady = true;
-
-  broadcastToRoom(roomId, 'battle_ready_state', {
-    hostReady: session.hostReady,
-    opponentReady: session.opponentReady,
-  });
-
-  if (session.hostReady && session.opponentReady) {
-    session.status = 'COUNTDOWN';
-    broadcastBattleState(roomId, session);
-    let countdown = 3;
-    const countdownTimer = setInterval(() => {
-      countdown--;
-      broadcastToRoom(roomId, 'battle_countdown', { count: countdown });
-      if (countdown <= 0) {
-        clearInterval(countdownTimer);
-        startBattleTimer(roomId);
-      }
-    }, 1000);
-  }
-}
-
 function startBattleTimer(roomId: string) {
   const session = battles.get(roomId);
   if (!session) return;
@@ -861,12 +834,14 @@ async function handleMessage(client: Client, event: string, data: any) {
           session.opponentUserId = opponentUserId;
           session.opponentName = opponentName;
           if (opponentUserId) userBattleRoom.set(opponentUserId, client.roomId);
+          startBattleTimer(client.roomId);
+        } else {
+          sendToClient(client, 'battle_created', {
+            battleId: session.id,
+            status: session.status,
+          });
+          broadcastBattleState(client.roomId, session);
         }
-        sendToClient(client, 'battle_created', {
-          battleId: session.id,
-          status: session.status,
-        });
-        broadcastBattleState(client.roomId, session);
         break;
       }
 
@@ -883,11 +858,7 @@ async function handleMessage(client: Client, event: string, data: any) {
         break;
       }
 
-      case 'battle_ready': {
-        const readyRoom = userBattleRoom.get(client.userId) || client.roomId;
-        markBattleReady(readyRoom, client.userId);
-        break;
-      }
+      
 
       case 'battle_gift_score': {
         // Manual score event — validate target, use server gift value

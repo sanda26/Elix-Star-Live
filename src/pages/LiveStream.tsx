@@ -2297,7 +2297,7 @@ export default function LiveStream() {
       battleEndedTimeoutRef.current = setTimeout(() => {
         battleEndedTimeoutRef.current = null;
         if (mounted) endBattleCleanup();
-      }, 5000);
+      }, 2000);
     };
 
     websocket.on('room_state', handleRoomState);
@@ -4229,14 +4229,12 @@ export default function LiveStream() {
                   type="button"
                   onClick={() => {
                     setIsFindCreatorsOpen(false);
-                    setIAmReady(true);
                     const accepted = battleSlots.find(s => s.status === 'accepted');
                     websocket.send('battle_create', {
                       hostName: myCreatorName,
                       opponentUserId: accepted?.userId ?? '',
                       opponentName: accepted?.name ?? 'Opponent',
                     });
-                    setTimeout(() => websocket.send('battle_ready', {}), 500);
                   }}
                   className="w-full py-2.5 bg-[#C9A96E] text-black text-xs font-bold rounded-lg shadow-lg active:scale-95 transition-all flex items-center justify-center gap-1.5"
                 >

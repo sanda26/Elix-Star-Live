@@ -339,7 +339,7 @@ export function useLiveWebRTC({ roomId, localUserId, localStream, enabled }: Use
     const handleRoomFull = (data: any) => {
       roomFullReceived = true;
       retryTimerIds.forEach(clearTimeout);
-      setError(data?.message || 'Live is full (max 15 viewers). Try again later.');
+      setError(data?.message || 'Live is full (max 30 viewers). Try again later.');
     };
 
     websocket.on('connected', handleConnected);

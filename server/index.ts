@@ -934,8 +934,8 @@ async function handleMessage(client: Client, event: string, data: any) {
 
       case 'rtc_join': {
         const room = rooms.get(client.roomId);
-        if (room && room.size > 15) {
-          sendToClient(client, 'room_full', { message: 'Live is full. Try again later.' });
+        if (room && room.size > 30) {
+          sendToClient(client, 'room_full', { message: 'Live is full (max 30 viewers). Try again later.' });
           break;
         }
         broadcastToRoom(client.roomId, 'rtc_join', {

@@ -99,6 +99,7 @@ export default function SpectatorPage() {
   const [isSubscribing, setIsSubscribing] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
   const [showCoHostPanel, setShowCoHostPanel] = useState(false);
+  const [streamEndedReceived, setStreamEndedReceived] = useState(false);
 
   const [showTestCoinsModal, setShowTestCoinsModal] = useState(false);
   const [testCoinsStep, setTestCoinsStep] = useState<'password' | 'amount'>('password');
@@ -613,10 +614,10 @@ export default function SpectatorPage() {
 
     const handleStreamEnded = () => {
       if (!mounted) return;
-      showToast('Stream ended');
+      setStreamEndedReceived(true);
       setStreamIsLive(false);
       websocket.disconnect();
-      setTimeout(() => navigate('/feed', { replace: true }), 2000);
+      setTimeout(() => { if (mounted) navigate('/feed', { replace: true }); }, 2000);
     };
 
     const handleBattleStateSync = (data: any) => {
@@ -920,10 +921,16 @@ export default function SpectatorPage() {
       <div className="fixed inset-0 bg-[#0A0B0E] flex justify-center">
         <div className="relative w-full max-w-[480px] h-full bg-[#13151A] flex flex-col items-center justify-center gap-4 p-6">
           <div className="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center">
-            <span className="text-3xl">📡</span>
+            <span className="text-3xl">{streamEndedReceived ? '🔴' : '📡'}</span>
           </div>
-          <h2 className="text-white font-bold text-lg">Stream offline</h2>
-          <p className="text-white/50 text-sm text-center">This stream has ended or is not available right now.</p>
+          <h2 className="text-white font-bold text-lg">
+            {streamEndedReceived ? 'Stream ended' : 'Stream offline'}
+          </h2>
+          <p className="text-white/50 text-sm text-center">
+            {streamEndedReceived
+              ? 'The host has ended the stream. Taking you back...'
+              : 'This stream has ended or is not available right now.'}
+          </p>
           <button
             type="button"
             onClick={() => navigate('/feed', { replace: true })}
@@ -1889,9 +1896,10 @@ export default function SpectatorPage() {
                   <X size={18} className="text-white/70" />
                 </button>
               </div>
-              {pendingCoHostInvite ? (
-                <div className="px-4 pb-4 overflow-y-auto flex-1 min-h-0">
-                  <div className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg bg-white/[0.03]">
+              <div className="px-4 pb-4 overflow-y-auto flex-1 min-h-0 flex flex-col gap-4">
+                {/* Pending invite — shown when invite exists (no overlay on main screen) */}
+                {pendingCoHostInvite && (
+                  <div className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg bg-white/[0.03] flex-shrink-0">
                     <div className="w-10 h-10 rounded-full border-2 border-[#C9A96E]/50 overflow-hidden bg-[#13151A] flex-shrink-0">
                       {pendingCoHostInvite.hostAvatar ? (
                         <img src={pendingCoHostInvite.hostAvatar} alt="" className="w-full h-full object-cover" />
@@ -1912,7 +1920,6 @@ export default function SpectatorPage() {
                           e.stopPropagation();
                           supabase.from('notifications').update({ is_read: true }).eq('id', pendingCoHostInvite.notifId).then(() => {});
                           setPendingCoHostInvite(null);
-                          setShowCoHostPanel(false);
                         }}
                       >
                         <span className="text-red-400 text-[9px] font-bold">Reject</span>
@@ -1945,9 +1952,9 @@ export default function SpectatorPage() {
                       </div>
                     </div>
                   </div>
-                </div>
-              ) : (
-                <div className="px-4 pb-6 flex flex-col items-center gap-3 overflow-y-auto flex-1 min-h-0">
+                )}
+                {/* Request form — always visible in panel, everything in one place */}
+                <div className="flex flex-col items-center gap-3 flex-1 min-h-0">
                   <div className="w-16 h-16 rounded-full bg-[#C9A96E]/10 border border-[#C9A96E]/30 flex items-center justify-center">
                     <Crown size={28} className="text-[#C9A96E]" />
                   </div>
@@ -1991,7 +1998,7 @@ export default function SpectatorPage() {
                     {joinRequested ? 'Request Sent ✓' : 'Request to Co-Host'}
                   </button>
                 </div>
-              )}
+              </div>
             </div>
           </div>
         )}

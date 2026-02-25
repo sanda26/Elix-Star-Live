@@ -823,9 +823,11 @@ async function handleMessage(client: Client, event: string, data: any) {
       // ═══ BATTLE EVENTS — server-controlled ═══
       case 'battle_create': {
         const existing = battles.get(client.roomId);
-        if (existing && existing.status !== 'ENDED') {
-          sendToClient(client, 'battle_error', { message: 'Battle already active' });
-          break;
+        if (existing) {
+          if (existing.timer) clearInterval(existing.timer);
+          userBattleRoom.delete(existing.hostUserId);
+          userBattleRoom.delete(existing.opponentUserId);
+          battles.delete(client.roomId);
         }
         const session = createBattle(client.roomId, client.userId, data.hostName || client.displayName);
         const opponentUserId = typeof data.opponentUserId === 'string' ? data.opponentUserId : '';

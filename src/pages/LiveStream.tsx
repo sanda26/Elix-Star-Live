@@ -1516,7 +1516,7 @@ export default function LiveStream() {
       }
       return;
     }
-    // Enter battle mode -> INVITING state
+    // Enter battle mode -> INVITING state, everything clean
     setBattleState('INVITING');
     setIsBattleMode(true);
     setBattleTime(0);
@@ -1529,13 +1529,26 @@ export default function LiveStream() {
     setBattleGifterCoins({});
     setPlayerGifters({});
     setBattleCountdown(null);
+    setHasOpponentStream(false);
+    setIAmReady(false);
+    setHostIsReady(false);
+    setOpponentIsReady(false);
+    setOpponentCreatorName('');
+    setMutedPlayers({});
     battleFreeTapUsedRef.current = false;
     spectatorTapPointsRef.current = 0;
     setSpectatorTapsUsed(0);
     battleScoreTapWindowRef.current = { windowStart: 0, count: 0 };
     battleTripleTapRef.current = { target: null, lastTapAt: 0, count: 0 };
+    setBattleSlots([
+      { userId: '', name: '', status: 'empty', avatar: '' },
+      { userId: '', name: '', status: 'empty', avatar: '' },
+      { userId: '', name: '', status: 'empty', avatar: '' },
+    ]);
+    if (opponentVideoRef.current) { opponentVideoRef.current.srcObject = null; }
+    if (player3VideoRef.current) { player3VideoRef.current.srcObject = null; }
+    if (player4VideoRef.current) { player4VideoRef.current.srcObject = null; }
     setIsFindCreatorsOpen(true);
-    // Tell server to create battle session
     websocket.send('battle_create', { hostName: creatorName });
   }, [isBattleMode, location.search, location.pathname, navigate, endBattleCleanup, creatorName]);
 

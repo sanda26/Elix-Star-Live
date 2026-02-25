@@ -829,8 +829,8 @@ async function handleMessage(client: Client, event: string, data: any) {
         }
         const session = createBattle(client.roomId, client.userId, data.hostName || client.displayName);
         const opponentUserId = typeof data.opponentUserId === 'string' ? data.opponentUserId : '';
-        const opponentName = typeof data.opponentName === 'string' ? data.opponentName : 'Opponent';
-        if (opponentUserId || opponentName) {
+        const opponentName = typeof data.opponentName === 'string' ? data.opponentName : '';
+        if (opponentUserId && opponentName) {
           session.opponentUserId = opponentUserId;
           session.opponentName = opponentName;
           if (opponentUserId) userBattleRoom.set(opponentUserId, client.roomId);

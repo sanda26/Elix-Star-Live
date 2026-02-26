@@ -1049,13 +1049,20 @@ export default function SpectatorPage() {
                 </div>
                 
                 {/* Row 2: Player 3 & 4 (if active) */}
-                {(spectatorBattle.player3Score !== undefined || spectatorBattle.player4Score !== undefined) && (
+                {(spectatorBattle.player3UserId || spectatorBattle.player4UserId) && (
                   <div className="flex flex-1 min-h-0 border-t border-[#C9A96E]/20">
                      {/* Player 3 */}
                     <div className="w-1/2 h-full relative bg-[#1C1E24] overflow-hidden flex items-center justify-center border-r border-[#C9A96E]/20">
-                      <div className="text-center">
-                        <p className="text-white/60 text-xs font-bold truncate max-w-[80px]">{spectatorBattle.player3Name || 'P3'}</p>
-                      </div>
+                      {remotePeers.find(p => p.userId === spectatorBattle.player3UserId)?.stream ? (
+                        <StreamVideo
+                          stream={remotePeers.find(p => p.userId === spectatorBattle.player3UserId)?.stream}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="text-center">
+                          <p className="text-white/60 text-xs font-bold truncate max-w-[80px]">{spectatorBattle.player3Name || 'P3'}</p>
+                        </div>
+                      )}
                       {spectatorBattle.winner === 'player3' && (
                         <div className="absolute inset-0 flex items-center justify-center bg-black/40">
                           <span className="text-4xl font-black text-[#C9A96E] drop-shadow-lg rotate-[-12deg]">WINNER</span>
@@ -1064,9 +1071,16 @@ export default function SpectatorPage() {
                     </div>
                      {/* Player 4 */}
                     <div className="w-1/2 h-full relative bg-[#1C1E24] overflow-hidden flex items-center justify-center">
-                      <div className="text-center">
-                        <p className="text-white/60 text-xs font-bold truncate max-w-[80px]">{spectatorBattle.player4Name || 'P4'}</p>
-                      </div>
+                      {remotePeers.find(p => p.userId === spectatorBattle.player4UserId)?.stream ? (
+                        <StreamVideo
+                          stream={remotePeers.find(p => p.userId === spectatorBattle.player4UserId)?.stream}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="text-center">
+                          <p className="text-white/60 text-xs font-bold truncate max-w-[80px]">{spectatorBattle.player4Name || 'P4'}</p>
+                        </div>
+                      )}
                       {spectatorBattle.winner === 'player4' && (
                         <div className="absolute inset-0 flex items-center justify-center bg-black/40">
                           <span className="text-4xl font-black text-blue-500 drop-shadow-lg rotate-[-12deg]">WINNER</span>

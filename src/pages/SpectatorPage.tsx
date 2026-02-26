@@ -1220,9 +1220,10 @@ export default function SpectatorPage() {
                 <button
                   type="button"
                   onClick={() => setShowCoHostPanel(true)}
-                  className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-sm border border-[#C9A96E]/50 flex items-center justify-center active:scale-90 transition-transform"
+                  className="w-10 h-10 rounded-full relative flex items-center justify-center active:scale-90 transition-transform"
                 >
-                  <UserPlus className="w-5 h-5 text-[#C9A96E]" />
+                  <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[1]" />
+                  <UserPlus className="w-5 h-5 text-[#C9A96E] relative z-[2]" />
                 </button>
                 <button
                   type="button"
@@ -1234,16 +1235,18 @@ export default function SpectatorPage() {
                 <button
                   type="button"
                   onClick={() => setShowSharePanel(true)}
-                  className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-sm border border-[#C9A96E]/50 flex items-center justify-center active:scale-90 transition-transform"
+                  className="w-10 h-10 rounded-full relative flex items-center justify-center active:scale-90 transition-transform"
                 >
-                  <Share2 className="w-5 h-5 text-[#C9A96E]" />
+                  <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[1]" />
+                  <Share2 className="w-5 h-5 text-[#C9A96E] relative z-[2]" />
                 </button>
                 <button
                   type="button"
                   onClick={() => setIsMoreMenuOpen(true)}
-                  className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-sm border border-[#C9A96E]/50 flex items-center justify-center active:scale-90 transition-transform"
+                  className="w-10 h-10 rounded-full relative flex items-center justify-center active:scale-90 transition-transform"
                 >
-                  <MoreVertical className="w-5 h-5 text-white" />
+                  <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[1]" />
+                  <MoreVertical className="w-5 h-5 text-white relative z-[2]" />
                 </button>
               </div>
             </div>

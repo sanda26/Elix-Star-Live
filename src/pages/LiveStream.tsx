@@ -2344,7 +2344,7 @@ export default function LiveStream() {
       } else if (data.status === 'COUNTDOWN') {
         setIsBattleMode(true);
         setBattleState('INVITING');
-        setBattleCountdown(3);
+        setBattleCountdown(null);
       } else if (data.status === 'ACTIVE') {
         setIsBattleMode(true);
         setBattleState('IN_BATTLE');
@@ -2990,7 +2990,7 @@ export default function LiveStream() {
     setSpectatorTapsUsed(0);
     battleScoreTapWindowRef.current = { windowStart: 0, count: 0 };
     setBattleTime(0);
-    setBattleCountdown(3);
+    setBattleCountdown(null);
   };
 
   const _closeBattleMatch = () => {
@@ -4035,15 +4035,22 @@ export default function LiveStream() {
                 <button 
                   type="button" 
                   onClick={() => {
+                    if (battleSlots[0]?.userId) {
+                      websocket.send('battle_create', {
+                        hostName: myCreatorName,
+                        opponentUserId: battleSlots[0].userId,
+                        opponentName: battleSlots[0].name
+                      });
+                    }
                     setBattleTime(300);
                     setMyScore(0);
                     setOpponentScore(0);
                     setPlayer3Score(0);
                     setPlayer4Score(0);
                     setBattleWinner(null);
-                    setBattleCountdown(3);
+                    setBattleCountdown(null);
                     reachedThresholdsRef.current.clear();
-                  }} 
+                  }}  
                   className="px-4 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform"
                 >
                   <RefreshCw size={20} className="text-[#C9A96E] mr-2" />
@@ -4998,7 +5005,7 @@ export default function LiveStream() {
               </button>
 
               {isBattleMode && battleWinner && isBroadcast && (
-                <button type="button" onClick={() => { setBattleTime(300); setMyScore(0); setOpponentScore(0); setPlayer3Score(0); setPlayer4Score(0); setBattleWinner(null); setBattleCountdown(3); reachedThresholdsRef.current.clear(); setIsMoreMenuOpen(false); }} className="flex flex-col items-center gap-1.5 active:scale-95 transition-transform">
+                <button type="button" onClick={() => { if (battleSlots[0]?.userId) { websocket.send('battle_create', { hostName: myCreatorName, opponentUserId: battleSlots[0].userId, opponentName: battleSlots[0].name }); } setBattleTime(300); setMyScore(0); setOpponentScore(0); setPlayer3Score(0); setPlayer4Score(0); setBattleWinner(null); setBattleCountdown(null); reachedThresholdsRef.current.clear(); setIsMoreMenuOpen(false); }} className="flex flex-col items-center gap-1.5 active:scale-95 transition-transform">
                   <div className="w-11 h-11 rounded-full relative flex items-center justify-center">
                     <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[1]" />
                     <RefreshCw className="w-[18px] h-[18px] text-[#C9A96E] relative z-[2]" strokeWidth={1.8} />

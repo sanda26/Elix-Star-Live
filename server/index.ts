@@ -329,6 +329,12 @@ function joinBattle(roomId: string, userId: string, userName: string): BattleSes
   const session = battles.get(roomId);
   if (!session || session.status !== 'WAITING') return null;
   
+  // Prevent duplicate join
+  if (session.hostUserId === userId) return session;
+  if (session.opponentUserId === userId) return session;
+  if (session.player3UserId === userId) return session;
+  if (session.player4UserId === userId) return session;
+  
   if (!session.opponentUserId) {
     session.opponentUserId = userId;
     session.opponentName = userName;

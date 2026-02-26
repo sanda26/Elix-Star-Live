@@ -1633,28 +1633,8 @@ export default function LiveStream() {
     setBattleState('IN_BATTLE');
     setBattleCountdown(null);
     setBattleTime(300);
-    localBattleTimerRef.current = setInterval(() => {
-      setBattleTime((t) => {
-        if (t <= 1) {
-          if (localBattleTimerRef.current) {
-            clearInterval(localBattleTimerRef.current);
-            localBattleTimerRef.current = null;
-          }
-          const s = battleScoresRef.current;
-          const me = s.myScore;
-          const opp = s.opponentScore;
-          const p3 = s.player3Score;
-          const p4 = s.player4Score;
-          const max = Math.max(me, opp, p3, p4);
-          const who: 'me' | 'opponent' | 'player3' | 'player4' | 'draw' | null =
-            [me, opp, p3, p4].filter((x) => x === max).length > 1 ? 'draw'
-              : max === me ? 'me' : max === opp ? 'opponent' : max === p3 ? 'player3' : 'player4';
-          setBattleWinner(who);
-          return 0;
-        }
-        return t - 1;
-      });
-    }, 1000);
+    // Timer is handled by server 'battle_tick'
+    // Winner is handled by server 'battle_end'
     return () => {
       if (localBattleTimerRef.current) {
         clearInterval(localBattleTimerRef.current);

@@ -1002,19 +1002,7 @@ export default function SpectatorPage() {
                 </div>
               </div>
               
-              {/* Battle timer — overlay on top of screen/video (same as LiveStream) */}
-              <div className="absolute top-0 left-0 right-0 z-[25] pointer-events-none flex justify-center w-full py-1.5 px-2" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 4cm - 10.5mm)' }}>
-                <div className="flex items-center gap-1 bg-black/40 backdrop-blur-md rounded-full px-2 py-0.5 border border-white/10 shadow-sm">
-                  <div className="relative w-[16px] h-[16px] flex items-center justify-center">
-                    <svg viewBox="0 0 40 44" className="absolute inset-0 w-full h-full drop-shadow-md">
-                      <path d="M20 2 L36 10 L36 26 Q36 38 20 42 Q4 38 4 26 L4 10 Z" fill="url(#vsGradSpec)" stroke="rgba(255,255,255,0.5)" strokeWidth="1.5"/>
-                      <defs><linearGradient id="vsGradSpec" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor="#DC143C"/><stop offset="50%" stopColor="#8B0000"/><stop offset="100%" stopColor="#1E90FF"/></linearGradient></defs>
-                    </svg>
-                    <span className="relative z-10 text-white text-[5px] font-black italic drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">VS</span>
-                  </div>
-                  <span className="text-white text-[10px] font-black tabular-nums drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">{Math.floor(spectatorBattle.timeLeft / 60)}:{(spectatorBattle.timeLeft % 60).toString().padStart(2, '0')}</span>
-                </div>
-              </div>
+              {/* Battle timer REMOVED as per user request */}
 
               {/* Host Video (Top/Left) */}
               <div className="flex-1 min-h-0 flex flex-col">

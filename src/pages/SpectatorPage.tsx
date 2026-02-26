@@ -988,8 +988,8 @@ export default function SpectatorPage() {
         {/* FULL SCREEN VIDEO AREA — live stream via WebRTC */}
         <div className="absolute inset-0 z-0 bg-[#13151A]">
           {spectatorBattle && spectatorBattle.active ? (
-            /* BATTLE MODE: Split screen for battle */
-            <div className={`w-full flex flex-col ${spectatorBattle.player3UserId || spectatorBattle.player4UserId ? 'aspect-square' : 'h-[36dvh]'}`}>
+            /* BATTLE MODE: Split screen for battle - Added mt-16 to avoid header overlap */
+            <div className={`w-full flex flex-col mt-16 ${spectatorBattle.player3UserId || spectatorBattle.player4UserId ? 'aspect-square' : 'h-[36dvh]'}`}>
               {/* Battle Header - Same as LiveStream */}
               <div className="relative z-20 w-full flex-none overflow-hidden" style={{ height: '18px' }}>
                 <div className="absolute inset-0 flex">

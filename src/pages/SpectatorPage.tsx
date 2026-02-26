@@ -1345,9 +1345,9 @@ export default function SpectatorPage() {
           </div>
         )}
 
-        {/* BOTTOM BAR — buttons in front of video, lifted 18mm up from bottom — hidden during gift animation */}
-        <div className={`fixed left-0 right-0 z-[120] pointer-events-auto flex justify-center ${currentGift ? 'hidden' : ''}`} style={{ bottom: '18mm' }}>
-          <div className="w-full max-w-[480px] px-3 pb-[max(8px,env(safe-area-inset-bottom))] pt-2 bg-transparent">
+        {/* BOTTOM BAR — aligned with Creator Page */}
+        <div className={`fixed left-0 right-0 z-[120] pointer-events-auto flex justify-center ${currentGift ? 'hidden' : ''}`} style={{ bottom: '0' }}>
+          <div className="w-full max-w-[480px] px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-2 bg-transparent">
           <div className="flex items-center gap-2">
           <form
             className="flex-1 flex items-center gap-2 bg-black/40 backdrop-blur-sm rounded-full px-3 py-2 border border-white/10 h-10 min-w-0"

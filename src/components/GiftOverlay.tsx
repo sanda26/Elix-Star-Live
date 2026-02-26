@@ -43,7 +43,7 @@ export function GiftOverlay({ videoSrc, onEnded, isBattleMode, bottomOffset }: G
   return (
     <div 
       className="absolute left-0 right-0 z-[50] pointer-events-none flex justify-center"
-      style={{ bottom: bottomOffset || '-7px' }}
+      style={{ bottom: bottomOffset || '10px' }}
     >
       <div 
         className="w-full flex items-end justify-center overflow-hidden" 

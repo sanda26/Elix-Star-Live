@@ -693,14 +693,14 @@ export default function SpectatorPage() {
       if (!mounted) return;
       setSpectatorBattle(prev => prev ? {
         ...prev,
-        active: false,
+        active: true,
         hostScore: data.hostScore ?? prev.hostScore,
         opponentScore: data.opponentScore ?? prev.opponentScore,
         player3Score: data.player3Score ?? prev.player3Score,
         player4Score: data.player4Score ?? prev.player4Score,
         winner: data.winner,
       } : null);
-      setTimeout(() => setSpectatorBattle(null), 5000);
+      setTimeout(() => { if (mounted) setSpectatorBattle(null); }, 2000);
     };
 
     websocket.on('room_state', handleRoomState);

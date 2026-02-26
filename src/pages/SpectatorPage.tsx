@@ -1188,7 +1188,7 @@ export default function SpectatorPage() {
         )}
 
         {/* BOTTOM BAR */}
-        <div className="fixed left-0 right-0 z-[999999] pointer-events-auto flex justify-center" style={{ bottom: '0' }}>
+        <div className={`fixed left-0 right-0 z-[120] pointer-events-auto flex justify-center ${currentGift ? 'hidden' : ''}`} style={{ bottom: '0' }}>
           <div className="w-full max-w-[480px] px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-2 bg-transparent">
             <div className="flex items-center gap-2">
               <form

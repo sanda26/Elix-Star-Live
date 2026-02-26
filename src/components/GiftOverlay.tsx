@@ -40,7 +40,7 @@ export function GiftOverlay({ videoSrc, onEnded, isBattleMode }: GiftOverlayProp
   const height = isBattleMode ? '30vh' : '55vh';
 
   return (
-    <div className="fixed left-0 right-0 bottom-0 z-[50] pointer-events-none flex justify-center">
+    <div className="absolute left-0 right-0 bottom-0 z-[50] pointer-events-none flex justify-center">
       <div 
         className="w-full flex items-end justify-center overflow-hidden" 
         style={{ 
@@ -57,7 +57,7 @@ export function GiftOverlay({ videoSrc, onEnded, isBattleMode }: GiftOverlayProp
           <video 
             ref={videoRef} 
             src={videoSrc} 
-            className="w-full h-full object-cover object-bottom drop-shadow-2xl elix-overlay-in" 
+            className="w-full h-full object-cover object-top drop-shadow-2xl elix-overlay-in" 
             playsInline 
             preload="auto" 
             muted={muteAllSounds} 

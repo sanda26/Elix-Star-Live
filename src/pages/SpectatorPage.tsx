@@ -1072,6 +1072,19 @@ export default function SpectatorPage() {
 
             return (
               <>
+                {mode.startsWith('battle') && spectatorBattle && (
+                  <div className="mt-16 relative z-30">
+                    <BattleOverlayReadOnly
+                      hostScore={spectatorBattle.hostScore}
+                      opponentScore={spectatorBattle.opponentScore}
+                      player3Score={spectatorBattle.player3Score}
+                      player4Score={spectatorBattle.player4Score}
+                      timeLeft={spectatorBattle.timeLeft}
+                      active={true}
+                    />
+                  </div>
+                )}
+
                 <LiveVideoLayout
                   layoutMode={mode}
                   hostUserId={hostUserId || ''}
@@ -1079,19 +1092,8 @@ export default function SpectatorPage() {
                   remotePeers={remotePeers}
                   battleState={spectatorBattle || undefined}
                   hasStream={hasStream}
-                  className={mode.startsWith('battle') ? 'mt-16' : ''}
+                  className=""
                 />
-                
-                {mode.startsWith('battle') && spectatorBattle && (
-                  <BattleOverlayReadOnly
-                    hostScore={spectatorBattle.hostScore}
-                    opponentScore={spectatorBattle.opponentScore}
-                    player3Score={spectatorBattle.player3Score}
-                    player4Score={spectatorBattle.player4Score}
-                    timeLeft={spectatorBattle.timeLeft}
-                    active={true}
-                  />
-                )}
 
                 {!hasStream && (
                   <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 z-10 pointer-events-auto">
@@ -1218,7 +1220,7 @@ export default function SpectatorPage() {
                 <button
                   type="button"
                   onClick={() => setShowCoHostPanel(true)}
-                  className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-sm border border-white/10 flex items-center justify-center active:scale-90 transition-transform"
+                  className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-sm border border-[#C9A96E]/50 flex items-center justify-center active:scale-90 transition-transform"
                 >
                   <UserPlus className="w-5 h-5 text-[#C9A96E]" />
                 </button>
@@ -1232,14 +1234,14 @@ export default function SpectatorPage() {
                 <button
                   type="button"
                   onClick={() => setShowSharePanel(true)}
-                  className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-sm border border-white/10 flex items-center justify-center active:scale-90 transition-transform"
+                  className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-sm border border-[#C9A96E]/50 flex items-center justify-center active:scale-90 transition-transform"
                 >
                   <Share2 className="w-5 h-5 text-[#C9A96E]" />
                 </button>
                 <button
                   type="button"
                   onClick={() => setIsMoreMenuOpen(true)}
-                  className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-sm border border-white/10 flex items-center justify-center active:scale-90 transition-transform"
+                  className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-sm border border-[#C9A96E]/50 flex items-center justify-center active:scale-90 transition-transform"
                 >
                   <MoreVertical className="w-5 h-5 text-white" />
                 </button>

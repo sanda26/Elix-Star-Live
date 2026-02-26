@@ -44,6 +44,9 @@ import { RankingPanel } from '../components/RankingPanel';
 import { websocket } from '../lib/websocket';
 import { useLiveWebRTC } from '../hooks/useLiveWebRTC';
 import { IS_STORE_BUILD } from '../config/build';
+import { CreatorHeader } from '../components/live/CreatorHeader';
+import { BattleOverlayReadOnly } from '../components/live/BattleOverlayReadOnly';
+import { LiveVideoLayout } from '../components/live/LiveVideoLayout';
 
 type LiveMessage = {
   id: string;
@@ -988,35 +991,26 @@ export default function SpectatorPage() {
         {/* FULL SCREEN VIDEO AREA — live stream via WebRTC */}
         <div className="absolute inset-0 z-0 bg-[#13151A]">
           {spectatorBattle && spectatorBattle.active ? (
-            /* BATTLE MODE: Split screen for battle - Added mt-16 to avoid header overlap */
             <div className={`w-full flex flex-col mt-16 ${spectatorBattle.player3UserId || spectatorBattle.player4UserId ? 'aspect-square' : 'h-[36dvh]'}`}>
-              {/* Battle Header - Same as LiveStream */}
-              <div className="relative z-20 w-full flex-none overflow-hidden" style={{ height: '18px' }}>
-                <div className="absolute inset-0 flex">
-                  <div className="h-full transition-all duration-500 ease-out" style={{ width: `${(spectatorBattle.hostScore + (spectatorBattle.player3Score||0) + spectatorBattle.opponentScore + (spectatorBattle.player4Score||0)) > 0 ? ((spectatorBattle.hostScore + (spectatorBattle.player3Score||0)) / (spectatorBattle.hostScore + (spectatorBattle.player3Score||0) + spectatorBattle.opponentScore + (spectatorBattle.player4Score||0)) * 100) : 50}%`, backgroundImage: 'linear-gradient(90deg, #DC143C, #FF1744, #C41E3A)' }} />
-                  <div className="h-full flex-1 transition-all duration-500 ease-out" style={{ backgroundImage: 'linear-gradient(90deg, #1E90FF, #4169E1, #0047AB)' }} />
-                </div>
-                <div className="absolute inset-0 z-10 flex items-center justify-between px-2 pointer-events-none">
-                  <span className="text-white font-black text-[14px] tabular-nums drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">{(spectatorBattle.hostScore + (spectatorBattle.player3Score||0)).toLocaleString()}</span>
-                  <span className="text-white font-black text-[14px] tabular-nums drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">{(spectatorBattle.opponentScore + (spectatorBattle.player4Score||0)).toLocaleString()}</span>
-                </div>
-              </div>
-              
-              {/* Battle timer — overlay on top of screen/video (same as LiveStream) */}
-              <div className="absolute top-0 left-0 right-0 z-[25] pointer-events-none flex justify-center w-full py-1.5 px-2" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 4cm - 10.5mm)' }}>
-                <div className="flex items-center gap-1 bg-black/40 backdrop-blur-md rounded-full px-2 py-0.5 border border-white/10 shadow-sm">
-                  <div className="relative w-[16px] h-[16px] flex items-center justify-center">
-                    <svg viewBox="0 0 40 44" className="absolute inset-0 w-full h-full drop-shadow-md">
-                      <path d="M20 2 L36 10 L36 26 Q36 38 20 42 Q4 38 4 26 L4 10 Z" fill="url(#vsGradSpec)" stroke="rgba(255,255,255,0.5)" strokeWidth="1.5"/>
-                      <defs><linearGradient id="vsGradSpec" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor="#DC143C"/><stop offset="50%" stopColor="#8B0000"/><stop offset="100%" stopColor="#1E90FF"/></linearGradient></defs>
-                    </svg>
-                    <span className="relative z-10 text-white text-[5px] font-black italic drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">VS</span>
-                  </div>
-                  <span className="text-white text-[10px] font-black tabular-nums drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">{Math.floor(spectatorBattle.timeLeft / 60)}:{(spectatorBattle.timeLeft % 60).toString().padStart(2, '0')}</span>
-                </div>
-              </div>
-
-              {/* Host Video (Top/Left) */}
+              <BattleOverlayReadOnly
+                hostScore={spectatorBattle.hostScore}
+                opponentScore={spectatorBattle.opponentScore}
+                player3Score={spectatorBattle.player3Score}
+                player4Score={spectatorBattle.player4Score}
+                timeLeft={spectatorBattle.timeLeft}
+                active={true}
+              />
+              <LiveVideoLayout
+                layoutMode={(spectatorBattle.player3UserId || spectatorBattle.player4UserId) ? 'battle_2v2' : 'battle_1v1'}
+                hostUserId={hostUserId || ''}
+                hostName={hostName}
+                remotePeers={remotePeers}
+                battleState={spectatorBattle}
+                hasStream={hasStream}
+                className="flex-1"
+              />
+              {/* Old Video Code Removed */}
+              {/*
               <div className="flex-1 min-h-0 flex flex-col">
                 <div className="flex flex-1 min-h-0">
                   <div className="w-1/2 h-full relative bg-black overflow-hidden border-r border-[#C9A96E]/20">
@@ -1035,7 +1029,7 @@ export default function SpectatorPage() {
                     )}
                   </div>
 
-                  {/* Opponent Video (Top/Right) */}
+
                   <div className="w-1/2 h-full relative bg-[#1C1E24] overflow-hidden flex items-center justify-center">
                     {remotePeers.find(p => p.userId === spectatorBattle.opponentUserId)?.stream ? (
                       <StreamVideo
@@ -1058,7 +1052,7 @@ export default function SpectatorPage() {
                   </div>
                 </div>
                 
-                {/* Row 2: Player 3 & 4 (if active) */}
+
                 {(spectatorBattle.player3UserId || spectatorBattle.player4UserId) && (
                   <div className="flex flex-1 min-h-0 border-t border-[#C9A96E]/20">
                      {/* Player 3 */}
@@ -1100,6 +1094,7 @@ export default function SpectatorPage() {
                   </div>
                 )}
               </div>
+              */}
             </div>
           ) : isCoHosting ? (
             /* SPLIT SCREEN: host on top, co-host (me) on bottom */
@@ -1175,35 +1170,19 @@ export default function SpectatorPage() {
                 </div>
               </div>
             </div>
-          ) : remotePeers.length > 1 ? (
-            /* MULTI-PEER GRID (Spectator view of Co-hosts) */
-            <div className="w-full h-full flex flex-col bg-black">
-              <div className="flex-1 relative border-b border-[#C9A96E]/20">
-                 <StreamVideo
-                   stream={remotePeers.find(p => p.userId === hostUserId)?.stream || remotePeers[0]?.stream}
-                   className="w-full h-full object-cover"
-                 />
-                 <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-sm">
-                   <span className="text-white text-[10px] font-bold">{hostName}</span>
-                 </div>
-               </div>
-               <div className="flex-1 relative">
-                 <StreamVideo
-                   stream={remotePeers.find(p => p.userId !== hostUserId)?.stream || remotePeers[1]?.stream}
-                   className="w-full h-full object-cover"
-                 />
-               </div>
-            </div>
+          /* Old CoHost Removed */
           ) : (
-            /* NORMAL FULL SCREEN: host video only */
             <>
-              <StreamVideo
-                 stream={remotePeers.find(p => p.userId === hostUserId)?.stream || remotePeers[0]?.stream}
-                 className="absolute inset-0 w-full h-full object-cover"
-                style={{ opacity: hasStream ? 1 : 0, transition: 'opacity 0.4s ease' }}
+              <LiveVideoLayout
+                layoutMode={remotePeers.length > 1 ? 'cohost' : 'solo'}
+                hostUserId={hostUserId || ''}
+                hostName={hostName}
+                remotePeers={remotePeers}
+                battleState={undefined}
+                hasStream={hasStream}
               />
               {!hasStream && (
-                <div className="w-full h-full flex flex-col items-center justify-center gap-4">
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 z-10 pointer-events-auto">
                   <div className="w-24 h-24 rounded-full border-[3px] border-red-500/40 overflow-hidden">
                     {hostAvatar ? (
                       <img src={hostAvatar} alt="" className="w-full h-full object-cover" />
@@ -1232,103 +1211,38 @@ export default function SpectatorPage() {
           )}
         </div>
 
-        {/* TOP BAR */}
-        <div className="absolute top-0 left-0 right-0 z-[110] pointer-events-none">
-          <div className="px-3" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 6px)' }}>
-            <div className="flex items-center justify-between gap-2">
-              {/* Left: Creator info */}
-              <div className="pointer-events-auto flex items-center gap-0 -ml-1 flex-shrink min-w-0">
-                <div
-                  className="relative z-10 flex-shrink-0 cursor-pointer active:scale-95 transition-transform"
-                  onClick={() => navigate(`/profile/${hostUserId}`)}
-                >
-                  <AvatarRing src={hostAvatar} alt={hostName} size={44} />
-                </div>
-                <div
-                  className="flex flex-col justify-center -ml-3 pl-5 pr-3 h-8 rounded-full border border-[#C9A96E]/60 bg-[#13151A]/80 min-w-0"
-                  style={{ borderTopLeftRadius: 0, borderBottomLeftRadius: 0, boxShadow: '0 0 8px rgba(201,169,110,0.25)' }}
-                >
-                  <span className="text-white text-[11px] font-bold truncate max-w-[100px] leading-tight">{hostName}</span>
-                  <div className="flex items-center gap-1 -mt-0.5">
-                    <Heart className="w-2.5 h-2.5 text-[#FF2D55]" strokeWidth={2.5} fill="#FF2D55" />
-                    <span className="text-white/70 text-[8px] font-bold tabular-nums">{(typeof activeLikes === 'number' && Number.isFinite(activeLikes) ? activeLikes : 0).toLocaleString()}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Right: viewer count + close */}
-              <div className="pointer-events-auto flex items-center gap-2 flex-shrink-0">
-                {/* Viewer count circle with plus icon */}
-                <button
-                  type="button"
-                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#13151A]/70 border border-white/10 active:scale-95 transition-transform"
-                  onClick={() => {
-                    const list: { id: string; name: string; avatar: string; level?: number }[] = [];
-                    const hid = hostUserIdRef.current || hostUserId || effectiveStreamId;
-                    actualViewersRef.current.forEach((v, id) => {
-                      if (id !== user?.id && id !== hid && id !== effectiveStreamId) {
-                        list.push({ id, name: v.name, avatar: v.avatar, level: v.level });
-                      }
-                    });
-                    setViewersList(list);
-                    setShowViewersPanel(true);
-                  }}
-                >
-                  <Eye size={12} className="text-white/60" />
-                  <span className="text-white text-[11px] font-bold tabular-nums">
-                    {viewerCount >= 1000 ? (viewerCount / 1000).toFixed(1) + 'K' : viewerCount}
-                  </span>
-                  <UserPlus size={10} className="text-[#C9A96E]" />
-                </button>
-                <button
-                  type="button"
-                  title="Leave stream"
-                  onClick={() => {
-                    websocket.disconnect();
-                    if (coHostStream) { coHostStream.getTracks().forEach(t => t.stop()); setCoHostStream(null); }
-                    navigate('/feed', { replace: true });
-                  }}
-                  className="w-8 h-8 rounded-full bg-[#13151A]/60 border border-white/10 flex items-center justify-center active:scale-90 transition-transform"
-                >
-                  <X size={16} className="text-white/80" />
-                </button>
-              </div>
-            </div>
-
-            {/* Weekly Ranking + Membership + Follow — same as creator page */}
-            <div className="flex items-center gap-2 mt-1 ml-1 pointer-events-auto flex-wrap px-1">
-              <div
-                className="flex items-center gap-1 bg-[#13151A] rounded-full px-2 py-0.5 border border-[#C9A96E]/40 shadow-sm cursor-pointer active:scale-95 transition-transform"
-                onClick={() => setShowRankingPanel(true)}
-              >
-                <Trophy className="w-2.5 h-2.5 text-[#C9A96E]" />
-                <span className="text-[#C9A96E] text-[9px] font-bold whitespace-nowrap">Weekly Ranking &gt;</span>
-              </div>
-              <div
-                className="flex items-center gap-1 bg-[#13151A] rounded-full px-2 py-0.5 border border-[#C9A96E]/40 shadow-sm cursor-pointer active:scale-95 transition-transform"
-                onClick={() => setShowFanClub(true)}
-              >
-                <Heart className="w-2.5 h-2.5 text-[#C9A96E] fill-[#C9A96E]" />
-                <span className="text-[#C9A96E] text-[9px] font-bold whitespace-nowrap">Membership</span>
-              </div>
-              {!isFollowing && (
-                <button
-                  type="button"
-                  className="flex items-center gap-1 bg-[#FF2D55] rounded-full px-2 py-0.5 shadow-sm border border-white/20 active:scale-95 transition-transform"
-                  onClick={async () => {
-                    setIsFollowing(true);
-                    if (user?.id && hostUserId) {
-                      try { await supabase.from('followers').insert({ follower_id: user.id, following_id: hostUserId }); } catch {}
-                    }
-                  }}
-                >
-                  <UserPlus size={10} className="text-white" strokeWidth={3} />
-                  <span className="text-white text-[9px] font-bold">Follow</span>
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
+        <CreatorHeader
+          hostName={hostName}
+          hostAvatar={hostAvatar}
+          activeLikes={typeof activeLikes === 'number' && Number.isFinite(activeLikes) ? activeLikes : 0}
+          viewerCount={viewerCount}
+          isFollowing={isFollowing}
+          onFollow={async () => {
+            setIsFollowing(true);
+            if (user?.id && hostUserId) {
+              try { await supabase.from('followers').insert({ follower_id: user.id, following_id: hostUserId }); } catch {}
+            }
+          }}
+          onProfileClick={() => navigate(`/profile/${hostUserId}`)}
+          onShowRanking={() => setShowRankingPanel(true)}
+          onShowFanClub={() => setShowFanClub(true)}
+          onShowViewers={() => {
+            const list: { id: string; name: string; avatar: string; level?: number }[] = [];
+            const hid = hostUserIdRef.current || hostUserId || effectiveStreamId;
+            actualViewersRef.current.forEach((v, id) => {
+              if (id !== user?.id && id !== hid && id !== effectiveStreamId) {
+                list.push({ id, name: v.name, avatar: v.avatar, level: v.level });
+              }
+            });
+            setViewersList(list);
+            setShowViewersPanel(true);
+          }}
+          onClose={() => {
+            websocket.disconnect();
+            if (coHostStream) { coHostStream.getTracks().forEach(t => t.stop()); setCoHostStream(null); }
+            navigate('/feed', { replace: true });
+          }}
+        />
         {/* CHAT */}
         <div className="chat-zone fixed left-0 right-0 bottom-[calc(58px+max(12px,env(safe-area-inset-bottom)))] z-[5] flex justify-center pointer-events-none">
           <div className="w-full max-w-[480px] h-[25dvh] max-h-[25dvh] overflow-y-auto pointer-events-auto bg-transparent">

@@ -989,7 +989,7 @@ export default function SpectatorPage() {
         <div className="absolute inset-0 z-0 bg-[#13151A]">
           {spectatorBattle && spectatorBattle.active ? (
             /* BATTLE MODE: Split screen for battle */
-            <div className={`w-full h-full flex flex-col ${spectatorBattle.player3Score !== undefined ? 'aspect-square' : ''}`}>
+            <div className={`w-full flex flex-col ${spectatorBattle.player3UserId || spectatorBattle.player4UserId ? 'aspect-square' : 'h-[36dvh]'}`}>
               {/* Battle Header */}
               <div className="absolute top-20 left-0 right-0 z-20 px-4 flex items-center justify-between">
                 <div className="flex flex-col items-center">

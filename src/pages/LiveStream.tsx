@@ -2362,17 +2362,33 @@ export default function LiveStream() {
       
       setBattleSlots(prev => {
         const next = [...prev];
+        const seenIds = new Set<string>();
+
         // Opponent
         if (data.opponentName) {
           next[0] = { userId: data.opponentUserId || '', name: data.opponentName, status: 'accepted', avatar: '' };
+          if (data.opponentUserId) seenIds.add(data.opponentUserId);
+        } else {
+          // Keep existing if not provided? Or clear? 
+          // battle_state_sync sends FULL state. If opponentName is missing, it's empty.
+          // But data.opponentName check is safe?
+          // The sync payload has empty strings for empty slots.
+          if (!data.opponentUserId) next[0] = { userId: '', name: '', status: 'empty', avatar: '' };
         }
+
         // Player 3
-        if (data.player3Name) {
+        if (data.player3Name && data.player3UserId && !seenIds.has(data.player3UserId)) {
           next[1] = { userId: data.player3UserId || '', name: data.player3Name, status: 'accepted', avatar: '' };
+          seenIds.add(data.player3UserId);
+        } else {
+          next[1] = { userId: '', name: '', status: 'empty', avatar: '' };
         }
+
         // Player 4
-        if (data.player4Name) {
+        if (data.player4Name && data.player4UserId && !seenIds.has(data.player4UserId)) {
           next[2] = { userId: data.player4UserId || '', name: data.player4Name, status: 'accepted', avatar: '' };
+        } else {
+          next[2] = { userId: '', name: '', status: 'empty', avatar: '' };
         }
         return next;
       });

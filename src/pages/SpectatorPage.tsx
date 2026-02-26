@@ -655,8 +655,8 @@ export default function SpectatorPage() {
           player3Name: data.player3Name || '',
           player4Name: data.player4Name || '',
           opponentUserId: data.opponentUserId || '',
-          player3UserId: data.player3UserId || '',
-          player4UserId: data.player4UserId || '',
+          player3UserId: (data.player3UserId && data.player3UserId !== data.opponentUserId) ? data.player3UserId : '',
+          player4UserId: (data.player4UserId && data.player4UserId !== data.opponentUserId && data.player4UserId !== data.player3UserId) ? data.player4UserId : '',
         });
       } else if (data.status === 'ENDED') {
         setSpectatorBattle(prev => prev ? { ...prev, active: false, winner: data.winner } : null);

@@ -1,5 +1,15 @@
-import React from 'react';
-import { StreamVideo } from '@stream-io/video-react-sdk';
+import React, { useEffect, useRef } from 'react';
+
+const StreamVideo = ({ stream, className, style, ...props }: React.VideoHTMLAttributes<HTMLVideoElement> & { stream?: MediaStream }) => {
+  const ref = useRef<HTMLVideoElement>(null);
+  useEffect(() => {
+    if (ref.current && stream) {
+      ref.current.srcObject = stream;
+      ref.current.play().catch(() => {});
+    }
+  }, [stream]);
+  return <video ref={ref} autoPlay playsInline className={className} style={style} {...props} />;
+};
 
 interface Peer {
   userId: string;

@@ -60,6 +60,17 @@ type LiveMessage = {
   isMod?: boolean;
 };
 
+const StreamVideo = ({ stream, className, style, ...props }: React.VideoHTMLAttributes<HTMLVideoElement> & { stream?: MediaStream }) => {
+  const ref = useRef<HTMLVideoElement>(null);
+  useEffect(() => {
+    if (ref.current && stream) {
+      ref.current.srcObject = stream;
+      ref.current.play().catch(() => {});
+    }
+  }, [stream]);
+  return <video ref={ref} autoPlay playsInline className={className} style={style} {...props} />;
+};
+
 interface SpectatorBattleState {
   active: boolean;
   hostScore: number;
@@ -980,7 +991,7 @@ export default function SpectatorPage() {
             if (spectatorBattle && spectatorBattle.active) {
               mode = (spectatorBattle.player3UserId || spectatorBattle.player4UserId) ? 'battle_2v2' : 'battle_1v1';
             } else if (isCoHosting) {
-              // Special case for self-view, handled below
+              // Special case for self-view
             } else if (remotePeers.length > 1) {
               mode = 'cohost';
             }
@@ -1238,7 +1249,7 @@ export default function SpectatorPage() {
         </div>
 
         {/* OVERLAYS */}
-        <GiftAnimationOverlay currentGift={currentGift} onAnimationEnd={handleGiftEnded} />
+        <GiftAnimationOverlay streamId={effectiveStreamId} />
         
         {/* GIFT OVERLAY (top right small) */}
         {lastSentGift && (

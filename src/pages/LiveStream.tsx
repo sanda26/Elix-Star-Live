@@ -617,6 +617,7 @@ export default function LiveStream() {
             const acceptedName = row.data?.accepted_name || '';
             const acceptedAvatar = row.data?.accepted_avatar || '';
             setBattleSlots(prev => {
+              if (prev.some(s => s.userId === acceptedUserId && s.status === 'accepted')) return prev;
               const next = [...prev];
               const idx = next.findIndex(s => s.status === 'invited' && s.userId === acceptedUserId);
               if (idx !== -1) {

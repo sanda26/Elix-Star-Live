@@ -1256,6 +1256,11 @@ export default function SpectatorPage() {
 
         {/* OVERLAYS */}
         <GiftAnimationOverlay streamId={effectiveStreamId} />
+        <GiftOverlay
+          videoSrc={currentGift}
+          onEnded={handleGiftEnded}
+          isBattleMode={!!(spectatorBattle && spectatorBattle.active)}
+        />
         
         {/* GIFT OVERLAY (top right small) */}
         {lastSentGift && (

@@ -60,7 +60,7 @@ export function LiveVideoLayout({
   // Battle 1v1 or 2v2
   if (layoutMode === 'battle_1v1' || layoutMode === 'battle_2v2') {
     return (
-      <div className={`w-full flex flex-col ${className} ${layoutMode === 'battle_2v2' ? 'aspect-square' : 'h-[36dvh]'}`}>
+      <div className={`w-full flex flex-col ${className} aspect-[800/433]`}>
         <div className="flex-1 min-h-0 flex flex-col">
           <div className="flex flex-1 min-h-0">
             {/* Host Video (Top/Left) */}

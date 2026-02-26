@@ -1220,7 +1220,8 @@ export default function SpectatorPage() {
           )}
         </div>
 
-        {/* TOP BAR */}
+        {/* TOP BAR REMOVED as per user request */}
+        {/*
         <div className="absolute top-0 left-0 right-0 z-[110] pointer-events-none">
           <div className="px-3" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 6px)' }}>
             <div className="flex items-center justify-between gap-2">
@@ -1317,6 +1318,7 @@ export default function SpectatorPage() {
             </div>
           </div>
         </div>
+        */}
 
         {/* CHAT — behind buttons, behind gift overlay, same as creator page */}
         <div className="chat-zone fixed left-0 right-0 bottom-[calc(58px+max(12px,env(safe-area-inset-bottom)))] z-[5] flex justify-center pointer-events-none">

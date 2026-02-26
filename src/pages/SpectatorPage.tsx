@@ -1073,7 +1073,7 @@ export default function SpectatorPage() {
             return (
               <>
                 {mode.startsWith('battle') && spectatorBattle && (
-                  <div className="mt-16 relative z-30">
+                  <div className="mt-24 relative z-30">
                     <BattleOverlayReadOnly
                       hostScore={spectatorBattle.hostScore}
                       opponentScore={spectatorBattle.opponentScore}
@@ -1220,7 +1220,7 @@ export default function SpectatorPage() {
                 <button
                   type="button"
                   onClick={() => setShowCoHostPanel(true)}
-                  className="w-10 h-10 rounded-full relative flex items-center justify-center active:scale-90 transition-transform"
+                  className="w-11 h-11 rounded-full relative flex items-center justify-center active:scale-90 transition-transform"
                 >
                   <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[1]" />
                   <UserPlus className="w-5 h-5 text-[#C9A96E] relative z-[2]" />
@@ -1228,14 +1228,15 @@ export default function SpectatorPage() {
                 <button
                   type="button"
                   onClick={() => setShowGiftPanel(true)}
-                  className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#C9A96E] to-[#E8D5A3] border border-white/20 flex items-center justify-center active:scale-90 transition-transform shadow-lg shadow-[#C9A96E]/20"
+                  className="w-11 h-11 rounded-full relative flex items-center justify-center active:scale-90 transition-transform"
                 >
-                  <Gift className="w-5 h-5 text-black" />
+                  <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[1]" />
+                  <Gift className="w-5 h-5 text-[#C9A96E] relative z-[2]" />
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowSharePanel(true)}
-                  className="w-10 h-10 rounded-full relative flex items-center justify-center active:scale-90 transition-transform"
+                  className="w-11 h-11 rounded-full relative flex items-center justify-center active:scale-90 transition-transform"
                 >
                   <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[1]" />
                   <Share2 className="w-5 h-5 text-[#C9A96E] relative z-[2]" />
@@ -1243,7 +1244,7 @@ export default function SpectatorPage() {
                 <button
                   type="button"
                   onClick={() => setIsMoreMenuOpen(true)}
-                  className="w-10 h-10 rounded-full relative flex items-center justify-center active:scale-90 transition-transform"
+                  className="w-11 h-11 rounded-full relative flex items-center justify-center active:scale-90 transition-transform"
                 >
                   <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[1]" />
                   <MoreVertical className="w-5 h-5 text-white relative z-[2]" />

@@ -6,10 +6,9 @@ interface GiftOverlayProps {
   videoSrc: string | null;
   onEnded: () => void;
   isBattleMode?: boolean;
-  bottomOffset?: string;
 }
 
-export function GiftOverlay({ videoSrc, onEnded, isBattleMode, bottomOffset }: GiftOverlayProps) {
+export function GiftOverlay({ videoSrc, onEnded, isBattleMode }: GiftOverlayProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const { muteAllSounds } = useSettingsStore();
 
@@ -41,10 +40,7 @@ export function GiftOverlay({ videoSrc, onEnded, isBattleMode, bottomOffset }: G
   const height = isBattleMode ? '30vh' : '55vh';
 
   return (
-    <div 
-      className="absolute left-0 right-0 z-[50] pointer-events-none flex justify-center"
-      style={{ bottom: bottomOffset || '-7px' }}
-    >
+    <div className="absolute left-0 right-0 bottom-[-7px] z-[50] pointer-events-none flex justify-center">
       <div 
         className="w-full flex items-end justify-center overflow-hidden" 
         style={{ 

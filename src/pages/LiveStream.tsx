@@ -1298,10 +1298,13 @@ export default function LiveStream() {
 
     if (isBroadcast && isBattleMode) {
       const slotRefs = [opponentVideoRef, player3VideoRef, player4VideoRef];
-      remotePeers.forEach((peer, i) => {
+      // Map streams to slots by userId match
+      battleSlots.forEach((slot, i) => {
         if (i >= slotRefs.length) return;
         const ref = slotRefs[i];
-        if (ref.current && peer.stream && peer.stream.getTracks().length > 0) {
+        const peer = remotePeers.find(p => p.userId === slot.userId);
+        
+        if (ref.current && peer && peer.stream && peer.stream.getTracks().length > 0) {
           if (ref.current.srcObject !== peer.stream) {
             ref.current.srcObject = peer.stream;
           }
@@ -1312,14 +1315,15 @@ export default function LiveStream() {
 
       setBattleSlots(prev => {
         const next = [...prev];
-        remotePeers.forEach((peer, i) => {
-          if (i < next.length && next[i].status !== 'accepted') {
-            if (next[i].userId === peer.userId || next[i].status === 'invited') {
-              next[i] = { ...next[i], status: 'accepted' };
-            }
+        let changed = false;
+        remotePeers.forEach((peer) => {
+          const idx = next.findIndex(s => s.userId === peer.userId);
+          if (idx !== -1 && next[idx].status !== 'accepted') {
+            next[idx] = { ...next[idx], status: 'accepted' };
+            changed = true;
           }
         });
-        return next;
+        return changed ? next : prev;
       });
     }
 
@@ -1358,7 +1362,7 @@ export default function LiveStream() {
         }
       });
     }
-  }, [remotePeers, isBattleMode, isBroadcast, isBattleParticipant, isRegularViewer, coHosts, user?.id]);
+  }, [remotePeers, isBattleMode, isBroadcast, isBattleParticipant, isRegularViewer, coHosts, user?.id, battleSlots]);
 
   useEffect(() => {
     if (webrtcError) {

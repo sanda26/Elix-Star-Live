@@ -1317,8 +1317,7 @@ export default function SpectatorPage() {
             </div>
           </div>
         </div>
-
-        {/* CHAT — behind buttons, behind gift overlay, same as creator page */}
+        {/* CHAT */}
         <div className="chat-zone fixed left-0 right-0 bottom-[calc(58px+max(12px,env(safe-area-inset-bottom)))] z-[5] flex justify-center pointer-events-none">
           <div className="w-full max-w-[480px] h-[25dvh] max-h-[25dvh] overflow-y-auto pointer-events-auto bg-transparent">
             <ChatOverlay

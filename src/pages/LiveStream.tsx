@@ -5254,6 +5254,7 @@ export default function LiveStream() {
         videoSrc={currentGift} 
         onEnded={handleGiftEnded} 
         isBattleMode={isBattleMode}
+        bottomOffset="100px"
       />
       
       {/* ═══ SHARE PANEL ═══ */}

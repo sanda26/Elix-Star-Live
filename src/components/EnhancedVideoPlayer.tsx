@@ -666,14 +666,23 @@ export default function EnhancedVideoPlayer({
         </button>
         <span className="text-white text-[10px] font-semibold -mt-1">{formatNumber(video.stats.shares)}</span>
 
-        {/* Music Button */}
+        {/* Music Button - Spinning Gold Disc */}
         <button 
           onClick={handleMusicClick}
-          className="hover:scale-105 active:scale-95 transition-transform animate-spin relative"
-          style={{width:'48px',height:'48px',animationDuration:'8s'}}
-          title="Music"
+          className="hover:scale-105 active:scale-95 transition-transform relative flex flex-col items-center"
+          title={video.music?.title || 'Original Sound'}
         >
-          <img src="/Icons/Music Icon.png" alt="Music" className="absolute inset-0 w-full h-full object-contain z-[2]" />
+          <div 
+            className="w-12 h-12 rounded-full bg-gradient-to-br from-[#1a1a1a] via-[#333] to-[#1a1a1a] border-2 border-[#FFD700]/60 flex items-center justify-center animate-spin-slow shadow-lg"
+            style={{animationDuration:'4s'}}
+          >
+            <div className="w-5 h-5 rounded-full bg-[#FFD700] flex items-center justify-center shadow-inner">
+              <Music size={10} className="text-black" />
+            </div>
+          </div>
+          <span className="text-white text-[8px] font-medium mt-1 max-w-[50px] truncate text-center drop-shadow-md">
+            {video.music?.title?.split(' ').slice(0, 2).join(' ') || 'Original'}
+          </span>
         </button>
 
         {/* 3 Dots Button */}
@@ -697,7 +706,7 @@ export default function EnhancedVideoPlayer({
               <div className="w-2 h-2 bg-white rounded-full" />
             </div>
           )}
-          <span className="text-white/60 text-sm">Ã¢â‚¬Â¢</span>
+          <span className="text-white/60 text-sm">•</span>
           <span className="text-white/60 text-sm">{formatNumber(video.user.followers)} followers</span>
         </div>
         
@@ -733,7 +742,7 @@ export default function EnhancedVideoPlayer({
 
         <div className="flex items-center gap-4 mt-2 text-white/60 text-xs">
           <span>{formatNumber(video.stats.views)} views</span>
-          <span>Ã¢â‚¬Â¢</span>
+          <span>•</span>
           <span>{new Date(video.createdAt).toLocaleDateString()}</span>
         </div>
       </div>

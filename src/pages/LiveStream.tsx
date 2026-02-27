@@ -3117,8 +3117,8 @@ export default function LiveStream() {
                     <button type="button" onClick={(e) => { e.stopPropagation(); toggleMic(); }} className="p-0.5 rounded bg-black/50" title={isMicMuted ? 'Unmute' : 'Mute'}>
                       {isMicMuted ? <MicOff className="w-3 h-3 text-white" strokeWidth={2.5} /> : <Mic className="w-3 h-3 text-white" strokeWidth={2.5} />}
                     </button>
-                    <button type="button" onClick={(e) => { e.stopPropagation(); toggleCam(); }} className="p-0.5 rounded bg-black/50" title={isCamOff ? 'Camera on' : 'Camera off'}>
-                      {isCamOff ? <CameraOff className="w-3 h-3 text-white" strokeWidth={2.5} /> : <Camera className="w-3 h-3 text-white" strokeWidth={2.5} />}
+                    <button type="button" onClick={(e) => { e.stopPropagation(); toggleCam(); }} className="p-0.5 rounded" title={isCamOff ? 'Camera on' : 'Camera off'}>
+                      {isCamOff ? <CameraOff className="w-3 h-3 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={2.5} /> : <Camera className="w-3 h-3 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={2.5} />}
                     </button>
                   </div>
                 )}
@@ -3223,8 +3223,8 @@ export default function LiveStream() {
                             <button type="button" onClick={(e) => { e.stopPropagation(); toggleCoHostMute(slot.host!.id); }} className="p-0.5 rounded bg-black/50" title={slot.host.isMuted ? 'Unmute' : 'Mute'}>
                               {slot.host.isMuted ? <MicOff className="w-3 h-3 text-white" strokeWidth={2.5} /> : <Mic className="w-3 h-3 text-white" strokeWidth={2.5} />}
                             </button>
-                            <button type="button" onClick={(e) => { e.stopPropagation(); toggleCoHostCamera(slot.host!.id); }} className="p-0.5 rounded bg-black/50" title={coHostCameraOff[slot.host.id] ? 'Camera on' : 'Camera off'}>
-                              {coHostCameraOff[slot.host.id] ? <CameraOff className="w-3 h-3 text-white" strokeWidth={2.5} /> : <Camera className="w-3 h-3 text-white" strokeWidth={2.5} />}
+                            <button type="button" onClick={(e) => { e.stopPropagation(); toggleCoHostCamera(slot.host!.id); }} className="p-0.5 rounded" title={coHostCameraOff[slot.host.id] ? 'Camera on' : 'Camera off'}>
+                              {coHostCameraOff[slot.host.id] ? <CameraOff className="w-3 h-3 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={2.5} /> : <Camera className="w-3 h-3 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={2.5} />}
                             </button>
                           </div>
                         </>

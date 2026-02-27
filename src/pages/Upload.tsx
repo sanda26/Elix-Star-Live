@@ -83,29 +83,32 @@ export default function Upload() {
   const handleZoomIn = () => setZoomLevel((z) => Math.min(ZOOM_MAX, z + ZOOM_STEP));
   const handleZoomOut = () => setZoomLevel((z) => Math.max(ZOOM_MIN, z - ZOOM_STEP));
 
-  const mapRowToVideo = (row: any, profile: any) => ({
+  const mapRowToVideo = (row: any, profile: any) => {
+    const displayName = profile?.display_name || profile?.username || 'Creator';
+    const uname = profile?.username || profile?.display_name || 'creator';
+    return {
     id: row.id,
     url: row.url,
     thumbnail: row.thumbnail_url || '',
     duration: '0:15',
     user: {
       id: profile?.user_id ?? profile?.id ?? row.user_id ?? 'unknown',
-      username: profile?.username ?? 'user',
-      name: profile?.display_name ?? profile?.username ?? 'User',
-      avatar: profile?.avatar_url ?? `https://ui-avatars.com/api/?name=${encodeURIComponent(profile?.username ?? 'U')}`,
+      username: uname,
+      name: displayName,
+      avatar: profile?.avatar_url ?? `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}`,
       level: 1,
       isVerified: !!profile?.is_creator,
-      followers: 0,
-      following: 0
+      followers: profile?.followers_count || 0,
+      following: profile?.following_count || 0
     },
-    description: row.caption ?? '',
+    description: row.description ?? '',
     hashtags: (() => {
       if (row.hashtags && Array.isArray(row.hashtags)) return row.hashtags;
-      const text = row.caption || '';
+      const text = row.description || '';
       const matches = text.match(/#[\w\u00C0-\u024F]+/g);
       return matches ? matches.map((t: string) => t.slice(1)) : [];
     })(),
-    music: { id: 'original', title: 'Original Sound', artist: profile?.display_name ?? 'User', duration: '0:15' },
+    music: { id: 'original', title: 'Original Sound', artist: displayName, duration: '0:15' },
     stats: { views: row.views ?? 0, likes: row.likes ?? 0, comments: 0, shares: 0, saves: 0 },
     createdAt: row.created_at,
     location: row.location || undefined,
@@ -116,7 +119,8 @@ export default function Upload() {
     quality: 'auto' as const,
     privacy: 'public' as const,
     duetWithVideoId: row.duet_with_video_id || undefined
-  });
+  };
+  };
 
   type UploadMusic = {
     id: string;
@@ -286,7 +290,7 @@ export default function Upload() {
   const startRecording = () => {
     if (videoRef.current && videoRef.current.srcObject) {
       const stream = videoRef.current.srcObject as MediaStream;
-      const mediaRecorder = new MediaRecorder(stream);
+      const mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
       
       setChunks([]); // Clear previous chunks
       setIsPaused(false);
@@ -298,10 +302,13 @@ export default function Upload() {
       };
 
       mediaRecorder.onstop = () => {
-        // Blob creation happens in useEffect when chunks update and recording is stopped fully
+        // All chunks collected, now safe to set recording as stopped
+        setIsRecording(false);
+        setIsPaused(false);
       };
 
-      mediaRecorder.start();
+      // Request data every 100ms to avoid large chunks at the end
+      mediaRecorder.start(100);
       mediaRecorderRef.current = mediaRecorder;
       setIsRecording(true);
     }
@@ -324,11 +331,13 @@ export default function Upload() {
   };
 
   const stopRecordingFinal = () => {
-    if (mediaRecorderRef.current) {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      // Request any buffered data first
+      if (mediaRecorderRef.current.state === 'recording') {
+        mediaRecorderRef.current.requestData();
+      }
       mediaRecorderRef.current.stop();
-      setIsRecording(false);
-      setIsPaused(false);
-      // This will trigger the useEffect to create the blob URL
+      // State update now happens in onstop callback
     }
   };
 
@@ -399,7 +408,11 @@ export default function Upload() {
   }, [muteAllSounds, postWithoutAudio, recordedVideoUrl, selectedAudioId, musicTracks]);
 
   const handlePost = async () => {
-      if (!recordedVideoUrl || isPosting) return;
+      if (isPosting) return;
+      if (!recordedVideoUrl) {
+        showToast('No video selected');
+        return;
+      }
 
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
@@ -409,7 +422,7 @@ export default function Upload() {
 
       // Must have video data to upload
       if (!chunks.length) {
-        showToast('No video to upload. Record or choose a video first.'); return;
+        showToast('No video to upload. Record or choose a video first.');
         return;
       }
 
@@ -418,7 +431,7 @@ export default function Upload() {
       const blob = new Blob(chunks, { type: mimeType });
 
       if (blob.size === 0) {
-        showToast('Video is empty. Record or choose a valid video.'); return;
+        showToast('Video is empty. Record or choose a valid video.');
         return;
       }
 
@@ -471,16 +484,16 @@ export default function Upload() {
         // Put new video directly at top of For You so it shows immediately (video already in DB = stays forever)
         const { data: row } = await supabase
           .from('videos')
-          .select('id, url, thumbnail_url, caption, created_at, views, likes, user_id, hashtags, location, duet_with_video_id')
+          .select('id, url, thumbnail_url, description, created_at, views, likes, user_id, hashtags, location, duet_with_video_id')
           .eq('id', videoId)
           .single();
         if (row) {
           let profile: any = null;
           try {
-            const res = await supabase.from('profiles').select('user_id, username, display_name, avatar_url, is_creator').eq('user_id', row.user_id).single();
+            const res = await supabase.from('profiles').select('user_id, username, display_name, avatar_url, is_creator, followers_count, following_count').eq('user_id', row.user_id).single();
             profile = res.data;
           } catch {
-            profile = { user_id: user.id, username: user.user_metadata?.username ?? user.email?.split('@')[0], display_name: user.user_metadata?.full_name ?? user.email?.split('@')[0], avatar_url: user.user_metadata?.avatar_url, is_creator: false };
+            profile = { user_id: user.id, username: user.user_metadata?.username ?? user.email?.split('@')[0], display_name: user.user_metadata?.full_name ?? user.email?.split('@')[0], avatar_url: user.user_metadata?.avatar_url, is_creator: false, followers_count: 0, following_count: 0 };
           }
           
           const newVideo = mapRowToVideo(row, profile);
@@ -599,27 +612,33 @@ export default function Upload() {
                </div>
 
                <div className="absolute bottom-[22%] left-0 right-0 z-20 px-4 pointer-events-auto flex justify-center">
-                 <div className="bg-[#13151A] border border-transparent rounded-xl p-1.5 space-y-1.5 w-[60%] max-w-[200px]">
-                   <textarea
-                     value={caption}
-                     onChange={(e) => setCaption(e.target.value)}
-                     placeholder="Write a caption…"
-                     className="w-full bg-[#13151A]/50 text-white placeholder-white/40/50 border border-white/20 rounded-md px-2 py-1.5 text-sm outline-none resize-none h-8 focus:h-24 transition-all duration-300"
-                     aria-label="Caption"
-                   />
-                   <input
-                     value={hashtagsText}
-                     onChange={(e) => setHashtagsText(e.target.value)}
-                     placeholder="Hashtags..."
-                     className="w-full bg-[#13151A]/50 text-white placeholder-white/40/50 border border-white/20 rounded-md px-2 py-1.5 text-sm outline-none h-8 focus:h-10 transition-all duration-300"
-                     aria-label="Hashtags"
-                   />
-                   <div className="flex items-center justify-between">
-                     <div className="text-xs text-white/70 font-semibold">Post without audio</div>
+                 <div className="bg-black/60 backdrop-blur-md border border-[#FFD700]/30 rounded-xl p-2.5 space-y-2 w-[75%] max-w-[280px]">
+                   <div>
+                     <label className="text-[10px] text-[#FFD700] font-semibold mb-1 block">Caption</label>
+                     <textarea
+                       value={caption}
+                       onChange={(e) => setCaption(e.target.value)}
+                       placeholder="Write something…"
+                       className="w-full bg-white/10 text-white placeholder-white/40 border border-[#FFD700]/40 rounded-lg px-3 py-2 text-sm outline-none resize-none h-10 focus:h-24 focus:border-[#FFD700] transition-all duration-300"
+                       aria-label="Caption"
+                     />
+                   </div>
+                   <div>
+                     <label className="text-[10px] text-[#FFD700] font-semibold mb-1 block">Add Hashtags</label>
+                     <input
+                       value={hashtagsText}
+                       onChange={(e) => setHashtagsText(e.target.value)}
+                       placeholder="#fun #dance #viral"
+                       className="w-full bg-white/10 text-white placeholder-white/40 border border-[#FFD700]/40 rounded-lg px-3 py-2 text-sm outline-none h-10 focus:border-[#FFD700] transition-all duration-300"
+                       aria-label="Hashtags"
+                     />
+                   </div>
+                   <div className="flex items-center justify-between py-1">
+                     <div className="text-xs text-white font-semibold">Mute audio</div>
                      <button
                        type="button"
-                       className={`w-12 h-7 rounded-full border transition-colors ${
-                         postWithoutAudio ? 'bg-[#C9A96E] border-[#C9A96E]' : 'bg-white border-transparent'
+                       className={`w-11 h-6 rounded-full transition-colors ${
+                         postWithoutAudio ? 'bg-[#FFD700]' : 'bg-white/20'
                        }`}
                        onClick={() => {
                          const next = !postWithoutAudio;
@@ -630,27 +649,27 @@ export default function Upload() {
                        aria-label="Toggle post without audio"
                      >
                        <div
-                         className={`w-6 h-6 rounded-full bg-[#13151A] transition-transform ${
-                           postWithoutAudio ? 'translate-x-5' : 'translate-x-1'
+                         className={`w-5 h-5 rounded-full bg-white shadow transition-transform ${
+                           postWithoutAudio ? 'translate-x-[22px]' : 'translate-x-[2px]'
                          }`}
                        />
                      </button>
                    </div>
                    {/* Removed the 'Post' button from inside here to avoid confusion. It is at the bottom. */}
                    {postError ? (
-                     <div className="w-full mb-2 px-3 py-2 rounded bg-red-900/80 text-white text-sm">
+                     <div className="w-full px-3 py-2 rounded-lg bg-red-500/80 text-white text-xs">
                        {postError}
-                       <button type="button" onClick={() => setPostError(null)} className="ml-2 underline">Dismiss</button>
+                       <button type="button" onClick={() => setPostError(null)} className="ml-2 underline">×</button>
                      </div>
                    ) : null}
                    {isPosting ? (
                      <div className="w-full">
-                       <div className="flex items-center justify-between text-xs text-white/70 mb-1">
-                         <span>{postProgress < 100 ? 'Posting…' : 'Finalizing…'}</span>
+                       <div className="flex items-center justify-between text-xs text-white mb-1">
+                         <span>{postProgress < 100 ? 'Uploading…' : 'Finalizing…'}</span>
                          <span>{postProgress}%</span>
                        </div>
-                       <div className="h-2 bg-white rounded-full overflow-hidden">
-                         <div className="h-full bg-[#C9A96E]" style={{ width: `${postProgress}%` }} />
+                       <div className="h-1.5 bg-white/20 rounded-full overflow-hidden">
+                         <div className="h-full bg-[#FFD700]" style={{ width: `${postProgress}%` }} />
                        </div>
                      </div>
                    ) : null}
@@ -679,7 +698,7 @@ export default function Upload() {
                         title="AI Studio"
                     >
                         <div className="w-9 h-9 rounded-full bg-[#13151A] border border-[#C9A96E]/30 flex items-center justify-center relative group-hover:scale-110 transition-transform">
-                            <Wand2 size={18} className="text-[#C9A96E] relative z-[2]" />
+                            <Wand2 size={18} className="text-[#FFD700] drop-shadow-[0_0_8px_rgba(255,215,0,1)] drop-shadow-[0_0_16px_rgba(255,215,0,0.6)] relative z-[2]" />
                         </div>
                         <span className="text-white font-bold text-[10px] shadow-black drop-shadow-md">AI Studio</span>
                     </button>
@@ -689,20 +708,37 @@ export default function Upload() {
                         title="Retake"
                     >
                         <div className="w-9 h-9 bg-[#13151A] rounded-full flex items-center justify-center text-white border border-[#C9A96E]/30 relative">
-                            <RotateCcw size={18} className="text-[#C9A96E] relative z-[2]" />
+                            <RotateCcw size={18} className="text-[#FFD700] drop-shadow-[0_0_8px_rgba(255,215,0,1)] drop-shadow-[0_0_16px_rgba(255,215,0,0.6)] relative z-[2]" />
                         </div>
                         <span className="text-white font-bold text-[10px] shadow-black drop-shadow-md">Retake</span>
                     </button>
                     <button 
+                        type="button"
                         onClick={handlePost}
                         className="flex flex-col items-center gap-1 group disabled:opacity-60"
                         title="Post"
                         disabled={isPosting}
                     >
-                        <div className="w-9 h-9 bg-red-600 rounded-full flex items-center justify-center text-white font-bold shadow-lg border-2 border-white group-hover:scale-110 transition-transform relative">
+                        <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white font-bold shadow-lg border-2 border-white group-hover:scale-110 active:scale-95 transition-transform relative ${isPosting ? 'bg-gray-500' : 'bg-red-600'}`}>
                             <Check size={18} className="relative z-[2]" />
                         </div>
-                        <span className="text-white font-bold text-[10px] shadow-black drop-shadow-md">{isPosting ? 'Posting' : 'Post'}</span>
+                        <span className="text-white font-bold text-[10px] shadow-black drop-shadow-md">{isPosting ? 'Posting…' : 'Post'}</span>
+                    </button>
+                    
+                    {/* Original Sound - spinning disc */}
+                    <button 
+                        onClick={() => setShowMusicModal(true)}
+                        className="flex flex-col items-center gap-1 group mt-2"
+                        title="Sound"
+                    >
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#1a1a1a] via-[#333] to-[#1a1a1a] border-2 border-[#FFD700]/50 flex items-center justify-center relative animate-spin-slow shadow-lg">
+                            <div className="w-4 h-4 rounded-full bg-[#FFD700] flex items-center justify-center">
+                                <Music size={8} className="text-black" />
+                            </div>
+                        </div>
+                        <span className="text-white font-bold text-[8px] shadow-black drop-shadow-md text-center max-w-[50px] truncate">
+                            {selectedAudioId === 'original' || selectedAudioId === 'none' ? 'Original' : 'Sound'}
+                        </span>
                     </button>
                   </div>
                </div>
@@ -805,34 +841,34 @@ export default function Upload() {
               <div className="absolute inset-0 z-20 w-full h-full pointer-events-auto">
                   {/* Right side - all controls except Upload */}
                   <div className="absolute top-0 right-[5%] bottom-0 flex flex-col items-center gap-4 py-2" style={{ paddingTop: 'max(0.5rem, env(safe-area-inset-top))' }}>
-                    <button onClick={() => navigate('/feed')} className="w-9 h-9 rounded-full flex items-center justify-center bg-[#13151A] border border-[#C9A96E]/30 relative" title="Close">
+                    <button onClick={() => navigate('/feed')} className="w-9 h-9 rounded-full flex items-center justify-center border border-[#C9A96E]/30 relative" title="Close">
                       <img src="/Icons/Gold power buton.png" alt="Close" className="w-5 h-5 relative z-[2]" />
                     </button>
                     <button 
-                      className="w-9 h-9 rounded-full flex items-center justify-center bg-[#13151A] border border-[#C9A96E]/30 relative"
+                      className="w-9 h-9 rounded-full flex items-center justify-center border border-[#C9A96E]/30 relative"
                       onClick={() => setShowMusicModal(true)}
                       title="Add sound"
                     >
-                      <Music size={18} className="text-[#C9A96E] relative z-[2]" />
+                      <Music size={18} className="text-[#FFD700] drop-shadow-[0_0_8px_rgba(255,215,0,1)] drop-shadow-[0_0_16px_rgba(255,215,0,0.6)] relative z-[2]" />
                     </button>
                     <button 
-                      className="w-9 h-9 rounded-full flex items-center justify-center bg-[#13151A] border border-[#C9A96E]/30 relative"
+                      className="w-9 h-9 rounded-full flex items-center justify-center border border-[#C9A96E]/30 relative"
                       onClick={handleZoomOut}
                       title="Zoom out"
                       aria-label="Zoom out"
                     >
-                      <ZoomOut size={18} className="text-[#C9A96E] relative z-[2]" />
+                      <ZoomOut size={18} className="text-[#FFD700] drop-shadow-[0_0_8px_rgba(255,215,0,1)] drop-shadow-[0_0_16px_rgba(255,215,0,0.6)] relative z-[2]" />
                     </button>
                     <button 
-                      className="w-9 h-9 rounded-full flex items-center justify-center bg-[#13151A] border border-[#C9A96E]/30 relative"
+                      className="w-9 h-9 rounded-full flex items-center justify-center border border-[#C9A96E]/30 relative"
                       onClick={handleZoomIn}
                       title="Zoom in"
                       aria-label="Zoom in"
                     >
-                      <ZoomIn size={18} className="text-[#C9A96E] relative z-[2]" />
+                      <ZoomIn size={18} className="text-[#FFD700] drop-shadow-[0_0_8px_rgba(255,215,0,1)] drop-shadow-[0_0_16px_rgba(255,215,0,0.6)] relative z-[2]" />
                     </button>
                     <button 
-                      className="w-9 h-9 rounded-full flex items-center justify-center bg-[#13151A] border border-[#C9A96E]/30 relative"
+                      className="w-9 h-9 rounded-full flex items-center justify-center border border-[#C9A96E]/30 relative"
                     onClick={async () => {
                       try {
                         const currentStream = videoRef.current?.srcObject as MediaStream | null;
@@ -852,42 +888,42 @@ export default function Upload() {
                     }}
                       title="Flip Camera"
                     >
-                      <RefreshCw size={18} className="text-[#C9A96E] relative z-[2]" />
+                      <RefreshCw size={18} className="text-[#FFD700] drop-shadow-[0_0_8px_rgba(255,215,0,1)] drop-shadow-[0_0_16px_rgba(255,215,0,0.6)] relative z-[2]" />
                     </button>
                     <button 
-                      className="w-9 h-9 rounded-full flex items-center justify-center bg-[#13151A] border border-[#C9A96E]/30 relative"
+                      className="w-9 h-9 rounded-full flex items-center justify-center border border-[#C9A96E]/30 relative"
                       onClick={() => showToast('Speed: 1x')}
                       title="Speed"
                     >
-                      <span className="text-[#C9A96E] font-bold text-xs relative z-[2]">1x</span>
+                      <span className="text-[#FFD700] drop-shadow-[0_0_8px_rgba(255,215,0,1)] font-bold text-xs relative z-[2]">1x</span>
                     </button>
                     <button 
-                      className="w-9 h-9 rounded-full flex items-center justify-center bg-[#13151A] border border-[#C9A96E]/30 relative"
+                      className="w-9 h-9 rounded-full flex items-center justify-center border border-[#C9A96E]/30 relative"
                       onClick={() => showToast('Beauty: On')}
                       title="Beauty"
                     >
-                      <span className="text-[#C9A96E] text-xs relative z-[2]">✨</span>
+                      <span className="text-[#FFD700] drop-shadow-[0_0_8px_rgba(255,215,0,1)] text-xs relative z-[2]">✨</span>
                     </button>
                     <button 
-                      className="w-9 h-9 rounded-full flex items-center justify-center bg-[#13151A] border border-[#C9A96E]/30 relative"
+                      className="w-9 h-9 rounded-full flex items-center justify-center border border-[#C9A96E]/30 relative"
                       onClick={() => showToast('Timer: Off')}
                       title="Timer"
                     >
-                      <Clock size={18} className="text-[#C9A96E] relative z-[2]" />
+                      <Clock size={18} className="text-[#FFD700] drop-shadow-[0_0_8px_rgba(255,215,0,1)] drop-shadow-[0_0_16px_rgba(255,215,0,0.6)] relative z-[2]" />
                     </button>
                     <button 
-                      className="w-9 h-9 rounded-full flex items-center justify-center bg-[#13151A] border border-[#C9A96E]/30 relative"
+                      className="w-9 h-9 rounded-full flex items-center justify-center border border-[#C9A96E]/30 relative"
                       onClick={() => showToast('Flash: Off')}
                       title="Flash"
                     >
-                      <Zap size={18} className="text-[#C9A96E] relative z-[2]" />
+                      <Zap size={18} className="text-[#FFD700] drop-shadow-[0_0_8px_rgba(255,215,0,1)] drop-shadow-[0_0_16px_rgba(255,215,0,0.6)] relative z-[2]" />
                     </button>
                     <button 
-                      className="w-9 h-9 rounded-full bg-[#13151A] border border-[#C9A96E]/30 flex items-center justify-center relative"
+                      className="w-9 h-9 rounded-full border border-[#C9A96E]/30 flex items-center justify-center relative"
                       onClick={() => { if (!recordedVideoUrl) showToast('Record a video first'); }}
                       title="AI Effects"
                     >
-                      <Wand2 size={18} className="text-[#C9A96E] relative z-[2]" />
+                      <Wand2 size={18} className="text-[#FFD700] drop-shadow-[0_0_8px_rgba(255,215,0,1)] drop-shadow-[0_0_16px_rgba(255,215,0,0.6)] relative z-[2]" />
                     </button>
                   </div>
 

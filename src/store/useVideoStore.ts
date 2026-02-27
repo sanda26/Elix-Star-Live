@@ -163,7 +163,7 @@ export const useVideoStore = create<VideoStore>()(
           if (userIds.length > 0) {
             const { data: profiles } = await supabase
               .from('profiles')
-              .select('user_id, username, display_name, avatar_url, is_creator')
+              .select('user_id, username, display_name, avatar_url, is_creator, followers_count, following_count')
               .in('user_id', userIds);
             if (profiles) {
               profiles.forEach((p: any) => { profilesMap[p.user_id] = p; });
@@ -198,7 +198,8 @@ export const useVideoStore = create<VideoStore>()(
             .filter((v: any) => !blockedSet.has(v.user_id))
             .map((v: any) => {
             const p = profilesMap[v.user_id] || {};
-            const uname = p.username || 'user';
+            const displayName = p.display_name || p.username || 'Creator';
+            const uname = p.username || p.display_name || 'creator';
             
             return {
               id: v.id,
@@ -208,12 +209,12 @@ export const useVideoStore = create<VideoStore>()(
               user: {
                 id: v.user_id || 'unknown',
                 username: uname,
-                name: p.display_name || uname,
-                avatar: p.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(uname)}`,
+                name: displayName,
+                avatar: p.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}`,
                 level: 1,
                 isVerified: !!p.is_creator,
-                followers: 0,
-                following: 0
+                followers: p.followers_count || 0,
+                following: p.following_count || 0
               },
               description: v.description || v.caption || '',
               hashtags: (() => {
@@ -222,7 +223,7 @@ export const useVideoStore = create<VideoStore>()(
                 const matches = text.match(/#[\w\u00C0-\u024F]+/g);
                 return matches ? matches.map((t: string) => t.slice(1)) : [];
               })(),
-              music: { id: 'original', title: 'Original Sound', artist: p.display_name || uname, duration: '0:15' },
+              music: { id: 'original', title: 'Original Sound', artist: displayName, duration: '0:15' },
               stats: { 
                 views: v.views || 0, 
                 likes: v.likes || 0, 
@@ -269,7 +270,7 @@ export const useVideoStore = create<VideoStore>()(
           if (userIds.length > 0) {
             const { data: profiles } = await supabase
               .from('profiles')
-              .select('user_id, username, display_name, avatar_url, is_creator')
+              .select('user_id, username, display_name, avatar_url, is_creator, followers_count, following_count')
               .in('user_id', userIds);
             if (profiles) {
               profiles.forEach((p: any) => { profilesMap[p.user_id] = p; });
@@ -304,7 +305,8 @@ export const useVideoStore = create<VideoStore>()(
             .filter((v: any) => !blockedSet.has(v.user_id))
             .map((v: any) => {
               const p = profilesMap[v.user_id] || {};
-              const uname = p.username || 'user';
+              const displayName = p.display_name || p.username || 'Creator';
+              const uname = p.username || p.display_name || 'creator';
               return {
                 id: v.id,
                 url: v.url,
@@ -313,12 +315,12 @@ export const useVideoStore = create<VideoStore>()(
                 user: {
                   id: v.user_id || 'unknown',
                   username: uname,
-                  name: p.display_name || uname,
-                  avatar: p.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(uname)}`,
+                  name: displayName,
+                  avatar: p.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}`,
                   level: 1,
                   isVerified: !!p.is_creator,
-                  followers: 0,
-                  following: 0
+                  followers: p.followers_count || 0,
+                  following: p.following_count || 0
                 },
                 description: v.description || v.caption || '',
                 hashtags: (() => {
@@ -327,7 +329,7 @@ export const useVideoStore = create<VideoStore>()(
                   const matches = text.match(/#[\w\u00C0-\u024F]+/g);
                   return matches ? matches.map((t: string) => t.slice(1)) : [];
                 })(),
-                music: { id: 'original', title: 'Original Sound', artist: p.display_name || uname, duration: '0:15' },
+                music: { id: 'original', title: 'Original Sound', artist: displayName, duration: '0:15' },
                 stats: {
                   views: v.views || 0,
                   likes: v.likes || 0,
@@ -386,7 +388,7 @@ export const useVideoStore = create<VideoStore>()(
           if (userIds.length > 0) {
             const { data: profiles } = await supabase
               .from('profiles')
-              .select('user_id, username, display_name, avatar_url, is_creator')
+              .select('user_id, username, display_name, avatar_url, is_creator, followers_count, following_count')
               .in('user_id', userIds);
             if (profiles) {
               profiles.forEach((p: any) => { profilesMap[p.user_id] = p; });
@@ -416,7 +418,8 @@ export const useVideoStore = create<VideoStore>()(
             .filter((v: any) => !blockedSet.has(v.user_id))
             .map((v: any) => {
               const p = profilesMap[v.user_id] || {};
-              const uname = p.username || 'user';
+              const displayName = p.display_name || p.username || 'Creator';
+              const uname = p.username || p.display_name || 'creator';
               return {
                 id: v.id,
                 url: v.url,
@@ -425,12 +428,12 @@ export const useVideoStore = create<VideoStore>()(
                 user: {
                   id: v.user_id || 'unknown',
                   username: uname,
-                  name: p.display_name || uname,
-                  avatar: p.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(uname)}`,
+                  name: displayName,
+                  avatar: p.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}`,
                   level: 1,
                   isVerified: !!p.is_creator,
-                  followers: 0,
-                  following: 0
+                  followers: p.followers_count || 0,
+                  following: p.following_count || 0
                 },
                 description: v.description || v.caption || '',
                 hashtags: (() => {
@@ -439,7 +442,7 @@ export const useVideoStore = create<VideoStore>()(
                   const matches = text.match(/#[\w\u00C0-\u024F]+/g);
                   return matches ? matches.map((t: string) => t.slice(1)) : [];
                 })(),
-                music: { id: 'original', title: 'Original Sound', artist: p.display_name || uname, duration: '0:15' },
+                music: { id: 'original', title: 'Original Sound', artist: displayName, duration: '0:15' },
                 stats: { views: v.views || 0, likes: v.likes || 0, comments: v.comments || 0, shares: v.shares || 0, saves: 0 },
                 createdAt: v.created_at,
                 location: v.location || undefined,

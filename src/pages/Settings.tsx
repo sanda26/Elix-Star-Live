@@ -1,5 +1,5 @@
 import React from 'react';
-import { supabase } from '../lib/supabase';
+import { noopClient } from '../lib/noopClient';
 import {
   ChevronRight,
   User,
@@ -24,7 +24,7 @@ export default function Settings() {
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 2000); };
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    await noopClient.auth.signOut();
     navigate('/login');
   };
 
@@ -40,7 +40,7 @@ export default function Settings() {
     if (!doubleConfirm) return;
 
     try {
-      const { data } = await supabase.auth.getSession();
+      const { data } = await noopClient.auth.getSession();
       const token = data.session?.access_token;
 
       if (token) {
@@ -53,7 +53,7 @@ export default function Settings() {
         });
 
         if (response.ok) {
-          await supabase.auth.signOut();
+          await noopClient.auth.signOut();
           navigate('/login');
         } else {
           showToast('Failed to delete account. Please contact support.');

@@ -2,7 +2,7 @@ import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
 
-// Admin user IDs — in production, check a role/claim from Supabase
+// Admin user IDs — in production, check a role/claim from backend
 const ADMIN_USER_IDS = (import.meta.env.VITE_ADMIN_USER_IDS || '').split(',').filter(Boolean);
 
 export default function RequireAdmin() {

@@ -37,12 +37,11 @@ import GiftAnimationOverlay from '../components/GiftAnimationOverlay';
 import { ChatOverlay } from '../components/ChatOverlay';
 import { AvatarRing } from '../components/AvatarRing';
 import { useAuthStore } from '../store/useAuthStore';
-import { supabase } from '../lib/supabase';
+import { noopClient } from '../lib/noopClient';
 import ReportModal from '../components/ReportModal';
 import PromotePanel from '../components/PromotePanel';
 import { RankingPanel } from '../components/RankingPanel';
 import { websocket } from '../lib/websocket';
-import { useLiveWebRTC } from '../hooks/useLiveWebRTC';
 import { IS_STORE_BUILD } from '../config/build';
 
 type LiveMessage = {
@@ -154,12 +153,12 @@ export default function SpectatorPage() {
   // ═══════════════════════════════════════════════════
   const [isCoHosting, setIsCoHosting] = useState(false);
   const [coHostStream, setCoHostStream] = useState<MediaStream | null>(null);
-  const coHostChanRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const coHostChanRef = useRef<ReturnType<typeof noopClient.channel> | null>(null);
   const [pendingCoHostInvite, setPendingCoHostInvite] = useState<{ notifId: string; hostName: string; hostAvatar: string; streamKey: string; hostUserId: string } | null>(null);
 
   useEffect(() => {
     if (!user?.id) return;
-    const chan = supabase
+    const chan = noopClient
       .channel(`spectator_cohost_invite_${user.id}`)
       .on(
         'postgres_changes',
@@ -186,7 +185,7 @@ export default function SpectatorPage() {
         }
       )
       .subscribe();
-    return () => { supabase.removeChannel(chan); };
+    return () => { noopClient.removeChannel(chan); };
   }, [user?.id]);
   const myVideoRef = useRef<HTMLVideoElement>(null);
   const [isMicMuted, setIsMicMuted] = useState(true);
@@ -216,8 +215,8 @@ export default function SpectatorPage() {
         myVideoRef.current.play().catch(() => {});
       }
 
-      if (coHostChanRef.current) { supabase.removeChannel(coHostChanRef.current); }
-      const chan = supabase.channel(`cohost_presence_${effectiveStreamId}`);
+      if (coHostChanRef.current) { noopClient.removeChannel(coHostChanRef.current); }
+      const chan = noopClient.channel(`cohost_presence_${effectiveStreamId}`);
       coHostChanRef.current = chan;
       chan.subscribe((status) => {
         if (status === 'SUBSCRIBED') {
@@ -251,7 +250,7 @@ export default function SpectatorPage() {
       setCoHostStream(null);
     }
     if (coHostChanRef.current) {
-      supabase.removeChannel(coHostChanRef.current);
+      noopClient.removeChannel(coHostChanRef.current);
       coHostChanRef.current = null;
     }
     setIsCoHosting(false);
@@ -294,16 +293,12 @@ export default function SpectatorPage() {
     }
   }, [isCoHosting, coHostStream]);
 
-  // WebRTC: receive broadcaster's live camera stream (+ send co-host stream if co-hosting)
+  // Video ref for live stream (LiveKit)
   const videoRef = useRef<HTMLVideoElement>(null);
   const [hasStream, setHasStream] = useState(false);
-
-  const { remotePeers, error: webrtcError, joinRoom: retryJoinRoom } = useLiveWebRTC({
-    roomId: effectiveStreamId,
-    localUserId: user?.id || '',
-    localStream: coHostStream,
-    enabled: !!effectiveStreamId && !!user?.id && streamIsLive === true,
-  });
+  const remotePeers: { userId: string; stream: MediaStream }[] = [];
+  const webrtcError: string | null = null;
+  const retryJoinRoom = () => {};
   const [showRetryButton, setShowRetryButton] = useState(false);
   useEffect(() => {
     if (hasStream) { setShowRetryButton(false); return; }
@@ -311,32 +306,13 @@ export default function SpectatorPage() {
     return () => clearTimeout(t);
   }, [hasStream]);
 
-  useEffect(() => {
-    if (remotePeers.length === 0) return;
-    const broadcasterPeer = remotePeers[0];
-    if (!videoRef.current || !broadcasterPeer.stream) return;
-    const tracks = broadcasterPeer.stream.getTracks();
-    if (tracks.length === 0) return;
-    if (videoRef.current.srcObject !== broadcasterPeer.stream) {
-      videoRef.current.srcObject = broadcasterPeer.stream;
-    }
-    videoRef.current.play().catch(() => {});
-    setHasStream(true);
-  }, [remotePeers]);
-
-  useEffect(() => {
-    if (webrtcError) {
-      showToast(`Connection error: ${webrtcError}`);
-    }
-  }, [webrtcError]);
-
   // Fetch host profile
   useEffect(() => {
     if (!effectiveStreamId) return;
     (async () => {
       let stream: any = null;
       for (let attempt = 0; attempt < 3; attempt++) {
-        const { data } = await supabase
+        const { data } = await noopClient
           .from('live_streams')
           .select('user_id, title, viewer_count, is_live')
           .eq('stream_key', effectiveStreamId)
@@ -357,7 +333,7 @@ export default function SpectatorPage() {
         hostUserIdRef.current = stream.user_id;
         actualViewersRef.current.delete(stream.user_id);
         setViewerCount(stream.viewer_count || 0);
-        const { data: profile } = await supabase
+        const { data: profile } = await noopClient
           .from('profiles')
           .select('username, display_name, avatar_url')
           .eq('user_id', stream.user_id)
@@ -368,9 +344,9 @@ export default function SpectatorPage() {
         } else if (stream.title) {
           setHostName(stream.title);
         }
-        const currentUser = (await supabase.auth.getUser()).data.user;
+        const currentUser = (await noopClient.auth.getUser()).data.user;
         if (currentUser && stream.user_id) {
-          const { data: follow } = await supabase.from('followers').select('id').eq('follower_id', currentUser.id).eq('following_id', stream.user_id).maybeSingle();
+          const { data: follow } = await noopClient.from('followers').select('id').eq('follower_id', currentUser.id).eq('following_id', stream.user_id).maybeSingle();
           if (follow) setIsFollowing(true);
         }
       }
@@ -381,7 +357,7 @@ export default function SpectatorPage() {
   useEffect(() => {
     if (!user?.id) return;
     (async () => {
-      const { data } = await supabase
+      const { data } = await noopClient
         .from('profiles')
         .select('level, xp, coins')
         .eq('user_id', user.id)
@@ -414,7 +390,7 @@ export default function SpectatorPage() {
   // Refresh coins when gift panel opens - use max of local, DB and persisted so test coins stay
   useEffect(() => {
     if (showGiftPanel && user?.id) {
-      supabase
+      noopClient
         .from('profiles')
         .select('coins')
         .eq('user_id', user.id)
@@ -432,7 +408,7 @@ export default function SpectatorPage() {
   const handleSubscribe = async () => {
     setIsSubscribing(true);
     try {
-      const { data: session } = await supabase.auth.getSession();
+      const { data: session } = await noopClient.auth.getSession();
       if (!user?.id) {
         navigate('/login');
         return;
@@ -474,7 +450,7 @@ export default function SpectatorPage() {
   useEffect(() => {
     if (!effectiveStreamId) return;
 
-    const chan = supabase
+    const chan = noopClient
       .channel(`spectator_viewers_${effectiveStreamId}`)
       .on('postgres_changes', {
         event: 'UPDATE',
@@ -485,7 +461,7 @@ export default function SpectatorPage() {
         if (payload.new?.viewer_count != null) setViewerCount(payload.new.viewer_count);
         if (payload.new?.is_live === false) {
           await new Promise(r => setTimeout(r, 3000));
-          const { data: recheck } = await supabase
+          const { data: recheck } = await noopClient
             .from('live_streams')
             .select('is_live')
             .eq('stream_key', effectiveStreamId)
@@ -499,7 +475,7 @@ export default function SpectatorPage() {
       .subscribe();
 
     return () => {
-      supabase.removeChannel(chan);
+      noopClient.removeChannel(chan);
     };
   }, [effectiveStreamId, navigate]);
 
@@ -511,7 +487,7 @@ export default function SpectatorPage() {
     let mounted = true;
 
     const connect = async () => {
-      const { data } = await supabase.auth.getSession();
+      const { data } = await noopClient.auth.getSession();
       const token = data.session?.access_token || '';
       if (!token || !mounted) return;
       websocket.connect(effectiveStreamId, token);
@@ -681,7 +657,7 @@ export default function SpectatorPage() {
     const goOffline = async () => {
       if (!mounted) return;
       try {
-        const { data: recheck } = await supabase
+        const { data: recheck } = await noopClient
           .from('live_streams')
           .select('is_live')
           .eq('stream_key', effectiveStreamId)
@@ -734,14 +710,14 @@ export default function SpectatorPage() {
     if (!user?.id) return;
     (async () => {
       try {
-        const { data: followData } = await supabase.from('followers').select('follower_id').eq('following_id', user.id).limit(50);
-        const { data: followingData } = await supabase.from('followers').select('following_id').eq('follower_id', user.id).limit(50);
+        const { data: followData } = await noopClient.from('followers').select('follower_id').eq('following_id', user.id).limit(50);
+        const { data: followingData } = await noopClient.from('followers').select('following_id').eq('follower_id', user.id).limit(50);
         const ids = new Set<string>();
         (followData || []).forEach((f: any) => ids.add(f.follower_id));
         (followingData || []).forEach((f: any) => ids.add(f.following_id));
         ids.delete(user.id);
         if (ids.size === 0) { setShareContacts([]); return; }
-        const { data: profiles } = await supabase.from('profiles').select('user_id, username, display_name, avatar_url').in('user_id', Array.from(ids));
+        const { data: profiles } = await noopClient.from('profiles').select('user_id, username, display_name, avatar_url').in('user_id', Array.from(ids));
         setShareContacts((profiles || []).map((p: any) => ({
           id: p.user_id,
           name: p.display_name || p.username || 'User',
@@ -806,7 +782,7 @@ export default function SpectatorPage() {
 
     if (user?.id) {
       try {
-        const { data, error } = await supabase.rpc('send_stream_gift', {
+        const { data, error } = await noopClient.rpc('send_stream_gift', {
           p_stream_key: effectiveStreamId,
           p_gift_id: gift.id,
         });
@@ -836,7 +812,7 @@ export default function SpectatorPage() {
           persistTestCoinsBalance(user?.id, newPersisted);
           setCoinBalance(newPersisted);
           // Try to sync DB too (fire-and-forget)
-          supabase.from('profiles').update({ coins: newPersisted }).eq('user_id', user.id).then(() => {});
+          noopClient.from('profiles').update({ coins: newPersisted }).eq('user_id', user.id).then(() => {});
         } else {
           setCoinBalance(prevBalance);
           persistTestCoinsBalance(user?.id, prevBalance);
@@ -856,7 +832,7 @@ export default function SpectatorPage() {
       setUserXP(currentXP);
       updateUser({ level: currentLevel });
       newLevel = currentLevel;
-      supabase.from('profiles').update({ level: currentLevel, xp: currentXP }).eq('user_id', user.id).then(() => {});
+      noopClient.from('profiles').update({ level: currentLevel, xp: currentXP }).eq('user_id', user.id).then(() => {});
     }
 
     setShowGiftPanel(false);
@@ -1223,7 +1199,7 @@ export default function SpectatorPage() {
                   onClick={async () => {
                     setIsFollowing(true);
                     if (user?.id && hostUserId) {
-                      try { await supabase.from('followers').insert({ follower_id: user.id, following_id: hostUserId }); } catch {}
+                      try { await noopClient.from('followers').insert({ follower_id: user.id, following_id: hostUserId }); } catch {}
                     }
                   }}
                 >
@@ -1811,9 +1787,9 @@ export default function SpectatorPage() {
                       showToast(`+${amount.toLocaleString()} test added`);
                       setShowTestCoinsModal(false);
                       if (user?.id) {
-                        supabase.rpc('add_test_coins', { p_amount: amount }).then(() => {}).catch(() => {
-                          supabase.from('profiles').select('coins').eq('user_id', user.id).single().then(({ data }) => {
-                            supabase.from('profiles').update({ coins: (data?.coins ?? 0) + amount }).eq('user_id', user.id).then(() => {});
+                        noopClient.rpc('add_test_coins', { p_amount: amount }).then(() => {}).catch(() => {
+                          noopClient.from('profiles').select('coins').eq('user_id', user.id).single().then(({ data }) => {
+                            noopClient.from('profiles').update({ coins: (data?.coins ?? 0) + amount }).eq('user_id', user.id).then(() => {});
                           });
                         });
                       }
@@ -1858,9 +1834,9 @@ export default function SpectatorPage() {
                           showToast(`+${amount.toLocaleString()} test added`);
                           setShowTestCoinsModal(false);
                           if (user?.id) {
-                            supabase.rpc('add_test_coins', { p_amount: amount }).then(() => {}).catch(() => {
-                              supabase.from('profiles').select('coins').eq('user_id', user.id).single().then(({ data }) => {
-                                supabase.from('profiles').update({ coins: (data?.coins ?? 0) + amount }).eq('user_id', user.id).then(() => {});
+                            noopClient.rpc('add_test_coins', { p_amount: amount }).then(() => {}).catch(() => {
+                              noopClient.from('profiles').select('coins').eq('user_id', user.id).single().then(({ data }) => {
+                                noopClient.from('profiles').update({ coins: (data?.coins ?? 0) + amount }).eq('user_id', user.id).then(() => {});
                               });
                             });
                           }
@@ -1925,7 +1901,7 @@ export default function SpectatorPage() {
               onClick={() => {
                 setShowCoHostPanel(false);
                 if (pendingCoHostInvite) {
-                  supabase.from('notifications').update({ is_read: true }).eq('id', pendingCoHostInvite.notifId).then(() => {});
+                  noopClient.from('notifications').update({ is_read: true }).eq('id', pendingCoHostInvite.notifId).then(() => {});
                   setPendingCoHostInvite(null);
                 }
               }}
@@ -1968,7 +1944,7 @@ export default function SpectatorPage() {
                         className="px-2 py-1 rounded-full bg-red-500/20 border border-red-500/30 flex items-center gap-0.5 active:scale-95 transition-transform cursor-pointer"
                         onClick={(e) => {
                           e.stopPropagation();
-                          supabase.from('notifications').update({ is_read: true }).eq('id', pendingCoHostInvite.notifId).then(() => {});
+                          noopClient.from('notifications').update({ is_read: true }).eq('id', pendingCoHostInvite.notifId).then(() => {});
                           setPendingCoHostInvite(null);
                         }}
                       >
@@ -1981,9 +1957,9 @@ export default function SpectatorPage() {
                           const invite = pendingCoHostInvite;
                           setPendingCoHostInvite(null);
                           setShowCoHostPanel(false);
-                          supabase.from('notifications').update({ is_read: true }).eq('id', invite.notifId).then(() => {});
+                          noopClient.from('notifications').update({ is_read: true }).eq('id', invite.notifId).then(() => {});
                           const myUsername = user?.username || (user as any)?.name || 'User';
-                          supabase.from('notifications').insert({
+                          noopClient.from('notifications').insert({
                             user_id: invite.hostUserId,
                             type: 'cohost_accepted',
                             title: 'Co-Host Accepted',
@@ -2020,7 +1996,7 @@ export default function SpectatorPage() {
                       if (!user?.id || !hostUserId || joinRequested) return;
                       setJoinRequested(true);
                       try {
-                        await supabase.from('notifications').insert({
+                        await noopClient.from('notifications').insert({
                           user_id: hostUserId,
                           type: 'join_request',
                           title: 'Co-Host Request',

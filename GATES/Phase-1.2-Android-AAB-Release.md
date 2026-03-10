@@ -4,7 +4,7 @@
 
 ### **Release Signing Setup:**
 - ✅ Release keystore configuration in `build.gradle`
-- ✅ ProGuard rules optimized for Capacitor + Supabase
+- ✅ ProGuard rules optimized for Capacitor
 - ✅ Gradle properties configured for signing
 - ✅ Build script created for AAB generation
 
@@ -17,7 +17,7 @@
 
 ### **ProGuard Rules Applied:**
 - ✅ Capacitor/React Native classes preserved
-- ✅ Supabase networking classes protected
+- ✅ Networking classes protected
 - ✅ WebRTC for live streaming maintained
 - ✅ Debug logging removed in release
 - ✅ Crash reporting line numbers kept

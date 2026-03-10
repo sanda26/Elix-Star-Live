@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { noopClient } from './noopClient';
 
 export type SoundTrack = {
   id: number;
@@ -15,7 +15,7 @@ export type SoundTrack = {
 // Fetch sound tracks from database - NO HARDCODED DATA
 export async function fetchSoundTracksFromDatabase(): Promise<SoundTrack[]> {
   try {
-    const { data: soundData, error } = await supabase
+    const { data: soundData, error } = await noopClient
       .from('sound_library')
       .select('*')
       .eq('is_active', true)

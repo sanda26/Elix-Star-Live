@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { noopClient } from './noopClient';
 
 export interface PushNotification {
   id: string;
@@ -93,7 +93,7 @@ export class PushNotificationService {
       throw new Error('No subscription to save');
     }
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user } } = await noopClient.auth.getUser();
     if (!user) {
       throw new Error('User not authenticated');
     }
@@ -104,7 +104,7 @@ export class PushNotificationService {
       platform: 'web' as const,
     };
 
-    const { error } = await supabase
+    const { error } = await noopClient
       .from('device_tokens')
       .upsert(subscriptionData, {
         onConflict: 'user_id,platform'
@@ -121,7 +121,7 @@ export class PushNotificationService {
    */
   async sendNotification(notification: PushNotification): Promise<boolean> {
     try {
-      const { error } = await supabase.functions.invoke('send-push-notification', {
+      const { error } = await noopClient.functions.invoke('send-push-notification', {
         body: notification
       });
 
@@ -215,9 +215,9 @@ export class PushNotificationService {
       this.subscription = null;
 
       // Remove from backend
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await noopClient.auth.getUser();
       if (user) {
-        await supabase
+        await noopClient
           .from('device_tokens')
           .delete()
           .eq('user_id', user.id)

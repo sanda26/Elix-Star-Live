@@ -29,7 +29,7 @@ import UserProfileModal from './UserProfileModal';
 import ReportModal from './ReportModal';
 import PromotePanel from './PromotePanel';
 import { LevelBadge } from './LevelBadge';
-import { supabase } from '../lib/supabase';
+import { noopClient } from '../lib/noopClient';
 
 interface EnhancedVideoPlayerProps {
   videoId: string;
@@ -170,7 +170,7 @@ export default function EnhancedVideoPlayer({
     }
     let cancelled = false;
     (async () => {
-      const { data } = await supabase.from('videos').select('url').eq('id', video.duetWithVideoId!).single();
+      const { data } = await noopClient.from('videos').select('url').eq('id', video.duetWithVideoId!).single();
       if (!cancelled && data?.url) setDuetOriginalUrl(data.url);
     })();
     return () => { cancelled = true; };

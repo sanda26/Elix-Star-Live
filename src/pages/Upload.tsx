@@ -7,7 +7,7 @@ import { type SoundTrack, fetchSoundTracksFromDatabase } from '../lib/soundLibra
 import { trackEvent } from '../lib/analytics';
 import { useSettingsStore } from '../store/useSettingsStore';
 import { videoUploadService } from '../lib/videoUpload';
-import { supabase } from '../lib/supabase';
+import { noopClient } from '../lib/noopClient';
 import AIToolsPanel from '../components/AIToolsPanel';
 
 export default function Upload() {
@@ -61,7 +61,7 @@ export default function Upload() {
     let cancelled = false;
     (async () => {
       try {
-        const { data, error } = await supabase.from('videos').select('id, url').eq('id', duetParam).eq('is_public', true).single();
+        const { data, error } = await noopClient.from('videos').select('id, url').eq('id', duetParam).eq('is_public', true).single();
         if (cancelled || error || !data?.url) {
           if (!cancelled) { setDuetSourceVideoId(null); setDuetSourceVideoUrl(null); }
           return;
@@ -414,7 +414,7 @@ export default function Upload() {
         return;
       }
 
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await noopClient.auth.getUser();
       if (!user) {
         navigate('/login', { state: { from: '/upload' } });
         return;
@@ -482,7 +482,7 @@ export default function Upload() {
         });
 
         // Put new video directly at top of For You so it shows immediately (video already in DB = stays forever)
-        const { data: row } = await supabase
+        const { data: row } = await noopClient
           .from('videos')
           .select('id, url, thumbnail_url, description, created_at, views, likes, user_id, hashtags, location, duet_with_video_id')
           .eq('id', videoId)
@@ -490,7 +490,7 @@ export default function Upload() {
         if (row) {
           let profile: any = null;
           try {
-            const res = await supabase.from('profiles').select('user_id, username, display_name, avatar_url, is_creator, followers_count, following_count').eq('user_id', row.user_id).single();
+            const res = await noopClient.from('profiles').select('user_id, username, display_name, avatar_url, is_creator, followers_count, following_count').eq('user_id', row.user_id).single();
             profile = res.data;
           } catch {
             profile = { user_id: user.id, username: user.user_metadata?.username ?? user.email?.split('@')[0], display_name: user.user_metadata?.full_name ?? user.email?.split('@')[0], avatar_url: user.user_metadata?.avatar_url, is_creator: false, followers_count: 0, following_count: 0 };

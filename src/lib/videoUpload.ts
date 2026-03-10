@@ -1,5 +1,5 @@
 
-import { supabase } from './supabase';
+import { noopClient } from './noopClient';
 import { trackEvent } from './analytics';
 import { boostNewVideo } from './fypEligibility';
 
@@ -107,7 +107,7 @@ export class VideoUploadService {
     metadata: { description: string; hashtags: string[]; isPrivate: boolean; music?: any; duetWithVideoId?: string }
   ): Promise<string> {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await noopClient.auth.getUser();
       if (!user || user.id !== userId) {
         throw new Error('You must be logged in to upload. Try signing in again.');
       }
@@ -126,7 +126,7 @@ export class VideoUploadService {
       // Structure: videos/{userId}/{videoId}/original.ext
       const fileName = `videos/${userId}/${videoId}/original.${fileExt}`;
 
-      const { error: uploadError } = await supabase.storage
+      const { error: uploadError } = await noopClient.storage
         .from('user-content')
         .upload(fileName, file, {
           cacheControl: '3600',
@@ -136,13 +136,13 @@ export class VideoUploadService {
         
       if (uploadError) {
         const msg = (uploadError as any)?.message ?? String(uploadError);
-        throw new Error(`Storage failed: ${msg}. Check Supabase: bucket "user-content" exists.`);
+        throw new Error(`Storage failed: ${msg}. Configure storage (e.g. Bunny) for user-content.`);
       }
 
       this.updateProgress('uploading', 70, 'Upload complete');
 
       // Get public URL
-      const { data: { publicUrl } } = supabase.storage
+      const { data: { publicUrl } } = noopClient.storage
         .from('user-content')
         .getPublicUrl(fileName);
 
@@ -170,7 +170,7 @@ export class VideoUploadService {
         ...(metadata.duetWithVideoId && { duet_with_video_id: metadata.duetWithVideoId }),
       };
       
-      const { data, error } = await supabase
+      const { data, error } = await noopClient
         .from('videos')
         .insert(payload)
         .select()
@@ -249,7 +249,7 @@ export class VideoUploadService {
             }
 
             const fileName = `thumbnails/${userId}/${videoId}/thumb.jpg`;
-            const { error } = await supabase.storage
+            const { error } = await noopClient.storage
               .from('user-content')
               .upload(fileName, blob);
 
@@ -258,7 +258,7 @@ export class VideoUploadService {
               return;
             }
 
-            const { data: { publicUrl } } = supabase.storage
+            const { data: { publicUrl } } = noopClient.storage
               .from('user-content')
               .getPublicUrl(fileName);
 
@@ -288,7 +288,7 @@ export class VideoUploadService {
       let hashtagId: string | null = null;
 
       // 1. Try to find existing hashtag
-      const { data: existingTag } = await supabase
+      const { data: existingTag } = await noopClient
         .from('hashtags')
         .select('id, use_count')
         .eq('tag', tag)
@@ -297,13 +297,13 @@ export class VideoUploadService {
       if (existingTag) {
         hashtagId = existingTag.id;
         // Increment use count
-        await supabase
+        await noopClient
             .from('hashtags')
             .update({ use_count: (existingTag.use_count || 0) + 1 })
             .eq('id', hashtagId);
       } else {
         // 2. Create new hashtag
-        const { data: newTag, error } = await supabase
+        const { data: newTag, error } = await noopClient
           .from('hashtags')
           .insert({ tag, use_count: 1 })
           .select('id')
@@ -312,14 +312,14 @@ export class VideoUploadService {
         if (newTag) {
           hashtagId = newTag.id;
         } else if (error) {
-             const { data: retryTag } = await supabase.from('hashtags').select('id').eq('tag', tag).single();
+             const { data: retryTag } = await noopClient.from('hashtags').select('id').eq('tag', tag).single();
              if (retryTag) hashtagId = retryTag.id;
         }
       }
 
       // 3. Link video to hashtag
       if (hashtagId) {
-        await supabase
+        await noopClient
             .from('video_hashtags')
             .insert({ video_id: videoId, hashtag_id: hashtagId });
       }

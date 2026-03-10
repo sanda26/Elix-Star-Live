@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { Send, ArrowLeft, Video } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
+import { noopClient } from '../lib/noopClient';
 import { useAuthStore } from '../store/useAuthStore';
 import { LevelBadge } from '../components/LevelBadge';
 import { initiateCall } from '../lib/callService';
@@ -42,7 +42,7 @@ export default function ChatThread() {
     const loadConversation = async () => {
       try {
         // 1. Get conversation to find other participant
-        const { data: conv, error } = await supabase
+        const { data: conv, error } = await noopClient
           .from('chat_threads')
           .select('user1_id, user2_id')
           .eq('id', threadId)
@@ -53,7 +53,7 @@ export default function ChatThread() {
         const otherId = conv.user1_id === user.id ? conv.user2_id : conv.user1_id;
         
         // 2. Get other user profile
-        const { data: profile } = await supabase
+        const { data: profile } = await noopClient
           .from('profiles')
           .select('user_id, username, avatar_url, display_name, level')
           .eq('user_id', otherId)
@@ -80,7 +80,7 @@ export default function ChatThread() {
     if (!threadId || isSystemThread) return;
 
     const fetchMessages = async () => {
-      const { data } = await supabase
+      const { data } = await noopClient
         .from('messages')
         .select('*')
         .eq('thread_id', threadId)
@@ -94,7 +94,7 @@ export default function ChatThread() {
     fetchMessages();
 
     // Realtime subscription
-    const channel = supabase
+    const channel = noopClient
       .channel(`chat:${threadId}`)
       .on(
         'postgres_changes',
@@ -113,7 +113,7 @@ export default function ChatThread() {
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      noopClient.removeChannel(channel);
     };
   }, [threadId, isSystemThread]);
 
@@ -133,7 +133,7 @@ export default function ChatThread() {
     setDraft('');
 
     try {
-        const { error } = await supabase.from('messages').insert({
+        const { error } = await noopClient.from('messages').insert({
             thread_id: threadId,
             sender_id: user.id,
             text: msgText,
@@ -141,7 +141,7 @@ export default function ChatThread() {
 
         if (error) throw error;
 
-        await supabase
+        await noopClient
             .from('chat_threads')
             .update({
                 last_message: msgText,

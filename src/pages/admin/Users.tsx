@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { supabase } from '../../lib/supabase';
+import { noopClient } from '../../lib/noopClient';
 import { Ban, Search } from 'lucide-react';
 import { showToast } from '../../lib/toast';
 
@@ -24,7 +24,7 @@ export default function AdminUsers() {
 
   const loadUsers = async () => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await noopClient
         .from('profiles')
         .select('user_id, username, avatar_url, created_at')
         .order('created_at', { ascending: false })
@@ -50,8 +50,8 @@ export default function AdminUsers() {
 
   const handleBanUser = async (userId: string) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      await supabase.from('blocked_users').insert({
+      const { data: { user } } = await noopClient.auth.getUser();
+      await noopClient.from('blocked_users').insert({
         blocker_id: user?.id,
         blocked_id: userId,
       });

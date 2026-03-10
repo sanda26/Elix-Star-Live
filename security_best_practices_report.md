@@ -1,7 +1,7 @@
 # Security Best Practices Report
 **Elix App - Comprehensive Security Audit**  
 **Date:** February 17, 2026  
-**Tech Stack:** React + TypeScript (Frontend), Express + Node.js (Backend), Supabase, Stripe
+**Tech Stack:** React + TypeScript (Frontend), Express + Node.js (Backend), Stripe
 
 ---
 
@@ -60,7 +60,7 @@ app.use(helmet({
       scriptSrc: ["'self'", "'unsafe-inline'"], // Remove unsafe-inline when possible
       styleSrc: ["'self'", "'unsafe-inline'"],
       imgSrc: ["'self'", "data:", "https:"],
-      connectSrc: ["'self'", "https://stifjiakajbdgjqipmlg.supabase.co", "wss:"],
+      connectSrc: ["'self'", "wss:"],
       fontSrc: ["'self'"],
       objectSrc: ["'none'"],
       frameSrc: ["'none'"],
@@ -253,7 +253,7 @@ window.addEventListener('error', (e) => {
 **Evidence:**
 ```typescript
 // Line 56-63 - Analytics endpoint
-const { data, error } = await supabaseAdmin
+const { data, error } = await db
   .from('analytics_events')
   .insert({
     event: body.event,           // Unsanitized
@@ -382,7 +382,7 @@ const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString()
 const userId = payload.sub;
 
 // Line 188-192 - Verification happens later
-const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
+const { data: { user }, error } = await db.auth.getUser(token);
 if (error || !user) {
   console.error('Auth verification failed:', error);
   clientData.delete(client);
@@ -395,7 +395,7 @@ if (error || !user) {
 **Fix:**
 ```typescript
 // Verify FIRST, decode SECOND
-const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
+const { data: { user }, error } = await db.auth.getUser(token);
 if (error || !user) {
   console.error('Auth verification failed:', error);
   clientData.delete(client);
@@ -411,7 +411,7 @@ const username = user.user_metadata?.username || 'Anonymous';
 
 ### ⚠️ H-002: Auth Tokens in localStorage (XSS Risk)
 **Impact:** Access tokens vulnerable to XSS  
-**Location:** `src/lib/supabase.ts:20-22`  
+**Location:** auth/config (backend)  
 **Severity:** HIGH
 
 **Evidence:**
@@ -447,8 +447,7 @@ res.cookie('session', token, {
   maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
 });
 
-// Frontend: Supabase won't work directly with cookies
-// Need custom auth implementation or use Supabase SSR
+// Frontend: auth with cookies may need custom implementation or SSR
 ```
 
 **Option 2: In-memory storage (better than localStorage):**
@@ -689,7 +688,7 @@ wss.on('connection', (ws, req) => {
                  script-src 'self' 'unsafe-inline'; 
                  style-src 'self' 'unsafe-inline'; 
                  img-src 'self' data: https:; 
-                 connect-src 'self' https://stifjiakajbdgjqipmlg.supabase.co wss:; 
+                 connect-src 'self' wss:; 
                  font-src 'self'; 
                  object-src 'none'; 
                  frame-src 'none'; 
@@ -713,7 +712,7 @@ contentSecurityPolicy: {
 ---
 
 ### 📋 M-002: Missing UUID Validation
-**Impact:** Potential SQL injection if Supabase doesn't validate  
+**Impact:** Potential SQL injection if backend doesn't validate  
 **Location:** `server/routes/misc.ts` - All database queries  
 **Severity:** MEDIUM
 
@@ -722,7 +721,7 @@ contentSecurityPolicy: {
 .eq('user_id', userId) // userId format not validated
 ```
 
-**While Supabase uses parameterized queries (good), adding validation is defense-in-depth:**
+**Using parameterized queries (good); adding validation is defense-in-depth:**
 
 **Fix:**
 ```typescript
@@ -878,8 +877,6 @@ const origin = ALLOWED_ORIGINS.includes(req.headers.origin || '')
 ```typescript
 // server/config.ts
 const REQUIRED_ENV_VARS = [
-  'SUPABASE_URL',
-  'SUPABASE_SERVICE_ROLE_KEY',
   'STRIPE_SECRET_KEY',
   'STRIPE_WEBHOOK_SECRET'
 ] as const;
@@ -1037,12 +1034,12 @@ if (savedEmail) {
 ```typescript
 // Add to .env.example
 # Secret rotation policy:
-# - Rotate Supabase service role key quarterly
+# - Rotate backend service keys quarterly
 # - Rotate Stripe webhook secret after any suspected compromise
 # - Rotate internal API keys monthly
 # - Document rotation in SECURITY.md
 
-SUPABASE_SERVICE_ROLE_KEY=your-key-here  # Rotate quarterly
+BACKEND_SERVICE_KEY=your-key-here        # Rotate quarterly
 STRIPE_WEBHOOK_SECRET=whsec_xxx          # Rotate after compromise
 INTERNAL_API_KEY=secure-random-key       # Rotate monthly
 ```
@@ -1109,7 +1106,7 @@ function isValidApiKey(provided: string): boolean {
 
 8. **No dangerouslySetInnerHTML** - React XSS vectors not found
 
-9. **Supabase Parameterized Queries** - All database queries use safe parameter binding
+9. **Parameterized queries** - All database queries use safe parameter binding
 
 10. **Environment-Based Configuration** - No hardcoded secrets in source code
 
@@ -1325,7 +1322,7 @@ function isValidApiKey(provided: string): boolean {
    - Prevent replay attacks
 
 8. **Add Web Application Firewall (WAF)**
-   - Consider Cloudflare WAF
+   - Consider a WAF in front of your server (e.g. Hetzner)
    - Configure rule sets for:
      - SQL injection
      - XSS attempts
@@ -1495,7 +1492,7 @@ describe('Security Tests', () => {
 |------|--------|-------|
 | A01: Broken Access Control | ⚠️ Partial | JWT auth works, but skipAuth bypass exists |
 | A02: Cryptographic Failures | ⚠️ Partial | Passwords in localStorage, tokens in URLs |
-| A03: Injection | ⚠️ Partial | XSS via innerHTML, but SQL protected by Supabase |
+| A03: Injection | ⚠️ Partial | XSS via innerHTML, SQL parameterized |
 | A04: Insecure Design | ⚠️ Partial | Auth bypass in production code |
 | A05: Security Misconfiguration | ❌ Major Issues | No Helmet, wide-open CORS, no trust proxy |
 | A06: Vulnerable Components | ✅ Good | Dependencies up to date (check with npm audit) |
@@ -1547,7 +1544,7 @@ describe('Security Tests', () => {
 - [OWASP Top 10](https://owasp.org/www-project-top-ten/)
 - [Express Security Best Practices](https://expressjs.com/en/advanced/best-practice-security.html)
 - [React Security Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/React_Security_Cheat_Sheet.html)
-- [Supabase Security Best Practices](https://supabase.com/docs/guides/database/security)
+- Backend/database security best practices
 - [Stripe Security](https://stripe.com/docs/security/guide)
 
 ---

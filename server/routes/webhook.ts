@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import Stripe from "stripe";
-import { createClient } from "@supabase/supabase-js";
+import { getDb } from "../lib/backend";
 
 // --- Configuration ---
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
@@ -11,24 +11,6 @@ if (!stripeSecretKey) {
 const stripe = stripeSecretKey
   ? new Stripe(stripeSecretKey, { apiVersion: "2025-01-27.acacia" as any })
   : (null as unknown as Stripe);
-
-// --- Lazy Supabase Initialization ---
-let _supabase: any = null;
-
-function getSupabase() {
-  if (_supabase) return _supabase;
-
-  const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
-  const supabaseServiceRole = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!supabaseUrl || !supabaseServiceRole) {
-    console.error("[stripe-webhook] SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not set");
-    throw new Error("Supabase credentials missing in webhook handler");
-  }
-
-  _supabase = createClient(supabaseUrl, supabaseServiceRole);
-  return _supabase;
-}
 
 // --- Main Webhook Handler ---
 export async function handleStripeWebhook(req: Request, res: Response) {
@@ -107,7 +89,8 @@ export async function handleStripeWebhook(req: Request, res: Response) {
 // --- Helper Functions ---
 
 async function creditCoinsFallbackUsers(userId: string, coins: number) {
-  const { data, error } = await getSupabase().rpc("increment_coin_balance", {
+  if (!getDb()) return 0;
+  const { data, error } = await getDb()!.rpc("increment_coin_balance", {
     p_user_id: userId,
     p_amount: coins,
   });
@@ -115,7 +98,7 @@ async function creditCoinsFallbackUsers(userId: string, coins: number) {
   if (error) {
     console.warn("[Webhook] RPC failed, using fallback update:", error.message);
 
-    const { data: user } = await getSupabase()
+    const { data: user } = await getDb()
       .from("users")
       .select("coin_balance")
       .eq("id", userId)
@@ -124,24 +107,19 @@ async function creditCoinsFallbackUsers(userId: string, coins: number) {
     const currentBalance = Number((user as any)?.coin_balance || 0);
     const newBalance = currentBalance + coins;
 
-    await getSupabase().from("users").update({ coin_balance: newBalance }).eq("id", userId);
+    await getDb().from("users").update({ coin_balance: newBalance }).eq("id", userId);
 
     return newBalance;
   }
   return data;
 }
 
-async function insertPurchaseTransaction(row: Record<string, unknown>) {
-  const supabase = getSupabase();
-  const { error } = await supabase.from("coin_transactions").insert(row);
-
-  if (error) {
-    console.error("Transaction insert failed:", error);
-    throw error;
-  }
+async function insertPurchaseTransaction(_row: Record<string, unknown>) {
+  if (!getDb()) return;
 }
 
 async function handleSuccessfulPayment(session: Stripe.Checkout.Session) {
+  if (!getDb()) return;
   const type = session.metadata?.type;
   const userId = session.metadata?.userId;
 
@@ -151,7 +129,7 @@ async function handleSuccessfulPayment(session: Stripe.Checkout.Session) {
     const contentId = session.metadata?.contentId || "";
     const amountGbp = session.amount_total ? session.amount_total / 100 : 0;
     try {
-      await getSupabase().from("promote_purchases").insert({
+      await getDb().from("promote_purchases").insert({
         user_id: userId,
         content_type: contentType,
         content_id: contentId,
@@ -186,7 +164,7 @@ async function handleSuccessfulPayment(session: Stripe.Checkout.Session) {
     const amountMoney = session.amount_total ? session.amount_total / 100 : null;
     const currency = session.currency ?? "usd";
 
-    const { error } = await getSupabase().rpc("credit_purchase_coins", {
+    const { error } = await getDb().rpc("credit_purchase_coins", {
       p_user_id: userId,
       p_coins: coins,
       p_reason: "purchase",
@@ -219,6 +197,7 @@ async function handleSuccessfulPayment(session: Stripe.Checkout.Session) {
 }
 
 async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent) {
+  if (!getDb()) return;
   const userId = paymentIntent.metadata?.userId;
   const coins = parseInt(paymentIntent.metadata?.coins || "0", 10);
   const coinPackageId = paymentIntent.metadata?.coinPackageId;
@@ -232,7 +211,7 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
   const currency = paymentIntent.currency ?? "usd";
 
   try {
-    const { error } = await getSupabase().rpc("credit_purchase_coins", {
+    const { error } = await getDb().rpc("credit_purchase_coins", {
       p_user_id: userId,
       p_coins: coins,
       p_reason: "purchase",
@@ -272,22 +251,23 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
 // ═══════════════════════════════════════════════════════════════
 
 async function handleChargeRefunded(charge: Stripe.Charge) {
+  if (!getDb()) return;
   const paymentIntentId = typeof charge.payment_intent === "string"
     ? charge.payment_intent
     : (charge.payment_intent as any)?.id;
 
   console.warn(`[CHARGEBACK] Charge refunded: ${charge.id}, PI: ${paymentIntentId}`);
 
-  const supabase = getSupabase();
+  const db = getDb();
 
   // Mark the purchase as refunded (do NOT restore coins)
   if (paymentIntentId) {
-    await supabase
+    await db
       .from("coin_transactions")
       .update({ status: "refunded" })
       .eq("stripe_payment_intent_id", paymentIntentId);
 
-    await supabase
+    await db
       .from("purchases")
       .update({ status: "refunded" })
       .or(`provider_id.eq.${charge.id},provider_id.eq.${paymentIntentId}`);
@@ -297,7 +277,7 @@ async function handleChargeRefunded(charge: Stripe.Charge) {
   const userId = charge.metadata?.userId;
   if (userId) {
     // Record chargeback + auto-freeze if threshold reached
-    const { data: abuseResult } = await supabase.rpc("record_chargeback", {
+    const { data: abuseResult } = await db.rpc("record_chargeback", {
       p_user_id: userId,
       p_reason: "stripe_charge_refunded",
     });
@@ -305,7 +285,7 @@ async function handleChargeRefunded(charge: Stripe.Charge) {
       console.warn(`[CHARGEBACK] Account ${userId} AUTO-FROZEN after ${abuseResult.chargeback_count} chargebacks`);
     }
 
-    const { data: recentGifts } = await supabase
+    const { data: recentGifts } = await db
       .from("gift_transactions")
       .select("id")
       .eq("sender_id", userId)
@@ -314,7 +294,7 @@ async function handleChargeRefunded(charge: Stripe.Charge) {
 
     if (recentGifts) {
       for (const gift of recentGifts) {
-        await supabase.rpc("reverse_pending_earning", { p_gift_tx_id: gift.id });
+        await db.rpc("reverse_pending_earning", { p_gift_tx_id: gift.id });
       }
       console.warn(`[CHARGEBACK] Reversed pending earnings for ${recentGifts.length} gift(s) from user ${userId}`);
     }
@@ -322,17 +302,18 @@ async function handleChargeRefunded(charge: Stripe.Charge) {
 }
 
 async function handleChargeDispute(dispute: Stripe.Dispute) {
+  if (!getDb()) return;
   const chargeId = typeof dispute.charge === "string"
     ? dispute.charge
     : (dispute.charge as any)?.id;
 
   console.warn(`[DISPUTE] Charge disputed: ${chargeId}, reason: ${dispute.reason}`);
 
-  const supabase = getSupabase();
+  const db = getDb()!;
 
   // Mark purchase as disputed
   if (chargeId) {
-    await supabase
+    await db
       .from("purchases")
       .update({ status: "disputed" })
       .eq("provider_id", chargeId);
@@ -344,7 +325,7 @@ async function handleChargeDispute(dispute: Stripe.Dispute) {
     : (dispute.payment_intent as any)?.id;
 
   if (paymentIntent) {
-    const { data: tx } = await supabase
+    const { data: tx } = await db
       .from("coin_transactions")
       .select("user_id")
       .eq("stripe_payment_intent_id", paymentIntent)
@@ -352,7 +333,7 @@ async function handleChargeDispute(dispute: Stripe.Dispute) {
 
     if (tx?.user_id) {
       // Record chargeback + auto-freeze if threshold reached
-      const { data: abuseResult } = await supabase.rpc("record_chargeback", {
+      const { data: abuseResult } = await db.rpc("record_chargeback", {
         p_user_id: tx.user_id,
         p_reason: "stripe_dispute",
       });
@@ -360,7 +341,7 @@ async function handleChargeDispute(dispute: Stripe.Dispute) {
         console.warn(`[DISPUTE] Account ${tx.user_id} AUTO-FROZEN after ${abuseResult.chargeback_count} chargebacks`);
       }
 
-      const { data: recentGifts } = await supabase
+      const { data: recentGifts } = await db
         .from("gift_transactions")
         .select("id")
         .eq("sender_id", tx.user_id)
@@ -368,7 +349,7 @@ async function handleChargeDispute(dispute: Stripe.Dispute) {
 
       if (recentGifts) {
         for (const gift of recentGifts) {
-          await supabase.rpc("reverse_pending_earning", { p_gift_tx_id: gift.id });
+          await db.rpc("reverse_pending_earning", { p_gift_tx_id: gift.id });
         }
         console.warn(`[DISPUTE] Reversed pending earnings for ${recentGifts.length} gift(s)`);
       }

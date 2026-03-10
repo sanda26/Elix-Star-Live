@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { noopClient } from './noopClient';
 
 export interface AvatarUploadResult {
   success: boolean;
@@ -28,7 +28,7 @@ export class AvatarUploadService {
       const fileExt = processedFile.name.split('.').pop() || 'jpg';
       const fileName = `${userId}/${Date.now()}.${fileExt}`;
 
-      const { data, error: uploadError } = await supabase.storage
+      const { data, error: uploadError } = await noopClient.storage
         .from('avatars')
         .upload(fileName, processedFile, {
           upsert: true,
@@ -41,19 +41,19 @@ export class AvatarUploadService {
       }
 
       // Get public URL
-      const { data: { publicUrl } } = supabase.storage
+      const { data: { publicUrl } } = noopClient.storage
         .from('avatars')
         .getPublicUrl(fileName);
 
       // Update user profile
-      const { error: updateError } = await supabase
+      const { error: updateError } = await noopClient
         .from('profiles')
         .update({ avatar_url: publicUrl })
         .eq('user_id', userId);
 
       if (updateError) {
         // Clean up uploaded file if profile update fails
-        await supabase.storage
+        await noopClient.storage
           .from('avatars')
           .remove([fileName]);
         
@@ -76,7 +76,7 @@ export class AvatarUploadService {
   async removeAvatar(userId: string): Promise<AvatarUploadResult> {
     try {
       // Get current avatar URL
-      const { data: profile, error: fetchError } = await supabase
+      const { data: profile, error: fetchError } = await noopClient
         .from('profiles')
         .select('avatar_url')
         .eq('user_id', userId)
@@ -90,7 +90,7 @@ export class AvatarUploadService {
       if (profile?.avatar_url) {
         const filePath = this.extractFilePathFromUrl(profile.avatar_url);
         if (filePath) {
-          const { error: deleteError } = await supabase.storage
+          const { error: deleteError } = await noopClient.storage
             .from('avatars')
             .remove([filePath]);
 
@@ -101,7 +101,7 @@ export class AvatarUploadService {
       }
 
       // Update profile to remove avatar URL
-      const { error: updateError } = await supabase
+      const { error: updateError } = await noopClient
         .from('profiles')
         .update({ avatar_url: null })
         .eq('user_id', userId);
@@ -233,7 +233,7 @@ export class AvatarUploadService {
   }
 
   /**
-   * Extract file path from Supabase URL
+   * Extract file path from storage URL
    */
   private extractFilePathFromUrl(url: string): string | null {
     try {

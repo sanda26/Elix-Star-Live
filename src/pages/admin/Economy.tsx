@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { supabase } from '../../lib/supabase';
+import { noopClient } from '../../lib/noopClient';
 import { DollarSign, Gift, Zap, Package } from 'lucide-react';
 import { showToast } from '../../lib/toast';
 
@@ -31,8 +31,8 @@ export default function AdminEconomy() {
   const loadData = async () => {
     try {
       const [giftsRes, boostersRes] = await Promise.all([
-        supabase.from('gifts_catalog').select('*').order('coin_cost'),
-        supabase.from('booster_catalog').select('*').order('coin_cost'),
+        noopClient.from('gifts_catalog').select('*').order('coin_cost'),
+        noopClient.from('booster_catalog').select('*').order('coin_cost'),
       ]);
 
       setGifts(giftsRes.data || []);
@@ -46,7 +46,7 @@ export default function AdminEconomy() {
 
   const updateGiftPrice = async (giftId: string, newPrice: number) => {
     try {
-      const { error } = await supabase
+      const { error } = await noopClient
         .from('gifts_catalog')
         .update({ coin_cost: newPrice })
         .eq('id', giftId);

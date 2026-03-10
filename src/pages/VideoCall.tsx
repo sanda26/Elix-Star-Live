@@ -12,7 +12,6 @@ import {
 } from 'lucide-react';
 import { useCallStore } from '../store/useCallStore';
 import { useAuthStore } from '../store/useAuthStore';
-import { useWebRTCCall } from '../hooks/useWebRTC';
 
 function formatDuration(ms: number): string {
   const totalSec = Math.floor(ms / 1000);
@@ -38,40 +37,14 @@ export default function VideoCall() {
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const [elapsed, setElapsed] = useState(0);
 
-  const isCaller = status === 'outgoing' || (status === 'connecting' && !!callId);
-
-  const {
-    localStream,
-    remoteStream,
-    initCall,
-    hangup,
-    switchCamera,
-    toggleAudio,
-    toggleVideo,
-  } = useWebRTCCall({
-    callId: callId || '',
-    localUserId: user?.id || '',
-    remoteUserId: remoteUser?.id || '',
-    isCaller,
-  });
-
-  useEffect(() => {
-    if (callId && user?.id && remoteUser?.id && (status === 'connecting' || status === 'outgoing')) {
-      initCall();
-    }
-  }, [callId, user?.id, remoteUser?.id, status, initCall]);
-
-  useEffect(() => {
-    if (localVideoRef.current && localStream) {
-      localVideoRef.current.srcObject = localStream;
-    }
-  }, [localStream]);
-
-  useEffect(() => {
-    if (remoteVideoRef.current && remoteStream) {
-      remoteVideoRef.current.srcObject = remoteStream;
-    }
-  }, [remoteStream]);
+  // Video calls unavailable (no backend)
+  const localStream: MediaStream | null = null;
+  const remoteStream: MediaStream | null = null;
+  const initCall = () => {};
+  const hangup = async () => {};
+  const switchCamera = () => {};
+  const toggleAudio = () => {};
+  const toggleVideo = () => {};
 
   useEffect(() => {
     if (status !== 'connected' || !callStartTime) return;

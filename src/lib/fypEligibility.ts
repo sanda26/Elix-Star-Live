@@ -13,7 +13,7 @@
  *   initial impressions before engagement kicks in.
  */
 
-import { supabase } from './supabase';
+import { noopClient } from './noopClient';
 
 // ── Weights ──────────────────────────────────────────────────────
 const WEIGHT_WATCH_TIME = 2;
@@ -56,9 +56,8 @@ export function isEligibleForFyp(score: number): boolean {
 }
 
 /**
- * Recalculate engagement_score + is_eligible_for_fyp in Supabase
- * for a single video row.  Safe to call frequently – it's a single
- * UPDATE query.
+ * Recalculate engagement_score + is_eligible_for_fyp for a single video row.
+ * Safe to call frequently – single update. (Backend/storage not configured by default.)
  */
 export async function refreshVideoFypStatus(
   videoId: string,
@@ -68,7 +67,7 @@ export async function refreshVideoFypStatus(
   const eligible = isEligibleForFyp(score);
 
   try {
-    await supabase
+    await noopClient
       .from('videos')
       .update({ engagement_score: score, is_eligible_for_fyp: eligible })
       .eq('id', videoId);
@@ -83,7 +82,7 @@ export async function refreshVideoFypStatus(
  */
 export async function boostNewVideo(videoId: string): Promise<void> {
   try {
-    await supabase
+    await noopClient
       .from('videos')
       .update({
         engagement_score: NEW_VIDEO_BOOST,

@@ -1,5 +1,5 @@
 import { loadStripe } from '@stripe/stripe-js';
-import { supabase } from '../lib/supabase';
+import { noopClient } from '../lib/noopClient';
 import { platform } from '../lib/platform';
 
 export interface CoinPackage {
@@ -39,7 +39,7 @@ export class StripePaymentService {
    */
   async getCoinPackages(): Promise<CoinPackage[]> {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await noopClient
         .from('coin_packages')
         .select('*')
         .eq('is_active', true)
@@ -65,8 +65,8 @@ export class StripePaymentService {
     userId: string
   ): Promise<{ sessionId: string; error?: string }> {
     try {
-      // Call the Supabase Edge Function to create payment session
-      const { data, error } = await supabase.functions.invoke('create-payment-session', {
+      // Create payment session via backend
+      const { data, error } = await noopClient.functions.invoke('create-payment-session', {
         body: {
           packageId,
           userId,
@@ -94,8 +94,8 @@ export class StripePaymentService {
     userId: string
   ): Promise<{ sessionId: string; error?: string }> {
     try {
-      // Call the Supabase Edge Function to create subscription session
-      const { data, error } = await supabase.functions.invoke('create-subscription-session', {
+      // Create subscription session via backend
+      const { data, error } = await noopClient.functions.invoke('create-subscription-session', {
         body: {
           priceId: 'price_super_fan_gbp', // This would be the real Stripe Price ID
           userId,
@@ -191,8 +191,8 @@ export class StripePaymentService {
    */
   async verifyPayment(sessionId: string): Promise<PaymentResult> {
     try {
-      // Call Supabase Edge Function to verify payment
-      const { data, error } = await supabase.functions.invoke('verify-payment', {
+      // Verify payment via backend
+      const { data, error } = await noopClient.functions.invoke('verify-payment', {
         body: { sessionId }
       });
 
@@ -221,7 +221,7 @@ export class StripePaymentService {
    */
   async getUserBalance(userId: string): Promise<number> {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await noopClient
         .from('profiles')
         .select('coins')
         .eq('user_id', userId)

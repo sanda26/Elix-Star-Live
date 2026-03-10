@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
+import { noopClient } from '../lib/noopClient';
 import { Check, Sparkles, RotateCcw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { trackEvent } from '../lib/analytics';
@@ -37,7 +37,7 @@ export default function PurchaseCoins() {
 
   const loadCurrentUser = async () => {
     try {
-      const { data } = await supabase.auth.getUser();
+      const { data } = await noopClient.auth.getUser();
       setCurrentUserId(data.user?.id || null);
     } catch {
       setCurrentUserId(null);

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Trophy } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { noopClient } from '../lib/noopClient';
 import { AvatarRing } from './AvatarRing';
 
 interface CreatorRanking {
@@ -28,7 +28,7 @@ export function RankingPanel({ onClose }: RankingPanelProps) {
   const loadRanking = async () => {
     try {
       const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 8000));
-      const rpcCall = supabase.rpc('get_weekly_creator_ranking');
+      const rpcCall = noopClient.rpc('get_weekly_creator_ranking');
       const result = await Promise.race([rpcCall, timeout]);
       if (result && 'data' in result && !result.error && Array.isArray(result.data)) {
         const mapped = result.data.map((r: any, i: number) => ({

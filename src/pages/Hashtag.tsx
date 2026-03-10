@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
+import { noopClient } from '../lib/noopClient';
 import { Hash, TrendingUp } from 'lucide-react';
 import { trackEvent } from '../lib/analytics';
 
@@ -32,7 +32,7 @@ export default function Hashtag() {
     setLoading(true);
     try {
       // Load hashtag info
-      const { data: hashtagData } = await supabase
+      const { data: hashtagData } = await noopClient
         .from('hashtags')
         .select('use_count, trending_score')
         .eq('tag', tag.toLowerCase())
@@ -41,7 +41,7 @@ export default function Hashtag() {
       setHashtagInfo(hashtagData);
 
       // Load videos with this hashtag
-      const { data: videoHashtags } = await supabase
+      const { data: videoHashtags } = await noopClient
         .from('video_hashtags')
         .select('video_id, videos(*)')
         .eq('hashtag', tag.toLowerCase())

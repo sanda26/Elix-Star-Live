@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import LivePreviewCard from '../components/LivePreviewCard';
 import EnhancedVideoPlayer from '../components/EnhancedVideoPlayer';
 import { useVideoStore } from '../store/useVideoStore';
-import { supabase } from '../lib/supabase';
+import { noopClient } from '../lib/noopClient';
 
 type LiveStreamCard = {
   streamKey: string;
@@ -37,7 +37,7 @@ export default function VideoFeed() {
 
   const fetchLiveStreams = useCallback(async () => {
     try {
-      const { data } = await supabase
+      const { data } = await noopClient
         .from('live_streams')
         .select('*')
         .eq('is_live', true)
@@ -51,7 +51,7 @@ export default function VideoFeed() {
 
       const userIds = (data as any[]).map((s: any) => s.user_id).filter(Boolean);
       const { data: profiles } = userIds.length > 0
-        ? await supabase.from('profiles').select('user_id, username, display_name, avatar_url').in('user_id', userIds)
+        ? await noopClient.from('profiles').select('user_id, username, display_name, avatar_url').in('user_id', userIds)
         : { data: [] };
       const profileMap = new Map((profiles || []).map((p: any) => [p.user_id, p]));
 
@@ -79,7 +79,7 @@ export default function VideoFeed() {
     fetchLiveStreams();
     fetchVideos();
 
-    const chan = supabase
+    const chan = noopClient
       .channel('feed_live_streams')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'live_streams' }, (payload: any) => {
         const row = payload.new;
@@ -101,7 +101,7 @@ export default function VideoFeed() {
     const poll = setInterval(fetchLiveStreams, 15000);
 
     return () => {
-      supabase.removeChannel(chan);
+      noopClient.removeChannel(chan);
       clearInterval(poll);
     };
   }, [fetchLiveStreams, fetchVideos, removeLiveStream]);

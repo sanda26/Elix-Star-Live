@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Eye, Radio, RefreshCw } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { noopClient } from '../lib/noopClient';
 
 type LiveCreator = {
   id: string;
@@ -19,7 +19,7 @@ export default function LiveDiscover() {
 
   const fetchLiveStreams = useCallback(async () => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await noopClient
         .from('live_streams')
         .select('*')
         .eq('is_live', true)
@@ -30,7 +30,7 @@ export default function LiveDiscover() {
       if (data && data.length > 0) {
         const userIds = (data as any[]).map((s: any) => s.user_id).filter(Boolean);
         const { data: profiles } = userIds.length > 0
-          ? await supabase.from('profiles').select('user_id, username, display_name, avatar_url').in('user_id', userIds)
+          ? await noopClient.from('profiles').select('user_id, username, display_name, avatar_url').in('user_id', userIds)
           : { data: [] };
         const profileMap = new Map((profiles || []).map((p: any) => [p.user_id, p]));
 
@@ -67,7 +67,7 @@ export default function LiveDiscover() {
   useEffect(() => {
     fetchLiveStreams();
 
-    const channel = supabase
+    const channel = noopClient
       .channel('live_discover_streams')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'live_streams' }, (payload: any) => {
         const row = payload.new;
@@ -83,7 +83,7 @@ export default function LiveDiscover() {
       })
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    return () => { noopClient.removeChannel(channel); };
   }, [fetchLiveStreams, removeLiveStream]);
 
   const formatViewers = (n: number) => {

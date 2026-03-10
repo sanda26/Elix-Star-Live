@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Music, Play } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
+import { noopClient } from '../lib/noopClient';
 
 interface MusicVideo {
   id: string;
@@ -19,7 +19,7 @@ export default function MusicFeed() {
     const fetchVideos = async () => {
       setLoading(true);
       try {
-        const { data, error } = await supabase
+        const { data, error } = await noopClient
           .from('videos')
           .select('id, video_url, thumbnail_url')
           .order('created_at', { ascending: false })

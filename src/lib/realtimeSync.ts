@@ -1,12 +1,12 @@
-import { supabase } from './supabase';
+import { noopClient } from './noopClient';
 import { useVideoStore } from '../store/useVideoStore';
 
-let channel: ReturnType<typeof supabase.channel> | null = null;
+let channel: ReturnType<typeof noopClient.channel> | null = null;
 
 export function startRealtimeSync() {
   if (channel) return;
 
-  channel = supabase
+  channel = noopClient
     .channel('feed-realtime')
     .on(
       'postgres_changes',
@@ -63,7 +63,7 @@ export function startRealtimeSync() {
 
 export function stopRealtimeSync() {
   if (channel) {
-    supabase.removeChannel(channel);
+    noopClient.removeChannel(channel);
     channel = null;
   }
 }

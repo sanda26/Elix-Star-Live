@@ -4,19 +4,7 @@
  */
 
 import { Request, Response } from 'express';
-import { createClient } from '@supabase/supabase-js';
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let _supabaseAdmin: any = null;
-
-function getSupabaseAdmin() {
-  if (_supabaseAdmin) return _supabaseAdmin;
-  const url = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) throw new Error('Supabase not configured');
-  _supabaseAdmin = createClient(url, key);
-  return _supabaseAdmin;
-}
+import { getDbAdmin } from '../lib/backend';
 
 const DANGEROUS_CATEGORIES = [
   'driving_while_live',
@@ -109,12 +97,13 @@ If the image shows only safe/neutral content (including smoking, drinking, or pe
 
 export async function handleLiveModerationCheck(req: Request, res: Response) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  if (!getDbAdmin()) return res.status(501).json({ error: 'Live moderation not available.' });
 
   const authHeader = req.headers.authorization;
   const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
   if (!token) return res.status(401).json({ error: 'Missing auth token' });
 
-  const { data: userData, error: authError } = await getSupabaseAdmin().auth.getUser(token);
+  const { data: userData, error: authError } = await getDbAdmin()!.auth.getUser(token);
   if (authError || !userData?.user) return res.status(401).json({ error: 'Invalid auth token' });
 
   const userId = userData.user.id;
@@ -124,7 +113,7 @@ export async function handleLiveModerationCheck(req: Request, res: Response) {
     return res.status(400).json({ error: 'Missing stream_key' });
   }
 
-  const db = getSupabaseAdmin();
+  const db = getDbAdmin()!;
 
   const logEntry = (kind: string, category: string | null, severity: string | null, action_taken: string, details: Record<string, unknown>) => {
     return db.from('live_moderation_log').insert({

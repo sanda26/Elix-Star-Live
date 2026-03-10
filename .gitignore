@@ -35,7 +35,6 @@ ios/App/.symlinks
 *.njsproj
 *.sln
 *.sw?
-.vercel
 _elix_index.html
 
 # Large media files
@@ -58,6 +57,9 @@ yarn-error.log*
 dist/
 build/
 *.log
+# Server compiled (run with tsx; do not commit .js)
+server/**/*.js
+server/**/*.js.map
 
 # Environment files
 .env

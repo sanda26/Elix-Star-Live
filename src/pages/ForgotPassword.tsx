@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Mail, ArrowLeft, CheckCircle } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { noopClient } from '../lib/noopClient';
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState('');
@@ -15,7 +15,7 @@ export default function ForgotPassword() {
     setIsSubmitting(true);
 
     try {
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      const { error: resetError } = await noopClient.auth.resetPasswordForEmail(email.trim(), {
         redirectTo: `${window.location.origin}/reset-password`,
       });
 

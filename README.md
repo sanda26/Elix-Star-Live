@@ -55,10 +55,9 @@ A full-featured social video platform with live streaming, battles, virtual gift
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Node.js 18+ 
+- Node.js 18+
 - npm 9+
-- Supabase account
-- Stripe account (for payments)
+- Stripe account (for payments; optional)
 
 ### Installation
 
@@ -77,36 +76,19 @@ A full-featured social video platform with live streaming, battles, virtual gift
    ```bash
    cp .env.example .env
    ```
-   
-   Edit `.env` with your credentials:
-   ```
-   VITE_SUPABASE_URL=your_supabase_url
-   VITE_SUPABASE_ANON_KEY=your_anon_key
-   SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
-   VITE_STRIPE_PUBLISHABLE_KEY=your_stripe_key
-   STRIPE_SECRET_KEY=your_stripe_secret
-   VITE_WEBSOCKET_URL=ws://localhost:8080
-   ```
+   Edit `.env`: set `PORT=8080`, and optionally Stripe keys, `VITE_WS_URL` / `VITE_API_URL` when deploying to your server (e.g. Hetzner).
 
-4. **Set up database:**
-   
-   Follow instructions in `RUN_THESE_IN_ORDER.md`:
-   - Run `ALL_NEW_FEATURES.sql` in Supabase SQL Editor
-   - Run `SECURITY_POLICIES.sql`
-   - Run `STORAGE_SETUP.sql`
-   - Run `CRON_JOBS.sql`
-
-5. **Start development server:**
+4. **Start development server:**
    ```bash
    npm run dev
    ```
-   
    App runs at: http://localhost:5173
 
-6. **Start WebSocket server** (in new terminal):
+5. **Start backend (API + WebSocket)** in another terminal:
    ```bash
-   npm run ws:server
+   npm run start
    ```
+   Serves API and static build; for dev you can use `npm run ws:server` or `npm run start` after building.
 
 ---
 
@@ -128,7 +110,7 @@ elix-star/
 │   │   ├── Settings.tsx
 │   │   └── ...
 │   ├── lib/              # Services & utilities
-│   │   ├── supabase.ts
+│   │   ├── noopClient.ts
 │   │   ├── websocket.ts
 │   │   ├── analytics.ts
 │   │   ├── videoUpload.ts
@@ -139,13 +121,9 @@ elix-star/
 │   ├── verify-purchase.ts
 │   ├── send-notification.ts
 │   └── ...
-├── server/               # Backend services
-│   └── websocket-server.ts
-├── supabase/             # Database migrations
-│   ├── migrations/
-│   ├── ALL_NEW_FEATURES.sql
-│   ├── SECURITY_POLICIES.sql
-│   └── ...
+├── server/               # Backend (Express + WebSocket)
+│   ├── index.ts
+│   └── routes/
 ├── android/              # Android app
 ├── ios/                  # iOS app
 └── public/               # Static assets
@@ -181,14 +159,14 @@ npx cap open android     # Open Android project
 
 ### Tech Stack
 
-- **Frontend:** React 18, TypeScript, Tailwind CSS
-- **Backend:** Supabase (PostgreSQL), WebSocket (ws)
+- **Frontend:** React 18, TypeScript, Tailwind CSS, Vite
+- **Backend:** Node.js (Express), WebSocket (ws) — e.g. Hetzner
+- **Streaming:** LiveKit
+- **Storage/CDN:** Bunny (or your choice)
 - **Mobile:** Capacitor
 - **Payments:** Stripe
-- **Analytics:** PostHog (optional)
-- **Push Notifications:** Firebase Cloud Messaging
 - **Build Tool:** Vite
-- **Deployment:** Vercel (frontend), Railway (WebSocket)
+- **Deployment:** Single server (e.g. Hetzner); build with `npm run build` then `npm run start`
 
 ---
 
@@ -204,23 +182,19 @@ npx cap open android     # Open Android project
 
 ## 🔐 Security
 
-- **Row Level Security (RLS)** enabled on all tables
 - **API rate limiting** to prevent abuse
-- **JWT authentication** via Supabase Auth
-- **Encrypted storage** for sensitive data
+- **JWT** for WebSocket/auth where configured
 - **HTTPS only** in production
 - **CORS protection** on API endpoints
 
 ---
 
-## 🌍 Deployment
+## 🌍 Deployment (e.g. Hetzner)
 
-See `DEPLOYMENT_GUIDE.md` for complete deployment instructions.
-
-**Quick Deploy:**
-- Frontend: `vercel --prod`
-- WebSocket: Deploy to Railway/Render
-- Mobile: Submit to App Store/Play Store
+1. Build: `npm run build`
+2. On your server (Hetzner or any Node host): set env vars from `.env.example`, then run `npm run start` (or `npm run start:prod`).
+3. Point your domain to the server; set `VITE_WS_URL` and `VITE_API_URL` to your public URL so the client connects to the same host.
+4. Mobile: build with Capacitor and submit to App Store/Play Store.
 
 ---
 

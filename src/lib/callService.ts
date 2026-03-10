@@ -1,17 +1,16 @@
-import { supabase } from './supabase';
+import { noopClient } from './noopClient';
 import { useCallStore } from '../store/useCallStore';
 import type { CallParticipant } from '../store/useCallStore';
-import type { RealtimeChannel } from '@supabase/supabase-js';
 
-let incomingChannel: RealtimeChannel | null = null;
+let incomingChannel: { unsubscribe?: () => void } | null = null;
 
 export async function initiateCall(remoteUser: CallParticipant): Promise<string> {
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = await noopClient.auth.getUser();
   if (!user) throw new Error('Not authenticated');
 
   const callId = crypto.randomUUID();
 
-  await supabase.from('call_signals').insert({
+  await noopClient.from('call_signals').insert({
     caller_id: user.id,
     callee_id: remoteUser.id,
     call_id: callId,
@@ -27,13 +26,13 @@ export async function initiateCall(remoteUser: CallParticipant): Promise<string>
 }
 
 export async function acceptCall(callId: string): Promise<void> {
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = await noopClient.auth.getUser();
   if (!user) throw new Error('Not authenticated');
 
   const store = useCallStore.getState();
   if (!store.remoteUser) return;
 
-  await supabase.from('call_signals').insert({
+  await noopClient.from('call_signals').insert({
     caller_id: user.id,
     callee_id: store.remoteUser.id,
     call_id: callId,
@@ -45,14 +44,14 @@ export async function acceptCall(callId: string): Promise<void> {
 }
 
 export async function rejectCall(callId: string): Promise<void> {
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = await noopClient.auth.getUser();
   if (!user) return;
 
   const store = useCallStore.getState();
   const remoteId = store.remoteUser?.id;
   if (!remoteId) return;
 
-  await supabase.from('call_signals').insert({
+  await noopClient.from('call_signals').insert({
     caller_id: user.id,
     callee_id: remoteId,
     call_id: callId,
@@ -65,11 +64,11 @@ export async function rejectCall(callId: string): Promise<void> {
 
 export function subscribeToIncomingCalls(userId: string): () => void {
   if (incomingChannel) {
-    supabase.removeChannel(incomingChannel);
+    noopClient.removeChannel(incomingChannel);
     incomingChannel = null;
   }
 
-  incomingChannel = supabase
+  incomingChannel = noopClient
     .channel(`incoming-calls:${userId}`)
     .on(
       'postgres_changes',
@@ -129,7 +128,7 @@ export function subscribeToIncomingCalls(userId: string): () => void {
 
   return () => {
     if (incomingChannel) {
-      supabase.removeChannel(incomingChannel);
+      noopClient.removeChannel(incomingChannel);
       incomingChannel = null;
     }
   };

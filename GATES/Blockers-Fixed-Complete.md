@@ -1,6 +1,6 @@
 # 🎉 BLOCKERS FIXED - GATE VERIFICATION COMPLETE
 
-## ✅ **BLOCKER 1: GIFT VIDEOS IN SUPABASE STORAGE - FIXED**
+## ✅ **BLOCKER 1: GIFT VIDEOS IN STORAGE - FIXED**
 
 ### **✅ Implementation Complete:**
 - **Storage Service**: `src/lib/giftStorage.ts` created
@@ -19,7 +19,7 @@
 - `scripts/update-gift-catalog.mjs` - Catalog update script
 
 ### **✅ Features Implemented:**
-- **Production Mode**: Uses Supabase Storage URLs
+- **Production Mode**: Uses storage/CDN URLs (e.g. Bunny)
 - **Development Mode**: Local fallback (simulated)
 - **Preload**: Top 10 gifts auto-preloaded
 - **Fallback**: 2 local gifts for network issues
@@ -66,10 +66,10 @@ Server running on port 8081
 
 ## 📋 **NEXT STEPS:**
 
-### **For Real Supabase Setup:**
-1. Create `gift-videos` bucket in Supabase
+### **For production storage setup:**
+1. Create `gift-videos` bucket in your storage (e.g. Bunny)
 2. Upload gift videos to storage
-3. Update `.env.production` with real Supabase URL
+3. Update `.env.production` with real storage URL
 4. Test gifts loading from storage URLs
 
 ### **Current Status:**

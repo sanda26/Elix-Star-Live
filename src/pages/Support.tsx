@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Book, HelpCircle, Mail, MessageCircle, Send, Shield } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { noopClient } from '../lib/noopClient';
 import { trackEvent } from '../lib/analytics';
 import { showToast } from '../lib/toast';
 
@@ -49,9 +49,9 @@ export default function Support() {
 
     setLoading(true);
     try {
-      const { data: userData } = await supabase.auth.getUser();
+      const { data: userData } = await noopClient.auth.getUser();
 
-      const { error } = await supabase.from('reports').insert({
+      const { error } = await noopClient.from('reports').insert({
         reporter_id: userData.user?.id || null,
         target_type: 'support',
         target_id: 'support_ticket',

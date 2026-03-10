@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Lock, CheckCircle } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { noopClient } from '../lib/noopClient';
 
 export default function ResetPassword() {
   const navigate = useNavigate();
@@ -11,9 +11,8 @@ export default function ResetPassword() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
-  // Supabase handles the token exchange automatically when the user clicks the reset link
   useEffect(() => {
-    const { data: listener } = supabase.auth.onAuthStateChange((event) => {
+    const { data: listener } = noopClient.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY') {
         // User arrived via password reset link — form is ready
       }
@@ -36,7 +35,7 @@ export default function ResetPassword() {
 
     setIsSubmitting(true);
     try {
-      const { error: updateError } = await supabase.auth.updateUser({ password });
+      const { error: updateError } = await noopClient.auth.updateUser({ password });
       if (updateError) {
         setError(updateError.message);
       } else {

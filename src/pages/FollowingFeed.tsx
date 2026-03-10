@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
+import { noopClient } from '../lib/noopClient';
 import { useAuthStore } from '../store/useAuthStore';
 import { useVideoStore } from '../store/useVideoStore';
 import { trackScreenView } from '../lib/analytics';
@@ -37,13 +37,13 @@ export default function FollowingFeed() {
   const loadData = async () => {
     if (!user?.id) return;
     try {
-      const { data: followData } = await supabase
+      const { data: followData } = await noopClient
         .from('followers')
         .select('following_id')
         .eq('follower_id', user.id);
       const followingIds = (followData || []).map((f: any) => f.following_id);
 
-      const { data: liveData } = await supabase
+      const { data: liveData } = await noopClient
         .from('live_streams')
         .select('id, user_id')
         .eq('is_live', true);
@@ -63,7 +63,7 @@ export default function FollowingFeed() {
         return;
       }
 
-      const { data: profilesData } = await supabase
+      const { data: profilesData } = await noopClient
         .from('profiles')
         .select('user_id, username, display_name, avatar_url')
         .in('user_id', idsToFetch);

@@ -1,13 +1,7 @@
-import { supabase } from './supabase';
+import { noopClient } from './noopClient';
 
 export async function uploadAvatar(file: File, userId: string): Promise<string> {
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-  if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error('Missing Supabase env. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.');
-  }
-
+  // Storage is not configured (no backend storage); upload will no-op and return empty URL
   // Validate file type
   if (!file.type.startsWith('image/')) {
     throw new Error('Selected file is not an image.');
@@ -25,7 +19,7 @@ export async function uploadAvatar(file: File, userId: string): Promise<string> 
   const filePath = `${userId}/${fileName}`;
 
   try {
-    const { error: uploadError } = await supabase.storage
+    const { error: uploadError } = await noopClient.storage
       .from('avatars')
       .upload(filePath, file, {
         cacheControl: '3600',
@@ -39,7 +33,7 @@ export async function uploadAvatar(file: File, userId: string): Promise<string> 
     }
 
     // 2. Get Public URL
-    const { data } = supabase.storage
+    const { data } = noopClient.storage
       .from('avatars')
       .getPublicUrl(filePath);
 

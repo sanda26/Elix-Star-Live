@@ -4,7 +4,6 @@ import cors from 'cors';
 import compression from 'compression';
 import { createServer } from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
-import { createClient } from '@supabase/supabase-js';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { createCheckoutSession, createPaymentIntent, createPromoteCheckoutSession, createSubscriptionSession } from './routes/checkout';
@@ -114,27 +113,9 @@ app.post('/api/admin/payout/:id/approve', handleAdminApprovePayout);
 app.post('/api/admin/payout/:id/reject', handleAdminRejectPayout);
 app.post('/api/admin/chargeback', handleAdminChargeback);
 
-// Admin Account Management
-app.post('/api/admin/unfreeze/:userId', async (req, res) => {
-  try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader?.startsWith('Bearer ')) return res.status(401).json({ error: 'Unauthorized' });
-    const token = authHeader.slice(7);
-    const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '';
-    const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-    const { createClient } = await import('@supabase/supabase-js');
-    const adminClient = createClient(supabaseUrl, supabaseKey, {
-      global: { headers: { Authorization: `Bearer ${token}` } },
-    });
-    const { data, error } = await adminClient.rpc('admin_unfreeze_account', {
-      p_user_id: req.params.userId,
-      p_note: req.body.note || null,
-    });
-    if (error) return res.status(400).json({ error: error.message });
-    return res.json(data);
-  } catch (err: any) {
-    return res.status(500).json({ error: 'Unfreeze failed' });
-  }
+// Admin account management — endpoint disabled
+app.post('/api/admin/unfreeze/:userId', (_req, res) => {
+  res.status(501).json({ error: 'Admin unfreeze not available.' });
 });
 
 // Shop Item Purchase & Refund API
@@ -192,27 +173,17 @@ const wss = new WebSocketServer({ server });
 
 console.log(`WebSocket server attached to HTTP server on port ${PORT}`);
 
-// --- WebSocket Logic (Copied from websocket-server.ts) ---
+// --- WebSocket Logic (JWT decode-only for userId) ---
 
-let supabaseAdmin: ReturnType<typeof createClient> | null = null;
-try {
-  const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
-  const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (supabaseUrl && supabaseServiceRoleKey) {
-    supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey, {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-        detectSessionInUrl: false,
-      },
-    });
-    console.log('Supabase client initialized successfully');
-  } else {
-    console.log('SUPABASE_URL/VITE_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY not set, running without authentication');
+function decodeUserIdFromToken(token: string): string | null {
+  try {
+    const parts = token.split('.');
+    if (parts.length < 2) return null;
+    const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
+    return payload.sub ?? null;
+  } catch {
+    return null;
   }
-} catch (e) {
-  console.error("Supabase init failed, running without authentication:", e);
-  console.log('Server will continue but WebSocket authentication will be disabled');
 }
 
 interface Client {
@@ -500,65 +471,26 @@ wss.on('connection', async (ws: WebSocket, req) => {
       roomId = url.pathname.split('/')[2]; // /live/roomId -> roomId
     }
 
-    if (!supabaseAdmin) {
-      console.log('WebSocket authentication not available, closing connection');
-      ws.close(1008, 'Authentication not available');
-      return;
-    }
-
-    // Authentication required
     if (!roomId || !token) {
       ws.close(1008, 'Missing room or token');
       return;
     }
 
-    // Decode JWT to get user ID
-    let userId: string;
-    try {
-      const parts = token.split('.');
-      if (parts.length < 2) throw new Error('Malformed token');
-      const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
-      userId = payload.sub;
-      if (!userId) throw new Error('No sub in token');
-    } catch (e) {
-      console.error('Token decode failed:', e);
+    const userId = decodeUserIdFromToken(token);
+    if (!userId) {
       ws.close(1008, 'Invalid token');
       return;
     }
 
-    // Verify user exists using admin API
-    const { data: userData, error } = await supabaseAdmin.auth.admin.getUserById(userId);
-    if (error || !userData) {
-      ws.close(1008, 'Invalid token');
-      return;
-    }
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const userObj = (userData as any)?.user ?? userData;
-
-    // Get username, avatar, display_name, level, country from profile
-    let username = userObj?.user_metadata?.username || 'Anonymous';
-    let displayName = '';
-    let avatarUrl = '';
-    let level = 1;
-    let country = '';
-    if (supabaseAdmin) {
-      try {
-        const { data: profile } = await supabaseAdmin
-          .from('profiles')
-          .select('username, display_name, avatar_url, level')
-          .eq('user_id', userObj?.id ?? userId)
-          .single();
-        if (profile?.username) username = profile.username;
-        if (profile?.display_name) displayName = profile.display_name;
-        if (profile?.avatar_url) avatarUrl = profile.avatar_url;
-        if (profile?.level) level = profile.level;
-      } catch { /* ignore */ }
-    }
+    const username = 'Anonymous';
+    const displayName = '';
+    const avatarUrl = '';
+    const level = 1;
+    const country = '';
 
     client = {
       ws,
-      userId: userObj?.id ?? userId,
+      userId,
       roomId,
       username,
       displayName: displayName || username,
@@ -769,27 +701,11 @@ wss.on('connection', async (ws: WebSocket, req) => {
 
 // When a user disconnects, check if they were the stream host and notify all viewers
 async function checkAndBroadcastStreamEnd(roomId: string, userId: string) {
-  if (!supabaseAdmin) return;
-  try {
-    const { data } = await supabaseAdmin
-      .from('live_streams')
-      .select('user_id, is_live')
-      .eq('stream_key', roomId)
-      .maybeSingle();
-    if (data && data.user_id === userId && data.is_live) {
-      await supabaseAdmin
-        .from('live_streams')
-        .update({ is_live: false, viewer_count: 0 })
-        .eq('stream_key', roomId);
-      broadcastToRoom(roomId, 'stream_ended', {
-        stream_key: roomId,
-        host_user_id: userId,
-        reason: 'host_disconnected',
-      });
-    }
-  } catch (err) {
-    console.error('checkAndBroadcastStreamEnd error:', err);
-  }
+  broadcastToRoom(roomId, 'stream_ended', {
+    stream_key: roomId,
+    host_user_id: userId,
+    reason: 'host_disconnected',
+  });
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -970,15 +886,6 @@ async function handleMessage(client: Client, event: string, data: any) {
       }
 
       case 'stream_end': {
-        if (supabaseAdmin) {
-          try {
-            await supabaseAdmin
-              .from('live_streams')
-              .update({ is_live: false, viewer_count: 0 })
-              .eq('stream_key', client.roomId)
-              .eq('user_id', client.userId);
-          } catch {}
-        }
         broadcastToRoom(client.roomId, 'stream_ended', {
           stream_key: client.roomId,
           host_user_id: client.userId,
@@ -1127,25 +1034,8 @@ function broadcastToRoom(roomId: string, event: string, data: any, exclude?: Cli
   });
 }
 
-async function updateViewerCount(roomId: string) {
-  try {
-    if (!supabaseAdmin) return;
-    const room = rooms.get(roomId);
-    let count = 0;
-    if (room) {
-      for (const c of room) {
-        // Don't count the host (stream_key === host user_id) as a viewer
-        if (c.userId === roomId) continue;
-        count++;
-      }
-    }
-    await supabaseAdmin
-      .from('live_streams')
-      .update({ viewer_count: count })
-      .eq('stream_key', roomId);
-  } catch (error) {
-    console.error('Failed to update viewer count:', error);
-  }
+async function updateViewerCount(_roomId: string) {
+  // Feature disabled
 }
 
 // WebSocket heartbeat: detect and clean up ghost connections every 30s
@@ -1173,46 +1063,7 @@ wss.on('close', () => { clearInterval(heartbeatTimer); });
 // Stale stream cleanup: mark streams as offline if their host has no active WebSocket
 // Uses updated_at to avoid killing streams that were recently created/updated
 async function cleanupStaleStreams() {
-  if (!supabaseAdmin) return;
-  try {
-    const { data: liveStreams } = await supabaseAdmin
-      .from('live_streams')
-      .select('stream_key, user_id, updated_at')
-      .eq('is_live', true);
-    if (!liveStreams || liveStreams.length === 0) return;
-
-    const now = Date.now();
-
-    for (const stream of liveStreams) {
-      const room = rooms.get(stream.stream_key);
-      const hostConnected = room
-        ? Array.from(room).some(c => c.userId === stream.user_id)
-        : false;
-
-      if (!hostConnected) {
-        // Don't clean up streams updated less than 90 seconds ago — host may be reconnecting
-        const updatedAt = stream.updated_at ? new Date(stream.updated_at).getTime() : 0;
-        if (now - updatedAt < 90_000) {
-          console.log(`Skipping cleanup for fresh stream: ${stream.stream_key} (updated ${Math.round((now - updatedAt) / 1000)}s ago)`);
-          continue;
-        }
-
-        console.log(`Cleaning up stale stream: ${stream.stream_key} (host ${stream.user_id} not connected, last updated ${Math.round((now - updatedAt) / 1000)}s ago)`);
-        await supabaseAdmin
-          .from('live_streams')
-          .update({ is_live: false, viewer_count: 0 })
-          .eq('stream_key', stream.stream_key);
-
-        broadcastToRoom(stream.stream_key, 'stream_ended', {
-          stream_key: stream.stream_key,
-          host_user_id: stream.user_id,
-          reason: 'stale_cleanup',
-        });
-      }
-    }
-  } catch (err) {
-    console.error('Stale stream cleanup error:', err);
-  }
+  // Feature disabled
 }
 
 // Run cleanup on start (after 60s to allow reconnections after deploy) and every 30 seconds

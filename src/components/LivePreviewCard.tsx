@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Eye } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { noopClient } from '../lib/noopClient';
 
 interface LivePreviewCardProps {
   streamKey: string;
@@ -32,7 +32,7 @@ export default function LivePreviewCard({
 
     const poll = async () => {
       try {
-        const { data } = await supabase
+        const { data } = await noopClient
           .from('live_streams')
           .select('thumbnail_url, viewer_count')
           .eq('stream_key', streamKey)

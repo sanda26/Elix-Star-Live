@@ -2,7 +2,7 @@
 
 import { Capacitor } from '@capacitor/core';
 import { PushNotifications, Token, PushNotificationSchema } from '@capacitor/push-notifications';
-import { supabase } from './supabase';
+import { noopClient } from './noopClient';
 import { trackEvent } from './analytics';
 
 class NotificationService {
@@ -78,10 +78,10 @@ class NotificationService {
 
     // Save token to backend
     try {
-      const { data: userData } = await supabase.auth.getUser();
+      const { data: userData } = await noopClient.auth.getUser();
       if (!userData.user) return;
 
-      await supabase.from('device_tokens').upsert({
+      await noopClient.from('device_tokens').upsert({
         user_id: userData.user.id,
         token: token.value,
         platform: Capacitor.getPlatform(),

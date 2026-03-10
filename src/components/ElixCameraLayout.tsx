@@ -28,14 +28,14 @@ import {
   Layers,
   Crosshair
 } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { noopClient } from '../lib/noopClient';
 
 // ═══════════════════════════════════════════════════
 // Database-driven Camera Filters - NO HARDCODED DATA
 // ═══════════════════════════════════════════════════
 async function fetchCameraFilters() {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await noopClient
       .from('camera_filters')
       .select('*')
       .eq('is_active', true)
@@ -57,7 +57,7 @@ async function fetchCameraFilters() {
 // ═══════════════════════════════════════════════════
 async function fetchSpeedOptions() {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await noopClient
       .from('speed_options')
       .select('*')
       .eq('is_active', true)
@@ -79,7 +79,7 @@ async function fetchSpeedOptions() {
 // ═══════════════════════════════════════════════════
 async function fetchStickerOptions() {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await noopClient
       .from('sticker_options')
       .select('*')
       .eq('is_active', true)

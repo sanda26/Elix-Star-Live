@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { AlertTriangle, Flag, Ban, EyeOff, MessageSquare, UserMinus } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { useVideoStore } from '../store/useVideoStore';
-import { supabase } from '../lib/supabase';
+import { noopClient } from '../lib/noopClient';
 import { showToast } from '../lib/toast';
 
 interface ReportModalProps {
@@ -90,7 +90,7 @@ export default function ReportModal({ isOpen, onClose, videoId, contentType, con
     setVideoOwnerIdFromDb(null);
     void (async () => {
     try {
-      const { data } = await supabase
+      const { data } = await noopClient
         .from('videos')
         .select('user_id')
         .eq('id', videoId)
@@ -163,7 +163,7 @@ export default function ReportModal({ isOpen, onClose, videoId, contentType, con
         if (contentType === 'video') payload.video_id = targetId;
         if (contentType === 'user' && targetId) payload.reported_id = targetId;
 
-        const { error } = await supabase.from('reports').insert(payload);
+        const { error } = await noopClient.from('reports').insert(payload);
         if (error) throw error;
         done();
       } catch (directErr) {

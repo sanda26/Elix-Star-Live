@@ -72,7 +72,7 @@
 - Block user: funcțional și ascunde conținutul în feed.
 - Terms/Privacy + contact suport accesibile.
 
-### Backend (Supabase)
+### Backend
 - `public.reports` pentru raportări (reporter, target, reason, details).
 - `public.user_blocks` pentru block (blocker, blocked).
 

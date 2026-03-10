@@ -1,10 +1,10 @@
-/** Gift video only from Supabase (no local fallback) so playback is always remote. */
+/** Gift asset URL from CDN/storage base (e.g. Bunny or your server). */
 const giftUrl = (path: string) => {
    const runtimeEnv = (window as any).__ENV;
-   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || runtimeEnv?.VITE_SUPABASE_URL;
-   if (supabaseUrl) {
+   const base = import.meta.env.VITE_GIFT_ASSET_BASE_URL || runtimeEnv?.VITE_GIFT_ASSET_BASE_URL;
+   if (base) {
      const trimmed = path.startsWith('/') ? path.slice(1) : path;
-     return `${supabaseUrl}/storage/v1/object/public/${trimmed}`;
+     return `${base.replace(/\/$/, '')}/${trimmed}`;
    }
    return '';
  }; 

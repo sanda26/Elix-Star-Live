@@ -1,6 +1,5 @@
 import { create } from 'zustand';
-import type { User as SupabaseUser, Session } from '@supabase/supabase-js';
-import { supabase, supabaseConfig } from '../lib/supabase';
+import { noopClient, noopConfig } from '../lib/noopClient';
 
 interface User {
   id: string;
@@ -15,13 +14,25 @@ interface User {
   joinedDate: string;
 }
 
-type AuthMode = 'supabase';
+/** Minimal type for auth session when backend auth is not configured. */
+interface AuthSession {
+  user: AuthUser | null;
+}
+interface AuthUser {
+  id: string;
+  email?: string;
+  user_metadata?: Record<string, unknown>;
+  email_confirmed_at?: string;
+  created_at?: string;
+}
+
+type AuthMode = 'client';
 
 interface AuthStore {
   user: User | null;
-  session: Session | null;
+  session: AuthSession | null;
   isAuthenticated: boolean;
-  supabaseUser: SupabaseUser | null;
+  backendUser: AuthUser | null;
   isLoading: boolean;
   authMode: AuthMode;
   
@@ -42,10 +53,10 @@ interface AuthStore {
 
 let authUnsubscribe: (() => void) | null = null;
 
-function mapUserToUser(supabaseUser: SupabaseUser | null): User | null {
-  if (!supabaseUser) return null;
-  const meta = supabaseUser.user_metadata || {};
-  const email = supabaseUser.email || '';
+function mapUserToUser(backendUser: AuthUser | null): User | null {
+  if (!backendUser) return null;
+  const meta = (backendUser.user_metadata || {}) as Record<string, unknown>;
+  const email = backendUser.email || '';
   const usernameFromMeta = typeof meta.username === 'string' ? meta.username : undefined;
   const fullNameFromMeta = typeof meta.full_name === 'string' ? meta.full_name : undefined;
   const avatarFromMeta = typeof meta.avatar_url === 'string' ? meta.avatar_url : undefined;
@@ -60,33 +71,33 @@ function mapUserToUser(supabaseUser: SupabaseUser | null): User | null {
   const level = Number.isFinite(levelFromMeta) && levelFromMeta > 0 ? Math.floor(levelFromMeta) : 1;
 
   return {
-    id: supabaseUser.id,
-    username: usernameFromMeta ?? fallbackUsername,
-    name: fullNameFromMeta ?? usernameFromMeta ?? fallbackUsername,
+    id: backendUser.id,
+    username: (usernameFromMeta ?? fallbackUsername) as string,
+    name: (fullNameFromMeta ?? usernameFromMeta ?? fallbackUsername) as string,
     email,
-    avatar: avatarFromMeta ?? `https://ui-avatars.com/api/?name=${encodeURIComponent(usernameFromMeta ?? fallbackUsername)}&background=random`,
+    avatar: avatarFromMeta ?? `https://ui-avatars.com/api/?name=${encodeURIComponent((usernameFromMeta ?? fallbackUsername) as string)}&background=random`,
     level,
-    isVerified: !!supabaseUser.email_confirmed_at,
+    isVerified: !!backendUser.email_confirmed_at,
     followers: 0,
     following: 0,
-    joinedDate: supabaseUser.created_at
+    joinedDate: backendUser.created_at ?? ''
   };
 }
 
 async function enrichUserWithProfile(user: User): Promise<User> {
   try {
-    const { data: profile } = await supabase
+    const { data: profile } = await noopClient
       .from('profiles')
       .select('username, display_name, avatar_url, bio, website')
       .eq('user_id', user.id)
       .single();
 
-    const { count: followersCount } = await supabase
+    const { count: followersCount } = await noopClient
       .from('followers')
       .select('*', { count: 'exact', head: true })
       .eq('following_id', user.id);
 
-    const { count: followingCount } = await supabase
+    const { count: followingCount } = await noopClient
       .from('followers')
       .select('*', { count: 'exact', head: true })
       .eq('follower_id', user.id);
@@ -127,9 +138,9 @@ export const useAuthStore = create<AuthStore>()(
     user: null,
     session: null,
     isAuthenticated: false,
-    supabaseUser: null,
+    backendUser: null,
     isLoading: true,
-    authMode: 'supabase',
+    authMode: 'client',
 
     signInWithPassword: async (email, password) => {
       // 1. Basic validation
@@ -137,20 +148,20 @@ export const useAuthStore = create<AuthStore>()(
         return { error: 'Please enter both email and password.' };
       }
 
-      if (!supabaseConfig.hasValidConfig) {
+      if (!noopConfig.hasValidConfig) {
         return { error: 'System error: Authentication not configured.' };
       }
 
       try {
 
-        const { data, error } = await supabase.auth.signInWithPassword({ 
+        const { data, error } = await noopClient.auth.signInWithPassword({ 
           email: email.trim(), 
           password 
         });
 
         if (error) {
 
-          // 2. Map common Supabase errors to user-friendly messages
+          // 2. Map common auth errors to user-friendly messages
           if (error.message.includes('Invalid login credentials')) {
              return { error: 'Incorrect email or password.' };
           }
@@ -172,12 +183,12 @@ export const useAuthStore = create<AuthStore>()(
         
         // 3. Force state update immediately
         set({ 
-          supabaseUser: data.user, 
+          backendUser: data.user, 
           session: data.session, 
           user: mapUserToUser(data.user), 
           isAuthenticated: true, 
           isLoading: false, 
-          authMode: 'supabase' 
+          authMode: 'client' 
         });
         
         return { error: null };
@@ -198,12 +209,12 @@ export const useAuthStore = create<AuthStore>()(
     },
 
     signUpWithPassword: async (email, password, username) => {
-      if (!supabaseConfig.hasValidConfig) {
-        return { error: 'Authentication is not configured. Missing Supabase credentials.', needsEmailConfirmation: false };
+      if (!noopConfig.hasValidConfig) {
+        return { error: 'Authentication not configured.', needsEmailConfirmation: false };
       }
       try {
 
-        const { data, error } = await supabase.auth.signUp({
+        const { data, error } = await noopClient.auth.signUp({
           email: email.trim(),
           password,
           options: {
@@ -226,17 +237,17 @@ export const useAuthStore = create<AuthStore>()(
         if (data.user && data.session) {
 
           set({ 
-            supabaseUser: data.user, 
+            backendUser: data.user, 
             session: data.session, 
             user: mapUserToUser(data.user), 
             isAuthenticated: true, 
             isLoading: false, 
-            authMode: 'supabase' 
+            authMode: 'client' 
           });
           return { error: null, needsEmailConfirmation: false };
         }
         
-        // If Supabase returned user but no session, email confirmation is likely required
+        // If backend returned user but no session, email confirmation is likely required
         if (data.user && !data.session) {
 
            return { error: null, needsEmailConfirmation: true };
@@ -260,11 +271,11 @@ export const useAuthStore = create<AuthStore>()(
     },
 
     resendSignupConfirmation: async (email) => {
-      if (!supabaseConfig.hasValidConfig) {
+      if (!noopConfig.hasValidConfig) {
         return { error: 'Authentication is not configured.' };
       }
       try {
-        const { error } = await supabase.auth.resend({ type: 'signup', email });
+        const { error } = await noopClient.auth.resend({ type: 'signup', email });
         if (error) return { error: error.message };
         return { error: null };
       } catch (error) {
@@ -273,11 +284,11 @@ export const useAuthStore = create<AuthStore>()(
     },
 
     signInWithApple: async () => {
-      if (!supabaseConfig.hasValidConfig) {
+      if (!noopConfig.hasValidConfig) {
         return { error: 'Authentication is not configured.' };
       }
       try {
-        const { error } = await supabase.auth.signInWithOAuth({
+        const { error } = await noopClient.auth.signInWithOAuth({
           provider: 'apple',
           options: {
             redirectTo: window.location.origin + '/auth/callback',
@@ -291,9 +302,9 @@ export const useAuthStore = create<AuthStore>()(
     },
 
     signOut: async () => {
-      if (supabaseConfig.hasValidConfig) {
+      if (noopConfig.hasValidConfig) {
         try {
-          await supabase.auth.signOut();
+          await noopClient.auth.signOut();
         } catch (error) {
           /* ignored */
         }
@@ -301,10 +312,10 @@ export const useAuthStore = create<AuthStore>()(
       set({
         session: null,
         user: null,
-        supabaseUser: null,
+        backendUser: null,
         isAuthenticated: false,
         isLoading: false,
-        authMode: 'supabase'
+        authMode: 'client'
       });
     },
 
@@ -316,23 +327,23 @@ export const useAuthStore = create<AuthStore>()(
     getCurrentUser: () => get().user,
 
     checkUser: async () => {
-      if (!supabaseConfig.hasValidConfig) {
-        set({ supabaseUser: null, session: null, user: null, isAuthenticated: false, isLoading: false, authMode: 'supabase' });
+      if (!noopConfig.hasValidConfig) {
+        set({ backendUser: null, session: null, user: null, isAuthenticated: false, isLoading: false, authMode: 'client' });
         return;
       }
       
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session } } = await noopClient.auth.getSession();
         if (session?.user) {
           const mapped = mapUserToUser(session.user);
           if (mapped) {
             const enriched = await enrichUserWithProfile(mapped);
-            set({ supabaseUser: session.user, session, user: enriched, isAuthenticated: true, isLoading: false, authMode: 'supabase' });
+            set({ backendUser: session.user, session, user: enriched, isAuthenticated: true, isLoading: false, authMode: 'client' });
           } else {
-            set({ supabaseUser: session.user, session, user: mapped, isAuthenticated: true, isLoading: false, authMode: 'supabase' });
+            set({ backendUser: session.user, session, user: mapped, isAuthenticated: true, isLoading: false, authMode: 'client' });
           }
         } else {
-           set({ supabaseUser: null, session: null, user: null, isAuthenticated: false, isLoading: false, authMode: 'supabase' });
+           set({ backendUser: null, session: null, user: null, isAuthenticated: false, isLoading: false, authMode: 'client' });
         }
       } catch (error) {
 
@@ -340,21 +351,21 @@ export const useAuthStore = create<AuthStore>()(
       }
 
       if (!authUnsubscribe) {
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+        const { data: { subscription } } = noopClient.auth.onAuthStateChange(async (event, session) => {
 
           const user = session?.user;
           if (user) {
             const mapped = mapUserToUser(user);
             if (mapped) {
               const enriched = await enrichUserWithProfile(mapped);
-              set({ supabaseUser: user, session, user: enriched, isAuthenticated: true, isLoading: false, authMode: 'supabase' });
+              set({ backendUser: user, session, user: enriched, isAuthenticated: true, isLoading: false, authMode: 'client' });
             } else {
-              set({ supabaseUser: user, session, user: mapped, isAuthenticated: true, isLoading: false, authMode: 'supabase' });
+              set({ backendUser: user, session, user: mapped, isAuthenticated: true, isLoading: false, authMode: 'client' });
             }
             return;
           }
           
-          set({ supabaseUser: null, session: null, user: null, isAuthenticated: false, isLoading: false, authMode: 'supabase' });
+          set({ backendUser: null, session: null, user: null, isAuthenticated: false, isLoading: false, authMode: 'client' });
         });
         authUnsubscribe = subscription.unsubscribe;
       }

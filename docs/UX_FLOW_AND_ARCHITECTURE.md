@@ -412,7 +412,7 @@ flowchart LR
   NOTIFS --> PUSH
 ```
 
-## 6) Deployment map (MVP realistic)
+## 6) Deployment map (Hetzner + LiveKit + Bunny)
 
 ```mermaid
 flowchart LR
@@ -423,151 +423,35 @@ flowchart LR
     W1[Web App]
   end
 
-  subgraph EDGE[Edge / Frontend Delivery]
+  subgraph HETZNER[Hetzner Server]
     direction TB
-    DNS[DNS\n(Cloudflare / Registrar)]
-    CDNFE[CDN for Web Assets\n(Cloudflare / Vercel Edge)]
-    FEHOST[Web Hosting\n(Vercel / Cloudflare Pages)]
+    API[Express API\n+ WebSocket]
+    STATIC[Static build\nVite dist]
   end
 
-  DNS --> CDNFE --> FEHOST
-  W1 --> CDNFE
-  M1 --> DNS
-  M2 --> DNS
-
-  subgraph API[API Layer]
-    direction TB
-    APIGW[API Gateway / BFF\n(Vercel Functions / Cloudflare Workers)\nRate-limit + device fingerprint]
-    WS[WebSocket Gateway\n(Cloudflare Durable Objects / Fly.io / Node WS)]
+  subgraph LIVEKIT[LiveKit]
+    LIVE[Live streaming\nWebRTC/RTMP]
   end
 
-  M1 --> APIGW
-  M2 --> APIGW
-  W1 --> APIGW
-
-  M1 <--> WS
-  M2 <--> WS
-  W1 <--> WS
-
-  subgraph SVC[Core Backend Services]
+  subgraph BUNNY[Bunny]
     direction TB
-    AUTH[Auth Service\nJWT + refresh sessions]
-    USERS[Users/Profile Service]
-    FEED[Feed Service\nranking + cursor]
-    VIDEO[Video Service\nmetadata + publish]
-    SOCIAL[Social Graph\nfollow/block]
-    COMM[Comments Service]
-    DM[DM Service]
-    NOTIF[Notifications Service]
-    WAL[Wallet/Ledger Service\natomic]
-    GIFT[Gift Service\ncatalog + send]
-    LIVE[Live Orchestrator\ncreate/join/leave]
-    MOD[Moderation Service\nreports queue]
-    SEARCH[Search Service\nsuggest + discover]
-    ANALYT[Analytics Service\nDAU/watch time/conv]
+    STORE[Object Storage]
+    CDN[CDN for media & assets]
   end
 
-  APIGW --> AUTH
-  APIGW --> USERS
-  APIGW --> FEED
-  APIGW --> VIDEO
-  APIGW --> SOCIAL
-  APIGW --> COMM
-  APIGW --> DM
-  APIGW --> NOTIF
-  APIGW --> WAL
-  APIGW --> GIFT
-  APIGW --> LIVE
-  APIGW --> MOD
-  APIGW --> SEARCH
-  APIGW --> ANALYT
-
-  subgraph DATA[Data Stores]
-    direction TB
-    DB[(Postgres\nSupabase / Neon / RDS)]
-    REDIS[(Redis / Upstash\ncursors, rate limits, cache)]
-    Q[(Queue/PubSub\nKafka/Redis Streams/NATS)]
-    IDX[(Search Index\nOpenSearch/Meilisearch)]
-  end
-
-  AUTH --> DB
-  USERS --> DB
-  FEED --> DB
-  VIDEO --> DB
-  SOCIAL --> DB
-  COMM --> DB
-  DM --> DB
-  NOTIF --> DB
-  WAL --> DB
-  GIFT --> DB
-  LIVE --> DB
-  MOD --> DB
-  ANALYT --> DB
-
-  FEED --> REDIS
-  COMM --> REDIS
-  DM --> REDIS
-  NOTIF --> REDIS
-  WAL --> REDIS
-  GIFT --> REDIS
-  LIVE --> REDIS
-
-  WS <--> Q
-  COMM --> Q
-  DM --> Q
-  NOTIF --> Q
-  GIFT --> Q
-  LIVE --> Q
-
-  SEARCH --> IDX
-  VIDEO --> IDX
-  USERS --> IDX
-
-  subgraph MEDIA[Media Pipeline]
-    direction TB
-    STORE[(Object Storage\nS3 / Cloudflare R2)]
-    SIGNER[Signed Upload URL\n(API endpoint)]
-    WORKER[Transcoding Worker\n(Fly.io / AWS Batch / Mux)\nHLS + thumbs]
-    CDNM[Media CDN\nCloudflare / Fastly]
-  end
-
-  APIGW --> SIGNER
-  SIGNER --> STORE
-  STORE --> WORKER --> STORE --> CDNM
-
-  M1 --> CDNM
-  M2 --> CDNM
-  W1 --> CDNM
-
-  subgraph PAY[Payments]
-    direction TB
-    STRIPE[Stripe Checkout]
-    WEBHOOK[Webhook Handler\n(Vercel/Supabase Edge)\nIdempotency + signature verify]
-  end
-
-  APIGW --> STRIPE
-  STRIPE --> WEBHOOK --> WAL
-  GIFT --> WAL
-
-  subgraph LIVEP[Live Provider]
-    direction TB
-    PROVIDER[Agora / LiveKit / Mux Live\nWebRTC/RTMP infra]
-  end
-
-  LIVE --> PROVIDER
-  M1 --> PROVIDER
-  M2 --> PROVIDER
-  W1 --> PROVIDER
-
-  subgraph PUSH[Push Notifications]
-    direction TB
-    APNS[Apple APNs]
-    FCM[Firebase FCM]
-    WEBPUSH[Web Push]
-  end
-
-  NOTIF --> APNS
-  NOTIF --> FCM
-  NOTIF --> WEBPUSH
+  M1 --> API
+  M2 --> API
+  W1 --> STATIC
+  M1 <--> LIVE
+  M2 <--> LIVE
+  W1 <--> LIVE
+  API --> STORE
+  API --> CDN
+  STATIC --> CDN
 ```
+
+**Stack:**
+- **Server:** Hetzner (Node: Express + WebSocket, serves API + static).
+- **Live:** LiveKit (streaming).
+- **Storage & CDN:** Bunny.
 

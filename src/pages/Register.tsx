@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
 import { Eye, EyeOff, Lock, Mail, User } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { noopClient } from '../lib/noopClient';
 
 export default function Register() {
   const navigate = useNavigate();
@@ -73,9 +73,9 @@ export default function Register() {
 
       // Store consent timestamp
       try {
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { user } } = await noopClient.auth.getUser();
         if (user) {
-          await supabase.from('user_consents').insert({
+          await noopClient.from('user_consents').insert({
             user_id: user.id,
             consent_type: 'terms_and_privacy',
             version: '2026-02-20',

@@ -1,10 +1,10 @@
-import { supabase } from './supabase';
+import { noopClient } from './noopClient';
 
 const runtimeEnv = (globalThis as any).__ENV as Record<string, string> | undefined;
 const API_BASE = import.meta.env.VITE_API_URL || runtimeEnv?.VITE_API_URL || '';
 
 async function getAuthHeaders(): Promise<Record<string, string>> {
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { session } } = await noopClient.auth.getSession();
   if (!session?.access_token) return { 'Content-Type': 'application/json' };
   return {
     'Content-Type': 'application/json',
@@ -119,9 +119,9 @@ export async function stopVideoView(videoId: string) {
     });
   } catch {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await noopClient.auth.getUser();
       if (user) {
-        await supabase.from('video_views').insert({
+        await noopClient.from('video_views').insert({
           user_id: user.id,
           video_id: view.videoId,
           watch_time_seconds: view.totalWatchTime,
@@ -131,7 +131,7 @@ export async function stopVideoView(videoId: string) {
           replay_count: view.replayCount,
           ended_at: new Date().toISOString(),
         });
-        await supabase.from('video_interactions').insert({
+        await noopClient.from('video_interactions').insert({
           user_id: user.id,
           video_id: view.videoId,
           interaction_type: view.completed ? 'complete' : 'view',

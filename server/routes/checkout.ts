@@ -1,13 +1,6 @@
 import { Request, Response } from 'express';
 import Stripe from 'stripe';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '';
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-
-function getSupabase() {
-  return createClient(supabaseUrl, supabaseServiceKey);
-}
+import { getDb } from '../lib/backend';
 
 // Simple rate limiter map
 const rateLimits = new Map<string, { count: number; timestamp: number }>();
@@ -165,11 +158,12 @@ export async function createSubscriptionSession(req: Request, res: Response) {
     // Resolve creator Stripe Connect account (creatorId may be stream_key or user_id)
     let creatorStripeAccountId: string | null = null;
     if (creatorId) {
-      const supabase = getSupabase();
+      if (!getDb()) return res.status(501).json({ error: 'Membership checkout not available.' });
+      const db = getDb()!;
       let creatorUserId: string | null = creatorId;
       const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(creatorId);
       if (!isUuid) {
-        const { data: stream } = await supabase
+        const { data: stream } = await db
           .from('live_streams')
           .select('user_id')
           .eq('stream_key', creatorId)
@@ -177,7 +171,7 @@ export async function createSubscriptionSession(req: Request, res: Response) {
         creatorUserId = stream?.user_id || null;
       }
       if (creatorUserId) {
-        const { data: p } = await supabase
+        const { data: p } = await db
           .from('profiles')
           .select('stripe_connect_account_id')
           .eq('user_id', creatorUserId)

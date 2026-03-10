@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
+import { noopClient } from '../lib/noopClient';
 import { CheckCircle, Flag } from 'lucide-react';
 import { trackEvent } from '../lib/analytics';
 import { showToast } from '../lib/toast';
@@ -52,10 +52,10 @@ export default function Report() {
 
     setLoading(true);
     try {
-      const { data: userData } = await supabase.auth.getUser();
+      const { data: userData } = await noopClient.auth.getUser();
       if (!userData.user) throw new Error('Not authenticated');
 
-      const { error } = await supabase.from('reports').insert({
+      const { error } = await noopClient.from('reports').insert({
         reporter_id: userData.user.id,
         content_type: contentType,
         content_id: contentId,

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../../lib/supabase';
+import { noopClient } from '../../lib/noopClient';
 import { Search, Ban } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { showToast } from '../../lib/toast';
@@ -31,7 +31,7 @@ export default function BlockedAccounts() {
   }, [currentUserId]);
 
   const loadCurrentUser = async () => {
-    const { data } = await supabase.auth.getUser();
+    const { data } = await noopClient.auth.getUser();
     setCurrentUserId(data.user?.id || null);
   };
 
@@ -40,7 +40,7 @@ export default function BlockedAccounts() {
 
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      const { data, error } = await noopClient
         .from('blocked_users')
         .select('*, blocked_user:profiles!blocked_id(username, avatar_url)')
         .eq('blocker_id', currentUserId)
@@ -57,7 +57,7 @@ export default function BlockedAccounts() {
 
   const unblockUser = async (blockId: string) => {
     try {
-      const { error } = await supabase.from('blocked_users').delete().eq('id', blockId);
+      const { error } = await noopClient.from('blocked_users').delete().eq('id', blockId);
 
       if (error) throw error;
 

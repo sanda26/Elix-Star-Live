@@ -3,7 +3,7 @@ import { X, UserPlus, UserMinus, MessageCircle, MoreHorizontal, Flag } from 'luc
 import { useNavigate } from 'react-router-dom';
 import { useVideoStore } from '../store/useVideoStore';
 import { useAuthStore } from '../store/useAuthStore';
-import { supabase } from '../lib/supabase';
+import { noopClient } from '../lib/noopClient';
 import { showToast } from '../lib/toast';
 import { AvatarRing } from './AvatarRing';
 
@@ -35,22 +35,22 @@ export default function EnhancedLikesModal({ isOpen, onClose, videoId, likes }: 
     setLoading(true);
     (async () => {
       try {
-        const { data } = await supabase
+        const { data } = await noopClient
           .from('likes')
           .select('user_id')
           .eq('video_id', videoId)
           .limit(50);
         if (!data || data.length === 0) { setLoading(false); return; }
         const userIds = data.map((l: any) => l.user_id);
-        const { data: profiles } = await supabase
+        const { data: profiles } = await noopClient
           .from('profiles')
           .select('user_id, username, display_name, avatar_url, bio, followers_count, following_count')
           .in('user_id', userIds);
         if (profiles) {
           let followSet = new Set<string>();
-          const me = (await supabase.auth.getUser()).data.user?.id;
+          const me = (await noopClient.auth.getUser()).data.user?.id;
           if (me) {
-            const { data: myFollows } = await supabase
+            const { data: myFollows } = await noopClient
               .from('followers')
               .select('following_id')
               .eq('follower_id', me)
@@ -109,9 +109,9 @@ export default function EnhancedLikesModal({ isOpen, onClose, videoId, likes }: 
   };
 
   const handleReportUser = async (user: LikeUser) => {
-    const me = (await supabase.auth.getUser()).data.user;
+    const me = (await noopClient.auth.getUser()).data.user;
     if (!me) { showToast('Please sign in'); return; }
-    const { error } = await supabase.from('reports').insert({
+    const { error } = await noopClient.from('reports').insert({
       reporter_id: me.id, target_type: 'user', target_id: user.id, reason: 'inappropriate',
     });
     if (error) showToast('Failed to report');
@@ -119,9 +119,9 @@ export default function EnhancedLikesModal({ isOpen, onClose, videoId, likes }: 
   };
 
   const handleBlockUser = async (user: LikeUser) => {
-    const me = (await supabase.auth.getUser()).data.user;
+    const me = (await noopClient.auth.getUser()).data.user;
     if (!me) { showToast('Please sign in'); return; }
-    const token = (await supabase.auth.getSession()).data.session?.access_token;
+    const token = (await noopClient.auth.getSession()).data.session?.access_token;
     if (!token) return;
     const res = await fetch('/api/block-user', {
       method: 'POST',

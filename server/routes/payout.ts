@@ -1,34 +1,26 @@
 import { Request, Response } from 'express';
-import { createClient } from '@supabase/supabase-js';
+import { getDb } from '../lib/backend';
 
-const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '';
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+const dbUrl = process.env.DATABASE_URL || '';
+const serviceKey = process.env.AUTH_SERVICE_KEY || '';
 
-function getServiceClient() {
-  return createClient(supabaseUrl, supabaseServiceKey);
-}
-
-async function getUserFromAuth(req: Request): Promise<string | null> {
-  const authHeader = req.headers.authorization;
-  if (!authHeader?.startsWith('Bearer ')) return null;
-  const token = authHeader.slice(7);
-  const supabase = createClient(supabaseUrl, supabaseServiceKey);
-  const { data } = await supabase.auth.getUser(token);
-  return data.user?.id || null;
+async function getUserFromAuth(_req: Request): Promise<string | null> {
+  return null;
 }
 
 // GET /api/creator/balance — get creator's earning balances
 export async function handleGetCreatorBalance(req: Request, res: Response) {
+  if (!getDb()) return res.status(501).json({ error: 'Creator payout not available.' });
   try {
     const userId = await getUserFromAuth(req);
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-    const supabase = getServiceClient();
+    const db = getDb()!;
 
     // Mature any pending earnings first
-    await supabase.rpc('mature_pending_earnings', { p_creator_id: userId });
+    await db.rpc('mature_pending_earnings', { p_creator_id: userId });
 
-    const { data: balance } = await supabase
+    const { data: balance } = await db
       .from('creator_balances')
       .select('*')
       .eq('user_id', userId)
@@ -59,15 +51,16 @@ export async function handleGetCreatorBalance(req: Request, res: Response) {
 
 // GET /api/creator/earnings — get earnings history
 export async function handleGetCreatorEarnings(req: Request, res: Response) {
+  if (!getDb()) return res.status(501).json({ error: 'Creator payout not available.' });
   try {
     const userId = await getUserFromAuth(req);
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-    const supabase = getServiceClient();
+    const db = getDb();
     const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
     const offset = parseInt(req.query.offset as string) || 0;
 
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from('creator_earnings_ledger')
       .select('*')
       .eq('creator_id', userId)
@@ -84,6 +77,7 @@ export async function handleGetCreatorEarnings(req: Request, res: Response) {
 
 // POST /api/creator/withdraw — request a payout
 export async function handleCreatorWithdraw(req: Request, res: Response) {
+  if (!getDb()) return res.status(501).json({ error: 'Creator payout not available.' });
   try {
     const userId = await getUserFromAuth(req);
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
@@ -93,12 +87,12 @@ export async function handleCreatorWithdraw(req: Request, res: Response) {
       return res.status(400).json({ error: 'Invalid amount' });
     }
 
-    const supabase = getServiceClient();
+    const db = getDb();
 
     // Use the user's JWT to call the RPC so auth.uid() works
     const authHeader = req.headers.authorization;
     const token = authHeader?.slice(7) || '';
-    const userClient = createClient(supabaseUrl, process.env.VITE_SUPABASE_ANON_KEY || supabaseServiceKey, {
+    const userClient = createClient(dbUrl, process.env.AUTH_ANON_KEY || serviceKey, {
       global: { headers: { Authorization: `Bearer ${token}` } },
     });
 
@@ -121,13 +115,14 @@ export async function handleCreatorWithdraw(req: Request, res: Response) {
 
 // GET /api/creator/payouts — get payout history
 export async function handleGetCreatorPayouts(req: Request, res: Response) {
+  if (!getDb()) return res.status(501).json({ error: 'Creator payout not available.' });
   try {
     const userId = await getUserFromAuth(req);
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-    const supabase = getServiceClient();
+    const db = getDb();
 
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from('payout_requests')
       .select('*')
       .eq('user_id', userId)
@@ -144,6 +139,7 @@ export async function handleGetCreatorPayouts(req: Request, res: Response) {
 
 // POST /api/creator/payout-method — add/update payout method
 export async function handleSetPayoutMethod(req: Request, res: Response) {
+  if (!getDb()) return res.status(501).json({ error: 'Creator payout not available.' });
   try {
     const userId = await getUserFromAuth(req);
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
@@ -153,12 +149,12 @@ export async function handleSetPayoutMethod(req: Request, res: Response) {
       return res.status(400).json({ error: 'type and details required' });
     }
 
-    const supabase = getServiceClient();
+    const db = getDb();
 
     // Set all existing methods as non-default
-    await supabase.from('payout_methods').update({ is_default: false }).eq('user_id', userId);
+    await db.from('payout_methods').update({ is_default: false }).eq('user_id', userId);
 
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from('payout_methods')
       .insert({ user_id: userId, type, details, is_default: true })
       .select()
@@ -174,13 +170,14 @@ export async function handleSetPayoutMethod(req: Request, res: Response) {
 
 // GET /api/creator/payout-methods — get payout methods
 export async function handleGetPayoutMethods(req: Request, res: Response) {
+  if (!getDb()) return res.status(501).json({ error: 'Creator payout not available.' });
   try {
     const userId = await getUserFromAuth(req);
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-    const supabase = getServiceClient();
+    const db = getDb();
 
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from('payout_methods')
       .select('*')
       .eq('user_id', userId)
@@ -198,18 +195,19 @@ export async function handleGetPayoutMethods(req: Request, res: Response) {
 
 // GET /api/admin/payouts — list all pending payout requests
 export async function handleAdminListPayouts(req: Request, res: Response) {
+  if (!getDb()) return res.status(501).json({ error: 'Admin payout not available.' });
   try {
     const userId = await getUserFromAuth(req);
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-    const supabase = getServiceClient();
+    const db = getDb();
 
-    const { data: profile } = await supabase.from('profiles').select('is_admin').eq('user_id', userId).single();
+    const { data: profile } = await db.from('profiles').select('is_admin').eq('user_id', userId).single();
     if (!profile?.is_admin) return res.status(403).json({ error: 'Admin only' });
 
     const status = (req.query.status as string) || 'pending';
 
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from('payout_requests')
       .select('*, profiles!payout_requests_user_id_fkey(username, display_name, avatar_url)')
       .eq('status', status)
@@ -226,13 +224,14 @@ export async function handleAdminListPayouts(req: Request, res: Response) {
 
 // POST /api/admin/payout/:id/approve
 export async function handleAdminApprovePayout(req: Request, res: Response) {
+  if (!getDb()) return res.status(501).json({ error: 'Admin payout not available.' });
   try {
     const userId = await getUserFromAuth(req);
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-    const supabase = getServiceClient();
+    const db = getDb();
 
-    const { data: profile } = await supabase.from('profiles').select('is_admin').eq('user_id', userId).single();
+    const { data: profile } = await db.from('profiles').select('is_admin').eq('user_id', userId).single();
     if (!profile?.is_admin) return res.status(403).json({ error: 'Admin only' });
 
     const requestId = req.params.id;
@@ -241,7 +240,7 @@ export async function handleAdminApprovePayout(req: Request, res: Response) {
     // Use service client with admin's auth context
     const authHeader = req.headers.authorization;
     const token = authHeader?.slice(7) || '';
-    const adminClient = createClient(supabaseUrl, process.env.VITE_SUPABASE_ANON_KEY || supabaseServiceKey, {
+    const adminClient = createClient(dbUrl, process.env.AUTH_ANON_KEY || serviceKey, {
       global: { headers: { Authorization: `Bearer ${token}` } },
     });
 
@@ -265,13 +264,14 @@ export async function handleAdminApprovePayout(req: Request, res: Response) {
 
 // POST /api/admin/payout/:id/reject
 export async function handleAdminRejectPayout(req: Request, res: Response) {
+  if (!getDb()) return res.status(501).json({ error: 'Admin payout not available.' });
   try {
     const userId = await getUserFromAuth(req);
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-    const supabase = getServiceClient();
+    const db = getDb();
 
-    const { data: profile } = await supabase.from('profiles').select('is_admin').eq('user_id', userId).single();
+    const { data: profile } = await db.from('profiles').select('is_admin').eq('user_id', userId).single();
     if (!profile?.is_admin) return res.status(403).json({ error: 'Admin only' });
 
     const requestId = req.params.id;
@@ -279,7 +279,7 @@ export async function handleAdminRejectPayout(req: Request, res: Response) {
 
     const authHeader = req.headers.authorization;
     const token = authHeader?.slice(7) || '';
-    const adminClient = createClient(supabaseUrl, process.env.VITE_SUPABASE_ANON_KEY || supabaseServiceKey, {
+    const adminClient = createClient(dbUrl, process.env.AUTH_ANON_KEY || serviceKey, {
       global: { headers: { Authorization: `Bearer ${token}` } },
     });
 
@@ -303,19 +303,20 @@ export async function handleAdminRejectPayout(req: Request, res: Response) {
 
 // POST /api/admin/chargeback — reverse a gift transaction's pending earnings
 export async function handleAdminChargeback(req: Request, res: Response) {
+  if (!getDb()) return res.status(501).json({ error: 'Admin payout not available.' });
   try {
     const userId = await getUserFromAuth(req);
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-    const supabase = getServiceClient();
+    const db = getDb();
 
-    const { data: profile } = await supabase.from('profiles').select('is_admin').eq('user_id', userId).single();
+    const { data: profile } = await db.from('profiles').select('is_admin').eq('user_id', userId).single();
     if (!profile?.is_admin) return res.status(403).json({ error: 'Admin only' });
 
     const { gift_tx_id } = req.body;
     if (!gift_tx_id) return res.status(400).json({ error: 'gift_tx_id required' });
 
-    const { data, error } = await supabase.rpc('reverse_pending_earning', { p_gift_tx_id: gift_tx_id });
+    const { data, error } = await db.rpc('reverse_pending_earning', { p_gift_tx_id: gift_tx_id });
 
     if (error) {
       console.error('Chargeback error:', error);
@@ -333,6 +334,7 @@ export async function handleAdminChargeback(req: Request, res: Response) {
 
 // POST /api/shop/buy — buy a shop item with coins
 export async function handleShopBuy(req: Request, res: Response) {
+  if (!getDb()) return res.status(501).json({ error: 'Shop not available.' });
   try {
     const userId = await getUserFromAuth(req);
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
@@ -342,7 +344,7 @@ export async function handleShopBuy(req: Request, res: Response) {
 
     const authHeader = req.headers.authorization;
     const token = authHeader?.slice(7) || '';
-    const userClient = createClient(supabaseUrl, process.env.VITE_SUPABASE_ANON_KEY || supabaseServiceKey, {
+    const userClient = createClient(dbUrl, process.env.AUTH_ANON_KEY || serviceKey, {
       global: { headers: { Authorization: `Bearer ${token}` } },
     });
 
@@ -357,6 +359,7 @@ export async function handleShopBuy(req: Request, res: Response) {
 
 // POST /api/shop/refund — refund a shop item (if unused, within 14 days)
 export async function handleShopRefund(req: Request, res: Response) {
+  if (!getDb()) return res.status(501).json({ error: 'Shop not available.' });
   try {
     const userId = await getUserFromAuth(req);
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
@@ -366,7 +369,7 @@ export async function handleShopRefund(req: Request, res: Response) {
 
     const authHeader = req.headers.authorization;
     const token = authHeader?.slice(7) || '';
-    const userClient = createClient(supabaseUrl, process.env.VITE_SUPABASE_ANON_KEY || supabaseServiceKey, {
+    const userClient = createClient(dbUrl, process.env.AUTH_ANON_KEY || serviceKey, {
       global: { headers: { Authorization: `Bearer ${token}` } },
     });
 
@@ -384,12 +387,13 @@ export async function handleShopRefund(req: Request, res: Response) {
 
 // GET /api/shop/purchases — get user's shop purchase history
 export async function handleShopPurchases(req: Request, res: Response) {
+  if (!getDb()) return res.status(501).json({ error: 'Shop not available.' });
   try {
     const userId = await getUserFromAuth(req);
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-    const supabase = getServiceClient();
-    const { data, error } = await supabase
+    const db = getDb();
+    const { data, error } = await db
       .from('shop_purchases')
       .select('*, item:shop_items(title, image_url)')
       .eq('buyer_id', userId)

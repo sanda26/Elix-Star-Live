@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Send, Heart, Trash2, Edit3, MessageSquare, Reply, MoreVertical } from 'lucide-react';
 import { useVideoStore } from '../store/useVideoStore';
 import { useAuthStore } from '../store/useAuthStore';
-import { supabase } from '../lib/supabase';
+import { noopClient } from '../lib/noopClient';
 import { LevelBadge } from './LevelBadge';
 
 interface Comment {
@@ -50,7 +50,7 @@ export default function CommentsModal({ isOpen, onClose, videoId }: CommentsModa
   const fetchComments = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      const { data, error } = await noopClient
         .from('comments')
         .select('*')
         .eq('video_id', videoId)
@@ -63,7 +63,7 @@ export default function CommentsModal({ isOpen, onClose, videoId }: CommentsModa
       const userIds = [...new Set(rows.map((c: any) => c.user_id).filter(Boolean))];
       let profilesMap: Record<string, { username?: string; avatar_url?: string; level?: number }> = {};
       if (userIds.length > 0) {
-        const { data: profiles } = await supabase
+        const { data: profiles } = await noopClient
           .from('profiles')
           .select('user_id, username, avatar_url, level')
           .in('user_id', userIds);
@@ -95,7 +95,7 @@ export default function CommentsModal({ isOpen, onClose, videoId }: CommentsModa
 
   const fetchReplies = async (parentId: string): Promise<Comment[]> => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await noopClient
         .from('comments')
         .select('*')
         .eq('parent_id', parentId)
@@ -108,7 +108,7 @@ export default function CommentsModal({ isOpen, onClose, videoId }: CommentsModa
       const userIds = [...new Set(rows.map((r: any) => r.user_id).filter(Boolean))];
       let profilesMap: Record<string, { username?: string; avatar_url?: string; level?: number }> = {};
       if (userIds.length > 0) {
-        const { data: profiles } = await supabase
+        const { data: profiles } = await noopClient
           .from('profiles')
           .select('user_id, username, avatar_url, level')
           .in('user_id', userIds);
@@ -140,7 +140,7 @@ export default function CommentsModal({ isOpen, onClose, videoId }: CommentsModa
         parent_id: parentComment?.id || null
       };
 
-      const { data, error } = await supabase
+      const { data, error } = await noopClient
         .from('comments')
         .insert(commentData)
         .select('*')
@@ -190,7 +190,7 @@ export default function CommentsModal({ isOpen, onClose, videoId }: CommentsModa
 
   const handleDeleteComment = async (commentId: string, isReply: boolean = false, parentId?: string) => {
     try {
-      const { error } = await supabase
+      const { error } = await noopClient
         .from('comments')
         .delete()
         .eq('id', commentId)
@@ -223,7 +223,7 @@ export default function CommentsModal({ isOpen, onClose, videoId }: CommentsModa
     if (!editText.trim()) return;
 
     try {
-      const { error } = await supabase
+      const { error } = await noopClient
         .from('comments')
         .update({ text: editText.trim() })
         .eq('id', commentId)
@@ -259,7 +259,7 @@ export default function CommentsModal({ isOpen, onClose, videoId }: CommentsModa
     if (!user?.id) return;
 
     try {
-      const { data: existingLike } = await supabase
+      const { data: existingLike } = await noopClient
         .from('comment_likes')
         .select('*')
         .eq('comment_id', commentId)
@@ -268,14 +268,14 @@ export default function CommentsModal({ isOpen, onClose, videoId }: CommentsModa
 
       if (existingLike) {
         // Unlike
-        await supabase
+        await noopClient
           .from('comment_likes')
           .delete()
           .eq('comment_id', commentId)
           .eq('user_id', user.id);
       } else {
         // Like
-        await supabase
+        await noopClient
           .from('comment_likes')
           .insert({
             comment_id: commentId,

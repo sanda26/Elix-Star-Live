@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
+import { noopClient } from '../lib/noopClient';
 import { useAuthStore } from '../store/useAuthStore';
 import { useVideoStore } from '../store/useVideoStore';
 import { AvatarRing } from '../components/AvatarRing';
@@ -29,7 +29,7 @@ export default function FriendsFeed() {
     const fetchMyFollowers = async () => {
       if (!user?.id) return;
       try {
-        const { data: followData } = await supabase
+        const { data: followData } = await noopClient
           .from('followers')
           .select('follower_id')
           .eq('following_id', user.id)
@@ -39,7 +39,7 @@ export default function FriendsFeed() {
           .map((f: { follower_id: string }) => f.follower_id)
           .filter((id: string) => id !== user?.id);
         if (ids.length === 0) { setMyFollowers([]); return; }
-        const { data: profiles } = await supabase
+        const { data: profiles } = await noopClient
           .from('profiles')
           .select('user_id, username, display_name, avatar_url')
           .in('user_id', ids);
@@ -64,13 +64,13 @@ export default function FriendsFeed() {
 
     const fetchUsers = async () => {
       try {
-        const { data: usersData, error } = await supabase
+        const { data: usersData, error } = await noopClient
           .from('profiles')
           .select('user_id, username, display_name, avatar_url')
           .neq('user_id', user?.id || '')
           .limit(50);
         if (error) throw error;
-        const { data: liveData } = await supabase
+        const { data: liveData } = await noopClient
           .from('live_streams')
           .select('user_id')
           .eq('is_live', true);

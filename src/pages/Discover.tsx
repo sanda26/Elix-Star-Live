@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
+import { noopClient } from '../lib/noopClient';
 import { Search, TrendingUp, Hash, Users, Video as VideoIcon, Trophy, Music, Flame, Sparkles, Star, Zap } from 'lucide-react';
 import { trackEvent } from '../lib/analytics';
 import { AvatarRing } from '../components/AvatarRing';
@@ -75,7 +75,7 @@ export default function Discover() {
     setLoading(true);
     setTrendingVideos([]);
     try {
-      const { data: videoRows, error: videoError } = await supabase
+      const { data: videoRows, error: videoError } = await noopClient
         .from('videos')
         .select('*')
         .eq('is_public', true)
@@ -87,7 +87,7 @@ export default function Discover() {
 
       if (list.length > 0) {
         const userIds = [...new Set(list.map((v: any) => v.user_id).filter(Boolean))];
-        const { data: profiles } = await supabase
+        const { data: profiles } = await noopClient
           .from('profiles')
           .select('user_id, username, avatar_url')
           .in('user_id', userIds);
@@ -110,7 +110,7 @@ export default function Discover() {
   const loadHashtags = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      const { data, error } = await noopClient
         .from('hashtags')
         .select('*')
         .order('use_count', { ascending: false })
@@ -128,7 +128,7 @@ export default function Discover() {
   const loadRanking = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.rpc('get_weekly_creator_ranking', { p_limit: 99 });
+      const { data, error } = await noopClient.rpc('get_weekly_creator_ranking', { p_limit: 99 });
 
       if (error) throw error;
       setRankings(data || []);
@@ -147,13 +147,13 @@ export default function Discover() {
 
     try {
       const [videosRes, usersRes] = await Promise.all([
-        supabase
+        noopClient
           .from('videos')
           .select('*')
           .eq('is_public', true)
           .ilike('description', `%${searchQuery}%`)
           .limit(20),
-        supabase
+        noopClient
           .from('profiles')
           .select('user_id, username, avatar_url, followers_count')
           .ilike('username', `%${searchQuery}%`)
@@ -163,7 +163,7 @@ export default function Discover() {
       const videoList = videosRes.data || [];
       if (videoList.length > 0) {
         const userIds = [...new Set(videoList.map((v: any) => v.user_id).filter(Boolean))];
-        const { data: profiles } = await supabase.from('profiles').select('user_id, username, avatar_url').in('user_id', userIds);
+        const { data: profiles } = await noopClient.from('profiles').select('user_id, username, avatar_url').in('user_id', userIds);
         const profileMap: Record<string, { username: string; avatar_url: string | null }> = {};
         (profiles || []).forEach((p: any) => { profileMap[p.user_id] = { username: p.username || 'User', avatar_url: p.avatar_url ?? null }; });
         setSearchResults({

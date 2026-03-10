@@ -12,7 +12,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { OfflineBanner } from './components/OfflineBanner';
 import { IncomingCallModal } from './components/IncomingCallModal';
 import { subscribeToIncomingCalls } from './lib/callService';
-import { supabase } from './lib/supabase';
+import { noopClient } from './lib/noopClient';
 import { showToast } from './lib/toast';
 import { websocket } from './lib/websocket';
 
@@ -120,7 +120,7 @@ function App() {
   useEffect(() => {
     checkUser();
     
-    // Failsafe: if loading takes too long (e.g. supabase hanging), force stop loading
+    // Failsafe: if loading takes too long (e.g. auth hanging), force stop loading
     const timer = setTimeout(() => {
       if (useAuthStore.getState().isLoading) {
 
@@ -163,7 +163,7 @@ function App() {
   // One toast when user receives a private message (someone else sent it)
   useEffect(() => {
     if (!user?.id) return;
-    const channel = supabase
+    const channel = noopClient
       .channel('dm-notifications')
       .on(
         'postgres_changes',
@@ -171,13 +171,13 @@ function App() {
         async (payload) => {
           const row = payload.new as { sender_id: string; thread_id: string };
           if (row.sender_id === user.id) return;
-          const { data: thread } = await supabase
+          const { data: thread } = await noopClient
             .from('chat_threads')
             .select('user1_id, user2_id')
             .eq('id', row.thread_id)
             .single();
           if (!thread || (thread.user1_id !== user.id && thread.user2_id !== user.id)) return;
-          const { data: profile } = await supabase
+          const { data: profile } = await noopClient
             .from('profiles')
             .select('display_name, username')
             .eq('user_id', row.sender_id)
@@ -187,14 +187,14 @@ function App() {
         }
       )
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    return () => { noopClient.removeChannel(channel); };
   }, [user?.id]);
 
   // When creator accepts your co-host or battle request, show toast and navigate to stream
   // Note: battle_accepted is sent to the HOST (creator) - they are already live, do NOT navigate
   useEffect(() => {
     if (!user?.id) return;
-    const channel = supabase
+    const channel = noopClient
       .channel(`accepted_request_${user.id}`)
       .on(
         'postgres_changes',
@@ -205,7 +205,7 @@ function App() {
           if (t !== 'cohost_accepted' && t !== 'battle_accepted') return;
           const streamKey = row?.data?.stream_key;
           if (!streamKey) return;
-          supabase.from('notifications').update({ is_read: true }).eq('id', row.id).then(() => {});
+          noopClient.from('notifications').update({ is_read: true }).eq('id', row.id).then(() => {});
           if (t === 'cohost_accepted') {
             showToast('You were accepted to co-host! Joining...');
             navigate(`/live/${streamKey}?cohost=1`);
@@ -215,7 +215,7 @@ function App() {
         }
       )
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    return () => { noopClient.removeChannel(channel); };
   }, [user?.id, navigate]);
 
   const isFullScreen =

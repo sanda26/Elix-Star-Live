@@ -76,7 +76,7 @@ export default function Privacy() {
 
           <Section title="3. How We Store Your Data">
             <p>
-              Your data is stored on secure servers provided by Supabase (hosted in the EU/US).
+              Your data is stored on secure servers (e.g. EU/US).
               All data is encrypted in transit (HTTPS/TLS) and at rest. Passwords are cryptographically
               hashed and never stored in plain text.
             </p>
@@ -85,7 +85,7 @@ export default function Privacy() {
           <Section title="4. Data Sharing">
             <p>We do not sell your personal data. We may share data with:</p>
             <ul className="list-disc pl-5 space-y-1">
-              <li><strong>Service providers:</strong> hosting (Supabase), analytics, payment processing (Apple, Google, Stripe)</li>
+              <li><strong>Service providers:</strong> hosting, analytics, payment processing (Apple, Google, Stripe)</li>
               <li><strong>Law enforcement:</strong> when required by law or to protect our legal rights</li>
               <li><strong>Other users:</strong> your public profile, live streams, and public chat messages are visible to others</li>
             </ul>

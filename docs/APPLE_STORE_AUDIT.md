@@ -46,7 +46,7 @@ Summary of checks and fixes for App Store submission. **Build for store with:** 
 
 4. **Sign in with Apple**
    - Enable in Apple Developer → Identifiers → your App ID → Sign in with Apple.
-   - Configure in Supabase Auth (Apple provider).
+   - Configure in your auth provider (e.g. Apple Sign-In).
 
 ---
 

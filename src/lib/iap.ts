@@ -4,7 +4,7 @@
  */
 
 import { platform } from './platform';
-import { supabase } from './supabase';
+import { noopClient } from './noopClient';
 
 // Product IDs — must match App Store Connect / Google Play Console
 export const IAP_PRODUCTS = {
@@ -205,7 +205,7 @@ async function verifyAndCreditPurchase(
   receipt: string,
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { session } } = await noopClient.auth.getSession();
     if (!session) return { success: false, error: 'Not authenticated' };
 
     const provider = platform.isIOS ? 'apple' : 'google';

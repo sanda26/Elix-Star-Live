@@ -1,14 +1,10 @@
 # Elix Star Live - ProGuard Configuration
-# Optimized for React Native + Capacitor + Supabase
+# Optimized for React Native + Capacitor
 
 # Keep React Native and Capacitor classes
 -keep class com.capacitorjs.** { *; }
 -keep class com.getcapacitor.** { *; }
 -keep class org.apache.cordova.** { *; }
-
-# Keep Supabase classes
--keep class com.supabase.** { *; }
--keep class io.supabase.** { *; }
 -keep class org.godotengine.godot.** { *; }
 
 # Keep React Native classes

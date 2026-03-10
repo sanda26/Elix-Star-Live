@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { supabase } from '../../lib/supabase';
+import { noopClient } from '../../lib/noopClient';
 import { Flag, CheckCircle, XCircle, Eye } from 'lucide-react';
 import { showToast } from '../../lib/toast';
 
@@ -27,7 +27,7 @@ export default function AdminReports() {
 
   const loadReports = async () => {
     try {
-      let query = supabase
+      let query = noopClient
         .from('reports')
         .select('*, reporter:profiles!reporter_id(username)')
         .order('created_at', { ascending: false })
@@ -50,8 +50,8 @@ export default function AdminReports() {
 
   const handleResolve = async (reportId: string, outcome: 'removed' | 'warned' | 'no_action') => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      const { error } = await supabase
+      const { data: { user } } = await noopClient.auth.getUser();
+      const { error } = await noopClient
         .from('reports')
         .update({
           status: 'resolved',

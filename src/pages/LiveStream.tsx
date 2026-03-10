@@ -2932,7 +2932,7 @@ export default function LiveStream() {
       {/* ═══ SPEED CHALLENGE OVERLAY ═══ */}
       {SPEED_CHALLENGE_ENABLED && speedChallengeCountdown !== null && (
               <div className="absolute inset-x-0 bottom-32 z-[270] pointer-events-none flex items-center justify-center">
-                <div className="flex flex-col items-center gap-2 px-6 py-4 rounded-2xl bg-[#13151A]/60 backdrop-blur-xl border border-[#C9A96E]/30 shadow-[0_0_30px_rgba(230,179,106,0.2)]">
+                <div className="flex flex-col items-center gap-2 px-6 py-4 rounded-2xl bg-[#13151A]/60 backdrop-blur-xl border border-white/15 shadow-[0_0_30px_rgba(0,0,0,0.6)]">
                   <span className="text-white text-[12px] font-bold uppercase tracking-widest">
                     Speed Challenge {speedMultiplier > 1 ? `x${speedMultiplier}` : ''}
                   </span>
@@ -2948,7 +2948,7 @@ export default function LiveStream() {
 
             {SPEED_CHALLENGE_ENABLED && speedChallengeResult && !speedChallengeActive && (
               <div className="absolute inset-x-0 bottom-24 z-[270] pointer-events-none flex items-center justify-center">
-                <div className="flex flex-col items-center gap-1 px-6 py-3 rounded-xl bg-[#13151A]/70 backdrop-blur-md border border-[#C9A96E]/30 shadow-[0_0_20px_rgba(230,179,106,0.3)]">
+                <div className="flex flex-col items-center gap-1 px-6 py-3 rounded-xl bg-[#13151A]/70 backdrop-blur-md border border-white/15 shadow-[0_0_20px_rgba(0,0,0,0.6)]">
                   <span className="text-white text-[10px] font-bold uppercase tracking-widest">⚡ Speed Challenge Result</span>
                   <span className="text-white text-lg font-black drop-shadow-[0_0_15px_rgba(230,179,106,0.8)] animate-bounce">{speedChallengeResult}</span>
                 </div>

@@ -64,11 +64,27 @@ export const noopClient = {
     listBuckets: async () => ({ data: null, error: { message: msg } }),
   },
   rpc: () => noopQuery(),
-  channel: () => ({
-    subscribe: () => {},
-    send: () => Promise.resolve(),
-    on: () => ({}),
-  }),
+  channel: () => {
+    const channel = {
+      // Keep API surface compatible with Supabase Realtime so calls like
+      // client.channel(...).on(...).subscribe(cb) do NOT throw when backend is disabled.
+      on: (..._args: any[]) => channel,
+      async subscribe(_callback?: (status: unknown) => void) {
+        try {
+          if (typeof _callback === 'function') {
+            _callback('SUBSCRIBED');
+          }
+        } catch {
+          // ignore callback errors in noop client
+        }
+        return { data: { subscription: { unsubscribe: () => {} } }, error: null };
+      },
+      async send() {
+        return { data: null, error: { message: msg } };
+      },
+    };
+    return channel as any;
+  },
   removeChannel: () => {},
   removeAllChannels: () => {},
 } as any;

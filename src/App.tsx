@@ -160,63 +160,9 @@ function App() {
     return () => document.removeEventListener('visibilitychange', handleVisibility);
   }, []);
 
-  // One toast when user receives a private message (someone else sent it)
-  useEffect(() => {
-    if (!user?.id) return;
-    const channel = noopClient
-      .channel('dm-notifications')
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'messages' },
-        async (payload) => {
-          const row = payload.new as { sender_id: string; thread_id: string };
-          if (row.sender_id === user.id) return;
-          const { data: thread } = await noopClient
-            .from('chat_threads')
-            .select('user1_id, user2_id')
-            .eq('id', row.thread_id)
-            .single();
-          if (!thread || (thread.user1_id !== user.id && thread.user2_id !== user.id)) return;
-          const { data: profile } = await noopClient
-            .from('profiles')
-            .select('display_name, username')
-            .eq('user_id', row.sender_id)
-            .single();
-          const name = profile?.display_name || profile?.username || 'Someone';
-          showToast(`New message from ${name}`, 3000);
-        }
-      )
-      .subscribe();
-    return () => { noopClient.removeChannel(channel); };
-  }, [user?.id]);
-
-  // When creator accepts your co-host or battle request, show toast and navigate to stream
-  // Note: battle_accepted is sent to the HOST (creator) - they are already live, do NOT navigate
-  useEffect(() => {
-    if (!user?.id) return;
-    const channel = noopClient
-      .channel(`accepted_request_${user.id}`)
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
-        (payload: any) => {
-          const row = payload.new;
-          const t = row?.type;
-          if (t !== 'cohost_accepted' && t !== 'battle_accepted') return;
-          const streamKey = row?.data?.stream_key;
-          if (!streamKey) return;
-          noopClient.from('notifications').update({ is_read: true }).eq('id', row.id).then(() => {});
-          if (t === 'cohost_accepted') {
-            showToast('You were accepted to co-host! Joining...');
-            navigate(`/live/${streamKey}?cohost=1`);
-          }
-          // battle_accepted: recipient is the host (creator) who is already on /live/broadcast - do not navigate
-          // the joiner already navigates in LiveStream.acceptBattleInvite
-        }
-      )
-      .subscribe();
-    return () => { noopClient.removeChannel(channel); };
-  }, [user?.id, navigate]);
+  // NOTE: realtime DM/cohost notifications via Supabase channels have been disabled
+  // because the app now uses a custom Node/WebSocket backend. This prevents
+  // legacy channel().on().subscribe() crashes while keeping auth & core flows working.
 
   const isFullScreen =
     location.pathname === '/' ||

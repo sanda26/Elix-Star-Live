@@ -67,23 +67,8 @@ export default function LiveDiscover() {
   useEffect(() => {
     fetchLiveStreams();
 
-    const channel = noopClient
-      .channel('live_discover_streams')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'live_streams' }, (payload: any) => {
-        const row = payload.new;
-        if (row && row.is_live === false) {
-          removeLiveStream(row.stream_key || row.id);
-        }
-        if (payload.eventType === 'DELETE' && payload.old) {
-          removeLiveStream(payload.old.stream_key || payload.old.id);
-        }
-        if (payload.eventType === 'INSERT' && row?.is_live) {
-          fetchLiveStreams();
-        }
-      })
-      .subscribe();
-
-    return () => { noopClient.removeChannel(channel); };
+    // Realtime updates via Supabase channels disabled; rely on polling for now.
+    return () => {};
   }, [fetchLiveStreams, removeLiveStream]);
 
   const formatViewers = (n: number) => {

@@ -158,34 +158,8 @@ export default function SpectatorPage() {
 
   useEffect(() => {
     if (!user?.id) return;
-    const chan = noopClient
-      .channel(`spectator_cohost_invite_${user.id}`)
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
-        (payload: any) => {
-          const row = payload.new;
-          if (row?.type === 'cohost_invite') {
-            setPendingCoHostInvite({
-              notifId: row.id,
-              hostName: row.data?.host_name || 'Someone',
-              hostAvatar: row.data?.host_avatar || '',
-              streamKey: row.data?.stream_key || '',
-              hostUserId: row.data?.actor_id || '',
-            });
-          }
-          if (row?.type === 'cohost_accepted') {
-            const streamKey = row.data?.stream_key || '';
-            if (streamKey) {
-              showToast('Co-host request accepted! Joining...');
-              navigate(`/watch/${streamKey}?cohost=1`);
-            }
-          }
-          
-        }
-      )
-      .subscribe();
-    return () => { noopClient.removeChannel(chan); };
+    // Supabase-based cohost invite notifications disabled; relies on explicit navigation.
+    return () => {};
   }, [user?.id]);
   const myVideoRef = useRef<HTMLVideoElement>(null);
   const [isMicMuted, setIsMicMuted] = useState(true);
@@ -214,23 +188,6 @@ export default function SpectatorPage() {
         myVideoRef.current.srcObject = stream;
         myVideoRef.current.play().catch(() => {});
       }
-
-      if (coHostChanRef.current) { noopClient.removeChannel(coHostChanRef.current); }
-      const chan = noopClient.channel(`cohost_presence_${effectiveStreamId}`);
-      coHostChanRef.current = chan;
-      chan.subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          chan.send({
-            type: 'broadcast',
-            event: 'cohost_joined',
-            payload: {
-              userId: user?.id,
-              name: user?.username || user?.name || viewerName,
-              avatar: user?.avatar || viewerAvatar,
-            },
-          });
-        }
-      });
 
       showToast('You are now co-hosting!');
       setMessages(prev => [...prev, {
@@ -448,33 +405,8 @@ export default function SpectatorPage() {
   useEffect(() => {
     if (!effectiveStreamId) return;
 
-    const chan = noopClient
-      .channel(`spectator_viewers_${effectiveStreamId}`)
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'live_streams',
-        filter: `stream_key=eq.${effectiveStreamId}`,
-      }, async (payload: any) => {
-        if (payload.new?.viewer_count != null) setViewerCount(payload.new.viewer_count);
-        if (payload.new?.is_live === false) {
-          await new Promise(r => setTimeout(r, 3000));
-          const { data: recheck } = await noopClient
-            .from('live_streams')
-            .select('is_live')
-            .eq('stream_key', effectiveStreamId)
-            .maybeSingle();
-          if (!recheck || !recheck.is_live) {
-            showToast('Stream ended');
-            setTimeout(() => navigate('/feed', { replace: true }), 2000);
-          }
-        }
-      })
-      .subscribe();
-
-    return () => {
-      noopClient.removeChannel(chan);
-    };
+    // Supabase-based viewer_count realtime disabled; rely on WebSocket/backend events.
+    return () => {};
   }, [effectiveStreamId, navigate]);
 
   // WebSocket: connect to room for real-time chat, gifts, join/leave

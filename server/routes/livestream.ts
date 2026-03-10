@@ -11,6 +11,14 @@ import { createLiveToken, isLiveKitConfigured } from '../services/livekit';
 // In-memory active streams (key = roomName). Replace with DB when using Postgres.
 const activeStreams = new Map<string, { userId: string; startedAt: string }>();
 
+/** Internal helper so other modules (WebSocket server) can mark streams offline. */
+export function removeActiveStream(roomId: string, userId?: string) {
+  const s = activeStreams.get(roomId);
+  if (!s) return;
+  if (userId && s.userId !== userId) return;
+  activeStreams.delete(roomId);
+}
+
 function requireAuth(req: Request, res: Response): { userId: string } | null {
   const token = getTokenFromRequest(req);
   if (!token) {

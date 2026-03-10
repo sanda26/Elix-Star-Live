@@ -3,7 +3,6 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import LivePreviewCard from '../components/LivePreviewCard';
 import EnhancedVideoPlayer from '../components/EnhancedVideoPlayer';
 import { useVideoStore } from '../store/useVideoStore';
-import { noopClient } from '../lib/noopClient';
 
 type LiveStreamCard = {
   streamKey: string;
@@ -36,39 +35,54 @@ export default function VideoFeed() {
   }, []);
 
   const fetchLiveStreams = useCallback(async () => {
+    setLiveLoading(true);
     try {
-      const { data } = await noopClient
-        .from('live_streams')
-        .select('*')
-        .eq('is_live', true)
-        .order('viewer_count', { ascending: false });
+      const apiBase = (import.meta.env.VITE_API_URL ?? '').toString().trim();
+      const url = apiBase
+        ? `${apiBase.replace(/\/$/, '')}/api/live/streams`
+        : '/api/live/streams';
 
-      if (!data || data.length === 0) {
+      const res = await fetch(url, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      });
+
+      if (!res.ok) {
         setLiveStreams([]);
         setLiveLoading(false);
         return;
       }
 
-      const userIds = (data as any[]).map((s: any) => s.user_id).filter(Boolean);
-      const { data: profiles } = userIds.length > 0
-        ? await noopClient.from('profiles').select('user_id, username, display_name, avatar_url').in('user_id', userIds)
-        : { data: [] };
-      const profileMap = new Map((profiles || []).map((p: any) => [p.user_id, p]));
+      const body = await res.json().catch(() => ({ streams: [] as any[] }));
+      const streams = Array.isArray(body.streams) ? body.streams as any[] : [];
+
+      if (streams.length === 0) {
+        setLiveStreams([]);
+        setLiveLoading(false);
+        return;
+      }
 
       const removed = removedKeysRef.current;
-      setLiveStreams((data as any[])
-        .filter((s: any) => !removed.has(s.stream_key) && !removed.has(s.id))
-        .map((s: any) => {
-          const p: any = profileMap.get(s.user_id);
-          return {
-            streamKey: s.stream_key || s.id,
-            name: p?.display_name || p?.username || s.title || 'Creator',
-            avatar: p?.avatar_url || '',
-            viewers: s.viewer_count || 0,
-            title: s.title || undefined,
-            thumbnail: s.thumbnail_url || '',
-          };
-        }));
+      setLiveStreams(
+        streams
+          .filter((s: any) => {
+            const key = s.stream_key || s.room_id || s.id;
+            return key && !removed.has(key);
+          })
+          .map((s: any) => {
+            const key = s.stream_key || s.room_id || s.id;
+            return {
+              streamKey: key,
+              // Backend deocamdată nu are profiluri altor useri; folosim fallback generic.
+              name: s.title || 'Live stream',
+              avatar: '',
+              viewers: Number(s.viewer_count ?? 0),
+              title: s.title || undefined,
+              thumbnail: '',
+            } as LiveStreamCard;
+          })
+      );
     } catch {
       setLiveStreams([]);
     }
@@ -79,29 +93,9 @@ export default function VideoFeed() {
     fetchLiveStreams();
     fetchVideos();
 
-    const chan = noopClient
-      .channel('feed_live_streams')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'live_streams' }, (payload: any) => {
-        const row = payload.new;
-        if (row && row.is_live === false) {
-          removeLiveStream(row.stream_key || row.id);
-          return;
-        }
-        if (payload.eventType === 'DELETE' && payload.old) {
-          const old = payload.old;
-          removeLiveStream(old.stream_key || old.id);
-          return;
-        }
-        if (payload.eventType === 'INSERT' && row?.is_live) {
-          fetchLiveStreams();
-        }
-      })
-      .subscribe();
-
-    const poll = setInterval(fetchLiveStreams, 15000);
+    const poll = setInterval(fetchLiveStreams, 5000);
 
     return () => {
-      noopClient.removeChannel(chan);
       clearInterval(poll);
     };
   }, [fetchLiveStreams, fetchVideos, removeLiveStream]);

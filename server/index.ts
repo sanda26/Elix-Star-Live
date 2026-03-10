@@ -52,6 +52,7 @@ import {
   handleLiveStart,
   handleLiveEnd,
   handleGetLiveToken,
+  removeActiveStream,
 } from './routes/livestream';
 import { handleUploadVideo } from './routes/upload';
 import { handleSendGift } from './routes/gifts';
@@ -739,6 +740,8 @@ wss.on('connection', async (ws: WebSocket, req) => {
 
 // When a user disconnects, check if they were the stream host and notify all viewers
 async function checkAndBroadcastStreamEnd(roomId: string, userId: string) {
+  // Remove from in-memory active streams so /api/live/streams no longer lists it
+  removeActiveStream(roomId, userId);
   broadcastToRoom(roomId, 'stream_ended', {
     stream_key: roomId,
     host_user_id: userId,

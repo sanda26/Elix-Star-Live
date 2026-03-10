@@ -93,28 +93,8 @@ export default function ChatThread() {
 
     fetchMessages();
 
-    // Realtime subscription
-    const channel = noopClient
-      .channel(`chat:${threadId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'messages',
-          filter: `thread_id=eq.${threadId}`,
-        },
-        (payload) => {
-          const newMsg = payload.new as Message;
-          setMessages((prev) => [...prev, newMsg]);
-          scrollToBottom();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      noopClient.removeChannel(channel);
-    };
+    // Realtime message subscription removed; thread will update on page reload.
+    return () => {};
   }, [threadId, isSystemThread]);
 
   const scrollToBottom = () => {

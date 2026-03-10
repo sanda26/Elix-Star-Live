@@ -334,18 +334,8 @@ export default function LiveStream() {
         if (!error) setIsMyStreamLive(true);
       })();
 
-      const channel = noopClient
-        .channel(`live_viewers_${key}`)
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'live_streams', filter: `stream_key=eq.${key}` }, (payload: any) => {
-          if (payload.new?.viewer_count != null) {
-            setViewerCount(Number(payload.new.viewer_count));
-          }
-        })
-        .subscribe();
-
       return () => {
         setIsMyStreamLive(false);
-        noopClient.removeChannel(channel);
         noopClient
           .from('live_streams')
           .update({ is_live: false, viewer_count: 0 })
@@ -365,26 +355,8 @@ export default function LiveStream() {
           }
         });
 
-      const channel = noopClient
-        .channel(`live_viewers_${key}`)
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'live_streams', filter: `stream_key=eq.${key}` }, (payload: any) => {
-          if (payload.new?.viewer_count != null) {
-            setViewerCount(Number(payload.new.viewer_count));
-          }
-          if (payload.new?.is_live === false) {
-            // Safety check: if I am the owner of this stream key, do NOT navigate away.
-            // This can happen if isBroadcast state is briefly out of sync or if we are navigating between modes.
-            if (user?.id && payload.new?.user_id === user.id) return;
-            
-            showToast('Stream ended');
-            navigate('/live', { replace: true });
-          }
-        })
-        .subscribe();
-
-      return () => {
-        noopClient.removeChannel(channel);
-      };
+      // Viewer-side realtime viewer_count updates removed; rely on initial load + WebSocket events.
+      return () => {};
     }
   }, [effectiveStreamId, isBroadcast, user?.id]);
 
@@ -583,63 +555,8 @@ export default function LiveStream() {
 
   useEffect(() => {
     if (!user?.id) return;
-    const chan = noopClient
-      .channel(`battle_invite_${user.id}`)
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
-        (payload: any) => {
-          const row = payload.new;
-          if (row?.type === 'battle_invite') {
-            const inviterId = row.data?.actor_id || '';
-            const inviterName = row.data?.host_name || 'Someone';
-            const inviterAvatar = row.data?.host_avatar || '';
-            setPendingInvite({
-              notifId: row.id,
-              hostName: inviterName,
-              hostAvatar: inviterAvatar,
-              streamKey: row.data?.stream_key || '',
-              hostUserId: inviterId,
-            });
-            setBattleSlots(prev => {
-              if (prev.some(s => s.userId === inviterId)) return prev;
-              const next = [...prev];
-              const emptyIdx = next.findIndex(s => s.status === 'empty');
-              if (emptyIdx !== -1) {
-                next[emptyIdx] = { userId: inviterId, name: inviterName, status: 'pending_accept' as any, avatar: inviterAvatar };
-              }
-              return next;
-            });
-          }
-          if (row?.type === 'battle_accepted' && isBroadcast) {
-            const acceptedUserId = row.data?.actor_id || '';
-            const acceptedName = row.data?.accepted_name || '';
-            const acceptedAvatar = row.data?.accepted_avatar || '';
-            setBattleSlots(prev => {
-              if (prev.some(s => s.userId === acceptedUserId && s.status === 'accepted')) return prev;
-              const next = [...prev];
-              const idx = next.findIndex(s => s.status === 'invited' && s.userId === acceptedUserId);
-              if (idx !== -1) {
-                next[idx] = { userId: acceptedUserId, name: acceptedName || next[idx].name, status: 'accepted', avatar: acceptedAvatar || next[idx].avatar };
-              } else {
-                const nameIdx = next.findIndex(s => s.status === 'invited' && s.name === acceptedName);
-                if (nameIdx !== -1) {
-                  next[nameIdx] = { userId: acceptedUserId, name: acceptedName, status: 'accepted', avatar: acceptedAvatar || next[nameIdx].avatar };
-                } else {
-                  const emptyIdx = next.findIndex(s => s.status === 'empty');
-                  if (emptyIdx !== -1) {
-                    next[emptyIdx] = { userId: acceptedUserId, name: acceptedName, status: 'accepted', avatar: acceptedAvatar };
-                  }
-                }
-              }
-              return next;
-            });
-            showToast(`@${acceptedName} joined the battle!`);
-          }
-        }
-      )
-      .subscribe();
-    return () => { noopClient.removeChannel(chan); };
+    // Supabase-based battle invite notifications disabled.
+    return () => {};
   }, [user?.id, isBroadcast]);
 
   const acceptBattleInvite = async () => {
@@ -796,54 +713,8 @@ export default function LiveStream() {
 
   useEffect(() => {
     if (!user?.id) return;
-    const chan = noopClient
-      .channel(`cohost_invite_${user.id}`)
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
-        (payload: any) => {
-          const row = payload.new;
-          if (row?.type === 'cohost_invite' && !isBroadcast) {
-            const inviterId = row.data?.actor_id || '';
-            const inviterName = row.data?.host_name || 'Someone';
-            const inviterAvatar = row.data?.host_avatar || '';
-            const inviteStreamKey = row.data?.stream_key || '';
-            setCoHosts(prev => {
-              if (prev.some(h => h.userId === inviterId)) return prev;
-              return [...prev, {
-                id: `host-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-                userId: inviterId,
-                name: inviterName,
-                avatar: inviterAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(inviterName)}&background=121212&color=C9A96E`,
-                status: 'pending_accept' as any,
-                isMuted: false,
-                _notifId: row.id,
-                _streamKey: inviteStreamKey,
-              }];
-            });
-            
-          }
-          if (row?.type === 'cohost_accepted' && isBroadcast) {
-            const acceptedUserId = row.data?.actor_id || '';
-            const acceptedName = row.data?.accepted_name || '';
-            const acceptedAvatar = row.data?.accepted_avatar || '';
-            setCoHosts(prev => prev.map(h =>
-              h.userId === acceptedUserId || h.name === acceptedName
-                ? { ...h, status: 'live', name: acceptedName || h.name, avatar: acceptedAvatar || h.avatar }
-                : h
-            ));
-            showToast(`@${acceptedName} joined as co-host!`);
-            setMessages(prev => [...prev, {
-              id: Date.now().toString(),
-              username: 'System',
-              text: `${acceptedName} joined as co-host`,
-              isSystem: true,
-            }]);
-          }
-        }
-      )
-      .subscribe();
-    return () => { noopClient.removeChannel(chan); };
+    // Supabase-based cohost invite notifications disabled.
+    return () => {};
   }, [user?.id, isBroadcast]);
 
   // ─── JOIN REQUEST: creator receives when someone asked to join (no spectator UI to send — invite only from creator) ───
@@ -852,30 +723,8 @@ export default function LiveStream() {
 
   useEffect(() => {
     if (!user?.id || !isBroadcast) return;
-    const chan = noopClient
-      .channel(`join_request_${user.id}`)
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
-        (payload: any) => {
-          const row = payload.new;
-          if (row?.type === 'join_request') {
-            const reqName = row.data?.requester_name || 'Someone';
-            const reqAvatar = row.data?.requester_avatar || '';
-            const reqId = row.data?.actor_id || '';
-            setPendingJoinRequest({
-              notifId: row.id,
-              requesterName: reqName,
-              requesterAvatar: reqAvatar,
-              requesterId: reqId,
-              type: 'cohost',
-            });
-            showToast(`${reqName} wants to co-host`);
-          }
-        }
-      )
-      .subscribe();
-    return () => { noopClient.removeChannel(chan); };
+    // Supabase-based join requests disabled.
+    return () => {};
   }, [user?.id, isBroadcast]);
 
   const acceptJoinRequest = async () => {
@@ -920,108 +769,16 @@ export default function LiveStream() {
   const isCoHostJoiner = new URLSearchParams(location.search).get('cohost') === '1';
 
   useEffect(() => {
+    // Supabase presence-based cohost signalling disabled.
     if (!isCoHostJoiner || !user?.id || isBroadcast) return;
-
-    const chan = noopClient.channel(`cohost_presence_${effectiveStreamId}`, {
-      config: { presence: { key: user.id } }
-    });
-    
-    chan.on('presence', { event: 'sync' }, () => {}).subscribe(async (status) => {
-      if (status === 'SUBSCRIBED') {
-        await chan.track({
-          userId: user.id,
-          name: user.username || user.name || viewerName,
-          avatar: user.avatar || viewerAvatar,
-          joinedAt: new Date().toISOString(),
-        });
-      }
-    });
-
-    return () => { noopClient.removeChannel(chan); };
+    return () => {};
   }, [isCoHostJoiner, user?.id, effectiveStreamId, isBroadcast]);
 
   // Host side: listen for co-hosts joining via presence
   useEffect(() => {
+    // Supabase presence-based cohost management disabled.
     if (!isBroadcast || !user?.id) return;
-
-    const chan = noopClient.channel(`cohost_presence_${effectiveStreamId}`, {
-      config: { presence: { key: user?.id } }
-    });
-
-    chan
-      .on('presence', { event: 'sync' }, () => {
-        const state = chan.presenceState();
-        const presences = Object.values(state).flat() as any[];
-        
-        setCoHosts(prev => {
-          const liveMap = new Map<string, any>();
-          presences.forEach(p => {
-            if (p.userId && p.userId !== user?.id) {
-              liveMap.set(p.userId, p);
-            }
-          });
-
-          const newCoHosts = [...prev];
-          // Update or remove existing
-          for (let i = newCoHosts.length - 1; i >= 0; i--) {
-            const host = newCoHosts[i];
-            if (liveMap.has(host.userId)) {
-              const p = liveMap.get(host.userId);
-              newCoHosts[i] = {
-                ...host,
-                status: 'live',
-                name: p.name || host.name,
-                avatar: p.avatar || host.avatar,
-              };
-              liveMap.delete(host.userId);
-            } else if (host.status === 'live') {
-              // Was live, but no longer in presence -> remove
-              newCoHosts.splice(i, 1);
-            }
-          }
-          // Add new
-          liveMap.forEach((p) => {
-            newCoHosts.push({
-              id: `host-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-              userId: p.userId,
-              name: p.name || 'Co-Host',
-              avatar: p.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.name || 'C')}&background=121212&color=C9A96E`,
-              status: 'live',
-              isMuted: false,
-            });
-          });
-          return newCoHosts;
-        });
-      })
-      .on('presence', { event: 'join' }, ({ newPresences }) => {
-        newPresences.forEach((p: any) => {
-          if (p.userId !== user?.id) {
-            showToast(`@${p.name || 'Someone'} joined as co-host!`);
-            setMessages(prev => [...prev, {
-              id: Date.now().toString(),
-              username: 'System',
-              text: `${p.name || 'Someone'} joined as co-host`,
-              isSystem: true,
-            }]);
-          }
-        });
-      })
-      .on('presence', { event: 'leave' }, ({ leftPresences }) => {
-        leftPresences.forEach((p: any) => {
-          if (p.userId !== user?.id) {
-            showToast(`@${p.name || 'Someone'} left co-host.`);
-             setMessages(prev => [...prev, {
-              id: Date.now().toString(),
-              username: 'System',
-              text: `${p.name || 'Someone'} left co-host`,
-              isSystem: true,
-            }]);
-          }
-        });
-      })
-      .subscribe();
-
-    return () => { noopClient.removeChannel(chan); };
+    return () => {};
   }, [isBroadcast, user?.id, effectiveStreamId]);
 
   const removeCoHost = (hostId: string) => {
@@ -1137,22 +894,7 @@ export default function LiveStream() {
       const myName = user?.username || user?.name || 'Player';
       const myAv = user?.avatar || '';
 
-      const sendArrival = () => {
-        const battleChan = noopClient.channel(`battle_room_${effectiveStreamId}`);
-        battleChan.send({
-          type: 'broadcast',
-          event: 'joiner_arrived',
-          payload: { userId: user?.id, name: myName, avatar: myAv },
-        }).catch(() => {});
-      };
-
-      // Retry arrival announcement a few times to ensure host receives it
-      const delays = [1500, 4000, 8000];
-      for (const delay of delays) {
-        await new Promise(r => setTimeout(r, delay));
-        if (cancelled) return;
-        sendArrival();
-      }
+      // Legacy Supabase-based battle arrival signalling disabled.
     })();
     return () => {
       cancelled = true;
@@ -1160,33 +902,10 @@ export default function LiveStream() {
     };
   }, [isBattleJoiner, user?.id, effectiveStreamId]);
 
-  // Battle room channel: joiner arrival notification only
+  // Battle room channel (Supabase) disabled; battle state is driven by WebSocket backend.
   useEffect(() => {
     if (!effectiveStreamId || (!isBroadcast && !isBattleJoiner)) return;
-    const chan = noopClient.channel(`battle_room_${effectiveStreamId}`);
-
-    chan.on('broadcast', { event: 'joiner_arrived' }, async (msg: any) => {
-      if (!isBroadcast || !isBattleModeRef.current) return;
-      const { userId, name, avatar } = msg.payload;
-      setBattleSlots(prev => {
-        const next = [...prev];
-        const idx = next.findIndex(s => (s.userId === userId) || (s.status === 'invited'));
-        if (idx !== -1) {
-          next[idx] = { userId, name: name || next[idx].name, status: 'accepted', avatar: avatar || next[idx].avatar };
-        }
-        return next;
-      });
-    });
-
-    chan.on('broadcast', { event: 'battle_state' }, (msg: any) => {
-      if (msg.payload?.state === 'ENDED' && isBattleModeRef.current) {
-        if (battlePeerRef.current) { battlePeerRef.current.close(); battlePeerRef.current = null; }
-      }
-    });
-
-    chan.subscribe();
     return () => {
-      noopClient.removeChannel(chan);
       if (battlePeerRef.current) { battlePeerRef.current.close(); battlePeerRef.current = null; }
     };
   }, [effectiveStreamId, isBroadcast, isBattleJoiner]);
@@ -1485,11 +1204,7 @@ export default function LiveStream() {
     if (player3VideoRef.current) { player3VideoRef.current.srcObject = null; }
     if (player4VideoRef.current) { player4VideoRef.current.srcObject = null; }
     if (battlePeerRef.current) { battlePeerRef.current.close(); battlePeerRef.current = null; }
-    noopClient.channel(`battle_room_${effectiveStreamId}`).send({
-      type: 'broadcast',
-      event: 'battle_state',
-      payload: { state: 'ENDED' },
-    }).then(() => {});
+    // Legacy Supabase-based battle_state broadcast removed; server is notified via WebSocket.
   }, [effectiveStreamId]);
 
   const toggleBattle = useCallback(() => {
@@ -3178,7 +2893,7 @@ export default function LiveStream() {
         {isBattleMode && (location.pathname.startsWith('/live') || location.pathname.startsWith('/watch')) && (
           <div
             className={`absolute inset-0 z-[80] flex flex-col ${isBroadcast ? 'pointer-events-none' : ''}`}
-            style={{ paddingTop: 'calc(110px - 5mm)', paddingBottom: isBroadcast ? '305px' : undefined }}
+            style={{ paddingTop: 'calc(110px + 5mm)', paddingBottom: isBroadcast ? '305px' : undefined }}
             onClick={(e) => {
               if (isBroadcast) return;
               e.stopPropagation();

@@ -76,34 +76,9 @@ export function useBattleManager(roomId: string) {
   useEffect(() => {
     fetchActiveBattle();
 
-    const channel = noopClient.channel(`battle:${roomId}`)
-      .on('postgres_changes', { 
-        event: '*', 
-        schema: 'public', 
-        table: 'battle_sessions',
-        filter: `host_id=eq.${roomId}`
-      }, (payload) => {
-        if (payload.eventType === 'DELETE') {
-            setCurrentBattle(null);
-        } else {
-            setCurrentBattle(payload.new as BattleSession);
-        }
-      })
-      .on('postgres_changes', { 
-        event: '*', 
-        schema: 'public', 
-        table: 'battle_participants'
-        // We can't easily filter by battle_id here without knowing it first, 
-        // so we might need to refresh participants when session updates or just poll/refresh on signal.
-      }, () => {
-        const battle = currentBattle;
-        if (battle?.id) fetchParticipants(battle.id);
-      })
-      .subscribe();
-
-    return () => {
-      noopClient.removeChannel(channel);
-    };
+    // Realtime battle updates via Supabase channels disabled for now; rely on
+    // explicit fetchActiveBattle/fetchParticipants when needed.
+    return () => {};
   }, [roomId, fetchActiveBattle]);
 
   // Timer Logic

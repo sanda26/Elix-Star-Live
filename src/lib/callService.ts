@@ -68,63 +68,8 @@ export function subscribeToIncomingCalls(userId: string): () => void {
     incomingChannel = null;
   }
 
-  incomingChannel = noopClient
-    .channel(`incoming-calls:${userId}`)
-    .on(
-      'postgres_changes',
-      {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'call_signals',
-        filter: `callee_id=eq.${userId}`,
-      },
-      (payload) => {
-        const row = payload.new as {
-          caller_id: string;
-          call_id: string;
-          type: string;
-          payload: Record<string, unknown>;
-        };
-
-        if (row.caller_id === userId) return;
-
-        const store = useCallStore.getState();
-
-        switch (row.type) {
-          case 'call-invite': {
-            if (store.status !== 'idle') return;
-            const caller: CallParticipant = {
-              id: row.caller_id,
-              username: (row.payload?.callerUsername as string) || 'User',
-              avatar: (row.payload?.callerAvatar as string) || '',
-            };
-            useCallStore.getState().receiveIncomingCall(row.call_id, caller);
-            break;
-          }
-          case 'call-accepted': {
-            if (store.callId === row.call_id && store.status === 'outgoing') {
-              useCallStore.getState().setStatus('connecting');
-            }
-            break;
-          }
-          case 'call-rejected': {
-            if (store.callId === row.call_id) {
-              useCallStore.getState().endCall('Call was declined');
-              setTimeout(() => useCallStore.getState().reset(), 3000);
-            }
-            break;
-          }
-          case 'hangup': {
-            if (store.callId === row.call_id) {
-              useCallStore.getState().endCall('Call ended');
-              setTimeout(() => useCallStore.getState().reset(), 2000);
-            }
-            break;
-          }
-        }
-      }
-    )
-    .subscribe();
+  // Incoming call realtime signalling disabled (Supabase channels removed).
+  // This now becomes a no-op; WebRTC/WS-based calling can be reintroduced later.
 
   return () => {
     if (incomingChannel) {

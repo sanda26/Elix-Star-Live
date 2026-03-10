@@ -261,49 +261,53 @@ export default function SpectatorPage() {
     return () => clearTimeout(t);
   }, [hasStream]);
 
-  // Fetch host profile
+  // Fetch host / stream state from backend (Node) instead of Supabase
   useEffect(() => {
     if (!effectiveStreamId) return;
     (async () => {
-      let stream: any = null;
-      for (let attempt = 0; attempt < 3; attempt++) {
-        const { data } = await noopClient
-          .from('live_streams')
-          .select('user_id, title, viewer_count, is_live')
-          .eq('stream_key', effectiveStreamId)
-          .maybeSingle();
-        stream = data;
-        if (stream?.is_live) break;
-        if (attempt < 2) await new Promise(r => setTimeout(r, 2000));
-      }
-      if (!stream || !stream.is_live) {
+      try {
+        const runtimeEnv = (window as any).__ENV as Record<string, string> | undefined;
+        const envBase = import.meta.env.VITE_API_URL || runtimeEnv?.VITE_API_URL || '';
+        const apiBase = envBase || '';
+        const url = apiBase ? `${apiBase.replace(/\/$/, '')}/api/live/streams` : '/api/live/streams';
+
+        const res = await fetch(url, { method: 'GET', credentials: 'include' });
+        if (!res.ok) {
+          setStreamIsLive(false);
+          showToast('Stream is offline');
+          setTimeout(() => navigate('/feed', { replace: true }), 2000);
+          return;
+        }
+
+        const json = await res.json();
+        const streams = Array.isArray(json.streams) ? json.streams : [];
+        const stream =
+          streams.find((s: any) => s.stream_key === effectiveStreamId) ||
+          streams.find((s: any) => s.room_id === effectiveStreamId);
+
+        if (!stream) {
+          setStreamIsLive(false);
+          showToast('Stream is offline');
+          setTimeout(() => navigate('/feed', { replace: true }), 2000);
+          return;
+        }
+
+        setStreamIsLive(true);
+        if (stream.user_id) {
+          setHostUserId(stream.user_id);
+          hostUserIdRef.current = stream.user_id;
+          actualViewersRef.current.delete(stream.user_id);
+          setViewerCount(stream.viewer_count || 0);
+
+          // Without Supabase profiles, approximate host identity from ID/title.
+          const label = String(stream.user_id).slice(0, 8);
+          setHostName(stream.title || label || 'Creator');
+          setHostAvatar('');
+        }
+      } catch {
         setStreamIsLive(false);
         showToast('Stream is offline');
         setTimeout(() => navigate('/feed', { replace: true }), 2000);
-        return;
-      }
-      setStreamIsLive(true);
-      if (stream.user_id) {
-        setHostUserId(stream.user_id);
-        hostUserIdRef.current = stream.user_id;
-        actualViewersRef.current.delete(stream.user_id);
-        setViewerCount(stream.viewer_count || 0);
-        const { data: profile } = await noopClient
-          .from('profiles')
-          .select('username, display_name, avatar_url')
-          .eq('user_id', stream.user_id)
-          .maybeSingle();
-        if (profile) {
-          setHostName(profile.display_name || profile.username || stream.title || 'Creator');
-          setHostAvatar(profile.avatar_url || '');
-        } else if (stream.title) {
-          setHostName(stream.title);
-        }
-        const currentUser = (await noopClient.auth.getUser()).data.user;
-        if (currentUser && stream.user_id) {
-          const { data: follow } = await noopClient.from('followers').select('id').eq('follower_id', currentUser.id).eq('following_id', stream.user_id).maybeSingle();
-          if (follow) setIsFollowing(true);
-        }
       }
     })();
   }, [effectiveStreamId, navigate]);

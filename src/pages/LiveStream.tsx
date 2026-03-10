@@ -57,6 +57,7 @@ import { RankingPanel } from '../components/RankingPanel';
 import { websocket } from '../lib/websocket';
 import LiveAIFilters from '../components/LiveAIFilters';
 import { IS_STORE_BUILD } from '../config/build';
+import { Room, LocalVideoTrack, LocalAudioTrack } from 'livekit-client';
 
 
 type LiveMessage = {
@@ -400,7 +401,11 @@ export default function LiveStream() {
     }
   }, [user?.id, effectiveStreamId]);
 
-  // Register/unregister live stream in backend list
+  // LiveKit credentials from /api/live/start (so we can connect and publish)
+  const [liveKitCreds, setLiveKitCreds] = useState<{ token: string; url: string } | null>(null);
+  const liveKitRoomRef = useRef<Room | null>(null);
+
+  // Register/unregister live stream in backend list; get LiveKit token+url for host
   useEffect(() => {
     if (!isBroadcast || !user?.id || !effectiveStreamId || liveRegisteredRef.current) return;
 
@@ -420,6 +425,8 @@ export default function LiveStream() {
         });
         if (res.ok) {
           liveRegisteredRef.current = true;
+          const data = await res.json().catch(() => ({}));
+          if (data?.token && data?.url) setLiveKitCreds({ token: data.token, url: data.url });
         }
       } catch {
         // ignore; stream will just not appear in /api/live/streams
@@ -427,6 +434,7 @@ export default function LiveStream() {
     })();
 
     return () => {
+      setLiveKitCreds(null);
       if (!liveRegisteredRef.current) return;
       (async () => {
         try {
@@ -444,6 +452,40 @@ export default function LiveStream() {
       })();
     };
   }, [isBroadcast, user?.id, effectiveStreamId]);
+
+  // LiveKit: connect as host and publish camera + mic so viewers can see the stream
+  useEffect(() => {
+    if (!isBroadcast || !liveKitCreds || !cameraStreamRef.current) return;
+
+    const stream = cameraStreamRef.current;
+    const videoTrack = stream.getVideoTracks()[0];
+    const audioTrack = stream.getAudioTracks()[0];
+    if (!videoTrack && !audioTrack) return;
+
+    const room = new Room({ adaptiveStream: true });
+    liveKitRoomRef.current = room;
+
+    (async () => {
+      try {
+        await room.connect(liveKitCreds.url, liveKitCreds.token);
+        if (videoTrack) {
+          const localVideo = new LocalVideoTrack(videoTrack);
+          await room.localParticipant.publishTrack(localVideo, { name: 'camera' });
+        }
+        if (audioTrack) {
+          const localAudio = new LocalAudioTrack(audioTrack);
+          await room.localParticipant.publishTrack(localAudio, { name: 'mic' });
+        }
+      } catch {
+        // e.g. LiveKit server unreachable; stream list still works, video just won't show for viewers
+      }
+    })();
+
+    return () => {
+      liveKitRoomRef.current = null;
+      room.disconnect();
+    };
+  }, [isBroadcast, liveKitCreds, cameraStream]);
 
   const [isFindCreatorsOpen, setIsFindCreatorsOpen] = useState(false);
   const [memberCount, setMemberCount] = useState(0);

@@ -7,9 +7,15 @@ import { AccessToken } from 'livekit-server-sdk';
 
 const API_KEY = process.env.LIVEKIT_API_KEY;
 const API_SECRET = process.env.LIVEKIT_API_SECRET;
+const LIVEKIT_URL = process.env.LIVEKIT_URL || '';
 
 export function isLiveKitConfigured(): boolean {
   return Boolean(API_KEY && API_SECRET);
+}
+
+/** WebSocket URL for the LiveKit server (client connects here with token). */
+export function getLiveKitUrl(): string {
+  return LIVEKIT_URL;
 }
 
 export interface CreateTokenOptions {

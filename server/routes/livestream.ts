@@ -6,7 +6,7 @@
 
 import { Request, Response } from 'express';
 import { getTokenFromRequest, verifyAuthToken } from '../routes/auth';
-import { createLiveToken, isLiveKitConfigured } from '../services/livekit';
+import { createLiveToken, isLiveKitConfigured, getLiveKitUrl } from '../services/livekit';
 
 // In-memory active streams (key = roomName). Replace with DB when using Postgres.
 const activeStreams = new Map<string, { userId: string; startedAt: string }>();
@@ -70,6 +70,7 @@ export async function handleLiveStart(req: Request, res: Response) {
       room: roomName,
       token,
       stream_key: roomName,
+      url: getLiveKitUrl(),
     });
   } catch (err) {
     activeStreams.delete(roomName);
@@ -118,7 +119,7 @@ export async function handleGetLiveToken(req: Request, res: Response) {
       canPublish: false,
       name: auth.userId,
     });
-    return res.status(200).json({ room: roomName, token });
+    return res.status(200).json({ room: roomName, token, url: getLiveKitUrl() });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Failed to create token';
     return res.status(500).json({ error: message });

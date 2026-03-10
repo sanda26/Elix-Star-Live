@@ -43,6 +43,7 @@ import PromotePanel from '../components/PromotePanel';
 import { RankingPanel } from '../components/RankingPanel';
 import { websocket } from '../lib/websocket';
 import { IS_STORE_BUILD } from '../config/build';
+import { Room, RoomEvent } from 'livekit-client';
 
 type LiveMessage = {
   id: string;
@@ -311,6 +312,65 @@ export default function SpectatorPage() {
       }
     })();
   }, [effectiveStreamId, navigate]);
+
+  // LiveKit: connect as viewer and attach host video to videoRef
+  const liveKitRoomRef = useRef<Room | null>(null);
+  useEffect(() => {
+    if (!streamIsLive || !effectiveStreamId || !user?.id) return;
+
+    let mounted = true;
+    const room = new Room({ adaptiveStream: true });
+    liveKitRoomRef.current = room;
+
+    (async () => {
+      try {
+        const runtimeEnv = (window as any).__ENV as Record<string, string> | undefined;
+        const envBase = import.meta.env.VITE_API_URL || runtimeEnv?.VITE_API_URL || '';
+        const apiBase = envBase ? `${envBase.replace(/\/$/, '')}` : '';
+        const tokenUrl = apiBase ? `${apiBase}/api/live/token?room=${encodeURIComponent(effectiveStreamId)}` : `/api/live/token?room=${encodeURIComponent(effectiveStreamId)}`;
+        const res = await fetch(tokenUrl, { method: 'GET', credentials: 'include' });
+        if (!res.ok || !mounted) return;
+        const data = await res.json();
+        const url = data?.url?.trim();
+        const token = data?.token;
+        if (!url || !token || !mounted) return;
+
+        const onTrackSubscribed = (track: import('livekit-client').RemoteTrack) => {
+          if (!mounted || track.kind !== 'video') return;
+          const el = videoRef.current;
+          if (el) {
+            track.attach(el);
+            setHasStream(true);
+          }
+        };
+
+        room.on(RoomEvent.TrackSubscribed, onTrackSubscribed);
+        await room.connect(url, token);
+        if (!mounted) {
+          room.disconnect();
+          return;
+        }
+        // If host already published, we may have remote participants; attach first video track if any
+        for (const [, participant] of room.remoteParticipants) {
+          for (const [, publication] of participant.videoTrackPublications) {
+            if (publication.track && publication.isSubscribed) {
+              publication.track.attach(videoRef.current!);
+              setHasStream(true);
+              return;
+            }
+          }
+        }
+      } catch (err) {
+        if (mounted) setHasStream(false);
+      }
+    })();
+
+    return () => {
+      mounted = false;
+      liveKitRoomRef.current = null;
+      room.disconnect();
+    };
+  }, [streamIsLive, effectiveStreamId, user?.id]);
 
   // Fetch user profile (level, xp, coins)
   useEffect(() => {

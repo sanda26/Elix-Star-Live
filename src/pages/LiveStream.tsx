@@ -2963,7 +2963,7 @@ export default function LiveStream() {
             {(() => {
               const is4Player = battleSlots[1].status !== 'empty' || battleSlots[2].status !== 'empty';
               return (
-                <div className={`relative w-full flex-none flex flex-col ${is4Player ? 'aspect-square' : 'h-[50dvh]'}`}>
+                <div className={`relative w-full flex-none flex flex-col ${is4Player ? 'aspect-square' : 'h-[44dvh]'}`}>
                   {/* Fan Club Button - Left of Battle Bar */}
                   <div className="absolute top-2 left-[20%] -translate-x-1/2 z-30 pointer-events-auto">
                     {/* Fan Club Removed */}

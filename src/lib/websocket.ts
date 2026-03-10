@@ -16,12 +16,8 @@ export type WebSocketEvent =
   | 'leaderboard_update'
   // Battle events (server-controlled)
   | 'battle_invite'
-  | 'battle_accepted'
-  | 'battle_declined'
-  | 'battle_started'
-  | 'battle_score_update'
+  | 'battle_invite_accepted'
   | 'battle_ended'
-  | 'booster_activated'
   | 'battle_created'
   | 'battle_state_sync'
   | 'battle_countdown'
@@ -30,6 +26,9 @@ export type WebSocketEvent =
   | 'battle_error'
   | 'battle_ready'
   | 'battle_ready_state'
+  // Co-host events
+  | 'cohost_request'
+  | 'cohost_request_accepted'
   // Moderation events (AI safety: warning → pause → suspend)
   | 'user_muted'
   | 'user_kicked'

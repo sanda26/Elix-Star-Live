@@ -413,73 +413,40 @@ export default function LiveStream() {
     setCreatorsLoading(true);
     setCreatorsLoadFailed(false);
     try {
-      const [profilesRes, liveRes] = await Promise.all([
-          noopClient
-            .from('profiles')
-            .select('user_id, username, display_name, avatar_url, followers_count')
-            .neq('user_id', user.id)
-            .limit(200),
-          noopClient
-            .from('live_streams')
-            .select('user_id, title, viewer_count')
-            .eq('is_live', true),
-        ]);
-        const liveUserIds = new Set((liveRes.data || []).map((l: any) => l.user_id));
-
-        const liveStreamUserIds = (liveRes.data || []).map((l: any) => l.user_id).filter((id: string) => id !== user.id);
-        let liveProfileMap = new Map<string, any>();
-        if (liveStreamUserIds.length > 0) {
-          const { data: liveProfiles } = await noopClient
-            .from('profiles')
-            .select('user_id, username, display_name, avatar_url, followers_count')
-            .in('user_id', liveStreamUserIds);
-          (liveProfiles || []).forEach((p: any) => liveProfileMap.set(p.user_id, p));
-        }
-
-        const fmt = (n: number) => n >= 1000000 ? `${(n / 1000000).toFixed(1)}M` : n >= 1000 ? `${(n / 1000).toFixed(1)}K` : `${n}`;
-        const seenIds = new Set<string>();
-
-        const liveCreators = (liveRes.data || [])
-          .filter((l: any) => l.user_id !== user.id)
-          .map((l: any) => {
-            const p = liveProfileMap.get(l.user_id);
-            seenIds.add(l.user_id);
-            const displayName = p?.display_name || p?.username || l.title || 'Creator';
-            return {
-              id: l.user_id,
-              name: displayName,
-              username: p?.username || displayName,
-              followers: fmt(p?.followers_count ?? 0),
-              avatar: p?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=121212&color=C9A96E`,
-              isLive: true,
-              streamTitle: l.title || '',
-              viewerCount: l.viewer_count ?? 0,
-            };
-          })
-          .sort((a: any, b: any) => (b.viewerCount || 0) - (a.viewerCount || 0));
-
-        const offlineCreators = (profilesRes.data || [])
-          .filter((p: any) => p.user_id && !seenIds.has(p.user_id) && !liveUserIds.has(p.user_id))
-          .map((p: any) => ({
-            id: p.user_id,
-            name: p.display_name || p.username || 'User',
-            username: p.username || p.display_name || 'user',
-            followers: fmt(p.followers_count ?? 0),
-            avatar: p.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.username || p.display_name || 'U')}&background=121212&color=C9A96E`,
-            isLive: false,
-            streamTitle: '',
-            viewerCount: 0,
-          }))
-          .sort((a: any, b: any) => (parseInt(b.followers) || 0) - (parseInt(a.followers) || 0));
-
-        setCreators([...liveCreators, ...offlineCreators]);
-        setCreatorsLoadFailed(false);
-      } catch {
-        setCreatorsLoadFailed(true);
-        setCreators([]);
-      } finally {
-        setCreatorsLoading(false);
+      const apiBase = import.meta.env.VITE_API_URL || '';
+      const res = await fetch(`${apiBase}/api/live/streams`, {
+        method: 'GET',
+        credentials: 'include',
+      });
+      if (!res.ok) {
+        throw new Error(`Failed to load live streams (${res.status})`);
       }
+      const json = await res.json();
+      const streams = Array.isArray(json.streams) ? json.streams : [];
+      const liveCreators = streams
+        .filter((s: any) => s.user_id && s.user_id !== user.id)
+        .map((s: any) => {
+          const uid: string = s.user_id;
+          const label = uid.slice(0, 8);
+          const avatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(label)}&background=121212&color=C9A96E`;
+          return {
+            id: uid,
+            name: label,
+            username: label,
+            followers: '0',
+            avatar,
+            isLive: true,
+          };
+        });
+      setCreators(liveCreators);
+      setCreatorsLoadFailed(false);
+    } catch (error) {
+      console.error('Failed to load creators', error);
+      setCreatorsLoadFailed(true);
+      setCreators([]);
+    } finally {
+      setCreatorsLoading(false);
+    }
   }, [user?.id]);
 
   useEffect(() => {

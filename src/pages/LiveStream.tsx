@@ -426,7 +426,9 @@ export default function LiveStream() {
         if (res.ok) {
           liveRegisteredRef.current = true;
           const data = await res.json().catch(() => ({}));
-          if (data?.token && data?.url) setLiveKitCreds({ token: data.token, url: data.url });
+          let url = (data?.url ?? '').trim();
+          if (!url) url = (import.meta.env.VITE_LIVEKIT_URL ?? (window as any).__ENV?.VITE_LIVEKIT_URL ?? '').trim();
+          if (data?.token && url) setLiveKitCreds({ token: data.token, url });
         }
       } catch {
         // ignore; stream will just not appear in /api/live/streams
@@ -476,8 +478,10 @@ export default function LiveStream() {
           const localAudio = new LocalAudioTrack(audioTrack);
           await room.localParticipant.publishTrack(localAudio, { name: 'mic' });
         }
-      } catch {
-        // e.g. LiveKit server unreachable; stream list still works, video just won't show for viewers
+        if (import.meta.env.DEV) console.log('[LiveKit] Host connected and published');
+      } catch (e) {
+        console.error('[LiveKit] Host connect/publish failed:', e);
+        showToast('Live video could not start. Check LIVEKIT_URL and keys on server.');
       }
     })();
 
@@ -566,7 +570,7 @@ export default function LiveStream() {
     { userId: '', name: '', status: 'empty', avatar: '' },
     { userId: '', name: '', status: 'empty', avatar: '' },
   ]);
-  const inviteTimersRef = useRef<NodeJS.Timeout[]>([]);
+  const inviteTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   const inviteCreatorToSlot = async (creatorId: string) => {
     const slotIndex = battleSlots.findIndex(s => s.status === 'empty');
@@ -700,7 +704,7 @@ export default function LiveStream() {
   }, [isMyStreamLive]);
   const [hostSearchQuery, setHostSearchQuery] = useState('');
   const [featuredHostId, setFeaturedHostId] = useState<string | null>(null);
-  const coHostTimersRef = useRef<NodeJS.Timeout[]>([]);
+  const coHostTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const MAX_CO_HOSTS = 12;
 
   const inviteCoHost = async (creator: { id: string; name: string; avatar?: string }) => {
@@ -1017,7 +1021,7 @@ export default function LiveStream() {
   useEffect(() => { speedChallengeActiveRef.current = speedChallengeActive; }, [speedChallengeActive]);
   useEffect(() => { speedMultiplierRef.current = speedMultiplier; }, [speedMultiplier]);
 
-  const speedChallengeTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const speedChallengeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSpeedChallengeRef = useRef<number>(0);
   const reachedThresholdsRef = useRef<Set<number>>(new Set());
   const [_battleGifterCoins, setBattleGifterCoins] = useState<Record<string, number>>({});
@@ -1034,7 +1038,7 @@ export default function LiveStream() {
   const [showJoinAnimation, setShowJoinAnimation] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [membershipHeartActive, setMembershipHeartActive] = useState(false);
-  const membershipTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const membershipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // FAN CLUB PANEL - removed top bar, now using Sheet
   const [showFanClub, setShowFanClub] = useState(false);
@@ -2283,7 +2287,7 @@ export default function LiveStream() {
 
   const [giftQueue, setGiftQueue] = useState<string[]>([]);
   const [giftBanner, setGiftBanner] = useState<{ username: string; giftName: string; icon: string } | null>(null);
-  const giftBannerTimer = useRef<NodeJS.Timeout | null>(null);
+  const giftBannerTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isPlayingGift, setIsPlayingGift] = useState(false);
   const [lastSentGift, setLastSentGift] = useState<typeof GIFTS[0] | null>(null);
   const [userLevel, setUserLevel] = useState(1);
@@ -2292,7 +2296,7 @@ export default function LiveStream() {
   const [userXP, setUserXP] = useState(0);
   const [comboCount, setComboCount] = useState(0);
   const [showComboButton, setShowComboButton] = useState(false);
-  const comboTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const comboTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [activeFaceARGift, setActiveFaceARGift] = useState<
     | { type: 'crown' | 'glasses' | 'mask' | 'ears' | 'hearts' | 'stars'; color?: string }
     | null

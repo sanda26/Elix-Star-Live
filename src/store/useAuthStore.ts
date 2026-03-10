@@ -56,9 +56,9 @@ interface AuthStore {
 let authUnsubscribe: (() => void) | null = null;
 
 function mapUserToUser(backendUser: AuthUser | null): User | null {
-  if (!backendUser) return null;
+  if (!backendUser || backendUser.id == null) return null;
   const meta = (backendUser.user_metadata || {}) as Record<string, unknown>;
-  const email = backendUser.email || '';
+  const email = typeof backendUser.email === 'string' ? backendUser.email : '';
   const usernameFromMeta = typeof meta.username === 'string' ? meta.username : undefined;
   const fullNameFromMeta = typeof meta.full_name === 'string' ? meta.full_name : undefined;
   const avatarFromMeta = typeof meta.avatar_url === 'string' ? meta.avatar_url : undefined;
@@ -73,7 +73,7 @@ function mapUserToUser(backendUser: AuthUser | null): User | null {
   const level = Number.isFinite(levelFromMeta) && levelFromMeta > 0 ? Math.floor(levelFromMeta) : 1;
 
   return {
-    id: backendUser.id,
+    id: String(backendUser.id),
     username: (usernameFromMeta ?? fallbackUsername) as string,
     name: (fullNameFromMeta ?? usernameFromMeta ?? fallbackUsername) as string,
     email,
@@ -337,9 +337,10 @@ export const useAuthStore = create<AuthStore>()(
     getCurrentUser: () => get().user,
 
     checkUser: async () => {
-      const apiBase = import.meta.env.VITE_API_URL || '';
+      const apiBase = (import.meta.env.VITE_API_URL ?? '').toString().trim();
+      const url = apiBase ? `${apiBase.replace(/\/$/, '')}/api/auth/me` : '/api/auth/me';
       try {
-        const res = await fetch(`${apiBase}/api/auth/me`, {
+        const res = await fetch(url, {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
@@ -350,28 +351,44 @@ export const useAuthStore = create<AuthStore>()(
           return;
         }
 
-        const data = await res.json().catch(() => ({}));
-        const backendUser: AuthUser | null = data.user ?? null;
-        const accessToken: string | undefined = data.session?.accessToken ?? data.session?.access_token;
+        let data: Record<string, unknown> = {};
+        try {
+          const text = await res.text();
+          if (text) data = JSON.parse(text) as Record<string, unknown>;
+        } catch {
+          set({ backendUser: null, session: null, user: null, isAuthenticated: false, isLoading: false, authMode: 'client' });
+          return;
+        }
 
-        if (!backendUser) {
+        const backendUser = data.user as AuthUser | null | undefined;
+        const sessionObj = data.session as { accessToken?: string; access_token?: string } | null | undefined;
+        const accessToken = sessionObj?.accessToken ?? sessionObj?.access_token;
+
+        if (!backendUser || typeof backendUser.id !== 'string') {
           set({ backendUser: null, session: null, user: null, isAuthenticated: false, isLoading: false, authMode: 'client' });
           return;
         }
 
         const mapped = mapUserToUser(backendUser);
-        const enriched = mapped ? await enrichUserWithProfile(mapped) : null;
+        let userToSet = mapped;
+        if (mapped) {
+          try {
+            userToSet = await enrichUserWithProfile(mapped) ?? mapped;
+          } catch {
+            userToSet = mapped;
+          }
+        }
 
         set({
           backendUser,
-          session: accessToken ? { user: backendUser, access_token: accessToken } : null,
-          user: enriched ?? mapped,
+          session: accessToken ? { user: backendUser, access_token: String(accessToken) } : null,
+          user: userToSet,
           isAuthenticated: true,
           isLoading: false,
           authMode: 'client',
         });
       } catch {
-        set({ isLoading: false });
+        set({ backendUser: null, session: null, user: null, isAuthenticated: false, isLoading: false, authMode: 'client' });
       }
     }
   })

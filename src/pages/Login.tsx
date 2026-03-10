@@ -56,15 +56,17 @@ export default function Login() {
       if (!isMounted.current) return;
 
       if (res.error) {
-        // Handle AbortError specifically
         if (res.error === 'aborted' || res.error.includes('aborted')) {
-
-           if (isMounted.current) setIsSubmitting(false);
-           return;
+          if (isMounted.current) setIsSubmitting(false);
+          return;
         }
-        
+        // Legacy message from old build – prompt refresh
+        const message =
+          res.error === 'System error: Authentication not configured.'
+            ? 'Please refresh the page and try again. If the problem continues, ensure the app is updated and the server is running.'
+            : res.error;
         if (isMounted.current) {
-          setError(res.error);
+          setError(message);
           setIsSubmitting(false);
         }
         return;

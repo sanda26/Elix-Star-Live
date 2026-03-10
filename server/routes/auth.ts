@@ -64,13 +64,17 @@ function verifyToken(token: string): { sub: string; email: string } | null {
   }
 }
 
-function getTokenFromRequest(req: Request): string | null {
+export function getTokenFromRequest(req: Request): string | null {
   const auth = req.headers.authorization;
   if (auth?.startsWith('Bearer ')) return auth.slice(7);
   const cookie = req.headers.cookie;
   if (!cookie) return null;
   const match = cookie.match(new RegExp(`(?:^|;\\s*)${COOKIE_NAME}=([^;]*)`));
   return match ? decodeURIComponent(match[1]) : null;
+}
+
+export function verifyAuthToken(token: string): { sub: string; email: string } | null {
+  return verifyToken(token);
 }
 
 function setAuthCookie(res: Response, token: string) {
@@ -168,7 +172,7 @@ export async function handleMe(req: Request, res: Response) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
   const token = getTokenFromRequest(req);
   if (!token) return res.status(401).json({ error: 'Not authenticated.' });
-  const payload = verifyToken(token);
+  const payload = verifyAuthToken(token);
   if (!payload) return res.status(401).json({ error: 'Invalid or expired session.' });
   const user = usersById.get(payload.sub);
   if (!user) return res.status(401).json({ error: 'User not found.' });

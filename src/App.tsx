@@ -119,23 +119,23 @@ function App() {
 
   useEffect(() => {
     checkUser();
-    
+
     // Failsafe: if loading takes too long (e.g. auth hanging), force stop loading
     const timer = setTimeout(() => {
       if (useAuthStore.getState().isLoading) {
-
         useAuthStore.setState({ isLoading: false });
       }
     }, 3000);
 
-    // Initialize analytics
-    analytics.initialize();
-    
-    // Initialize push notifications
-    notificationService.initialize();
-
-    // Initialize IAP (no-op on web)
-    initializeIAP();
+    try {
+      analytics.initialize();
+    } catch (_) { /* avoid crashing app */ }
+    try {
+      notificationService.initialize();
+    } catch (_) { /* avoid crashing app */ }
+    try {
+      initializeIAP();
+    } catch (_) { /* avoid crashing app */ }
 
     return () => clearTimeout(timer);
   }, [checkUser]);

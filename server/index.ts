@@ -47,6 +47,14 @@ import {
   handleResendConfirmation,
   handleAppleStart,
 } from './routes/auth';
+import {
+  handleGetStreams,
+  handleLiveStart,
+  handleLiveEnd,
+  handleGetLiveToken,
+} from './routes/livestream';
+import { handleUploadVideo } from './routes/upload';
+import { handleSendGift } from './routes/gifts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -61,6 +69,9 @@ app.use(compression());
 
 // Webhook needs raw body
 app.use('/api/stripe-webhook', express.raw({ type: 'application/json' }), handleStripeWebhook);
+
+// Video upload: raw body (binary)
+app.use('/api/upload/video', express.raw({ type: ['application/octet-stream', 'video/mp4', 'video/webm'], limit: '500mb' }), handleUploadVideo);
 
 // Other routes use JSON
 app.use(express.json());
@@ -88,6 +99,21 @@ app.post('/api/auth/logout', handleLogout);
 app.get('/api/auth/me', handleMe);
 app.post('/api/auth/resend-confirmation', handleResendConfirmation);
 app.post('/api/auth/apple/start', handleAppleStart);
+
+// Profile (alias for /api/auth/me)
+app.get('/api/profile', handleMe);
+
+// Live streaming (LiveKit tokens + stream lifecycle)
+app.get('/api/live/streams', handleGetStreams);
+app.post('/api/live/start', handleLiveStart);
+app.post('/api/live/end', handleLiveEnd);
+app.get('/api/live/token', handleGetLiveToken);
+
+// Upload video to Bunny Storage
+// (route mounted above with express.raw)
+
+// Gifts (REST; real-time still via WebSocket in room)
+app.post('/api/gifts/send', handleSendGift);
 
 // API Routes
 app.post('/api/create-checkout-session', createCheckoutSession);

@@ -26,24 +26,25 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('ErrorBoundary caught error:', error, errorInfo);
-    
+
     this.setState({
       error,
       errorInfo,
     });
 
-    // Track error
-    trackEvent('app_error', {
-      error_message: error.message,
-      error_stack: error.stack || '',
-      component_stack: errorInfo.componentStack || '',
-    });
-
-    // Log to crash reporting
-    crashReporting.logError(error, {
-      component: 'ErrorBoundary',
-      componentStack: errorInfo.componentStack,
-    });
+    try {
+      trackEvent('app_error', {
+        error_message: error.message,
+        error_stack: error.stack || '',
+        component_stack: errorInfo.componentStack || '',
+      });
+    } catch (_) { /* avoid double-fault */ }
+    try {
+      crashReporting.logError(error, {
+        component: 'ErrorBoundary',
+        componentStack: errorInfo.componentStack,
+      });
+    } catch (_) { /* avoid double-fault */ }
   }
 
   handleReload = () => {
@@ -72,18 +73,18 @@ export class ErrorBoundary extends Component<Props, State> {
               We're sorry for the inconvenience. Please try reloading the page.
             </p>
 
-            {this.state.error && import.meta.env.DEV && (
-              <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-left">
-                <p className="text-sm font-mono text-red-400 mb-2">{this.state.error.message}</p>
-                {this.state.errorInfo && (
-                  <details className="text-xs text-white/40">
-                    <summary className="cursor-pointer mb-2">Stack trace</summary>
-                    <pre className="whitespace-pre-wrap overflow-x-auto max-h-40 overflow-y-auto">
-                      {this.state.errorInfo.componentStack}
-                    </pre>
-                  </details>
+            {this.state.error && (
+              <details className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-left">
+                <summary className="cursor-pointer text-sm font-mono text-red-400">
+                  {import.meta.env.DEV ? 'Error details' : 'Technical details'}
+                </summary>
+                <p className="text-sm font-mono text-red-400 mt-2 break-all">{this.state.error.message}</p>
+                {this.state.errorInfo?.componentStack && (
+                  <pre className="mt-2 text-xs text-white/40 whitespace-pre-wrap overflow-x-auto max-h-40 overflow-y-auto">
+                    {this.state.errorInfo.componentStack}
+                  </pre>
                 )}
-              </div>
+              </details>
             )}
 
             <div className="flex gap-3 justify-center">

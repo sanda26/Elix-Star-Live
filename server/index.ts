@@ -931,12 +931,14 @@ async function handleMessage(client: Client, event: string, data: any) {
         if (!wsRateCheck(client.userId, 'battle_invite_send', 10, 60_000)) break;
         const targetUserId = typeof data.targetUserId === 'string' ? data.targetUserId : '';
         if (!targetUserId) break;
-        sendToUserGlobal(targetUserId, 'battle_invite', {
+        const payload = {
           hostUserId: client.userId,
           hostName: data.hostName || client.displayName,
           hostAvatar: data.hostAvatar || client.avatarUrl || '',
           streamKey: client.roomId,
-        });
+        };
+        sendToUserGlobal(targetUserId, 'battle_invite', payload);
+        console.log('[battle_invite] sent to userId:', targetUserId, 'from:', client.userId);
         break;
       }
 
@@ -1097,15 +1099,20 @@ function sendToUserGlobal(userId: string, event: string, data: any) {
     return;
   }
 
+  let sent = 0;
   clients.forEach((client) => {
     if (client.userId === userId && client.ws.readyState === WebSocket.OPEN) {
       try {
         client.ws.send(message);
+        sent += 1;
       } catch (error) {
         console.error('Failed to send to user (global):', error);
       }
     }
   });
+  if (event === 'battle_invite' && sent === 0) {
+    console.warn('[battle_invite] no connected client for userId:', userId, '(invitee may be offline or on another page)');
+  }
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -37,9 +37,10 @@ export default function VideoFeed() {
   const fetchLiveStreams = useCallback(async () => {
     setLiveLoading(true);
     try {
-      const apiBase = (import.meta.env.VITE_API_URL ?? '').toString().trim();
-      const url = apiBase
-        ? `${apiBase.replace(/\/$/, '')}/api/live/streams`
+      const runtimeEnv = (window as any).__ENV as Record<string, string> | undefined;
+      const envBase = (import.meta.env.VITE_API_URL ?? runtimeEnv?.VITE_API_URL ?? '').toString().trim();
+      const url = envBase
+        ? `${envBase.replace(/\/$/, '')}/api/live/streams`
         : '/api/live/streams';
 
       const res = await fetch(url, {
@@ -72,11 +73,12 @@ export default function VideoFeed() {
           })
           .map((s: any) => {
             const key = s.stream_key || s.room_id || s.id;
+            const userId = s.user_id || '';
+            const label = userId ? String(userId).slice(0, 8) : 'Creator';
             return {
               streamKey: key,
-              // Backend deocamdată nu are profiluri altor useri; folosim fallback generic.
-              name: s.title || 'Live stream',
-              avatar: '',
+              name: s.title || label,
+              avatar: userId ? `https://ui-avatars.com/api/?name=${encodeURIComponent(label)}&background=121212&color=C9A96E` : '',
               viewers: Number(s.viewer_count ?? 0),
               title: s.title || undefined,
               thumbnail: '',

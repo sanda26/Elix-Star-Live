@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Eye, Radio, RefreshCw } from 'lucide-react';
-import { noopClient } from '../lib/noopClient';
 
 type LiveCreator = {
   id: string;
@@ -18,39 +17,44 @@ export default function LiveDiscover() {
   const removedKeysRef = useRef<Set<string>>(new Set());
 
   const fetchLiveStreams = useCallback(async () => {
+    setLoading(true);
     try {
-      const { data, error } = await noopClient
-        .from('live_streams')
-        .select('*')
-        .eq('is_live', true)
-        .order('viewer_count', { ascending: false });
+      const runtimeEnv = (window as any).__ENV as Record<string, string> | undefined;
+      const envBase = (import.meta.env.VITE_API_URL ?? runtimeEnv?.VITE_API_URL ?? '').toString().trim();
+      const url = envBase
+        ? `${envBase.replace(/\/$/, '')}/api/live/streams`
+        : '/api/live/streams';
 
-      if (error) throw error;
-
-      if (data && data.length > 0) {
-        const userIds = (data as any[]).map((s: any) => s.user_id).filter(Boolean);
-        const { data: profiles } = userIds.length > 0
-          ? await noopClient.from('profiles').select('user_id, username, display_name, avatar_url').in('user_id', userIds)
-          : { data: [] };
-        const profileMap = new Map((profiles || []).map((p: any) => [p.user_id, p]));
-
-        const removed = removedKeysRef.current;
-        const mapped: LiveCreator[] = (data as any[])
-          .filter((s: any) => !removed.has(s.stream_key) && !removed.has(s.id))
-          .map((stream: any) => {
-            const profile: any = profileMap.get(stream.user_id);
-            return {
-              id: stream.stream_key || stream.id,
-              name: profile?.display_name || profile?.username || 'Creator',
-              viewers: stream.viewer_count || 0,
-              thumbnail: profile?.avatar_url || stream.thumbnail_url,
-              title: stream.title || undefined,
-            };
-          });
-        setCreators(mapped);
-      } else {
+      const res = await fetch(url, { method: 'GET', credentials: 'include' });
+      if (!res.ok) {
         setCreators([]);
+        setLoading(false);
+        return;
       }
+
+      const body = await res.json().catch(() => ({ streams: [] as any[] }));
+      const streams = Array.isArray(body.streams) ? body.streams : [];
+      const removed = removedKeysRef.current;
+
+      const mapped: LiveCreator[] = streams
+        .filter((s: any) => {
+          const key = s.stream_key || s.room_id || s.id;
+          return key && !removed.has(key);
+        })
+        .map((s: any) => {
+          const id = s.stream_key || s.room_id || s.id;
+          const userId = s.user_id || '';
+          const label = userId ? String(userId).slice(0, 8) : 'Creator';
+          return {
+            id,
+            name: s.title || label,
+            viewers: Number(s.viewer_count ?? 0),
+            thumbnail: userId ? `https://ui-avatars.com/api/?name=${encodeURIComponent(label)}&background=121212&color=C9A96E` : undefined,
+            title: s.title || undefined,
+          };
+        });
+
+      setCreators(mapped);
     } catch {
       setCreators([]);
     } finally {

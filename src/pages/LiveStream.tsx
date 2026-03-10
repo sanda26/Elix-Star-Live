@@ -2894,7 +2894,8 @@ export default function LiveStream() {
           <div
             className={`absolute inset-0 z-[80] flex flex-col ${isBroadcast ? 'pointer-events-none' : ''}`}
             style={{
-              paddingTop: 'calc(env(safe-area-inset-top, 0px) + 80px)',
+              // Start battle grid a bit lower on screen (safe area + 100px)
+              paddingTop: 'calc(env(safe-area-inset-top, 0px) + 100px)',
               paddingBottom: isBroadcast ? '305px' : undefined,
             }}
             onClick={(e) => {
@@ -3016,13 +3017,13 @@ export default function LiveStream() {
                           <span className="text-white font-bold text-[10px] truncate max-w-full px-1">{creatorName || user?.username || user?.name || 'Me'}</span>
                         </div>
                       )}
-                      <div className="absolute top-1 right-1 z-10 pointer-events-auto flex items-center gap-0.5">
+                      <div className="absolute top-4 right-2 z-10 pointer-events-auto flex items-center gap-0.5">
                         <div onClick={(e) => { e.stopPropagation(); togglePlayerMute('me'); }} title={mutedPlayers['me'] ? 'Unmute' : 'Mute'}>
                           {mutedPlayers['me'] ? <MicOff className="w-3 h-3 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={2.5} /> : <Mic className="w-3 h-3 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={2.5} />}
                         </div>
                       </div>
-                      <div className="absolute bottom-1 right-1 z-10 pointer-events-auto flex items-center justify-center cursor-pointer hover:scale-105 active:scale-95 transition-transform" onClick={(e) => { e.stopPropagation(); toggleBattle(); }} title="End Battle">
-                        <img src="/Icons/Gold power buton.png" alt="End Battle" className="w-5 h-5 object-contain drop-shadow-md" />
+                      <div className="absolute bottom-2 right-2 z-10 pointer-events-auto flex items-center justify-center cursor-pointer hover:scale-105 active:scale-95 transition-transform" onClick={(e) => { e.stopPropagation(); toggleBattle(); }} title="End Battle">
+                        <img src="/Icons/Gold power buton.png" alt="End Battle" className="w-4 h-4 object-contain drop-shadow-md" />
                       </div>
 
 

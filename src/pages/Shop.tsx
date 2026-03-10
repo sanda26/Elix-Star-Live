@@ -157,8 +157,8 @@ export default function Shop() {
   ] as const;
 
   return (
-    <div className="bg-[#13151A] text-white flex justify-center px-2 min-h-screen">
-      <div className="w-full max-w-[480px] flex flex-col pb-24">
+    <div className="fixed inset-0 bg-[#13151A] text-white flex justify-center">
+      <div className="w-full max-w-[480px] flex flex-col h-full overflow-hidden pb-24">
         <div className="sticky top-0 bg-[#13151A] z-10 px-4 py-3 flex items-center justify-between border-b border-white/5">
           <button onClick={() => setShowCreate(true)} className="p-1" title="Sell item">
             <Plus size={22} className="text-[#C9A96E]" />

@@ -143,7 +143,7 @@ export default function SearchPage() {
         className="absolute inset-0 flex justify-center transition-transform duration-250 ease-out"
         style={{ transform: visible ? 'translateY(0)' : 'translateY(100%)' }}
       >
-        <div className="w-full max-w-[480px] bg-[#13151A] rounded-t-3xl border border-white/10 min-h-full flex flex-col overflow-hidden pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)]" style={{ boxShadow: '0 -8px 30px rgba(0,0,0,0.5)' }}>
+        <div className="w-full max-w-[480px] bg-[#13151A] border border-white/10 min-h-full flex flex-col overflow-hidden pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)]" style={{ boxShadow: '0 -8px 30px rgba(0,0,0,0.5)' }}>
           {/* Top: drag handle + power (back) — swipe down here to close */}
           <div
             className="flex items-center justify-between px-2 pt-2 pb-1"

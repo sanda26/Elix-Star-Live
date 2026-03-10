@@ -471,8 +471,8 @@ export default function Profile() {
   }
 
   return (
-    <div className="bg-[#13151A] text-white flex justify-center px-2 min-h-[100dvh]">
-      <div className="w-full max-w-[480px] flex flex-col bg-[#13151A] rounded-3xl overflow-hidden min-h-[100dvh]">
+    <div className="fixed inset-0 bg-[#13151A] text-white flex justify-center">
+      <div className="w-full max-w-[480px] flex flex-col bg-[#13151A] rounded-3xl overflow-hidden h-full">
 
         {/* ═══ TOP BAR ═══ */}
         <header className="flex items-center justify-between pl-4 pr-4 pt-2 pb-2 relative z-20">

@@ -2893,7 +2893,10 @@ export default function LiveStream() {
         {isBattleMode && (location.pathname.startsWith('/live') || location.pathname.startsWith('/watch')) && (
           <div
             className={`absolute inset-0 z-[80] flex flex-col ${isBroadcast ? 'pointer-events-none' : ''}`}
-            style={{ paddingTop: 'calc(110px + 8mm)', paddingBottom: isBroadcast ? '305px' : undefined }}
+            style={{
+              paddingTop: 'calc(env(safe-area-inset-top, 0px) + 80px)',
+              paddingBottom: isBroadcast ? '305px' : undefined,
+            }}
             onClick={(e) => {
               if (isBroadcast) return;
               e.stopPropagation();

@@ -1132,8 +1132,8 @@ export default function LiveStream() {
       }
 
       // Announce arrival to host — the shared battle_room channel effect handles
-      // WebRTC signaling (offer/answer/ICE). We just need to send joiner_arrived
-      // once the channel is ready.
+      // battle state signaling. We just need to send joiner_arrived once the
+      // channel is ready.
       const myName = user?.username || user?.name || 'Player';
       const myAv = user?.avatar || '';
 
@@ -1283,8 +1283,6 @@ export default function LiveStream() {
   }, [isBattleParticipant, battleParticipantStream]);
 
   const isRegularViewer = !isBroadcast && !isBattleParticipant && !isCoHostJoiner;
-  const remotePeers: { userId: string; stream: MediaStream }[] = [];
-  const webrtcError: string | null = null;
 
   // Speed Challenge State
   // SPEED CHALLENGE

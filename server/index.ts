@@ -39,6 +39,14 @@ import {
   handleShopPurchases,
 } from './routes/payout';
 import { handleLiveModerationCheck } from './routes/moderation';
+import {
+  handleLogin,
+  handleRegister,
+  handleLogout,
+  handleMe,
+  handleResendConfirmation,
+  handleAppleStart,
+} from './routes/auth';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -47,8 +55,8 @@ const app = express();
 const server = createServer(app);
 const PORT = process.env.PORT || 8080;
 
-// Middleware
-app.use(cors());
+// Middleware (credentials: true so auth cookie works when frontend is on another origin)
+app.use(cors({ credentials: true, origin: true }));
 app.use(compression());
 
 // Webhook needs raw body
@@ -72,6 +80,14 @@ app.get('/health', (_req, res) => {
     res.status(500).json({ status: 'error', message: 'Health check failed' });
   }
 });
+
+// Auth API (login, register, logout, me, resend-confirmation, apple/start)
+app.post('/api/auth/login', handleLogin);
+app.post('/api/auth/register', handleRegister);
+app.post('/api/auth/logout', handleLogout);
+app.get('/api/auth/me', handleMe);
+app.post('/api/auth/resend-confirmation', handleResendConfirmation);
+app.post('/api/auth/apple/start', handleAppleStart);
 
 // API Routes
 app.post('/api/create-checkout-session', createCheckoutSession);
@@ -658,14 +674,10 @@ wss.on('connection', async (ws: WebSocket, req) => {
       if (room) {
         room.delete(client);
 
-        // Broadcast user_left AND rtc_leave so WebRTC peers clean up
         broadcastToRoom(client.roomId, 'user_left', {
           user_id: client.userId,
           username: client.username,
           avatar_url: client.avatarUrl,
-        });
-        broadcastToRoom(client.roomId, 'rtc_leave', {
-          user_id: client.userId,
         });
 
         updateViewerCount(client.roomId).catch(() => {});
@@ -900,60 +912,6 @@ async function handleMessage(client: Client, event: string, data: any) {
           user_id: client.userId,
         });
         break;
-
-      case 'rtc_join': {
-        const room = rooms.get(client.roomId);
-        if (room && room.size > 30) {
-          sendToClient(client, 'room_full', { message: 'Live is full (max 30 viewers). Try again later.' });
-          break;
-        }
-        broadcastToRoom(client.roomId, 'rtc_join', {
-          user_id: client.userId,
-          username: client.username,
-          avatar_url: client.avatarUrl,
-        }, client);
-        break;
-      }
-
-      case 'rtc_leave': {
-        broadcastToRoom(client.roomId, 'rtc_leave', {
-          user_id: client.userId,
-        }, client);
-        break;
-      }
-
-      case 'rtc_offer': {
-        const offerTarget = data.target_user_id;
-        if (offerTarget) {
-          sendToUser(client.roomId, offerTarget, 'rtc_offer', {
-            sdp: data.sdp,
-            from_user_id: client.userId,
-          });
-        }
-        break;
-      }
-
-      case 'rtc_answer': {
-        const answerTarget = data.target_user_id;
-        if (answerTarget) {
-          sendToUser(client.roomId, answerTarget, 'rtc_answer', {
-            sdp: data.sdp,
-            from_user_id: client.userId,
-          });
-        }
-        break;
-      }
-
-      case 'rtc_ice_candidate': {
-        const iceTarget = data.target_user_id;
-        if (iceTarget) {
-          sendToUser(client.roomId, iceTarget, 'rtc_ice_candidate', {
-            candidate: data.candidate,
-            from_user_id: client.userId,
-          });
-        }
-        break;
-      }
 
       default:
         if (process.env.NODE_ENV !== 'production') console.log('Unknown event:', event);

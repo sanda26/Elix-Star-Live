@@ -218,7 +218,7 @@ flowchart TB
   - Haptics: iOS/Android (web doar click/sound optional)
   - Permissions: web diferă (browser prompts)
   - Push: iOS=APNs, Android=FCM, Web=Web Push
-  - Live: Mobile SDK provider, Web provider web SDK (WebRTC)
+  - Live: Mobile SDK provider, Web provider web SDK (LiveKit)
 
 ## 4) Mini-legenda (UX primitives)
 - Drawer = Comments (slide-up) cu blur
@@ -430,7 +430,7 @@ flowchart LR
   end
 
   subgraph LIVEKIT[LiveKit]
-    LIVE[Live streaming\nWebRTC/RTMP]
+    LIVE[Live streaming\nLiveKit/RTMP]
   end
 
   subgraph BUNNY[Bunny]

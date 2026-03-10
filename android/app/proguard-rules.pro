@@ -13,8 +13,6 @@
 -keep class com.facebook.jni.** { *; }
 -keep class com.facebook.soloader.** { *; }
 
-# Keep WebRTC classes for live streaming
--keep class org.webrtc.** { *; }
 -keep class org.chromium.** { *; }
 
 # Keep OkHttp for networking

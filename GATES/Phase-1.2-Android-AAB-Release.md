@@ -18,7 +18,7 @@
 ### **ProGuard Rules Applied:**
 - ✅ Capacitor/React Native classes preserved
 - ✅ Networking classes protected
-- ✅ WebRTC for live streaming maintained
+- ✅ Live streaming path maintained (mobile SDK + LiveKit-compatible web)
 - ✅ Debug logging removed in release
 - ✅ Crash reporting line numbers kept
 

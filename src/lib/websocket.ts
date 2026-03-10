@@ -30,12 +30,6 @@ export type WebSocketEvent =
   | 'battle_error'
   | 'battle_ready'
   | 'battle_ready_state'
-  // WebRTC signaling events
-  | 'rtc_offer'
-  | 'rtc_answer'
-  | 'rtc_ice_candidate'
-  | 'rtc_join'
-  | 'rtc_leave'
   // Moderation events (AI safety: warning → pause → suspend)
   | 'user_muted'
   | 'user_kicked'

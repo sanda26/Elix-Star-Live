@@ -296,8 +296,6 @@ export default function SpectatorPage() {
   // Video ref for live stream (LiveKit)
   const videoRef = useRef<HTMLVideoElement>(null);
   const [hasStream, setHasStream] = useState(false);
-  const remotePeers: { userId: string; stream: MediaStream }[] = [];
-  const webrtcError: string | null = null;
   const retryJoinRoom = () => {};
   const [showRetryButton, setShowRetryButton] = useState(false);
   useEffect(() => {
@@ -923,7 +921,7 @@ export default function SpectatorPage() {
     <div className="fixed inset-0 bg-[#0A0B0E] flex justify-center">
       <div className="relative w-full max-w-[480px] h-full bg-[#13151A] overflow-hidden flex flex-col">
 
-        {/* FULL SCREEN VIDEO AREA — live stream via WebRTC. Battle layout (split + score/timer) when creator is in battle; same ViewerLiveScreen, no separate route. */}
+        {/* FULL SCREEN VIDEO AREA — live stream video. Battle layout (split + score/timer) when creator is in battle; same ViewerLiveScreen, no separate route. */}
         <div className="absolute inset-0 z-0 bg-[#13151A]">
           {isCoHosting ? (
             /* SPLIT SCREEN: host on top, co-host (me) on bottom */

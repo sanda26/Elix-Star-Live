@@ -14,16 +14,18 @@ interface User {
   joinedDate: string;
 }
 
-/** Minimal type for auth session when backend auth is not configured. */
-interface AuthSession {
-  user: AuthUser | null;
-}
 interface AuthUser {
   id: string;
   email?: string;
   user_metadata?: Record<string, unknown>;
   email_confirmed_at?: string;
   created_at?: string;
+}
+
+/** Minimal type for auth session when backend auth is not configured. */
+interface AuthSession {
+  user: AuthUser | null;
+  access_token?: string;
 }
 
 type AuthMode = 'client';
@@ -148,135 +150,135 @@ export const useAuthStore = create<AuthStore>()(
         return { error: 'Please enter both email and password.' };
       }
 
-      if (!noopConfig.hasValidConfig) {
-        return { error: 'System error: Authentication not configured.' };
-      }
+      const apiBase = import.meta.env.VITE_API_URL || '';
 
       try {
-
-        const { data, error } = await noopClient.auth.signInWithPassword({ 
-          email: email.trim(), 
-          password 
+        const res = await fetch(`${apiBase}/api/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ email: email.trim(), password }),
         });
 
-        if (error) {
+        const data = await res.json().catch(() => ({}));
 
-          // 2. Map common auth errors to user-friendly messages
-          if (error.message.includes('Invalid login credentials')) {
-             return { error: 'Incorrect email or password.' };
+        if (!res.ok) {
+          const message: string = data?.error || data?.message || 'Login failed. Please try again.';
+          if (message.toLowerCase().includes('invalid') || message.toLowerCase().includes('credentials')) {
+            return { error: 'Incorrect email or password.' };
           }
-          if (error.message.includes('Email not confirmed')) {
-             return { error: 'Please verify your email address before logging in.' };
+          if (message.toLowerCase().includes('confirm')) {
+            return { error: 'Please verify your email address before logging in.' };
           }
-          if (error.message.includes('Failed to fetch')) {
-             return { error: 'Connection failed. Please check your internet or try again later.' };
-          }
-          return { error: error.message };
+          return { error: message };
         }
 
-        if (!data.user || !data.session) {
+        const backendUser: AuthUser | null = data.user ?? null;
+        const accessToken: string | undefined = data.session?.accessToken ?? data.session?.access_token;
 
+        if (!backendUser || !accessToken) {
           return { error: 'Login failed unexpectedly. Please try again.' };
         }
 
+        const mapped = mapUserToUser(backendUser);
 
-        
-        // 3. Force state update immediately
-        set({ 
-          backendUser: data.user, 
-          session: data.session, 
-          user: mapUserToUser(data.user), 
-          isAuthenticated: true, 
-          isLoading: false, 
-          authMode: 'client' 
+        set({
+          backendUser,
+          session: { user: backendUser, access_token: accessToken },
+          user: mapped,
+          isAuthenticated: true,
+          isLoading: false,
+          authMode: 'client',
         });
-        
+
         return { error: null };
       } catch (err: any) {
-
-        const msg = err?.message || 'Unknown error occurred';
-        if (msg.includes('fetch')) {
-           return { error: 'Network error. Please check your connection.' };
+        const msg = (err?.message || 'Unknown error occurred') as string;
+        if (msg.toLowerCase().includes('fetch') || msg.toLowerCase().includes('network')) {
+          return { error: 'Network error. Please check your connection.' };
         }
-        // Handle AbortError specifically
-        if (err.name === 'AbortError' || msg.includes('aborted')) {
-
-           // Return a specific error code or message that UI can ignore or handle gracefully
-           return { error: 'aborted' }; 
+        if (err.name === 'AbortError' || msg.toLowerCase().includes('aborted')) {
+          return { error: 'aborted' };
         }
         return { error: msg };
       }
     },
 
     signUpWithPassword: async (email, password, username) => {
-      if (!noopConfig.hasValidConfig) {
-        return { error: 'Authentication not configured.', needsEmailConfirmation: false };
-      }
+      const apiBase = import.meta.env.VITE_API_URL || '';
       try {
-
-        const { data, error } = await noopClient.auth.signUp({
-          email: email.trim(),
-          password,
-          options: {
-            data: {
-              username: username || email.split('@')[0],
-              full_name: username,
-              avatar_url: `https://ui-avatars.com/api/?name=${encodeURIComponent(username || '')}&background=random`,
-            },
-          },
+        const res = await fetch(`${apiBase}/api/auth/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            email: email.trim(),
+            password,
+            username: username || email.split('@')[0],
+          }),
         });
 
-        if (error) {
+        const data = await res.json().catch(() => ({}));
 
-          if (error.message.includes('fetch')) {
-             return { error: 'Network error. Please check your connection.', needsEmailConfirmation: false };
+        if (!res.ok) {
+          const message: string = data?.error || data?.message || 'Signup failed. Please try again.';
+          if (message.toLowerCase().includes('fetch') || message.toLowerCase().includes('network')) {
+            return { error: 'Network error. Please check your connection.', needsEmailConfirmation: false };
           }
-          return { error: error.message, needsEmailConfirmation: false };
+          // If backend indicates email confirmation is required, surface that
+          if (data?.needsEmailConfirmation) {
+            return { error: null, needsEmailConfirmation: true };
+          }
+          return { error: message, needsEmailConfirmation: false };
         }
 
-        if (data.user && data.session) {
+        const backendUser: AuthUser | null = data.user ?? null;
+        const accessToken: string | undefined = data.session?.accessToken ?? data.session?.access_token;
 
-          set({ 
-            backendUser: data.user, 
-            session: data.session, 
-            user: mapUserToUser(data.user), 
-            isAuthenticated: true, 
-            isLoading: false, 
-            authMode: 'client' 
+        if (backendUser && accessToken) {
+          const mapped = mapUserToUser(backendUser);
+          set({
+            backendUser,
+            session: { user: backendUser, access_token: accessToken },
+            user: mapped,
+            isAuthenticated: true,
+            isLoading: false,
+            authMode: 'client',
           });
           return { error: null, needsEmailConfirmation: false };
         }
-        
-        // If backend returned user but no session, email confirmation is likely required
-        if (data.user && !data.session) {
 
-           return { error: null, needsEmailConfirmation: true };
+        if (backendUser && !accessToken) {
+          // Likely "check your email to confirm"
+          return { error: null, needsEmailConfirmation: true };
         }
 
         return { error: 'Signup failed (No user data returned). Please try again.', needsEmailConfirmation: false };
       } catch (err: any) {
-
-        const msg = err?.message || 'Unknown error occurred';
-        
-        if (msg.includes('fetch')) {
-           return { error: 'Network error. Please check your connection.', needsEmailConfirmation: false };
+        const msg = (err?.message || 'Unknown error occurred') as string;
+        if (msg.toLowerCase().includes('fetch') || msg.toLowerCase().includes('network')) {
+          return { error: 'Network error. Please check your connection.', needsEmailConfirmation: false };
         }
-        if (err.name === 'AbortError' || msg.includes('aborted')) {
-
-           return { error: 'aborted', needsEmailConfirmation: false }; 
+        if (err.name === 'AbortError' || msg.toLowerCase().includes('aborted')) {
+          return { error: 'aborted', needsEmailConfirmation: false };
         }
-
         return { error: msg, needsEmailConfirmation: false };
       }
     },
 
     resendSignupConfirmation: async (email) => {
-      if (!noopConfig.hasValidConfig) {
-        return { error: 'Authentication is not configured.' };
-      }
+      const apiBase = import.meta.env.VITE_API_URL || '';
       try {
-        const { error } = await noopClient.auth.resend({ type: 'signup', email });
-        if (error) return { error: error.message };
+        const res = await fetch(`${apiBase}/api/auth/resend-confirmation`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ email }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          return { error: data?.error || data?.message || 'Failed to resend confirmation email.' };
+        }
         return { error: null };
       } catch (error) {
         return { error: getAuthErrorMessage(error) };
@@ -284,17 +286,22 @@ export const useAuthStore = create<AuthStore>()(
     },
 
     signInWithApple: async () => {
-      if (!noopConfig.hasValidConfig) {
-        return { error: 'Authentication is not configured.' };
-      }
+      const apiBase = import.meta.env.VITE_API_URL || '';
       try {
-        const { error } = await noopClient.auth.signInWithOAuth({
-          provider: 'apple',
-          options: {
-            redirectTo: window.location.origin + '/auth/callback',
-          },
+        const res = await fetch(`${apiBase}/api/auth/apple/start`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ redirectTo: window.location.origin + '/auth/callback' }),
         });
-        if (error) return { error: error.message };
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          return { error: data?.error || data?.message || 'Apple sign-in failed.' };
+        }
+        if (data?.url) {
+          window.location.href = data.url;
+          return { error: null };
+        }
         return { error: null };
       } catch (error) {
         return { error: getAuthErrorMessage(error) };
@@ -302,12 +309,15 @@ export const useAuthStore = create<AuthStore>()(
     },
 
     signOut: async () => {
-      if (noopConfig.hasValidConfig) {
-        try {
-          await noopClient.auth.signOut();
-        } catch (error) {
-          /* ignored */
-        }
+      const apiBase = import.meta.env.VITE_API_URL || '';
+      try {
+        await fetch(`${apiBase}/api/auth/logout`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+        });
+      } catch {
+        // ignore network errors on logout
       }
       set({
         session: null,
@@ -327,47 +337,41 @@ export const useAuthStore = create<AuthStore>()(
     getCurrentUser: () => get().user,
 
     checkUser: async () => {
-      if (!noopConfig.hasValidConfig) {
-        set({ backendUser: null, session: null, user: null, isAuthenticated: false, isLoading: false, authMode: 'client' });
-        return;
-      }
-      
+      const apiBase = import.meta.env.VITE_API_URL || '';
       try {
-        const { data: { session } } = await noopClient.auth.getSession();
-        if (session?.user) {
-          const mapped = mapUserToUser(session.user);
-          if (mapped) {
-            const enriched = await enrichUserWithProfile(mapped);
-            set({ backendUser: session.user, session, user: enriched, isAuthenticated: true, isLoading: false, authMode: 'client' });
-          } else {
-            set({ backendUser: session.user, session, user: mapped, isAuthenticated: true, isLoading: false, authMode: 'client' });
-          }
-        } else {
-           set({ backendUser: null, session: null, user: null, isAuthenticated: false, isLoading: false, authMode: 'client' });
-        }
-      } catch (error) {
-
-        set({ isLoading: false });
-      }
-
-      if (!authUnsubscribe) {
-        const { data: { subscription } } = noopClient.auth.onAuthStateChange(async (event, session) => {
-
-          const user = session?.user;
-          if (user) {
-            const mapped = mapUserToUser(user);
-            if (mapped) {
-              const enriched = await enrichUserWithProfile(mapped);
-              set({ backendUser: user, session, user: enriched, isAuthenticated: true, isLoading: false, authMode: 'client' });
-            } else {
-              set({ backendUser: user, session, user: mapped, isAuthenticated: true, isLoading: false, authMode: 'client' });
-            }
-            return;
-          }
-          
-          set({ backendUser: null, session: null, user: null, isAuthenticated: false, isLoading: false, authMode: 'client' });
+        const res = await fetch(`${apiBase}/api/auth/me`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
         });
-        authUnsubscribe = subscription.unsubscribe;
+
+        if (!res.ok) {
+          set({ backendUser: null, session: null, user: null, isAuthenticated: false, isLoading: false, authMode: 'client' });
+          return;
+        }
+
+        const data = await res.json().catch(() => ({}));
+        const backendUser: AuthUser | null = data.user ?? null;
+        const accessToken: string | undefined = data.session?.accessToken ?? data.session?.access_token;
+
+        if (!backendUser) {
+          set({ backendUser: null, session: null, user: null, isAuthenticated: false, isLoading: false, authMode: 'client' });
+          return;
+        }
+
+        const mapped = mapUserToUser(backendUser);
+        const enriched = mapped ? await enrichUserWithProfile(mapped) : null;
+
+        set({
+          backendUser,
+          session: accessToken ? { user: backendUser, access_token: accessToken } : null,
+          user: enriched ?? mapped,
+          isAuthenticated: true,
+          isLoading: false,
+          authMode: 'client',
+        });
+      } catch {
+        set({ isLoading: false });
       }
     }
   })

@@ -122,6 +122,7 @@ app.post('/api/create-promote-checkout', createPromoteCheckoutSession);
 app.post('/api/create-payment-intent', createPaymentIntent);
 app.post('/api/create-subscription', createSubscriptionSession);
 app.post('/api/analytics', handleAnalytics);
+app.post('/api/analytics/track', handleAnalytics);
 app.post('/api/block-user', handleBlockUser);
 app.post('/api/delete-account', handleDeleteAccount);
 app.post('/api/report', handleReport);
@@ -166,13 +167,16 @@ app.post('/api/shop/buy', handleShopBuy);
 app.post('/api/shop/refund', handleShopRefund);
 app.get('/api/shop/purchases', handleShopPurchases);
 
-// Runtime env.js endpoint for VITE_ variables
+// Runtime env.js endpoint for VITE_ variables (+ LIVEKIT_URL as VITE_LIVEKIT_URL so client can connect)
 app.get('/env.js', (_req, res) => {
   const env: Record<string, string> = {};
   for (const [k, v] of Object.entries(process.env)) {
     if (!k.startsWith('VITE_')) continue;
     if (typeof v !== 'string') continue;
     env[k] = v;
+  }
+  if (process.env.LIVEKIT_URL && typeof process.env.LIVEKIT_URL === 'string') {
+    env.VITE_LIVEKIT_URL = process.env.LIVEKIT_URL;
   }
   res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
   res.setHeader('Cache-Control', 'no-store');

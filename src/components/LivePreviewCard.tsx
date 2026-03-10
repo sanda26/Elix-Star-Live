@@ -26,16 +26,18 @@ export default function LivePreviewCard({
     navigate(`/watch/${streamKey}`);
   };
 
-  const previewImg = thumbnail || avatar;
+  // Only use thumbnail as full-bleed if it looks like a real stream thumbnail (has path/query), not ui-avatars text
+  const hasRealThumbnail = thumbnail && thumbnail.length > 0 && !thumbnail.includes('ui-avatars.com');
+  const previewImg = hasRealThumbnail ? thumbnail : '';
 
   return (
     <button
       type="button"
       onClick={handleTap}
-      className="w-full h-full relative bg-black overflow-hidden"
+      className="w-full h-full relative bg-[#0A0B0E] overflow-hidden"
       title="Tap to join live"
     >
-      {/* Live thumbnail — full screen, updated every 10s by broadcaster */}
+      {/* Full-bleed only for real broadcaster thumbnail; otherwise use live card layout (no giant letter) */}
       {previewImg ? (
         <img
           src={previewImg}
@@ -43,12 +45,18 @@ export default function LivePreviewCard({
           className="absolute inset-0 w-full h-full object-cover z-[1]"
         />
       ) : (
-        <div className="absolute inset-0 bg-gradient-to-b from-[#1a1a2e] to-[#0a0b0e] z-[1] flex items-center justify-center">
-          <div className="w-20 h-20 rounded-full border-[3px] border-red-500 overflow-hidden bg-[#1a1a2e]">
-            <div className="w-full h-full flex items-center justify-center">
-              <span className="text-[#C9A96E] font-bold text-2xl">{name.slice(0, 1).toUpperCase()}</span>
-            </div>
+        <div className="absolute inset-0 bg-gradient-to-b from-[#13151A] to-[#0A0B0E] z-[1] flex flex-col items-center justify-center gap-4 p-6">
+          <div className="w-20 h-20 rounded-full border-[3px] border-red-500/50 overflow-hidden bg-[#1C1E24] flex-shrink-0">
+            {avatar ? (
+              <img src={avatar} alt="" className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                <span className="text-[#C9A96E] font-bold text-2xl">{name.slice(0, 1).toUpperCase()}</span>
+              </div>
+            )}
           </div>
+          <span className="text-white font-semibold text-sm truncate max-w-full text-center">{name}</span>
+          <p className="text-white/50 text-xs text-center">Tap to watch live</p>
         </div>
       )}
 
@@ -68,26 +76,28 @@ export default function LivePreviewCard({
         )}
       </div>
 
-      {/* Bottom info */}
-      <div className="absolute bottom-0 left-0 right-0 z-[5] pointer-events-none">
-        <div className="bg-gradient-to-t from-black/80 via-black/40 to-transparent pt-20 pb-20 px-4">
-          <div className="flex items-center gap-2 mb-1">
-            <div className="w-8 h-8 rounded-full border border-white/30 overflow-hidden bg-[#1a1a2e] flex-shrink-0">
-              {avatar ? (
-                <img src={avatar} alt="" className="w-full h-full object-cover" />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center">
-                  <span className="text-[#C9A96E] font-bold text-xs">{name.slice(0, 1).toUpperCase()}</span>
-                </div>
-              )}
+      {/* Bottom info (when we have real thumbnail) */}
+      {previewImg ? (
+        <div className="absolute bottom-0 left-0 right-0 z-[5] pointer-events-none">
+          <div className="bg-gradient-to-t from-black/80 via-black/40 to-transparent pt-20 pb-20 px-4">
+            <div className="flex items-center gap-2 mb-1">
+              <div className="w-8 h-8 rounded-full border border-white/30 overflow-hidden bg-[#1a1a2e] flex-shrink-0">
+                {avatar ? (
+                  <img src={avatar} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <span className="text-[#C9A96E] font-bold text-xs">{name.slice(0, 1).toUpperCase()}</span>
+                  </div>
+                )}
+              </div>
+              <span className="text-white font-bold text-sm drop-shadow-lg">{name}</span>
             </div>
-            <span className="text-white font-bold text-sm drop-shadow-lg">{name}</span>
+            {title && (
+              <p className="text-white/80 text-xs mt-0.5 drop-shadow-md line-clamp-2 ml-10">{title}</p>
+            )}
           </div>
-          {title && (
-            <p className="text-white/80 text-xs mt-0.5 drop-shadow-md line-clamp-2 ml-10">{title}</p>
-          )}
         </div>
-      </div>
+      ) : null}
     </button>
   );
 }

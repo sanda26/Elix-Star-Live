@@ -591,12 +591,16 @@ export default function SpectatorPage() {
     const goOffline = async () => {
       if (!mounted) return;
       try {
-        const { data: recheck } = await noopClient
-          .from('live_streams')
-          .select('is_live')
-          .eq('stream_key', effectiveStreamId)
-          .maybeSingle();
-        if (recheck?.is_live) return;
+        const runtimeEnv = (window as any).__ENV as Record<string, string> | undefined;
+        const envBase = import.meta.env.VITE_API_URL || runtimeEnv?.VITE_API_URL || '';
+        const url = envBase ? `${envBase.replace(/\/$/, '')}/api/live/streams` : '/api/live/streams';
+        const res = await fetch(url, { method: 'GET', credentials: 'include' });
+        if (res.ok) {
+          const json = await res.json();
+          const streams = Array.isArray(json.streams) ? json.streams : [];
+          const stillLive = streams.some((s: any) => (s.stream_key === effectiveStreamId || s.room_id === effectiveStreamId));
+          if (stillLive) return;
+        }
       } catch {}
       if (!mounted) return;
       showToast('Stream is offline');

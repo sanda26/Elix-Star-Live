@@ -5,6 +5,9 @@
 
 import { Request, Response } from 'express';
 import crypto from 'crypto';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 const COOKIE_NAME = 'auth_token';
 const TOKEN_EXPIRY_SEC = 60 * 60 * 24 * 7; // 7 days
@@ -88,7 +91,7 @@ function clearAuthCookie(res: Response) {
   res.setHeader('Set-Cookie', `${COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`);
 }
 
-// In-memory user store (replace with DB when using Hetzner Postgres)
+// In-memory user store with simple JSON persistence on disk
 interface StoredUser {
   id: string;
   email: string;
@@ -99,6 +102,43 @@ interface StoredUser {
 }
 const usersByEmail = new Map<string, StoredUser>();
 const usersById = new Map<string, StoredUser>();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const USERS_FILE = path.join(__dirname, '..', 'data', 'users.json');
+
+function loadUsersFromDisk() {
+  try {
+    if (!fs.existsSync(USERS_FILE)) return;
+    const raw = fs.readFileSync(USERS_FILE, 'utf8');
+    if (!raw.trim()) return;
+    const parsed = JSON.parse(raw) as { users?: StoredUser[] };
+    if (!parsed.users || !Array.isArray(parsed.users)) return;
+    usersByEmail.clear();
+    usersById.clear();
+    for (const u of parsed.users) {
+      if (!u || !u.email || !u.id) continue;
+      usersByEmail.set(u.email.toLowerCase(), u);
+      usersById.set(u.id, u);
+    }
+  } catch (err) {
+    console.error('Failed to load users from disk:', err);
+  }
+}
+
+function saveUsersToDisk() {
+  try {
+    const dir = path.dirname(USERS_FILE);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    const users: StoredUser[] = Array.from(usersById.values());
+    fs.writeFileSync(USERS_FILE, JSON.stringify({ users }, null, 2), 'utf8');
+  } catch (err) {
+    console.error('Failed to persist users to disk:', err);
+  }
+}
+
+// Load existing users once on startup
+loadUsersFromDisk();
 
 function toAuthUser(u: StoredUser): { id: string; email?: string; user_metadata?: Record<string, unknown>; email_confirmed_at?: string; created_at?: string } {
   return {
@@ -154,6 +194,7 @@ export async function handleRegister(req: Request, res: Response) {
   };
   usersByEmail.set(key, stored);
   usersById.set(id, stored);
+  saveUsersToDisk();
   const token = signToken({ sub: id, email: e });
   setAuthCookie(res, token);
   return res.status(201).json({

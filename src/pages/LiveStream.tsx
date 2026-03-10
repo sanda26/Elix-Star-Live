@@ -168,6 +168,7 @@ export default function LiveStream() {
   // user is already defined above
   const isBroadcaster = isBroadcast;
   const effectiveStreamId = isBroadcaster ? (user?.id || 'broadcast') : (_rawStreamId || 'broadcast');
+  const liveRegisteredRef = useRef(false);
   const formatStreamName = (id: string) =>
     id
       .split(/[-_]/g)
@@ -398,6 +399,51 @@ export default function LiveStream() {
       }
     }
   }, [user?.id, effectiveStreamId]);
+
+  // Register/unregister live stream in backend list
+  useEffect(() => {
+    if (!isBroadcast || !user?.id || !effectiveStreamId || liveRegisteredRef.current) return;
+
+    const runtimeEnv = (window as any).__ENV as Record<string, string> | undefined;
+    const envBase = import.meta.env.VITE_API_URL || runtimeEnv?.VITE_API_URL || '';
+    const apiBase = envBase || '';
+    const startUrl = apiBase ? `${apiBase.replace(/\/$/, '')}/api/live/start` : '/api/live/start';
+    const endUrl = apiBase ? `${apiBase.replace(/\/$/, '')}/api/live/end` : '/api/live/end';
+
+    (async () => {
+      try {
+        const res = await fetch(startUrl, {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ room: effectiveStreamId }),
+        });
+        if (res.ok) {
+          liveRegisteredRef.current = true;
+        }
+      } catch {
+        // ignore; stream will just not appear in /api/live/streams
+      }
+    })();
+
+    return () => {
+      if (!liveRegisteredRef.current) return;
+      (async () => {
+        try {
+          await fetch(endUrl, {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ room: effectiveStreamId }),
+          });
+        } catch {
+          // ignore
+        } finally {
+          liveRegisteredRef.current = false;
+        }
+      })();
+    };
+  }, [isBroadcast, user?.id, effectiveStreamId]);
 
   const [isFindCreatorsOpen, setIsFindCreatorsOpen] = useState(false);
   const [memberCount, setMemberCount] = useState(0);

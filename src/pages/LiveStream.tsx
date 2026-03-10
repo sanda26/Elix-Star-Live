@@ -413,8 +413,13 @@ export default function LiveStream() {
     setCreatorsLoading(true);
     setCreatorsLoadFailed(false);
     try {
-      const apiBase = import.meta.env.VITE_API_URL || '';
-      const res = await fetch(`${apiBase}/api/live/streams`, {
+      const runtimeEnv = (window as any).__ENV as Record<string, string> | undefined;
+      const envBase = import.meta.env.VITE_API_URL || runtimeEnv?.VITE_API_URL || '';
+      // If no explicit API base, fall back to same-origin
+      const apiBase = envBase || '';
+      const url = apiBase ? `${apiBase.replace(/\/$/, '')}/api/live/streams` : '/api/live/streams';
+
+      const res = await fetch(url, {
         method: 'GET',
         credentials: 'include',
       });

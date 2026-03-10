@@ -2894,8 +2894,8 @@ export default function LiveStream() {
           <div
             className={`absolute inset-0 z-[80] flex flex-col ${isBroadcast ? 'pointer-events-none' : ''}`}
             style={{
-              // Slightly lower than top overlays: safe-area + 88px
-              paddingTop: 'calc(env(safe-area-inset-top, 0px) + 88px)',
+              // Slightly lower than top overlays: safe-area + 90px
+              paddingTop: 'calc(env(safe-area-inset-top, 0px) + 90px)',
               paddingBottom: isBroadcast ? '305px' : undefined,
             }}
             onClick={(e) => {

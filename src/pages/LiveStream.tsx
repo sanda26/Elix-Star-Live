@@ -2894,8 +2894,8 @@ export default function LiveStream() {
           <div
             className={`absolute inset-0 z-[80] flex flex-col ${isBroadcast ? 'pointer-events-none' : ''}`}
             style={{
-              // Start battle grid a bit lower on screen (safe area + 80px)
-              paddingTop: 'calc(env(safe-area-inset-top, 0px) + 80px)',
+              // Slightly lower than top overlays: safe-area + 88px
+              paddingTop: 'calc(env(safe-area-inset-top, 0px) + 88px)',
               paddingBottom: isBroadcast ? '305px' : undefined,
             }}
             onClick={(e) => {
@@ -3022,7 +3022,7 @@ export default function LiveStream() {
                           type="button"
                           onClick={(e) => { e.stopPropagation(); togglePlayerMute('me'); }}
                           title={mutedPlayers['me'] ? 'Unmute' : 'Mute'}
-                          className="w-6 h-6 rounded-full bg-black/40 flex items-center justify-center"
+                          className="w-5 h-5 flex items-center justify-center"
                         >
                           {mutedPlayers['me']
                             ? <MicOff className="w-3 h-3 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={2.5} />
@@ -3030,11 +3030,11 @@ export default function LiveStream() {
                         </button>
                         <button
                           type="button"
-                          className="w-6 h-6 rounded-full flex items-center justify-center cursor-pointer hover:scale-105 active:scale-95 transition-transform bg-black/40"
+                          className="w-5 h-5 flex items-center justify-center cursor-pointer hover:scale-105 active:scale-95 transition-transform"
                           onClick={(e) => { e.stopPropagation(); toggleBattle(); }}
                           title="End Battle"
                         >
-                          <img src="/Icons/Gold power buton.png" alt="End Battle" className="w-4 h-4 object-contain drop-shadow-md" />
+                          <img src="/Icons/Gold power buton.png" alt="End Battle" className="w-3 h-3 object-contain drop-shadow-md" />
                         </button>
                       </div>
 

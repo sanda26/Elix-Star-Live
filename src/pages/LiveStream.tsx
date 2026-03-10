@@ -523,41 +523,21 @@ export default function LiveStream() {
     });
 
     if (!user?.id) return;
-    try {
-      await noopClient.from('notifications').insert({
-        user_id: creatorId,
-        type: 'battle_invite',
-        title: 'Battle Invite',
-        body: `@${myCreatorName} invited you to a battle!`,
-        data: {
-          actor_id: user.id,
-          host_name: myCreatorName,
-          host_avatar: myAvatar,
-          stream_key: effectiveStreamId,
-          slot_index: slotIndex,
-        },
-      });
-      // invite sent silently — button changes to "Invited"
-    } catch {
-      showToast('Failed to send invite');
-    }
+    websocket.send('battle_invite_send', {
+      targetUserId: creatorId,
+      hostName: myCreatorName,
+      hostAvatar: myAvatar,
+    });
   };
 
   // ─── INCOMING INVITE (for viewers / other broadcasters) ─────
   type PendingInvite = {
-    notifId: string;
     hostName: string;
     hostAvatar: string;
     streamKey: string;
     hostUserId: string;
   };
   const [pendingInvite, setPendingInvite] = useState<PendingInvite | null>(null);
-
-  useEffect(() => {
-    if (!user?.id) return;
-    // Supabase-based battle invite notifications disabled.
-    return () => {};
-  }, [user?.id, isBroadcast]);
 
   const acceptBattleInvite = async () => {
     if (!pendingInvite || !user?.id) return;
@@ -569,19 +549,12 @@ export default function LiveStream() {
     }
     try {
       const myUsername = user?.username || user?.name || viewerName;
-      noopClient.from('notifications').update({ is_read: true }).eq('id', invite.notifId).then(() => {});
-      noopClient.from('notifications').insert({
-        user_id: invite.hostUserId,
-        type: 'battle_accepted',
-        title: 'Battle Accepted',
-        body: `@${myUsername} accepted your battle invite!`,
-        data: {
-          actor_id: user.id,
-          accepted_name: myUsername,
-          accepted_avatar: viewerAvatar,
-          stream_key: invite.streamKey,
-        },
-      }).then(() => {});
+      websocket.send('battle_invite_accept', {
+        hostUserId: invite.hostUserId,
+        requesterName: myUsername,
+        requesterAvatar: viewerAvatar,
+        streamKey: invite.streamKey,
+      });
     } catch { /* fire-and-forget */ }
 
     if (isBroadcast) {
@@ -610,9 +583,6 @@ export default function LiveStream() {
 
   const declineBattleInvite = async () => {
     if (!pendingInvite) return;
-    try {
-      await noopClient.from('notifications').update({ is_read: true }).eq('id', pendingInvite.notifId);
-    } catch { /* ignore */ }
     setPendingInvite(null);
   };
 
@@ -692,60 +662,27 @@ export default function LiveStream() {
     setCoHosts(prev => [...prev, newHost]);
 
     if (!user?.id) return;
-    try {
-      await noopClient.from('notifications').insert({
-        user_id: creator.id,
-        type: 'cohost_invite',
-        title: 'Co-Host Invite',
-        body: `@${myCreatorName} invited you to co-host!`,
-        data: {
-          actor_id: user.id,
-          host_name: myCreatorName,
-          host_avatar: myAvatar,
-          stream_key: effectiveStreamId,
-        },
-      });
-      // invite sent silently — button changes to "Invited"
-    } catch {
-      showToast('Failed to send co-host invite');
-    }
+    websocket.send('cohost_invite_send', {
+      targetUserId: creator.id,
+      hostName: myCreatorName,
+      hostAvatar: myAvatar,
+    });
   };
 
-  useEffect(() => {
-    if (!user?.id) return;
-    // Supabase-based cohost invite notifications disabled.
-    return () => {};
-  }, [user?.id, isBroadcast]);
-
-  // ─── JOIN REQUEST: creator receives when someone asked to join (no spectator UI to send — invite only from creator) ───
-  type PendingJoinRequest = { notifId: string; requesterName: string; requesterAvatar: string; requesterId: string; type: 'cohost' | 'battle' };
+  // ─── JOIN REQUEST: creator receives when someone asked to join (from viewer) ───
+  type PendingJoinRequest = { requesterName: string; requesterAvatar: string; requesterId: string; type: 'cohost' | 'battle' };
   const [pendingJoinRequest, setPendingJoinRequest] = useState<PendingJoinRequest | null>(null);
-
-  useEffect(() => {
-    if (!user?.id || !isBroadcast) return;
-    // Supabase-based join requests disabled.
-    return () => {};
-  }, [user?.id, isBroadcast]);
 
   const acceptJoinRequest = async () => {
     if (!pendingJoinRequest || !user?.id) return;
     const req = pendingJoinRequest;
     setPendingJoinRequest(null);
-    noopClient.from('notifications').update({ is_read: true }).eq('id', req.notifId).then(() => {});
     const myName = user.username || user.name || 'Creator';
-    await noopClient.from('notifications').insert({
-      user_id: req.requesterId,
-      type: 'cohost_accepted',
-      title: 'Co-Host Accepted',
-      body: `@${myName} accepted your request!`,
-      data: {
-        actor_id: user.id,
-        host_name: myName,
-        host_avatar: user.avatar || '',
-        stream_key: effectiveStreamId,
-        accepted_name: req.requesterName,
-        accepted_avatar: req.requesterAvatar || '',
-      },
+    websocket.send('cohost_request_accept', {
+      requesterUserId: req.requesterId,
+      hostName: myName,
+      hostAvatar: user.avatar || '',
+      streamKey: effectiveStreamId,
     });
     setCoHosts(prev => [...prev, {
       id: `host-${Date.now()}`,
@@ -760,7 +697,6 @@ export default function LiveStream() {
 
   const declineJoinRequest = async () => {
     if (!pendingJoinRequest) return;
-    noopClient.from('notifications').update({ is_read: true }).eq('id', pendingJoinRequest.notifId).then(() => {});
     setPendingJoinRequest(null);
     showToast('Request declined');
   };
@@ -2086,6 +2022,71 @@ export default function LiveStream() {
     websocket.on('battle_ended', handleBattleEnded);
     websocket.on('battle_ready_state', handleBattleReadyState);
 
+    // Battle & Co-Host invite / request signalling over WebSocket
+    const handleBattleInvite = (data: any) => {
+      if (!user?.id) return;
+      setPendingInvite({
+        hostName: data.hostName || 'Creator',
+        hostAvatar: data.hostAvatar || '',
+        streamKey: data.streamKey || effectiveStreamId,
+        hostUserId: data.hostUserId,
+      });
+    };
+
+    const handleBattleInviteAccepted = (data: any) => {
+      if (!isBroadcast) return;
+      const requesterId = data.requesterUserId as string | undefined;
+      const requesterName = data.requesterName as string | undefined;
+      const requesterAvatar = data.requesterAvatar as string | undefined;
+      if (!requesterId || !requesterName) return;
+      setIsBattleMode(true);
+      setBattleState('INVITING');
+      setOpponentCreatorName(requesterName);
+      setBattleSlots(prev => {
+        const next = [...prev];
+        const emptyIdx = next.findIndex(s => s.status === 'empty');
+        if (emptyIdx !== -1) {
+          next[emptyIdx] = { userId: requesterId, name: requesterName, status: 'accepted', avatar: requesterAvatar || '' };
+        }
+        return next;
+      });
+      websocket.send('battle_create', {
+        hostName: myCreatorName,
+        opponentUserId: requesterId,
+        opponentName: requesterName,
+      });
+    };
+
+    const handleCohostRequest = (data: any) => {
+      if (!isBroadcast) return;
+      setPendingJoinRequest({
+        requesterId: data.requesterUserId,
+        requesterName: data.requesterName,
+        requesterAvatar: data.requesterAvatar || '',
+        type: 'cohost',
+      });
+    };
+
+    const handleCohostRequestAccepted = (data: any) => {
+      if (!user?.id) return;
+      const hostName = data.hostName || 'Creator';
+      const hostAvatar = data.hostAvatar || '';
+      showToast(`@${hostName} accepted your co-host request!`);
+      setCoHosts(prev => [...prev, {
+        id: `host-${Date.now()}`,
+        userId: data.hostUserId || '',
+        name: hostName,
+        avatar: hostAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(hostName)}&background=121212&color=C9A96E`,
+        status: 'invited',
+        isMuted: false,
+      }]);
+    };
+
+    websocket.on('battle_invite', handleBattleInvite);
+    websocket.on('battle_invite_accepted', handleBattleInviteAccepted);
+    websocket.on('cohost_request', handleCohostRequest);
+    websocket.on('cohost_request_accepted', handleCohostRequestAccepted);
+
     const handleModerationWarning = (data: { message?: string }) => {
       if (!mounted) return;
       setModerationWarningMessage(data?.message || 'Your stream may violate our safety guidelines. Please avoid dangerous or illegal activity.');
@@ -2124,6 +2125,10 @@ export default function LiveStream() {
       websocket.off('battle_countdown', handleBattleCountdown);
       websocket.off('battle_ended', handleBattleEnded);
       websocket.off('battle_ready_state', handleBattleReadyState);
+      websocket.off('battle_invite', handleBattleInvite);
+      websocket.off('battle_invite_accepted', handleBattleInviteAccepted);
+      websocket.off('cohost_request', handleCohostRequest);
+      websocket.off('cohost_request_accepted', handleCohostRequestAccepted);
       websocket.off('moderation_warning', handleModerationWarning);
       websocket.off('moderation_pause', handleModerationPause);
       websocket.off('moderation_suspend', handleModerationSuspend);
@@ -3641,25 +3646,14 @@ export default function LiveStream() {
                   disabled={spectatorCoHostRequestSent || !user?.id}
                   onClick={async () => {
                     if (!user?.id || !effectiveStreamId || spectatorCoHostRequestSent) return;
-                    try {
-                      await noopClient.from('notifications').insert({
-                        user_id: effectiveStreamId,
-                        type: 'join_request',
-                        title: 'Co-Host Request',
-                        body: `@${user?.username || user?.name || 'Someone'} wants to co-host`,
-                        data: {
-                          actor_id: user.id,
-                          requester_name: user?.username || user?.name || 'Someone',
-                          requester_avatar: user?.avatar || '',
-                          request_type: 'cohost',
-                          stream_key: effectiveStreamId,
-                        },
-                      });
-                      setSpectatorCoHostRequestSent(true);
-                      showToast('Co-host request sent!');
-                    } catch {
-                      showToast('Failed to send request');
-                    }
+                    const requesterName = user?.username || user?.name || 'Someone';
+                    websocket.send('cohost_request_send', {
+                      hostUserId: effectiveStreamId,
+                      requesterName,
+                      requesterAvatar: user?.avatar || '',
+                    });
+                    setSpectatorCoHostRequestSent(true);
+                    showToast('Co-host request sent!');
                   }}
                   className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg relative disabled:opacity-60 active:scale-95 transition-transform"
                 >

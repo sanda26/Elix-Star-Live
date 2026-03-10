@@ -926,11 +926,101 @@ async function handleMessage(client: Client, event: string, data: any) {
         break;
       }
 
+      // ═══ BATTLE INVITES — host ↔ invited creators ═══
+      case 'battle_invite_send': {
+        if (!wsRateCheck(client.userId, 'battle_invite_send', 10, 60_000)) break;
+        const targetUserId = typeof data.targetUserId === 'string' ? data.targetUserId : '';
+        if (!targetUserId) break;
+        sendToUser(client.roomId, targetUserId, 'battle_invite', {
+          hostUserId: client.userId,
+          hostName: data.hostName || client.displayName,
+          hostAvatar: data.hostAvatar || client.avatarUrl || '',
+          streamKey: client.roomId,
+        });
+        break;
+      }
+
+      case 'battle_invite_accept': {
+        if (!wsRateCheck(client.userId, 'battle_invite_accept', 10, 60_000)) break;
+        const hostUserId = typeof data.hostUserId === 'string' ? data.hostUserId : '';
+        if (!hostUserId) break;
+        sendToUser(client.roomId, hostUserId, 'battle_invite_accepted', {
+          requesterUserId: client.userId,
+          requesterName: data.requesterName || client.displayName,
+          requesterAvatar: data.requesterAvatar || client.avatarUrl || '',
+          streamKey: data.streamKey || client.roomId,
+        });
+        break;
+      }
+
       case 'stream_end': {
         broadcastToRoom(client.roomId, 'stream_ended', {
           stream_key: client.roomId,
           host_user_id: client.userId,
           reason: 'host_ended',
+        });
+        break;
+      }
+
+      // ═══ CO-HOST INVITES & REQUESTS ═══
+      case 'cohost_invite_send': {
+        if (!wsRateCheck(client.userId, 'cohost_invite_send', 20, 60_000)) break;
+        const targetUserId = typeof data.targetUserId === 'string' ? data.targetUserId : '';
+        if (!targetUserId) break;
+        sendToUser(client.roomId, targetUserId, 'cohost_invite', {
+          hostUserId: client.userId,
+          hostName: data.hostName || client.displayName,
+          hostAvatar: data.hostAvatar || client.avatarUrl || '',
+          streamKey: client.roomId,
+        });
+        break;
+      }
+
+      case 'cohost_invite_accept': {
+        if (!wsRateCheck(client.userId, 'cohost_invite_accept', 20, 60_000)) break;
+        const hostUserId = typeof data.hostUserId === 'string' ? data.hostUserId : '';
+        if (!hostUserId) break;
+        sendToUser(client.roomId, hostUserId, 'cohost_invite_accepted', {
+          cohostUserId: client.userId,
+          cohostName: data.cohostName || client.displayName,
+          cohostAvatar: data.cohostAvatar || client.avatarUrl || '',
+          streamKey: data.streamKey || client.roomId,
+        });
+        break;
+      }
+
+      case 'cohost_request_send': {
+        if (!wsRateCheck(client.userId, 'cohost_request_send', 10, 60_000)) break;
+        const hostUserId = typeof data.hostUserId === 'string' ? data.hostUserId : '';
+        if (!hostUserId) break;
+        sendToUser(client.roomId, hostUserId, 'cohost_request', {
+          requesterUserId: client.userId,
+          requesterName: data.requesterName || client.displayName,
+          requesterAvatar: data.requesterAvatar || client.avatarUrl || '',
+        });
+        break;
+      }
+
+      case 'cohost_request_accept': {
+        if (!wsRateCheck(client.userId, 'cohost_request_accept', 20, 60_000)) break;
+        const requesterUserId = typeof data.requesterUserId === 'string' ? data.requesterUserId : '';
+        if (!requesterUserId) break;
+        sendToUser(client.roomId, requesterUserId, 'cohost_request_accepted', {
+          hostUserId: client.userId,
+          hostName: data.hostName || client.displayName,
+          hostAvatar: data.hostAvatar || client.avatarUrl || '',
+          streamKey: client.roomId,
+        });
+        break;
+      }
+
+      case 'cohost_request_decline': {
+        if (!wsRateCheck(client.userId, 'cohost_request_decline', 20, 60_000)) break;
+        const requesterUserId = typeof data.requesterUserId === 'string' ? data.requesterUserId : '';
+        if (!requesterUserId) break;
+        sendToUser(client.roomId, requesterUserId, 'cohost_request_declined', {
+          hostUserId: client.userId,
+          hostName: data.hostName || client.displayName,
         });
         break;
       }

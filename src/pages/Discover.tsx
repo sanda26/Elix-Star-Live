@@ -184,8 +184,8 @@ export default function Discover() {
     <div className="fixed inset-0 bg-[#13151A] text-white flex justify-center">
       <div className="w-full max-w-[480px] flex flex-col h-full overflow-hidden">
 
-        {/* ═══ HEADER with gold frame ═══ */}
-        <div className="mx-2 mt-2 rounded-t-2xl border-2 border-b-0 border-[#C9A96E] bg-[#13151A] z-10 shrink-0" style={{ boxShadow: '0 0 8px rgba(212,175,55,0.3)' }}>
+        {/* ═══ HEADER (no golden frame) ═══ */}
+        <div className="mx-2 mt-2 rounded-t-2xl bg-[#13151A] z-10 shrink-0">
           <div className="px-3 pt-[calc(env(safe-area-inset-top,8px)+4px)] pb-1 flex items-center justify-between relative">
             <button onClick={() => document.getElementById('discover-search')?.focus()} className="p-1 z-10" title="Search">
               <Search className="w-4 h-4 text-[#C9A96E]" />
@@ -197,7 +197,7 @@ export default function Discover() {
           </div>
 
           {/* Search Bar */}
-          <div className="mx-3 mb-2 flex items-center gap-2 bg-white/5 rounded-xl px-3 py-2 border border-[#C9A96E]/30">
+          <div className="mx-3 mb-2 flex items-center gap-2 bg-white/5 rounded-xl px-3 py-2 border border-white/10">
             <Search className="w-3.5 h-3.5 text-[#C9A96E]/50 shrink-0" />
             <input
               id="discover-search"
@@ -231,8 +231,8 @@ export default function Discover() {
           )}
         </div>
 
-        {/* ═══ CONTENT with gold frame ═══ */}
-        <div className="flex-1 overflow-y-auto mx-2 rounded-b-2xl border-2 border-t-0 border-[#C9A96E] bg-[#13151A] pb-24" style={{ boxShadow: '0 0 8px rgba(212,175,55,0.3)' }}>
+        {/* ═══ CONTENT (no golden frame) ═══ */}
+        <div className="flex-1 overflow-y-auto mx-2 rounded-b-2xl bg-[#13151A] pb-24">
 
           {/* Loading */}
           {loading && (

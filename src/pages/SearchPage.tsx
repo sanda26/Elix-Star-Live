@@ -143,7 +143,7 @@ export default function SearchPage() {
         className="absolute inset-0 flex justify-center transition-transform duration-250 ease-out"
         style={{ transform: visible ? 'translateY(0)' : 'translateY(100%)' }}
       >
-        <div className="w-full max-w-[480px] bg-[#13151A] rounded-t-3xl border-2 border-[#C9A96E] min-h-full flex flex-col overflow-hidden pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)]" style={{ boxShadow: '0 -8px 30px rgba(0,0,0,0.5), 0 0 15px rgba(212,175,55,0.3)' }}>
+        <div className="w-full max-w-[480px] bg-[#13151A] rounded-t-3xl border border-white/10 min-h-full flex flex-col overflow-hidden pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)]" style={{ boxShadow: '0 -8px 30px rgba(0,0,0,0.5)' }}>
           {/* Top: drag handle + power (back) — swipe down here to close */}
           <div
             className="flex items-center justify-between px-2 pt-2 pb-1"
@@ -165,7 +165,7 @@ export default function SearchPage() {
                 <input 
                   type="text" 
                   placeholder="Search" 
-                  className="w-full bg-[#1C1E24] text-gold-metallic placeholder-[#C9A96E]/40 rounded-full py-2 pl-9 pr-9 text-sm focus:outline-none border-2 border-[#C9A96E] focus:border-[#C9A96E]"
+                  className="w-full bg-[#1C1E24] text-gold-metallic placeholder-[#C9A96E]/40 rounded-full py-2 pl-9 pr-9 text-sm focus:outline-none border border-white/15 focus:border-white/40"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   autoFocus

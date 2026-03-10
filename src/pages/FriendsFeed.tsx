@@ -137,8 +137,8 @@ export default function FriendsFeed() {
     <div className="fixed inset-0 bg-[#13151A] flex justify-center">
       <div className="w-full max-w-[480px] flex flex-col h-full overflow-hidden">
 
-        {/* Header + Circles with gold frame */}
-        <div className="mx-2 mt-2 rounded-t-2xl border-2 border-b-0 border-[#C9A96E] bg-[#13151A] z-10" style={{ boxShadow: '0 0 8px rgba(212,175,55,0.3)' }}>
+        {/* Header + Circles (no golden frame) */}
+        <div className="mx-2 mt-2 rounded-t-2xl bg-[#13151A] z-10">
         <div className="px-3 pt-[calc(env(safe-area-inset-top,8px)+6px)] pb-1 flex items-center justify-between relative">
           <button onClick={() => navigate('/search')} className="p-1 z-10" aria-label="Search"><Search size={18} className="text-white" /></button>
           <h1 className="text-sm font-bold text-white absolute left-1/2 transform -translate-x-1/2">Friends</h1>

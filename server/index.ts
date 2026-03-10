@@ -931,7 +931,7 @@ async function handleMessage(client: Client, event: string, data: any) {
         if (!wsRateCheck(client.userId, 'battle_invite_send', 10, 60_000)) break;
         const targetUserId = typeof data.targetUserId === 'string' ? data.targetUserId : '';
         if (!targetUserId) break;
-        sendToUser(client.roomId, targetUserId, 'battle_invite', {
+        sendToUserGlobal(targetUserId, 'battle_invite', {
           hostUserId: client.userId,
           hostName: data.hostName || client.displayName,
           hostAvatar: data.hostAvatar || client.avatarUrl || '',
@@ -944,7 +944,7 @@ async function handleMessage(client: Client, event: string, data: any) {
         if (!wsRateCheck(client.userId, 'battle_invite_accept', 10, 60_000)) break;
         const hostUserId = typeof data.hostUserId === 'string' ? data.hostUserId : '';
         if (!hostUserId) break;
-        sendToUser(client.roomId, hostUserId, 'battle_invite_accepted', {
+        sendToUserGlobal(hostUserId, 'battle_invite_accepted', {
           requesterUserId: client.userId,
           requesterName: data.requesterName || client.displayName,
           requesterAvatar: data.requesterAvatar || client.avatarUrl || '',
@@ -967,7 +967,7 @@ async function handleMessage(client: Client, event: string, data: any) {
         if (!wsRateCheck(client.userId, 'cohost_invite_send', 20, 60_000)) break;
         const targetUserId = typeof data.targetUserId === 'string' ? data.targetUserId : '';
         if (!targetUserId) break;
-        sendToUser(client.roomId, targetUserId, 'cohost_invite', {
+        sendToUserGlobal(targetUserId, 'cohost_invite', {
           hostUserId: client.userId,
           hostName: data.hostName || client.displayName,
           hostAvatar: data.hostAvatar || client.avatarUrl || '',
@@ -980,7 +980,7 @@ async function handleMessage(client: Client, event: string, data: any) {
         if (!wsRateCheck(client.userId, 'cohost_invite_accept', 20, 60_000)) break;
         const hostUserId = typeof data.hostUserId === 'string' ? data.hostUserId : '';
         if (!hostUserId) break;
-        sendToUser(client.roomId, hostUserId, 'cohost_invite_accepted', {
+        sendToUserGlobal(hostUserId, 'cohost_invite_accepted', {
           cohostUserId: client.userId,
           cohostName: data.cohostName || client.displayName,
           cohostAvatar: data.cohostAvatar || client.avatarUrl || '',
@@ -993,7 +993,7 @@ async function handleMessage(client: Client, event: string, data: any) {
         if (!wsRateCheck(client.userId, 'cohost_request_send', 10, 60_000)) break;
         const hostUserId = typeof data.hostUserId === 'string' ? data.hostUserId : '';
         if (!hostUserId) break;
-        sendToUser(client.roomId, hostUserId, 'cohost_request', {
+        sendToUserGlobal(hostUserId, 'cohost_request', {
           requesterUserId: client.userId,
           requesterName: data.requesterName || client.displayName,
           requesterAvatar: data.requesterAvatar || client.avatarUrl || '',
@@ -1005,7 +1005,7 @@ async function handleMessage(client: Client, event: string, data: any) {
         if (!wsRateCheck(client.userId, 'cohost_request_accept', 20, 60_000)) break;
         const requesterUserId = typeof data.requesterUserId === 'string' ? data.requesterUserId : '';
         if (!requesterUserId) break;
-        sendToUser(client.roomId, requesterUserId, 'cohost_request_accepted', {
+        sendToUserGlobal(requesterUserId, 'cohost_request_accepted', {
           hostUserId: client.userId,
           hostName: data.hostName || client.displayName,
           hostAvatar: data.hostAvatar || client.avatarUrl || '',
@@ -1018,7 +1018,7 @@ async function handleMessage(client: Client, event: string, data: any) {
         if (!wsRateCheck(client.userId, 'cohost_request_decline', 20, 60_000)) break;
         const requesterUserId = typeof data.requesterUserId === 'string' ? data.requesterUserId : '';
         if (!requesterUserId) break;
-        sendToUser(client.roomId, requesterUserId, 'cohost_request_declined', {
+        sendToUserGlobal(requesterUserId, 'cohost_request_declined', {
           hostUserId: client.userId,
           hostName: data.hostName || client.displayName,
         });
@@ -1078,6 +1078,31 @@ function sendToUser(roomId: string, userId: string, event: string, data: any) {
         client.ws.send(message);
       } catch (error) {
         console.error('Failed to send to user:', error);
+      }
+    }
+  });
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function sendToUserGlobal(userId: string, event: string, data: any) {
+  let message: string;
+  try {
+    message = JSON.stringify({
+      event,
+      data,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('Failed to serialize message:', error);
+    return;
+  }
+
+  clients.forEach((client) => {
+    if (client.userId === userId && client.ws.readyState === WebSocket.OPEN) {
+      try {
+        client.ws.send(message);
+      } catch (error) {
+        console.error('Failed to send to user (global):', error);
       }
     }
   });

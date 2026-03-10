@@ -3605,7 +3605,7 @@ export default function LiveStream() {
             </div>
 
       {/* BOTTOM RIGHT: Action buttons (same area as before, aligned right) */}
-      <div className="bottom-zone flex-none pointer-events-auto bg-transparent px-3 pb-[max(8px,env(safe-area-inset-bottom))] pt-2 min-h-[44px] flex flex-col items-end fixed left-0 right-0 z-[120] justify-end" style={{ bottom: '8px' }}>
+      <div className="bottom-zone flex-none pointer-events-auto bg-transparent px-3 pb-[max(16px,calc(env(safe-area-inset-bottom)+8px))] pt-2 min-h-[44px] flex flex-col items-end fixed left-0 right-0 z-[120] justify-end" style={{ bottom: '16px' }}>
         <div className="w-full max-w-[480px] mx-auto flex flex-col items-end gap-0">
         {/* Combo Button - on top of 3 dots, 1cm up */}
         <AnimatePresence>

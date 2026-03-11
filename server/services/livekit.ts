@@ -5,9 +5,9 @@
 
 import { AccessToken } from 'livekit-server-sdk';
 
-const API_KEY = process.env.LIVEKIT_API_KEY;
-const API_SECRET = process.env.LIVEKIT_API_SECRET;
-const LIVEKIT_URL = process.env.LIVEKIT_URL || '';
+const API_KEY = (process.env.LIVEKIT_API_KEY || '').trim();
+const API_SECRET = (process.env.LIVEKIT_API_SECRET || '').trim();
+const LIVEKIT_URL = (process.env.LIVEKIT_URL || '').trim();
 
 export function isLiveKitConfigured(): boolean {
   return Boolean(API_KEY && API_SECRET);

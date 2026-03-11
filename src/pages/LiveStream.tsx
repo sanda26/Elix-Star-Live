@@ -49,6 +49,7 @@ import { useLivePromoStore } from '../store/useLivePromoStore';
 import { AvatarRing } from '../components/AvatarRing';
 import { useAuthStore } from '../store/useAuthStore';
 import { clearCachedCameraStream, getCachedCameraStream } from '../lib/cameraStream';
+import { apiUrl, getLiveKitUrl } from '../lib/api';
 import { noopClient } from '../lib/noopClient';
 import { LevelBadge } from '../components/LevelBadge';
 import ReportModal from '../components/ReportModal';
@@ -409,15 +410,9 @@ export default function LiveStream() {
   useEffect(() => {
     if (!isBroadcast || !user?.id || !effectiveStreamId || liveRegisteredRef.current) return;
 
-    const runtimeEnv = (window as any).__ENV as Record<string, string> | undefined;
-    const envBase = import.meta.env.VITE_API_URL || runtimeEnv?.VITE_API_URL || '';
-    const apiBase = envBase || '';
-    const startUrl = apiBase ? `${apiBase.replace(/\/$/, '')}/api/live/start` : '/api/live/start';
-    const endUrl = apiBase ? `${apiBase.replace(/\/$/, '')}/api/live/end` : '/api/live/end';
-
     (async () => {
       try {
-        const res = await fetch(startUrl, {
+        const res = await fetch(apiUrl('/api/live/start'), {
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
@@ -427,8 +422,12 @@ export default function LiveStream() {
           liveRegisteredRef.current = true;
           const data = await res.json().catch(() => ({}));
           let url = (data?.url ?? '').trim();
-          if (!url) url = (import.meta.env.VITE_LIVEKIT_URL ?? (window as any).__ENV?.VITE_LIVEKIT_URL ?? '').trim();
-          if (data?.token && url) setLiveKitCreds({ token: data.token, url });
+          if (!url) url = getLiveKitUrl();
+          if (data?.token && url) {
+            setLiveKitCreds({ token: data.token, url });
+          } else {
+            showToast('Live server missing token or LIVEKIT_URL. Check server .env and restart.');
+          }
         }
       } catch {
         // ignore; stream will just not appear in /api/live/streams
@@ -440,7 +439,7 @@ export default function LiveStream() {
       if (!liveRegisteredRef.current) return;
       (async () => {
         try {
-          await fetch(endUrl, {
+          await fetch(apiUrl('/api/live/end'), {
             method: 'POST',
             credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
@@ -455,7 +454,8 @@ export default function LiveStream() {
     };
   }, [isBroadcast, user?.id, effectiveStreamId]);
 
-  // LiveKit: connect as host and publish camera + mic so viewers can see the stream
+  // Live (TikTok-style): only LiveKit. Host publishes here; viewers subscribe via SpectatorPage.
+  // No Supabase/custom WebRTC; single connection = backend token + LiveKit.
   useEffect(() => {
     if (!isBroadcast || !liveKitCreds || !cameraStreamRef.current) return;
 
@@ -505,12 +505,7 @@ export default function LiveStream() {
     setCreatorsLoading(true);
     setCreatorsLoadFailed(false);
     try {
-      const runtimeEnv = (window as any).__ENV as Record<string, string> | undefined;
-      const envBase = import.meta.env.VITE_API_URL || runtimeEnv?.VITE_API_URL || '';
-      // If no explicit API base, fall back to same-origin
-      const apiBase = envBase || '';
-      const url = apiBase ? `${apiBase.replace(/\/$/, '')}/api/live/streams` : '/api/live/streams';
-
+      const url = apiUrl('/api/live/streams');
       const res = await fetch(url, {
         method: 'GET',
         credentials: 'include',
@@ -1052,8 +1047,7 @@ export default function LiveStream() {
         navigate('/login');
         return;
       }
-      const apiBase = import.meta.env.VITE_API_URL || '';
-      const res = await fetch(`${apiBase}/api/create-subscription`, {
+      const res = await fetch(apiUrl('/api/create-subscription'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.session?.access_token}` },
         body: JSON.stringify({ creatorId: effectiveStreamId, userId: user.id }),

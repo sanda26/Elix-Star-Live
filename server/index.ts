@@ -8,6 +8,7 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { createCheckoutSession, createPaymentIntent, createPromoteCheckoutSession, createSubscriptionSession } from './routes/checkout';
 import { handleStripeWebhook } from './routes/webhook';
+import { handleLiveKitWebhook } from './routes/livekit-webhook';
 import {
   handleAnalytics,
   handleBlockUser,
@@ -68,8 +69,9 @@ const PORT = process.env.PORT || 8080;
 app.use(cors({ credentials: true, origin: true }));
 app.use(compression());
 
-// Webhook needs raw body
+// Webhooks need raw body for signature verification
 app.use('/api/stripe-webhook', express.raw({ type: 'application/json' }), handleStripeWebhook);
+app.post('/api/livekit/webhook', express.raw({ type: 'application/webhook+json' }), handleLiveKitWebhook);
 
 // Video upload: raw body (binary)
 app.use('/api/upload/video', express.raw({ type: ['application/octet-stream', 'video/mp4', 'video/webm'], limit: '500mb' }), handleUploadVideo);

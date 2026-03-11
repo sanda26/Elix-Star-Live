@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { TrendingUp, Play, UserPlus, FileText, Heart } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
+import { apiUrl } from '../lib/api';
 import { isStripeAllowed, getPaymentMethod } from '../lib/platform';
 import { purchasePromoteProduct, type PromoteProductId } from '../lib/iap';
 
@@ -71,8 +72,7 @@ export default function PromotePanel({ isOpen, onClose, contentType, content }: 
           setPanelMessage(result.error || 'Purchase failed');
           return;
         }
-        const apiBase = import.meta.env.VITE_API_URL || '';
-        const res = await fetch(`${apiBase}/api/promote-iap-complete`, {
+        const res = await fetch(apiUrl('/api/promote-iap-complete'), {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -108,8 +108,7 @@ export default function PromotePanel({ isOpen, onClose, contentType, content }: 
 
     setIsPaying(true);
     try {
-      const apiBase = import.meta.env.VITE_API_URL || '';
-      const res = await fetch(`${apiBase}/api/create-promote-checkout`, {
+      const res = await fetch(apiUrl('/api/create-promote-checkout'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

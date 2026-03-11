@@ -37,6 +37,7 @@ import GiftAnimationOverlay from '../components/GiftAnimationOverlay';
 import { ChatOverlay } from '../components/ChatOverlay';
 import { AvatarRing } from '../components/AvatarRing';
 import { useAuthStore } from '../store/useAuthStore';
+import { apiUrl, getLiveKitUrl } from '../lib/api';
 import { noopClient } from '../lib/noopClient';
 import ReportModal from '../components/ReportModal';
 import PromotePanel from '../components/PromotePanel';
@@ -254,7 +255,11 @@ export default function SpectatorPage() {
   // Video ref for live stream (LiveKit)
   const videoRef = useRef<HTMLVideoElement>(null);
   const [hasStream, setHasStream] = useState(false);
-  const retryJoinRoom = () => {};
+  const [liveConnectRetryKey, setLiveConnectRetryKey] = useState(0);
+  const retryJoinRoom = () => {
+    setHasStream(false);
+    setLiveConnectRetryKey((k) => k + 1);
+  };
   const [showRetryButton, setShowRetryButton] = useState(false);
   useEffect(() => {
     if (hasStream) { setShowRetryButton(false); return; }
@@ -267,12 +272,7 @@ export default function SpectatorPage() {
     if (!effectiveStreamId) return;
     (async () => {
       try {
-        const runtimeEnv = (window as any).__ENV as Record<string, string> | undefined;
-        const envBase = import.meta.env.VITE_API_URL || runtimeEnv?.VITE_API_URL || '';
-        const apiBase = envBase || '';
-        const url = apiBase ? `${apiBase.replace(/\/$/, '')}/api/live/streams` : '/api/live/streams';
-
-        const res = await fetch(url, { method: 'GET', credentials: 'include' });
+        const res = await fetch(apiUrl('/api/live/streams'), { method: 'GET', credentials: 'include' });
         if (!res.ok) {
           setStreamIsLive(false);
           showToast('Stream is offline');
@@ -324,16 +324,20 @@ export default function SpectatorPage() {
 
     (async () => {
       try {
-        const runtimeEnv = (window as any).__ENV as Record<string, string> | undefined;
-        const envBase = import.meta.env.VITE_API_URL || runtimeEnv?.VITE_API_URL || '';
-        const apiBase = envBase ? `${envBase.replace(/\/$/, '')}` : '';
-        const tokenUrl = apiBase ? `${apiBase}/api/live/token?room=${encodeURIComponent(effectiveStreamId)}` : `/api/live/token?room=${encodeURIComponent(effectiveStreamId)}`;
-        const res = await fetch(tokenUrl, { method: 'GET', credentials: 'include' });
-        if (!res.ok || !mounted) return;
+        const res = await fetch(apiUrl(`/api/live/token?room=${encodeURIComponent(effectiveStreamId)}`), { method: 'GET', credentials: 'include' });
+        if (!res.ok || !mounted) {
+          if (res.status === 401) showToast('Please log in to watch');
+          else if (res.status === 503) showToast('Live video is not configured on server');
+          return;
+        }
         const data = await res.json();
-        const url = data?.url?.trim();
+        let url = (data?.url ?? '').trim();
+        if (!url) url = getLiveKitUrl();
         const token = data?.token;
-        if (!url || !token || !mounted) return;
+        if (!url || !token || !mounted) {
+          showToast('Missing LiveKit URL. Set LIVEKIT_URL on server.');
+          return;
+        }
 
         const onTrackSubscribed = (track: import('livekit-client').RemoteTrack) => {
           if (!mounted || track.kind !== 'video') return;
@@ -361,7 +365,11 @@ export default function SpectatorPage() {
           }
         }
       } catch (err) {
-        if (mounted) setHasStream(false);
+        if (mounted) {
+          setHasStream(false);
+          console.error('[LiveKit] Viewer connect failed:', err);
+          showToast('Could not connect to stream. Is the host live?');
+        }
       }
     })();
 
@@ -370,7 +378,16 @@ export default function SpectatorPage() {
       liveKitRoomRef.current = null;
       room.disconnect();
     };
-  }, [streamIsLive, effectiveStreamId, user?.id]);
+  }, [streamIsLive, effectiveStreamId, user?.id, liveConnectRetryKey]);
+
+  // If we're still "connecting" after 18s, hint that host may not be publishing
+  useEffect(() => {
+    if (!streamIsLive || hasStream) return;
+    const t = setTimeout(() => {
+      showToast('Stream not loading? Make sure the host is live and try again.');
+    }, 18000);
+    return () => clearTimeout(t);
+  }, [streamIsLive, hasStream]);
 
   // Fetch user profile (level, xp, coins)
   useEffect(() => {
@@ -432,8 +449,7 @@ export default function SpectatorPage() {
         navigate('/login');
         return;
       }
-      const apiBase = import.meta.env.VITE_API_URL || '';
-      const res = await fetch(`${apiBase}/api/create-subscription`, {
+      const res = await fetch(apiUrl('/api/create-subscription'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.session?.access_token}` },
         body: JSON.stringify({ creatorId: effectiveStreamId, userId: user.id }),
@@ -651,9 +667,7 @@ export default function SpectatorPage() {
     const goOffline = async () => {
       if (!mounted) return;
       try {
-        const runtimeEnv = (window as any).__ENV as Record<string, string> | undefined;
-        const envBase = import.meta.env.VITE_API_URL || runtimeEnv?.VITE_API_URL || '';
-        const url = envBase ? `${envBase.replace(/\/$/, '')}/api/live/streams` : '/api/live/streams';
+        const url = apiUrl('/api/live/streams');
         const res = await fetch(url, { method: 'GET', credentials: 'include' });
         if (res.ok) {
           const json = await res.json();
@@ -1092,18 +1106,33 @@ export default function SpectatorPage() {
                       </div>
                     )}
                   </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 border-2 border-[#C9A96E] border-t-transparent rounded-full animate-spin" />
-                    <span className="text-white/60 text-sm">Connecting to stream...</span>
-                  </div>
-                  {showRetryButton && (
-                    <button
-                      type="button"
-                      onClick={() => { setShowRetryButton(false); retryJoinRoom(); setTimeout(() => { if (!hasStream) setShowRetryButton(true); }, 8000); }}
-                      className="mt-2 px-5 py-2 rounded-lg bg-[#C9A96E]/20 border border-[#C9A96E]/40 text-[#C9A96E] text-sm font-medium"
-                    >
-                      Tap to retry
-                    </button>
+                  {!user?.id ? (
+                    <>
+                      <span className="text-white/80 text-sm text-center">Log in to watch the live stream</span>
+                      <button
+                        type="button"
+                        onClick={() => navigate('/login', { state: { from: `/watch/${effectiveStreamId}` } })}
+                        className="mt-2 px-5 py-2.5 rounded-lg bg-[#C9A96E] text-black font-semibold text-sm"
+                      >
+                        Log in
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-4 border-2 border-[#C9A96E] border-t-transparent rounded-full animate-spin" />
+                        <span className="text-white/60 text-sm">Connecting to stream...</span>
+                      </div>
+                      {showRetryButton && (
+                        <button
+                          type="button"
+                          onClick={() => { setShowRetryButton(false); retryJoinRoom(); setTimeout(() => { if (!hasStream) setShowRetryButton(true); }, 8000); }}
+                          className="mt-2 px-5 py-2 rounded-lg bg-[#C9A96E]/20 border border-[#C9A96E]/40 text-[#C9A96E] text-sm font-medium"
+                        >
+                          Tap to retry
+                        </button>
+                      )}
+                    </>
                   )}
                 </div>
               )}

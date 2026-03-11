@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import LivePreviewCard from '../components/LivePreviewCard';
 import EnhancedVideoPlayer from '../components/EnhancedVideoPlayer';
 import { useVideoStore } from '../store/useVideoStore';
+import { apiUrl } from '../lib/api';
 
 type LiveStreamCard = {
   streamKey: string;
@@ -37,11 +38,7 @@ export default function VideoFeed() {
   const fetchLiveStreams = useCallback(async () => {
     setLiveLoading(true);
     try {
-      const runtimeEnv = (window as any).__ENV as Record<string, string> | undefined;
-      const envBase = (import.meta.env.VITE_API_URL ?? runtimeEnv?.VITE_API_URL ?? '').toString().trim();
-      const url = envBase
-        ? `${envBase.replace(/\/$/, '')}/api/live/streams`
-        : '/api/live/streams';
+      const url = apiUrl('/api/live/streams');
 
       const res = await fetch(url, {
         method: 'GET',

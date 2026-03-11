@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Eye, Radio, RefreshCw } from 'lucide-react';
+import { apiUrl } from '../lib/api';
 
 type LiveCreator = {
   id: string;
@@ -19,11 +20,7 @@ export default function LiveDiscover() {
   const fetchLiveStreams = useCallback(async () => {
     setLoading(true);
     try {
-      const runtimeEnv = (window as any).__ENV as Record<string, string> | undefined;
-      const envBase = (import.meta.env.VITE_API_URL ?? runtimeEnv?.VITE_API_URL ?? '').toString().trim();
-      const url = envBase
-        ? `${envBase.replace(/\/$/, '')}/api/live/streams`
-        : '/api/live/streams';
+      const url = apiUrl('/api/live/streams');
 
       const res = await fetch(url, { method: 'GET', credentials: 'include' });
       if (!res.ok) {

@@ -1,4 +1,6 @@
-// WebSocket Real-Time Service
+// WebSocket Real-Time Service — single connection per room; URL from api.getWsUrl()
+
+import { getWsUrl } from './api';
 
 export type WebSocketEvent =
   // Room events
@@ -65,19 +67,7 @@ class WebSocketService {
 
     this.roomId = roomId;
     this.token = token;
-    let wsUrl = import.meta.env.VITE_WS_URL;
-    if (!wsUrl) {
-      const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      wsUrl = `${proto}//${window.location.host}`;
-    }
-    if (wsUrl.startsWith('https://')) {
-      wsUrl = wsUrl.replace('https://', 'wss://');
-    } else if (wsUrl.startsWith('http://')) {
-      wsUrl = wsUrl.replace('http://', 'ws://');
-    }
-    if (!wsUrl.startsWith('ws://localhost') && wsUrl.startsWith('ws://')) {
-      wsUrl = wsUrl.replace('ws://', 'wss://');
-    }
+    const wsUrl = getWsUrl();
     this.ws = new WebSocket(`${wsUrl}/live/${roomId}?token=${encodeURIComponent(token)}`);
 
     this.ws.onopen = () => {

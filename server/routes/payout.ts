@@ -1,8 +1,9 @@
+/**
+ * Payout & shop: require DB (e.g. Postgres on Hetzner). No Supabase.
+ * When getDb() is null, all handlers return 501.
+ */
 import { Request, Response } from 'express';
 import { getDb } from '../lib/backend';
-
-const dbUrl = process.env.DATABASE_URL || '';
-const serviceKey = process.env.AUTH_SERVICE_KEY || '';
 
 async function getUserFromAuth(_req: Request): Promise<string | null> {
   return null;
@@ -75,40 +76,22 @@ export async function handleGetCreatorEarnings(req: Request, res: Response) {
   }
 }
 
-// POST /api/creator/withdraw — request a payout
+// POST /api/creator/withdraw — request a payout (requires DB on Hetzner)
 export async function handleCreatorWithdraw(req: Request, res: Response) {
   if (!getDb()) return res.status(501).json({ error: 'Creator payout not available.' });
   try {
     const userId = await getUserFromAuth(req);
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
-
     const { coins_amount, payout_method_id } = req.body;
-    if (!coins_amount || coins_amount <= 0) {
-      return res.status(400).json({ error: 'Invalid amount' });
-    }
-
-    const db = getDb();
-
-    // Use the user's JWT to call the RPC so auth.uid() works
-    const authHeader = req.headers.authorization;
-    const token = authHeader?.slice(7) || '';
-    const userClient = createClient(dbUrl, process.env.AUTH_ANON_KEY || serviceKey, {
-      global: { headers: { Authorization: `Bearer ${token}` } },
-    });
-
-    const { data, error } = await userClient.rpc('request_payout', {
+    if (!coins_amount || coins_amount <= 0) return res.status(400).json({ error: 'Invalid amount' });
+    const db = getDb()!;
+    const { data, error } = await db.rpc('request_payout', {
       p_coins_amount: coins_amount,
       p_payout_method_id: payout_method_id || null,
     });
-
-    if (error) {
-      console.error('Withdraw error:', error);
-      return res.status(400).json({ error: error.message || 'Withdrawal failed' });
-    }
-
+    if (error) return res.status(400).json({ error: error.message || 'Withdrawal failed' });
     return res.json(data);
   } catch (err: any) {
-    console.error('Creator withdraw error:', err);
     return res.status(500).json({ error: 'Withdrawal failed' });
   }
 }
@@ -222,81 +205,48 @@ export async function handleAdminListPayouts(req: Request, res: Response) {
   }
 }
 
-// POST /api/admin/payout/:id/approve
+// POST /api/admin/payout/:id/approve (requires DB)
 export async function handleAdminApprovePayout(req: Request, res: Response) {
   if (!getDb()) return res.status(501).json({ error: 'Admin payout not available.' });
   try {
     const userId = await getUserFromAuth(req);
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
-
-    const db = getDb();
-
+    const db = getDb()!;
     const { data: profile } = await db.from('profiles').select('is_admin').eq('user_id', userId).single();
     if (!profile?.is_admin) return res.status(403).json({ error: 'Admin only' });
-
     const requestId = req.params.id;
     const { admin_note } = req.body;
-
-    // Use service client with admin's auth context
-    const authHeader = req.headers.authorization;
-    const token = authHeader?.slice(7) || '';
-    const adminClient = createClient(dbUrl, process.env.AUTH_ANON_KEY || serviceKey, {
-      global: { headers: { Authorization: `Bearer ${token}` } },
-    });
-
-    const { data, error } = await adminClient.rpc('admin_process_payout', {
+    const { data, error } = await db.rpc('admin_process_payout', {
       p_request_id: requestId,
       p_action: 'approve',
       p_admin_note: admin_note || null,
     });
-
-    if (error) {
-      console.error('Approve payout error:', error);
-      return res.status(400).json({ error: error.message });
-    }
-
+    if (error) return res.status(400).json({ error: error.message });
     return res.json(data);
   } catch (err: any) {
-    console.error('Admin approve payout error:', err);
     return res.status(500).json({ error: 'Failed to approve payout' });
   }
 }
 
-// POST /api/admin/payout/:id/reject
+// POST /api/admin/payout/:id/reject (requires DB)
 export async function handleAdminRejectPayout(req: Request, res: Response) {
   if (!getDb()) return res.status(501).json({ error: 'Admin payout not available.' });
   try {
     const userId = await getUserFromAuth(req);
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
-
-    const db = getDb();
-
+    const db = getDb()!;
     const { data: profile } = await db.from('profiles').select('is_admin').eq('user_id', userId).single();
     if (!profile?.is_admin) return res.status(403).json({ error: 'Admin only' });
-
     const requestId = req.params.id;
     const { admin_note } = req.body;
-
-    const authHeader = req.headers.authorization;
-    const token = authHeader?.slice(7) || '';
-    const adminClient = createClient(dbUrl, process.env.AUTH_ANON_KEY || serviceKey, {
-      global: { headers: { Authorization: `Bearer ${token}` } },
-    });
-
-    const { data, error } = await adminClient.rpc('admin_process_payout', {
+    const { data, error } = await db.rpc('admin_process_payout', {
       p_request_id: requestId,
       p_action: 'reject',
       p_admin_note: admin_note || null,
     });
-
-    if (error) {
-      console.error('Reject payout error:', error);
-      return res.status(400).json({ error: error.message });
-    }
-
+    if (error) return res.status(400).json({ error: error.message });
     return res.json(data);
   } catch (err: any) {
-    console.error('Admin reject payout error:', err);
     return res.status(500).json({ error: 'Failed to reject payout' });
   }
 }
@@ -332,55 +282,39 @@ export async function handleAdminChargeback(req: Request, res: Response) {
 
 // ═══ SHOP ITEM PURCHASE & REFUND ═══
 
-// POST /api/shop/buy — buy a shop item with coins
+// POST /api/shop/buy (requires DB)
 export async function handleShopBuy(req: Request, res: Response) {
   if (!getDb()) return res.status(501).json({ error: 'Shop not available.' });
   try {
     const userId = await getUserFromAuth(req);
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
-
     const { item_id } = req.body;
     if (!item_id) return res.status(400).json({ error: 'item_id required' });
-
-    const authHeader = req.headers.authorization;
-    const token = authHeader?.slice(7) || '';
-    const userClient = createClient(dbUrl, process.env.AUTH_ANON_KEY || serviceKey, {
-      global: { headers: { Authorization: `Bearer ${token}` } },
-    });
-
-    const { data, error } = await userClient.rpc('buy_shop_item', { p_item_id: item_id });
+    const db = getDb()!;
+    const { data, error } = await db.rpc('buy_shop_item', { p_item_id: item_id });
     if (error) return res.status(400).json({ error: error.message });
     return res.json(data);
   } catch (err: any) {
-    console.error('Shop buy error:', err);
     return res.status(500).json({ error: 'Purchase failed' });
   }
 }
 
-// POST /api/shop/refund — refund a shop item (if unused, within 14 days)
+// POST /api/shop/refund (requires DB)
 export async function handleShopRefund(req: Request, res: Response) {
   if (!getDb()) return res.status(501).json({ error: 'Shop not available.' });
   try {
     const userId = await getUserFromAuth(req);
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
-
     const { purchase_id, reason } = req.body;
     if (!purchase_id) return res.status(400).json({ error: 'purchase_id required' });
-
-    const authHeader = req.headers.authorization;
-    const token = authHeader?.slice(7) || '';
-    const userClient = createClient(dbUrl, process.env.AUTH_ANON_KEY || serviceKey, {
-      global: { headers: { Authorization: `Bearer ${token}` } },
-    });
-
-    const { data, error } = await userClient.rpc('refund_shop_item', {
+    const db = getDb()!;
+    const { data, error } = await db.rpc('refund_shop_item', {
       p_purchase_id: purchase_id,
       p_reason: reason || 'buyer_request',
     });
     if (error) return res.status(400).json({ error: error.message });
     return res.json(data);
   } catch (err: any) {
-    console.error('Shop refund error:', err);
     return res.status(500).json({ error: 'Refund failed' });
   }
 }

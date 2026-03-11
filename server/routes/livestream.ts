@@ -55,7 +55,8 @@ export async function handleLiveStart(req: Request, res: Response) {
   }
 
   const { room } = req.body ?? {};
-  const roomName = typeof room === 'string' && room.trim() ? room.trim() : auth.userId;
+  const raw = typeof room === 'string' && room.trim() ? room.trim() : auth.userId;
+  const roomName = raw.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 128) || auth.userId.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 128);
 
   activeStreams.set(roomName, { userId: auth.userId, startedAt: new Date().toISOString() });
 
@@ -106,10 +107,11 @@ export async function handleGetLiveToken(req: Request, res: Response) {
   }
 
   const room = req.query.room as string | undefined;
-  const roomName = typeof room === 'string' && room.trim() ? room.trim() : null;
+  const raw = typeof room === 'string' ? room.trim() : '';
+  const roomName = raw.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 128) || null;
 
   if (!roomName) {
-    return res.status(400).json({ error: 'Query parameter "room" is required.' });
+    return res.status(400).json({ error: 'Query parameter "room" is required and must be alphanumeric.' });
   }
 
   try {
@@ -119,7 +121,14 @@ export async function handleGetLiveToken(req: Request, res: Response) {
       canPublish: false,
       name: auth.userId,
     });
-    return res.status(200).json({ room: roomName, token, url: getLiveKitUrl() });
+    if (!token || token.length < 50) {
+      return res.status(500).json({ error: 'Token generation failed.' });
+    }
+    const url = getLiveKitUrl();
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('[live] token issued for room:', roomName, 'url:', url ? 'set' : 'MISSING');
+    }
+    return res.status(200).json({ room: roomName, token, url });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Failed to create token';
     return res.status(500).json({ error: message });

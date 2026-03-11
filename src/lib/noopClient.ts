@@ -1,7 +1,9 @@
 /**
- * Stub client when backend is not configured. Use for call sites that must not throw.
+ * Placeholder client: no Supabase/Vercel/Railway/Appwrite. App stack is Bunny + Hetzner + LiveKit.
+ * All data should eventually come from backend API (auth, feed, profiles). This stub returns
+ * empty so the app does not throw. Replace call sites with fetch() to Node API as needed.
  */
-const msg = 'Database not configured.';
+const msg = 'Use backend API (Bunny + Hetzner + LiveKit stack).';
 
 function noopQuery() {
   const base: any = {

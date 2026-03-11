@@ -1,6 +1,7 @@
 /**
- * Backend client access. When no database is configured, both functions return null.
- * All server routes that need DB or admin access import from here.
+ * Single backend DB access. No duplicate or broken connections.
+ * When no DB is configured (e.g. no Postgres on Hetzner), both return null.
+ * Routes should do: const db = getDb(); if (!db) return res.status(501).json(...); then use db.
  */
 
 export function getDb(): null {

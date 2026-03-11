@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { apiUrl } from '../lib/api';
 import { noopClient, noopConfig } from '../lib/noopClient';
 
 interface User {
@@ -150,10 +151,8 @@ export const useAuthStore = create<AuthStore>()(
         return { error: 'Please enter both email and password.' };
       }
 
-      const apiBase = import.meta.env.VITE_API_URL || '';
-
       try {
-        const res = await fetch(`${apiBase}/api/auth/login`, {
+        const res = await fetch(apiUrl('/api/auth/login'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
@@ -205,9 +204,8 @@ export const useAuthStore = create<AuthStore>()(
     },
 
     signUpWithPassword: async (email, password, username) => {
-      const apiBase = import.meta.env.VITE_API_URL || '';
       try {
-        const res = await fetch(`${apiBase}/api/auth/register`, {
+        const res = await fetch(apiUrl('/api/auth/register'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
@@ -267,9 +265,8 @@ export const useAuthStore = create<AuthStore>()(
     },
 
     resendSignupConfirmation: async (email) => {
-      const apiBase = import.meta.env.VITE_API_URL || '';
       try {
-        const res = await fetch(`${apiBase}/api/auth/resend-confirmation`, {
+        const res = await fetch(apiUrl('/api/auth/resend-confirmation'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
@@ -286,9 +283,8 @@ export const useAuthStore = create<AuthStore>()(
     },
 
     signInWithApple: async () => {
-      const apiBase = import.meta.env.VITE_API_URL || '';
       try {
-        const res = await fetch(`${apiBase}/api/auth/apple/start`, {
+        const res = await fetch(apiUrl('/api/auth/apple/start'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
@@ -309,9 +305,8 @@ export const useAuthStore = create<AuthStore>()(
     },
 
     signOut: async () => {
-      const apiBase = import.meta.env.VITE_API_URL || '';
       try {
-        await fetch(`${apiBase}/api/auth/logout`, {
+        await fetch(apiUrl('/api/auth/logout'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
@@ -337,10 +332,8 @@ export const useAuthStore = create<AuthStore>()(
     getCurrentUser: () => get().user,
 
     checkUser: async () => {
-      const apiBase = (import.meta.env.VITE_API_URL ?? '').toString().trim();
-      const url = apiBase ? `${apiBase.replace(/\/$/, '')}/api/auth/me` : '/api/auth/me';
       try {
-        const res = await fetch(url, {
+        const res = await fetch(apiUrl('/api/auth/me'), {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',

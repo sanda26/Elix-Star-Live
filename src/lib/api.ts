@@ -5,6 +5,7 @@
 
 const env = typeof window !== 'undefined' ? (window as any).__ENV as Record<string, string> | undefined : undefined;
 
+<<<<<<< HEAD
 /** In dev on localhost we use same-origin so Vite proxy handles /api and /live */
 function isLocalDev(): boolean {
   if (typeof window === 'undefined') return false;
@@ -15,6 +16,9 @@ function isLocalDev(): boolean {
 
 export function getApiBase(): string {
   if (isLocalDev()) return '';
+=======
+export function getApiBase(): string {
+>>>>>>> 243998ce8c450ace74ea9eb6dfea9717b4e90b8a
   const base = (import.meta.env.VITE_API_URL ?? env?.VITE_API_URL ?? '').toString().trim();
   return base ? base.replace(/\/$/, '') : '';
 }
@@ -24,10 +28,13 @@ export function getLiveKitUrl(): string {
 }
 
 export function getWsUrl(): string {
+<<<<<<< HEAD
   if (isLocalDev()) {
     const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     return `${proto}//${window.location.host}`;
   }
+=======
+>>>>>>> 243998ce8c450ace74ea9eb6dfea9717b4e90b8a
   let ws = (import.meta.env.VITE_WS_URL ?? env?.VITE_WS_URL ?? '').toString().trim();
   if (!ws && typeof window !== 'undefined') {
     const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';

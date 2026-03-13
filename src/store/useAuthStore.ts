@@ -1,5 +1,11 @@
+<<<<<<< HEAD
 import { create } from "zustand";
 import { apiUrl } from "../lib/api";
+=======
+import { create } from 'zustand';
+import { apiUrl } from '../lib/api';
+import { noopClient, noopConfig } from '../lib/noopClient';
+>>>>>>> 243998ce8c450ace74ea9eb6dfea9717b4e90b8a
 
 interface User {
   id: string;
@@ -214,6 +220,7 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
         return { error: message };
       }
 
+<<<<<<< HEAD
       const backendUser = (data.user ?? null) as AuthUser | null;
       const sessionData = data.session as
         | { accessToken?: string; access_token?: string }
@@ -225,6 +232,15 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
       if (!backendUser || !accessToken) {
         return { error: "Login failed unexpectedly. Please try again." };
       }
+=======
+      try {
+        const res = await fetch(apiUrl('/api/auth/login'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ email: email.trim(), password }),
+        });
+>>>>>>> 243998ce8c450ace74ea9eb6dfea9717b4e90b8a
 
       const mapped = mapUserToUser(backendUser);
 
@@ -343,10 +359,72 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
         return { error: null, needsEmailConfirmation: false };
       }
 
+<<<<<<< HEAD
       if (backendUser && !accessToken) {
         return { error: null, needsEmailConfirmation: true };
+=======
+    signUpWithPassword: async (email, password, username) => {
+      try {
+        const res = await fetch(apiUrl('/api/auth/register'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            email: email.trim(),
+            password,
+            username: username || email.split('@')[0],
+          }),
+        });
+
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+          const message: string = data?.error || data?.message || 'Signup failed. Please try again.';
+          if (message.toLowerCase().includes('fetch') || message.toLowerCase().includes('network')) {
+            return { error: 'Network error. Please check your connection.', needsEmailConfirmation: false };
+          }
+          // If backend indicates email confirmation is required, surface that
+          if (data?.needsEmailConfirmation) {
+            return { error: null, needsEmailConfirmation: true };
+          }
+          return { error: message, needsEmailConfirmation: false };
+        }
+
+        const backendUser: AuthUser | null = data.user ?? null;
+        const accessToken: string | undefined = data.session?.accessToken ?? data.session?.access_token;
+
+        if (backendUser && accessToken) {
+          const mapped = mapUserToUser(backendUser);
+          set({
+            backendUser,
+            session: { user: backendUser, access_token: accessToken },
+            user: mapped,
+            isAuthenticated: true,
+            isLoading: false,
+            authMode: 'client',
+          });
+          return { error: null, needsEmailConfirmation: false };
+        }
+
+        if (backendUser && !accessToken) {
+          // Likely "check your email to confirm"
+          return { error: null, needsEmailConfirmation: true };
+        }
+
+        return { error: 'Signup failed (No user data returned). Please try again.', needsEmailConfirmation: false };
+      } catch (err: any) {
+        const msg = (err?.message || 'Unknown error occurred') as string;
+        if (msg.toLowerCase().includes('fetch') || msg.toLowerCase().includes('network')) {
+          return { error: 'Network error. Please check your connection.', needsEmailConfirmation: false };
+        }
+        if (err.name === 'AbortError' || msg.toLowerCase().includes('aborted')) {
+          return { error: 'aborted', needsEmailConfirmation: false };
+        }
+        return { error: msg, needsEmailConfirmation: false };
+>>>>>>> 243998ce8c450ace74ea9eb6dfea9717b4e90b8a
       }
 
+<<<<<<< HEAD
       return {
         error: "Signup failed (no user data returned). Please try again.",
         needsEmailConfirmation: false,
@@ -361,6 +439,23 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
           error: "Network error. Please check your connection.",
           needsEmailConfirmation: false,
         };
+=======
+    resendSignupConfirmation: async (email) => {
+      try {
+        const res = await fetch(apiUrl('/api/auth/resend-confirmation'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ email }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          return { error: data?.error || data?.message || 'Failed to resend confirmation email.' };
+        }
+        return { error: null };
+      } catch (error) {
+        return { error: getAuthErrorMessage(error) };
+>>>>>>> 243998ce8c450ace74ea9eb6dfea9717b4e90b8a
       }
       if (
         (err as { name?: string }).name === "AbortError" ||
@@ -372,6 +467,7 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
     }
   },
 
+<<<<<<< HEAD
   // ── Resend confirmation ──────────────────────────────────────────────────
   resendSignupConfirmation: async (email) => {
     try {
@@ -392,6 +488,27 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
             (data?.message as string) ||
             "Failed to resend confirmation email.",
         };
+=======
+    signInWithApple: async () => {
+      try {
+        const res = await fetch(apiUrl('/api/auth/apple/start'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ redirectTo: window.location.origin + '/auth/callback' }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          return { error: data?.error || data?.message || 'Apple sign-in failed.' };
+        }
+        if (data?.url) {
+          window.location.href = data.url;
+          return { error: null };
+        }
+        return { error: null };
+      } catch (error) {
+        return { error: getAuthErrorMessage(error) };
+>>>>>>> 243998ce8c450ace74ea9eb6dfea9717b4e90b8a
       }
       return { error: null };
     } catch (error) {
@@ -399,6 +516,7 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
     }
   },
 
+<<<<<<< HEAD
   // ── Apple sign-in ────────────────────────────────────────────────────────
   signInWithApple: async () => {
     try {
@@ -421,6 +539,17 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
             (data?.message as string) ||
             "Apple sign-in failed.",
         };
+=======
+    signOut: async () => {
+      try {
+        await fetch(apiUrl('/api/auth/logout'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+        });
+      } catch {
+        // ignore network errors on logout
+>>>>>>> 243998ce8c450ace74ea9eb6dfea9717b4e90b8a
       }
       if (data?.url) {
         window.location.href = data.url as string;
@@ -585,6 +714,70 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
         isLoading: false,
         authMode: "client",
       });
+<<<<<<< HEAD
+=======
+    },
+
+    updateUser: (updates) =>
+      set((state) => ({
+        user: state.user ? { ...state.user, ...updates } : null
+      })),
+
+    getCurrentUser: () => get().user,
+
+    checkUser: async () => {
+      try {
+        const res = await fetch(apiUrl('/api/auth/me'), {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+        });
+
+        if (!res.ok) {
+          set({ backendUser: null, session: null, user: null, isAuthenticated: false, isLoading: false, authMode: 'client' });
+          return;
+        }
+
+        let data: Record<string, unknown> = {};
+        try {
+          const text = await res.text();
+          if (text) data = JSON.parse(text) as Record<string, unknown>;
+        } catch {
+          set({ backendUser: null, session: null, user: null, isAuthenticated: false, isLoading: false, authMode: 'client' });
+          return;
+        }
+
+        const backendUser = data.user as AuthUser | null | undefined;
+        const sessionObj = data.session as { accessToken?: string; access_token?: string } | null | undefined;
+        const accessToken = sessionObj?.accessToken ?? sessionObj?.access_token;
+
+        if (!backendUser || typeof backendUser.id !== 'string') {
+          set({ backendUser: null, session: null, user: null, isAuthenticated: false, isLoading: false, authMode: 'client' });
+          return;
+        }
+
+        const mapped = mapUserToUser(backendUser);
+        let userToSet = mapped;
+        if (mapped) {
+          try {
+            userToSet = await enrichUserWithProfile(mapped) ?? mapped;
+          } catch {
+            userToSet = mapped;
+          }
+        }
+
+        set({
+          backendUser,
+          session: accessToken ? { user: backendUser, access_token: String(accessToken) } : null,
+          user: userToSet,
+          isAuthenticated: true,
+          isLoading: false,
+          authMode: 'client',
+        });
+      } catch {
+        set({ backendUser: null, session: null, user: null, isAuthenticated: false, isLoading: false, authMode: 'client' });
+      }
+>>>>>>> 243998ce8c450ace74ea9eb6dfea9717b4e90b8a
     }
   },
 }));

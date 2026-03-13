@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import LivePreviewCard from "../components/LivePreviewCard";
@@ -9,6 +10,14 @@ import { apiUrl, getWsUrl } from "../lib/api";
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
 /* ------------------------------------------------------------------ */
+=======
+import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import LivePreviewCard from '../components/LivePreviewCard';
+import EnhancedVideoPlayer from '../components/EnhancedVideoPlayer';
+import { useVideoStore } from '../store/useVideoStore';
+import { apiUrl } from '../lib/api';
+>>>>>>> 243998ce8c450ace74ea9eb6dfea9717b4e90b8a
 
 type LiveStreamCard = {
   streamKey: string;
@@ -180,7 +189,12 @@ export default function VideoFeed() {
   /* ---- Fetch live streams from REST ---- */
   const fetchLiveStreams = useCallback(async () => {
     try {
+<<<<<<< HEAD
       const url = apiUrl("/api/live/streams");
+=======
+      const url = apiUrl('/api/live/streams');
+
+>>>>>>> 243998ce8c450ace74ea9eb6dfea9717b4e90b8a
       const res = await fetch(url, {
         method: "GET",
         headers: { "Content-Type": "application/json" },

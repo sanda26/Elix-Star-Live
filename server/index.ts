@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import "./config";
 import express from "express";
 import cors from "cors";
@@ -14,6 +15,19 @@ import {
 } from "./routes/checkout";
 import { handleStripeWebhook } from "./routes/webhook";
 import { handleLiveKitWebhook } from "./routes/livekit-webhook";
+=======
+import './config';
+import express from 'express';
+import cors from 'cors';
+import compression from 'compression';
+import { createServer } from 'http';
+import { WebSocketServer, WebSocket } from 'ws';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+import { createCheckoutSession, createPaymentIntent, createPromoteCheckoutSession, createSubscriptionSession } from './routes/checkout';
+import { handleStripeWebhook } from './routes/webhook';
+import { handleLiveKitWebhook } from './routes/livekit-webhook';
+>>>>>>> 243998ce8c450ace74ea9eb6dfea9717b4e90b8a
 import {
   handleAnalytics,
   handleBlockUser,
@@ -86,6 +100,7 @@ app.use(cors({ credentials: true, origin: true }));
 app.use(compression());
 
 // Webhooks need raw body for signature verification
+<<<<<<< HEAD
 app.use(
   "/api/stripe-webhook",
   express.raw({ type: "application/json" }),
@@ -96,6 +111,10 @@ app.post(
   express.raw({ type: "application/webhook+json" }),
   handleLiveKitWebhook,
 );
+=======
+app.use('/api/stripe-webhook', express.raw({ type: 'application/json' }), handleStripeWebhook);
+app.post('/api/livekit/webhook', express.raw({ type: 'application/webhook+json' }), handleLiveKitWebhook);
+>>>>>>> 243998ce8c450ace74ea9eb6dfea9717b4e90b8a
 
 // Video upload: raw body (binary)
 app.use(

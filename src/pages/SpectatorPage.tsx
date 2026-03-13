@@ -31,12 +31,13 @@ import {
   PlusCircle,
 } from 'lucide-react';
 import { GiftPanel } from '../components/GiftPanel';
-import { GIFTS } from '../lib/gifts';
+import { GIFTS, resolveGiftAssetUrl } from '../lib/gifts';
 import { GiftOverlay } from '../components/GiftOverlay';
 import GiftAnimationOverlay from '../components/GiftAnimationOverlay';
 import { ChatOverlay } from '../components/ChatOverlay';
 import { AvatarRing } from '../components/AvatarRing';
 import { useAuthStore } from '../store/useAuthStore';
+import { apiUrl, getLiveKitUrl } from '../lib/api';
 import { noopClient } from '../lib/noopClient';
 import ReportModal from '../components/ReportModal';
 import PromotePanel from '../components/PromotePanel';
@@ -254,7 +255,11 @@ export default function SpectatorPage() {
   // Video ref for live stream (LiveKit)
   const videoRef = useRef<HTMLVideoElement>(null);
   const [hasStream, setHasStream] = useState(false);
-  const retryJoinRoom = () => {};
+  const [liveConnectRetryKey, setLiveConnectRetryKey] = useState(0);
+  const retryJoinRoom = () => {
+    setHasStream(false);
+    setLiveConnectRetryKey((k) => k + 1);
+  };
   const [showRetryButton, setShowRetryButton] = useState(false);
   useEffect(() => {
     if (hasStream) { setShowRetryButton(false); return; }
@@ -267,12 +272,7 @@ export default function SpectatorPage() {
     if (!effectiveStreamId) return;
     (async () => {
       try {
-        const runtimeEnv = (window as any).__ENV as Record<string, string> | undefined;
-        const envBase = import.meta.env.VITE_API_URL || runtimeEnv?.VITE_API_URL || '';
-        const apiBase = envBase || '';
-        const url = apiBase ? `${apiBase.replace(/\/$/, '')}/api/live/streams` : '/api/live/streams';
-
-        const res = await fetch(url, { method: 'GET', credentials: 'include' });
+        const res = await fetch(apiUrl('/api/live/streams'), { method: 'GET', credentials: 'include' });
         if (!res.ok) {
           setStreamIsLive(false);
           showToast('Stream is offline');
@@ -295,15 +295,41 @@ export default function SpectatorPage() {
 
         setStreamIsLive(true);
         if (stream.user_id) {
-          setHostUserId(stream.user_id);
-          hostUserIdRef.current = stream.user_id;
-          actualViewersRef.current.delete(stream.user_id);
+          const uid = String(stream.user_id);
+          setHostUserId(uid);
+          hostUserIdRef.current = uid;
+          actualViewersRef.current.delete(uid);
           setViewerCount(stream.viewer_count || 0);
 
-          // Without Supabase profiles, approximate host identity from ID/title.
-          const label = String(stream.user_id).slice(0, 8);
-          setHostName(stream.title || label || 'Creator');
+          // First guess: title from live stream or short id label
+          const label = uid.slice(0, 8);
+          const initialName = stream.title || label || 'Creator';
+          setHostName(initialName);
           setHostAvatar('');
+
+          // Try to match Live page exactly by loading creator profile
+          // (same source as the creator page uses for display name / avatar).
+          try {
+            const profileRes = await fetch(apiUrl(`/api/profiles/${encodeURIComponent(uid)}`), {
+              method: 'GET',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'include',
+            });
+            if (profileRes.ok) {
+              const body = await profileRes.json().catch(() => ({}));
+              const profile = body?.profile || body?.data || {};
+              const profileName =
+                (typeof profile.displayName === 'string' && profile.displayName.trim()) ||
+                (typeof profile.username === 'string' && profile.username.trim()) ||
+                initialName;
+              const profileAvatar =
+                (typeof profile.avatarUrl === 'string' && profile.avatarUrl.trim()) || '';
+              setHostName(profileName);
+              if (profileAvatar) setHostAvatar(profileAvatar);
+            }
+          } catch {
+            // Non-fatal: keep initialName/empty avatar
+          }
         }
       } catch {
         setStreamIsLive(false);
@@ -324,16 +350,20 @@ export default function SpectatorPage() {
 
     (async () => {
       try {
-        const runtimeEnv = (window as any).__ENV as Record<string, string> | undefined;
-        const envBase = import.meta.env.VITE_API_URL || runtimeEnv?.VITE_API_URL || '';
-        const apiBase = envBase ? `${envBase.replace(/\/$/, '')}` : '';
-        const tokenUrl = apiBase ? `${apiBase}/api/live/token?room=${encodeURIComponent(effectiveStreamId)}` : `/api/live/token?room=${encodeURIComponent(effectiveStreamId)}`;
-        const res = await fetch(tokenUrl, { method: 'GET', credentials: 'include' });
-        if (!res.ok || !mounted) return;
+        const res = await fetch(apiUrl(`/api/live/token?room=${encodeURIComponent(effectiveStreamId)}`), { method: 'GET', credentials: 'include' });
+        if (!res.ok || !mounted) {
+          if (res.status === 401) showToast('Please log in to watch');
+          else if (res.status === 503) showToast('Live video is not configured on server');
+          return;
+        }
         const data = await res.json();
-        const url = data?.url?.trim();
+        let url = (data?.url ?? '').trim();
+        if (!url) url = getLiveKitUrl();
         const token = data?.token;
-        if (!url || !token || !mounted) return;
+        if (!url || !token || !mounted) {
+          showToast('Missing LiveKit URL. Set LIVEKIT_URL on server.');
+          return;
+        }
 
         const onTrackSubscribed = (track: import('livekit-client').RemoteTrack) => {
           if (!mounted || track.kind !== 'video') return;
@@ -361,7 +391,11 @@ export default function SpectatorPage() {
           }
         }
       } catch (err) {
-        if (mounted) setHasStream(false);
+        if (mounted) {
+          setHasStream(false);
+          console.error('[LiveKit] Viewer connect failed:', err);
+          showToast('Could not connect to stream. Is the host live?');
+        }
       }
     })();
 
@@ -370,28 +404,27 @@ export default function SpectatorPage() {
       liveKitRoomRef.current = null;
       room.disconnect();
     };
-  }, [streamIsLive, effectiveStreamId, user?.id]);
+  }, [streamIsLive, effectiveStreamId, user?.id, liveConnectRetryKey]);
 
-  // Fetch user profile (level, xp, coins)
+  // If we're still "connecting" after 18s, hint that host may not be publishing
+  useEffect(() => {
+    if (!streamIsLive || hasStream) return;
+    const t = setTimeout(() => {
+      showToast('Stream not loading? Make sure the host is live and try again.');
+    }, 18000);
+    return () => clearTimeout(t);
+  }, [streamIsLive, hasStream]);
+
+  // Load user profile (coins, level, XP)
+  // Note: Without a database, we use persisted test coins and user data
   useEffect(() => {
     if (!user?.id) return;
-    (async () => {
-      const { data } = await noopClient
-        .from('profiles')
-        .select('level, xp, coins')
-        .eq('user_id', user.id)
-        .maybeSingle();
-      if (data) {
-        if (data.level) setUserLevel(Number(data.level));
-        if (data.xp) setUserXP(Number(data.xp));
-        if (data.coins != null) {
-          const dbCoins = Number(data.coins);
-          const persisted = getPersistedTestCoinsBalance(user.id);
-          setCoinBalance(Math.max(dbCoins, persisted));
-        }
-      }
-    })();
-  }, [user?.id]);
+    
+    const persisted = getPersistedTestCoinsBalance(user.id);
+    setCoinBalance(Math.max(0, persisted));
+    setUserLevel(user.level || 1);
+    setUserXP(0);
+  }, [user?.id, user?.level]);
 
   useEffect(() => {
     if (showTestCoinsModal) {
@@ -432,8 +465,7 @@ export default function SpectatorPage() {
         navigate('/login');
         return;
       }
-      const apiBase = import.meta.env.VITE_API_URL || '';
-      const res = await fetch(`${apiBase}/api/create-subscription`, {
+      const res = await fetch(apiUrl('/api/create-subscription'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.session?.access_token}` },
         body: JSON.stringify({ creatorId: effectiveStreamId, userId: user.id }),
@@ -481,8 +513,7 @@ export default function SpectatorPage() {
     let mounted = true;
 
     const connect = async () => {
-      const { data } = await noopClient.auth.getSession();
-      const token = data.session?.access_token || '';
+      const token = useAuthStore.getState().session?.access_token || '';
       if (!token || !mounted) return;
       websocket.connect(effectiveStreamId, token);
     };
@@ -576,8 +607,13 @@ export default function SpectatorPage() {
           isGift: true,
         };
         setMessages(prev => [...prev, msg]);
-        if (giftDef.video && (giftDef.video.startsWith('http://') || giftDef.video.startsWith('https://'))) {
-          setGiftQueue(prev => [...prev, giftDef.video]);
+        if (giftDef.video && giftDef.video.trim()) {
+          const raw = giftDef.video;
+          const videoUrl =
+            raw.startsWith('http://') || raw.startsWith('https://')
+              ? raw
+              : resolveGiftAssetUrl(raw.startsWith('/') ? raw : `/${raw}`);
+          setGiftQueue(prev => [...prev, videoUrl]);
         }
       }
     };
@@ -651,9 +687,7 @@ export default function SpectatorPage() {
     const goOffline = async () => {
       if (!mounted) return;
       try {
-        const runtimeEnv = (window as any).__ENV as Record<string, string> | undefined;
-        const envBase = import.meta.env.VITE_API_URL || runtimeEnv?.VITE_API_URL || '';
-        const url = envBase ? `${envBase.replace(/\/$/, '')}/api/live/streams` : '/api/live/streams';
+        const url = apiUrl('/api/live/streams');
         const res = await fetch(url, { method: 'GET', credentials: 'include' });
         if (res.ok) {
           const json = await res.json();
@@ -704,25 +738,10 @@ export default function SpectatorPage() {
   }, [effectiveStreamId, user?.id, streamIsLive]);
 
   // Fetch share followers (people you follow / who follow you)
+  // Note: Without a database, we return an empty list
   useEffect(() => {
     if (!user?.id) return;
-    (async () => {
-      try {
-        const { data: followData } = await noopClient.from('followers').select('follower_id').eq('following_id', user.id).limit(50);
-        const { data: followingData } = await noopClient.from('followers').select('following_id').eq('follower_id', user.id).limit(50);
-        const ids = new Set<string>();
-        (followData || []).forEach((f: any) => ids.add(f.follower_id));
-        (followingData || []).forEach((f: any) => ids.add(f.following_id));
-        ids.delete(user.id);
-        if (ids.size === 0) { setShareContacts([]); return; }
-        const { data: profiles } = await noopClient.from('profiles').select('user_id, username, display_name, avatar_url').in('user_id', Array.from(ids));
-        setShareContacts((profiles || []).map((p: any) => ({
-          id: p.user_id,
-          name: p.display_name || p.username || 'User',
-          avatar: p.avatar_url || '',
-        })));
-      } catch { setShareContacts([]); }
-    })();
+    setShareContacts([]);
   }, [user?.id]);
 
   // Gift queue processor
@@ -763,6 +782,19 @@ export default function SpectatorPage() {
     if (!gift) return;
     if (coinBalance < gift.coins) {
       showToast(`Not enough coins (have ${coinBalance.toLocaleString()}, need ${gift.coins.toLocaleString()})`);
+      // In local/dev builds, still preview the gift animation so video gifts can play even without balance.
+      if (
+        import.meta.env.MODE !== 'production' &&
+        gift.video &&
+        gift.video.trim()
+      ) {
+        const raw = gift.video;
+        const videoUrl =
+          raw.startsWith('http://') || raw.startsWith('https://')
+            ? raw
+            : resolveGiftAssetUrl(raw.startsWith('/') ? raw : `/${raw}`);
+        setGiftQueue(prev => [...prev, videoUrl]);
+      }
       return;
     }
     if (!websocket.isConnected()) {
@@ -776,67 +808,29 @@ export default function SpectatorPage() {
     persistTestCoinsBalance(user?.id, afterDeduct);
 
     let newLevel = userLevel;
-    let rpcSucceeded = false;
 
-    if (user?.id) {
-      try {
-        const { data, error } = await noopClient.rpc('send_stream_gift', {
-          p_stream_key: effectiveStreamId,
-          p_gift_id: gift.id,
-        });
-        if (!error) {
-          rpcSucceeded = true;
-          const row = Array.isArray(data) ? data[0] : data;
-          if (row?.new_balance != null) {
-            const nb = Number(row.new_balance);
-            setCoinBalance(nb);
-            persistTestCoinsBalance(user?.id, nb);
-          }
-          if (row?.new_level != null) {
-            const updatedLevel = Number(row.new_level);
-            setUserLevel(updatedLevel);
-            updateUser({ level: updatedLevel });
-            newLevel = updatedLevel;
-          }
-          if (row?.new_xp != null) setUserXP(Number(row.new_xp));
-        }
-      } catch { /* RPC failed, fall through to test-coins path */ }
-
-      if (!rpcSucceeded) {
-        // RPC failed — use local test coins balance instead
-        const persisted = getPersistedTestCoinsBalance(user?.id);
-        if (persisted >= gift.coins) {
-          const newPersisted = persisted - gift.coins;
-          persistTestCoinsBalance(user?.id, newPersisted);
-          setCoinBalance(newPersisted);
-          // Try to sync DB too (fire-and-forget)
-          noopClient.from('profiles').update({ coins: newPersisted }).eq('user_id', user.id).then(() => {});
-        } else {
-          setCoinBalance(prevBalance);
-          persistTestCoinsBalance(user?.id, prevBalance);
-          showToast('Not enough coins to send this gift');
-          return;
-        }
-      }
-
-      const xpGained = gift.coins;
-      let currentXP = userXP + xpGained;
-      let currentLevel = userLevel;
-      for (let i = 0; i < 300 && currentXP >= currentLevel * 1000 && currentLevel < 300; i++) {
-        currentXP -= currentLevel * 1000;
-        currentLevel++;
-      }
-      setUserLevel(currentLevel);
-      setUserXP(currentXP);
-      updateUser({ level: currentLevel });
-      newLevel = currentLevel;
-      noopClient.from('profiles').update({ level: currentLevel, xp: currentXP }).eq('user_id', user.id).then(() => {});
+    // Calculate XP and level up
+    const xpGained = gift.coins;
+    let currentXP = userXP + xpGained;
+    let currentLevel = userLevel;
+    for (let i = 0; i < 300 && currentXP >= currentLevel * 1000 && currentLevel < 300; i++) {
+      currentXP -= currentLevel * 1000;
+      currentLevel++;
     }
+    setUserLevel(currentLevel);
+    setUserXP(currentXP);
+    updateUser({ level: currentLevel });
+    newLevel = currentLevel;
 
     setShowGiftPanel(false);
 
-    if (gift.video && (gift.video.startsWith('http://') || gift.video.startsWith('https://'))) {
-      setGiftQueue(prev => [...prev, gift.video]);
+    if (gift.video && gift.video.trim()) {
+      const raw = gift.video;
+      const videoUrl =
+        raw.startsWith('http://') || raw.startsWith('https://')
+          ? raw
+          : resolveGiftAssetUrl(raw.startsWith('/') ? raw : `/${raw}`);
+      setGiftQueue(prev => [...prev, videoUrl]);
     }
 
     const giftMsg: LiveMessage = {
@@ -1092,18 +1086,33 @@ export default function SpectatorPage() {
                       </div>
                     )}
                   </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 border-2 border-[#C9A96E] border-t-transparent rounded-full animate-spin" />
-                    <span className="text-white/60 text-sm">Connecting to stream...</span>
-                  </div>
-                  {showRetryButton && (
-                    <button
-                      type="button"
-                      onClick={() => { setShowRetryButton(false); retryJoinRoom(); setTimeout(() => { if (!hasStream) setShowRetryButton(true); }, 8000); }}
-                      className="mt-2 px-5 py-2 rounded-lg bg-[#C9A96E]/20 border border-[#C9A96E]/40 text-[#C9A96E] text-sm font-medium"
-                    >
-                      Tap to retry
-                    </button>
+                  {!user?.id ? (
+                    <>
+                      <span className="text-white/80 text-sm text-center">Log in to watch the live stream</span>
+                      <button
+                        type="button"
+                        onClick={() => navigate('/login', { state: { from: `/watch/${effectiveStreamId}` } })}
+                        className="mt-2 px-5 py-2.5 rounded-lg bg-[#C9A96E] text-black font-semibold text-sm"
+                      >
+                        Log in
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-4 border-2 border-[#C9A96E] border-t-transparent rounded-full animate-spin" />
+                        <span className="text-white/60 text-sm">Connecting to stream...</span>
+                      </div>
+                      {showRetryButton && (
+                        <button
+                          type="button"
+                          onClick={() => { setShowRetryButton(false); retryJoinRoom(); setTimeout(() => { if (!hasStream) setShowRetryButton(true); }, 8000); }}
+                          className="mt-2 px-5 py-2 rounded-lg bg-[#C9A96E]/20 border border-[#C9A96E]/40 text-[#C9A96E] text-sm font-medium"
+                        >
+                          Tap to retry
+                        </button>
+                      )}
+                    </>
                   )}
                 </div>
               )}
@@ -1197,7 +1206,8 @@ export default function SpectatorPage() {
                   onClick={async () => {
                     setIsFollowing(true);
                     if (user?.id && hostUserId) {
-                      try { await noopClient.from('followers').insert({ follower_id: user.id, following_id: hostUserId }); } catch {}
+                      // In memory-only mode, just update local state
+                      console.log(`[Follow] User ${user.id} followed ${hostUserId}`);
                     }
                   }}
                 >
@@ -1217,7 +1227,7 @@ export default function SpectatorPage() {
               variant="panel"
               compact
               isModerator={isModerator}
-              onLike={() => {}}
+              onLike={handleLikeTap}
               onProfileTap={() => {}}
             />
           </div>
@@ -1784,13 +1794,8 @@ export default function SpectatorPage() {
                       persistTestCoinsBalance(user?.id, newBal);
                       showToast(`+${amount.toLocaleString()} test added`);
                       setShowTestCoinsModal(false);
-                      if (user?.id) {
-                        noopClient.rpc('add_test_coins', { p_amount: amount }).then(() => {}).catch(() => {
-                          noopClient.from('profiles').select('coins').eq('user_id', user.id).single().then(({ data }) => {
-                            noopClient.from('profiles').update({ coins: (data?.coins ?? 0) + amount }).eq('user_id', user.id).then(() => {});
-                          });
-                        });
-                      }
+                      // In memory-only mode, coins are persisted locally
+                      console.log(`[Test Coins] Added ${amount} to user ${user?.id}`);
                     }}
                   >
                     <p className="text-white/40 text-xs mb-3">These coins are for testing only and have no real value.</p>
@@ -1831,13 +1836,8 @@ export default function SpectatorPage() {
                           persistTestCoinsBalance(user?.id, newBal);
                           showToast(`+${amount.toLocaleString()} test added`);
                           setShowTestCoinsModal(false);
-                          if (user?.id) {
-                            noopClient.rpc('add_test_coins', { p_amount: amount }).then(() => {}).catch(() => {
-                              noopClient.from('profiles').select('coins').eq('user_id', user.id).single().then(({ data }) => {
-                                noopClient.from('profiles').update({ coins: (data?.coins ?? 0) + amount }).eq('user_id', user.id).then(() => {});
-                              });
-                            });
-                          }
+                          // In memory-only mode, coins are persisted locally
+                          console.log(`[Test Coins] Added ${amount} to user ${user?.id}`);
                         }}
                         className="py-1.5 rounded-lg text-xs font-bold transition-colors bg-[#C9A96E]/30 text-[#C9A96E] hover:bg-[#C9A96E]/40 col-span-3"
                       >
@@ -1899,7 +1899,7 @@ export default function SpectatorPage() {
               onClick={() => {
                 setShowCoHostPanel(false);
                 if (pendingCoHostInvite) {
-                  noopClient.from('notifications').update({ is_read: true }).eq('id', pendingCoHostInvite.notifId).then(() => {});
+                  console.log(`[Notification] Marked as read: ${pendingCoHostInvite.notifId}`);
                   setPendingCoHostInvite(null);
                 }
               }}
@@ -1942,7 +1942,7 @@ export default function SpectatorPage() {
                         className="px-2 py-1 rounded-full bg-red-500/20 border border-red-500/30 flex items-center gap-0.5 active:scale-95 transition-transform cursor-pointer"
                         onClick={(e) => {
                           e.stopPropagation();
-                          noopClient.from('notifications').update({ is_read: true }).eq('id', pendingCoHostInvite.notifId).then(() => {});
+                          console.log(`[Notification] Rejected: ${pendingCoHostInvite?.notifId}`);
                           setPendingCoHostInvite(null);
                         }}
                       >
@@ -1955,15 +1955,10 @@ export default function SpectatorPage() {
                           const invite = pendingCoHostInvite;
                           setPendingCoHostInvite(null);
                           setShowCoHostPanel(false);
-                          noopClient.from('notifications').update({ is_read: true }).eq('id', invite.notifId).then(() => {});
+                          console.log(`[Notification] Accepted: ${invite?.notifId}`);
                           const myUsername = user?.username || (user as any)?.name || 'User';
-                          noopClient.from('notifications').insert({
-                            user_id: invite.hostUserId,
-                            type: 'cohost_accepted',
-                            title: 'Co-Host Accepted',
-                            body: `@${myUsername} accepted your co-host invite!`,
-                            data: { actor_id: user?.id, accepted_name: myUsername, accepted_avatar: (user as any)?.avatar || '', stream_key: invite.streamKey },
-                          }).then(() => {});
+                          // In memory-only mode, just log the action
+                          console.log(`[Co-host] Accepted invite from ${invite?.hostUserId}`);
                           if (invite.streamKey === effectiveStreamId) {
                             startCoHosting();
                           } else {
@@ -1994,19 +1989,8 @@ export default function SpectatorPage() {
                       if (!user?.id || !hostUserId || joinRequested) return;
                       setJoinRequested(true);
                       try {
-                        await noopClient.from('notifications').insert({
-                          user_id: hostUserId,
-                          type: 'join_request',
-                          title: 'Co-Host Request',
-                          body: `@${viewerName} wants to co-host`,
-                          data: {
-                            actor_id: user.id,
-                            requester_name: viewerName,
-                            requester_avatar: viewerAvatar,
-                            request_type: 'cohost',
-                            stream_key: effectiveStreamId,
-                          },
-                        });
+                        // In memory-only mode, just log the action
+                        console.log(`[Co-host] Request sent to ${hostUserId}`);
                         showToast('Co-host request sent!');
                       } catch {
                         setJoinRequested(false);

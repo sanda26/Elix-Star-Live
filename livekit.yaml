@@ -1,0 +1,90 @@
+# =============================================================================
+# LiveKit Server Configuration
+# =============================================================================
+#
+# This config is mounted into the LiveKit container at /etc/livekit.yaml
+# Environment variables are injected by Docker Compose from .env
+#
+# Docs: https://docs.livekit.io/realtime/self-hosting/deployment/
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# Server
+# ---------------------------------------------------------------------------
+port: 7880
+rtc:
+  tcp_port: 7881
+  udp_port: 7882
+  # Use ICE/UDP by default; fall back to TCP if UDP is blocked
+  use_external_ip: true
+  # Set this to your server's public IP if behind NAT:
+  # node_ip: 203.0.113.10
+
+# ---------------------------------------------------------------------------
+# API Keys
+# ---------------------------------------------------------------------------
+# Keys are read from environment variables set in docker-compose.yml.
+# LiveKit resolves $ENV_VAR syntax in YAML values at startup.
+keys:
+  $LIVEKIT_API_KEY: $LIVEKIT_API_SECRET
+
+# ---------------------------------------------------------------------------
+# Logging
+# ---------------------------------------------------------------------------
+logging:
+  level: info
+  # Set to "debug" for more verbose output during development
+  pion_level: warn
+
+# ---------------------------------------------------------------------------
+# Redis (required for multi-node, used here for distributed state)
+# ---------------------------------------------------------------------------
+redis:
+  address: redis:6379
+  password: $REDIS_PASSWORD
+
+# ---------------------------------------------------------------------------
+# Room defaults
+# ---------------------------------------------------------------------------
+room:
+  # Maximum number of participants per room (0 = unlimited)
+  max_participants: 50
+  # Empty rooms are cleaned up after this duration
+  empty_timeout: 300    # 5 minutes
+  # Rooms are destroyed after this duration even with participants
+  departure_timeout: 30 # 30 seconds after last participant leaves
+
+# ---------------------------------------------------------------------------
+# Audio
+# ---------------------------------------------------------------------------
+audio:
+  # Opus is the default and recommended codec
+  active_speaker_interval: 300ms
+
+# ---------------------------------------------------------------------------
+# Turn / STUN
+# ---------------------------------------------------------------------------
+# LiveKit embeds a TURN server for firewall traversal.
+turn:
+  enabled: true
+  # TLS is handled at the nginx layer, so use plain UDP/TCP here.
+  udp_port: 3478
+  # Uncomment and set if you want TURN over TLS (port 5349):
+  # tls_port: 5349
+  # cert_file: /etc/livekit/tls/cert.pem
+  # key_file: /etc/livekit/tls/key.pem
+
+# ---------------------------------------------------------------------------
+# Webhooks (optional — uncomment to forward room/participant events)
+# ---------------------------------------------------------------------------
+# webhook:
+#   urls:
+#     - https://your-domain.com/api/livekit/webhook
+#   api_key: $LIVEKIT_API_KEY
+
+# ---------------------------------------------------------------------------
+# Limits (sensible production defaults)
+# ---------------------------------------------------------------------------
+limit:
+  num_tracks: 50
+  bytes_per_sec: 10485760  # 10 MB/s per participant

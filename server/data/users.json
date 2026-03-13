@@ -1,0 +1,20 @@
+{
+  "users": [
+    {
+      "id": "614619a9-5570-4e39-8a79-92e7a0769721",
+      "email": "bericaandrei1@gmail.com",
+      "passwordHash": "S2TZuoa97cSWNDUAn11ZuA==:4KnrEj6uRkWGoBsLDNjsNJZXyT0bjLNyf7yz61jpmEl/k8wA5c5ekUIxr+t7d1rUM800zW3Wk8tIYIkFQaTB6A==",
+      "username": "Andrei IOnut Berica",
+      "avatar_url": "https://ui-avatars.com/api/?name=Andrei%20IOnut%20Berica&background=random",
+      "created_at": "2026-03-13T04:42:29.897Z"
+    },
+    {
+      "id": "2b3cc350-3630-41e5-8d09-e0a977cdb173",
+      "email": "info@absmconstruction.co.uk",
+      "passwordHash": "fEtiwBBNjKhXkcfKdfV22A==:p+Hr659LXGAQdg9LIbV8Ntj5gx6AxOAoBFQRtRE1p8JEmgisQvt86lx93BEJ2l+e3sHY8Y/9+BfkdVNvE8TXOA==",
+      "username": "Anya Emily",
+      "avatar_url": "https://ui-avatars.com/api/?name=Anya%20Emily&background=random",
+      "created_at": "2026-03-13T04:44:53.857Z"
+    }
+  ]
+}

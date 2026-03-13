@@ -30,6 +30,7 @@ import ReportModal from './ReportModal';
 import PromotePanel from './PromotePanel';
 import { LevelBadge } from './LevelBadge';
 import { noopClient } from '../lib/noopClient';
+import { getVideoPosterUrl } from '../lib/bunnyStorage';
 
 interface EnhancedVideoPlayerProps {
   videoId: string;
@@ -473,6 +474,8 @@ export default function EnhancedVideoPlayer({
 
   if (!video) return null;
 
+  const posterUrl = video.thumbnail || getVideoPosterUrl(video.url);
+
   return (
     <div 
       ref={containerRef}
@@ -497,7 +500,7 @@ export default function EnhancedVideoPlayer({
                 playsInline
                 muted
                 preload="auto"
-                poster=""
+                poster={posterUrl}
               />
             </div>
             <div className="w-1/2 h-full flex-shrink-0">
@@ -510,7 +513,7 @@ export default function EnhancedVideoPlayer({
                 preload="auto"
                 muted={effectiveMuted}
                 onClick={handleVideoClick}
-                poster=""
+                poster={posterUrl}
                 onError={() => {
                   setIsPlaying(false);
                   setVideoError(true);
@@ -528,7 +531,7 @@ export default function EnhancedVideoPlayer({
           preload="auto"
           muted={effectiveMuted}
           onClick={handleVideoClick}
-          poster=""
+          poster={posterUrl}
           onError={() => {
             setIsPlaying(false);
             setVideoError(true);

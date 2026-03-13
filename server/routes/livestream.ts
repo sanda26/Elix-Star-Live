@@ -9,7 +9,11 @@ import { getTokenFromRequest, verifyAuthToken } from '../routes/auth';
 import { createLiveToken, isLiveKitConfigured, getLiveKitUrl } from '../services/livekit';
 
 // In-memory active streams (key = roomName). Replace with DB when using Postgres.
-const activeStreams = new Map<string, { userId: string; startedAt: string }>();
+// Extended payload so viewers can see the creator's display name.
+const activeStreams = new Map<
+  string,
+  { userId: string; startedAt: string; displayName?: string }
+>();
 
 /** Internal helper so other modules (WebSocket server) can mark streams offline. */
 export function removeActiveStream(roomId: string, userId?: string) {
@@ -41,6 +45,9 @@ export async function handleGetStreams(_req: Request, res: Response) {
     user_id: data.userId,
     started_at: data.startedAt,
     status: 'live',
+    // Expose a human-friendly title so For You / Spectator can show real creator name
+    title: data.displayName || undefined,
+    display_name: data.displayName || undefined,
   }));
   return res.status(200).json({ streams });
 }
@@ -54,10 +61,22 @@ export async function handleLiveStart(req: Request, res: Response) {
     return res.status(503).json({ error: 'Live streaming is not configured.' });
   }
 
-  const { room } = req.body ?? {};
-  const roomName = typeof room === 'string' && room.trim() ? room.trim() : auth.userId;
+  const { room, displayName } = req.body ?? {};
+  const raw = typeof room === 'string' && room.trim() ? room.trim() : auth.userId;
+  const roomName =
+    raw.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 128) ||
+    auth.userId.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 128);
 
-  activeStreams.set(roomName, { userId: auth.userId, startedAt: new Date().toISOString() });
+  const safeDisplayName =
+    typeof displayName === 'string'
+      ? displayName.toString().slice(0, 80)
+      : undefined;
+
+  activeStreams.set(roomName, {
+    userId: auth.userId,
+    startedAt: new Date().toISOString(),
+    displayName: safeDisplayName,
+  });
 
   try {
     const token = await createLiveToken({
@@ -106,10 +125,11 @@ export async function handleGetLiveToken(req: Request, res: Response) {
   }
 
   const room = req.query.room as string | undefined;
-  const roomName = typeof room === 'string' && room.trim() ? room.trim() : null;
+  const raw = typeof room === 'string' ? room.trim() : '';
+  const roomName = raw.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 128) || null;
 
   if (!roomName) {
-    return res.status(400).json({ error: 'Query parameter "room" is required.' });
+    return res.status(400).json({ error: 'Query parameter "room" is required and must be alphanumeric.' });
   }
 
   try {
@@ -119,7 +139,14 @@ export async function handleGetLiveToken(req: Request, res: Response) {
       canPublish: false,
       name: auth.userId,
     });
-    return res.status(200).json({ room: roomName, token, url: getLiveKitUrl() });
+    if (!token || token.length < 50) {
+      return res.status(500).json({ error: 'Token generation failed.' });
+    }
+    const url = getLiveKitUrl();
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('[live] token issued for room:', roomName, 'url:', url ? 'set' : 'MISSING');
+    }
+    return res.status(200).json({ room: roomName, token, url });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Failed to create token';
     return res.status(500).json({ error: message });

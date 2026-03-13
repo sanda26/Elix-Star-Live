@@ -1,15 +1,35 @@
 /**
- * Stub client when backend is not configured. Use for call sites that must not throw.
+ * ⚠️  DEPRECATED COMPATIBILITY STUB — DO NOT ADD NEW CALL SITES.
+ *
+ * This file exists only to prevent compile errors in any remaining legacy
+ * code that has not yet been migrated to the real Hetzner + Bunny + LiveKit
+ * stack.  All active services have already been migrated:
+ *
+ *   Auth          →  fetch(apiUrl('/api/auth/...'))      (useAuthStore.ts)
+ *   Storage       →  bunnyUpload() / bunnyDelete()       (bunnyStorage.ts)
+ *   Profiles      →  fetch(apiUrl('/api/profiles/...'))  (avatarUploadService.ts)
+ *   Videos        →  fetch(apiUrl('/api/videos/...'))    (videoUpload.ts)
+ *   Live          →  LiveKit SDK + WebSocket              (LiveStream.tsx)
+ *   Push tokens   →  fetch(apiUrl('/api/device-tokens')) (notifications.ts)
+ *   FYP           →  fetch(apiUrl('/api/videos/:id/fyp'))(fypEligibility.ts)
+ *   Sounds        →  fetch(apiUrl('/api/sounds'))         (soundLibrary.ts)
+ *
+ * Dead connections removed: Supabase, Vercel, Railway, Netlify, Appwrite,
+ *                           Ghost, custom WebRTC, DigitalOcean.
+ *
+ * This stub returns empty / no-op responses so any not-yet-migrated call
+ * sites fail gracefully instead of throwing at runtime.
  */
-const msg = 'Database not configured.';
+const msg = "Use backend API (Bunny + Hetzner + LiveKit stack).";
 
 function noopQuery() {
   const base: any = {
-    then: (resolve: (v: any) => void) => resolve({ data: null, error: { message: msg } }),
+    then: (resolve: (v: any) => void) =>
+      resolve({ data: null, error: { message: msg } }),
   };
   return new Proxy(base, {
     get: (_t, prop) => {
-      if (prop === 'then') return base.then;
+      if (prop === "then") return base.then;
       return () => noopQuery();
     },
   });
@@ -58,7 +78,7 @@ export const noopClient = {
   },
   storage: {
     from: () => noopQuery(),
-    getPublicUrl: () => ({ data: { publicUrl: '' } }),
+    getPublicUrl: () => ({ data: { publicUrl: "" } }),
     upload: () => noopQuery(),
     remove: () => noopQuery(),
     listBuckets: async () => ({ data: null, error: { message: msg } }),
@@ -71,13 +91,16 @@ export const noopClient = {
       on: (..._args: any[]) => channel,
       async subscribe(_callback?: (status: unknown) => void) {
         try {
-          if (typeof _callback === 'function') {
-            _callback('SUBSCRIBED');
+          if (typeof _callback === "function") {
+            _callback("SUBSCRIBED");
           }
         } catch {
           // ignore callback errors in noop client
         }
-        return { data: { subscription: { unsubscribe: () => {} } }, error: null };
+        return {
+          data: { subscription: { unsubscribe: () => {} } },
+          error: null,
+        };
       },
       async send() {
         return { data: null, error: { message: msg } };

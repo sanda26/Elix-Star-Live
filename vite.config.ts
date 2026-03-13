@@ -37,6 +37,12 @@ export default defineConfig(({ mode }) => ({
         target: 'http://localhost:8080',
         changeOrigin: true,
       },
+      // WebSocket for live rooms — backend serves ws on port 8080
+      '/live': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+        ws: true,
+      },
     },
   },
   plugins: [

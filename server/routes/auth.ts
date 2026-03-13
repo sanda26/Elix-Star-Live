@@ -169,6 +169,41 @@ export async function handleLogin(req: Request, res: Response) {
   });
 }
 
+/**
+ * Guest login: creates or reuses a lightweight guest account with random email.
+ * No password required; intended only for local testing / demos.
+ */
+export async function handleGuestLogin(_req: Request, res: Response) {
+  // Reuse a single in-memory guest to avoid unbounded growth.
+  let guest = usersByEmail.get('guest@example.com');
+  if (!guest) {
+    const id = crypto.randomUUID();
+    const uname = 'Guest';
+    const avatar_url = `https://ui-avatars.com/api/?name=${encodeURIComponent(
+      uname,
+    )}&background=random`;
+    const created_at = new Date().toISOString();
+    guest = {
+      id,
+      email: 'guest@example.com',
+      passwordHash: hashPassword(crypto.randomUUID()),
+      username: uname,
+      avatar_url,
+      created_at,
+    };
+    usersByEmail.set('guest@example.com', guest);
+    usersById.set(id, guest);
+    saveUsersToDisk();
+  }
+
+  const token = signToken({ sub: guest.id, email: guest.email });
+  setAuthCookie(res, token);
+  return res.status(200).json({
+    user: toAuthUser(guest),
+    session: { access_token: token, accessToken: token },
+  });
+}
+
 export async function handleRegister(req: Request, res: Response) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
   const { email, password, username } = req.body ?? {};

@@ -1,13 +1,25 @@
-/** Gift asset URL from CDN/storage base (e.g. Bunny or your server). */
-const giftUrl = (path: string) => {
-   const runtimeEnv = (window as any).__ENV;
-   const base = import.meta.env.VITE_GIFT_ASSET_BASE_URL || runtimeEnv?.VITE_GIFT_ASSET_BASE_URL;
-   if (base) {
-     const trimmed = path.startsWith('/') ? path.slice(1) : path;
-     return `${base.replace(/\/$/, '')}/${trimmed}`;
-   }
-   return '';
- }; 
+/** Base URL for gift folder on Bunny CDN (no trailing slash). */
+function getGiftAssetBase(): string {
+  const runtimeEnv = (window as any).__ENV;
+  const base =
+    (import.meta.env.VITE_GIFT_ASSET_BASE_URL || runtimeEnv?.VITE_GIFT_ASSET_BASE_URL ||
+     import.meta.env.VITE_BUNNY_CDN_HOSTNAME || runtimeEnv?.VITE_BUNNY_CDN_HOSTNAME) as string | undefined;
+  if (!base || !String(base).trim()) return '';
+  let url = String(base).trim().replace(/\/+$/, '');
+  if (url && !url.startsWith('http://') && !url.startsWith('https://')) url = `https://${url}`;
+  return url;
+}
+
+/** Full URL for a gift asset (PNG icon or MP4/WebM video). Path e.g. "/gifts/Horse.png" or "gifts/Horse.mp4". */
+export function resolveGiftAssetUrl(path: string): string {
+  if (path.startsWith('http://') || path.startsWith('https://')) return path;
+  const base = getGiftAssetBase();
+  if (!base) return path.startsWith('/') ? path : `/${path}`;
+  const trimmed = path.startsWith('/') ? path.slice(1) : path;
+  return `${base}/${trimmed}`;
+}
+
+const giftUrl = (path: string) => resolveGiftAssetUrl(path); 
  
  export type GiftType = 'universe' | 'big' | 'small'; 
  

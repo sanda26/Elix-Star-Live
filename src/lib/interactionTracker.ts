@@ -1,15 +1,7 @@
-import { noopClient } from './noopClient';
+import { getApiBase } from './api';
 
-const runtimeEnv = (globalThis as any).__ENV as Record<string, string> | undefined;
-const API_BASE = import.meta.env.VITE_API_URL || runtimeEnv?.VITE_API_URL || '';
-
-async function getAuthHeaders(): Promise<Record<string, string>> {
-  const { data: { session } } = await noopClient.auth.getSession();
-  if (!session?.access_token) return { 'Content-Type': 'application/json' };
-  return {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${session.access_token}`,
-  };
+function getAuthHeaders(): Record<string, string> {
+  return { 'Content-Type': 'application/json' };
 }
 
 async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit, timeoutMs: number): Promise<Response> {
@@ -22,8 +14,9 @@ async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit, tim
   }
 }
 async function apiPost(path: string, body: any): Promise<any> {
-  const headers = await getAuthHeaders();
-  const res = await fetchWithTimeout(`${API_BASE}${path}`, { method: 'POST', headers, body: JSON.stringify(body) }, 7000);
+  const base = getApiBase();
+  const url = base ? `${base}${path.startsWith('/') ? path : `/${path}`}` : path;
+  const res = await fetchWithTimeout(url, { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify(body), credentials: 'include' }, 7000);
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
     throw new Error(err.error || 'API error');
@@ -32,8 +25,9 @@ async function apiPost(path: string, body: any): Promise<any> {
 }
 
 async function apiGet(path: string): Promise<any> {
-  const headers = await getAuthHeaders();
-  const res = await fetchWithTimeout(`${API_BASE}${path}`, { headers }, 7000);
+  const base = getApiBase();
+  const url = base ? `${base}${path.startsWith('/') ? path : `/${path}`}` : path;
+  const res = await fetchWithTimeout(url, { headers: getAuthHeaders(), credentials: 'include' }, 7000);
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
     throw new Error(err.error || 'API error');
@@ -118,28 +112,7 @@ export async function stopVideoView(videoId: string) {
       replayCount: view.replayCount,
     });
   } catch {
-    try {
-      const { data: { user } } = await noopClient.auth.getUser();
-      if (user) {
-        await noopClient.from('video_views').insert({
-          user_id: user.id,
-          video_id: view.videoId,
-          watch_time_seconds: view.totalWatchTime,
-          video_duration_seconds: view.videoDuration,
-          completed: view.completed,
-          replayed: view.replayed,
-          replay_count: view.replayCount,
-          ended_at: new Date().toISOString(),
-        });
-        await noopClient.from('video_interactions').insert({
-          user_id: user.id,
-          video_id: view.videoId,
-          interaction_type: view.completed ? 'complete' : 'view',
-        });
-      }
-    } catch {
-      // silent
-    }
+    // Single connection: backend API only; no fallback
   }
 }
 
@@ -220,7 +193,9 @@ if (typeof window !== 'undefined') {
           replayed: view.replayed,
           replayCount: view.replayCount,
         });
-        navigator.sendBeacon(`${API_BASE}/api/feed/track-view`, new Blob([payload], { type: 'application/json' }));
+        const base = getApiBase();
+        const url = base ? `${base}/api/feed/track-view` : '/api/feed/track-view';
+        navigator.sendBeacon(url, new Blob([payload], { type: 'application/json' }));
       }
     }
     activeViews.clear();

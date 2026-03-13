@@ -4,6 +4,7 @@ import { noopClient } from '../lib/noopClient';
 import { Search, TrendingUp, Hash, Users, Video as VideoIcon, Trophy, Music, Flame, Sparkles, Star, Zap } from 'lucide-react';
 import { trackEvent } from '../lib/analytics';
 import { AvatarRing } from '../components/AvatarRing';
+import { getVideoPosterUrl } from '../lib/bunnyStorage';
 
 interface Video {
   id: string;
@@ -440,7 +441,7 @@ function VideoThumbnail({ video }: { video: Video }) {
           <video
             ref={videoRef}
             src={video.url}
-            poster={video.thumbnail_url || undefined}
+            poster={video.thumbnail_url || getVideoPosterUrl(video.url) || undefined}
             muted
             loop
             playsInline
@@ -449,7 +450,7 @@ function VideoThumbnail({ video }: { video: Video }) {
           />
         ) : (
           <img
-            src={video.thumbnail_url || `https://ui-avatars.com/api/?name=Video&background=1C1E24&color=C9A96E&size=200`}
+            src={video.thumbnail_url || getVideoPosterUrl(video.url) || `https://ui-avatars.com/api/?name=Video&background=1C1E24&color=C9A96E&size=200`}
             alt="Video"
             className="w-full h-full object-cover"
           />

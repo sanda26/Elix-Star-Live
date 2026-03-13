@@ -40,7 +40,7 @@ import {
   CameraOff,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { GIFTS } from '../lib/gifts';
+import { GIFTS, resolveGiftAssetUrl } from '../lib/gifts';
 import { GiftOverlay } from '../components/GiftOverlay';
 import GiftAnimationOverlay from '../components/GiftAnimationOverlay';
 import { ChatOverlay } from '../components/ChatOverlay';
@@ -49,6 +49,7 @@ import { useLivePromoStore } from '../store/useLivePromoStore';
 import { AvatarRing } from '../components/AvatarRing';
 import { useAuthStore } from '../store/useAuthStore';
 import { clearCachedCameraStream, getCachedCameraStream } from '../lib/cameraStream';
+import { apiUrl, getLiveKitUrl } from '../lib/api';
 import { noopClient } from '../lib/noopClient';
 import { LevelBadge } from '../components/LevelBadge';
 import ReportModal from '../components/ReportModal';
@@ -237,127 +238,58 @@ export default function LiveStream() {
     if (faceARCanvasRef.current) setFaceARCanvasEl(faceARCanvasRef.current);
   }, [isBroadcast]);
 
+  // Fetch host info when viewing a stream (non-broadcast mode)
+  // Note: Without a database, we derive host info from the stream key
   useEffect(() => {
     if (isBroadcast || !effectiveStreamId) return;
-    (async () => {
-      const { data: stream } = await noopClient
-        .from('live_streams')
-        .select('user_id, title')
-        .eq('stream_key', effectiveStreamId)
-        .maybeSingle();
-      if (stream?.user_id) {
-        const { data: profile } = await noopClient
-          .from('profiles')
-          .select('username, display_name, avatar_url')
-          .eq('user_id', stream.user_id)
-          .maybeSingle();
-        if (profile) {
-          setHostName(profile.display_name || profile.username || stream.title || 'Creator');
-          setHostAvatar(profile.avatar_url || '');
-        } else if (stream.title) {
-          setHostName(stream.title);
-        }
-      }
-    })();
+    
+    // Derive host name from stream key (simplified without DB)
+    const hostLabel = effectiveStreamId.slice(0, 8).toUpperCase();
+    setHostName(`Creator ${hostLabel}`);
+    setHostAvatar(`https://ui-avatars.com/api/?name=${encodeURIComponent(hostLabel)}&background=121212&color=C9A96E`);
   }, [isBroadcast, effectiveStreamId]);
 
+  // Load user profile (coins, level, XP)
+  // Note: Without a database, we use persisted test coins and default values
   useEffect(() => {
     if (!user?.id) return;
-    let cancelled = false;
-
-    const run = async () => {
-      const { data, error } = await noopClient
-        .from('profiles')
-        .select('coins,level,xp')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (!cancelled && data?.coins != null) {
-        const dbCoins = Number(data.coins);
-        const persisted = getPersistedTestCoinsBalance(user.id);
-        setCoinBalance(Math.max(dbCoins, persisted));
-        if (data.level != null) setUserLevel(Number(data.level));
-        if (data.xp != null) setUserXP(Number(data.xp));
-        if (data.level != null) updateUser({ level: Number(data.level) });
-        return;
-      }
-
-      if (error) return;
-
-      await noopClient
-        .from('profiles')
-        .upsert({ user_id: user.id, coins: 0, level: 1, xp: 0 }, { onConflict: 'user_id', ignoreDuplicates: true });
-
-      if (cancelled) return;
-      const { data: retryData } = await noopClient
-        .from('profiles')
-        .select('coins,level,xp')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (!cancelled && retryData?.coins != null) {
-        const dbCoins = Number(retryData.coins);
-        const persisted = getPersistedTestCoinsBalance(user.id);
-        setCoinBalance(Math.max(dbCoins, persisted));
-        if (retryData.level != null) setUserLevel(Number(retryData.level));
-        if (retryData.xp != null) setUserXP(Number(retryData.xp));
-        if (retryData.level != null) updateUser({ level: Number(retryData.level) });
-      }
-    };
-
-    run();
-    return () => {
-      cancelled = true;
-    };
-  }, [updateUser, user?.id]);
+    
+    const persisted = getPersistedTestCoinsBalance(user.id);
+    setCoinBalance(Math.max(0, persisted));
+    setUserLevel(user.level || 1);
+    setUserXP(0);
+  }, [user?.id, user?.level]);
 
   const [isMyStreamLive, setIsMyStreamLive] = useState(false);
   const creatorNameRef = useRef(creatorName);
   creatorNameRef.current = creatorName;
 
+  // Track stream status locally (without database)
   useEffect(() => {
     if (!user?.id) return;
     const key = effectiveStreamId;
     if (!key) return;
 
     if (isBroadcast) {
-      (async () => {
-        const { error } = await noopClient.from('live_streams').upsert(
-          {
-            stream_key: key,
-            user_id: user.id,
-            title: creatorNameRef.current,
-            is_live: true,
-            viewer_count: 0,
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: 'stream_key' }
-        );
-        if (!error) setIsMyStreamLive(true);
-      })();
+      // Mark stream as live locally
+      setIsMyStreamLive(true);
+      
+      // Broadcast to other viewers via WebSocket (handled by server)
+      websocket.send('stream_start', {
+        stream_key: key,
+        user_id: user.id,
+        title: creatorNameRef.current,
+      });
 
       return () => {
         setIsMyStreamLive(false);
-        noopClient
-          .from('live_streams')
-          .update({ is_live: false, viewer_count: 0 })
-          .eq('stream_key', key)
-          .eq('user_id', user.id)
-          .then(() => {});
+        websocket.send('stream_end', {
+          stream_key: key,
+          user_id: user.id,
+        });
       };
     } else {
-      noopClient
-        .from('live_streams')
-        .select('viewer_count, user_id, title')
-        .eq('stream_key', key)
-        .maybeSingle()
-        .then(({ data: streamData }) => {
-          if (streamData?.viewer_count != null) {
-            setViewerCount(Number(streamData.viewer_count));
-          }
-        });
-
-      // Viewer-side realtime viewer_count updates removed; rely on initial load + WebSocket events.
+      // Viewer mode - rely on WebSocket events for stream status
       return () => {};
     }
   }, [effectiveStreamId, isBroadcast, user?.id]);
@@ -409,26 +341,28 @@ export default function LiveStream() {
   useEffect(() => {
     if (!isBroadcast || !user?.id || !effectiveStreamId || liveRegisteredRef.current) return;
 
-    const runtimeEnv = (window as any).__ENV as Record<string, string> | undefined;
-    const envBase = import.meta.env.VITE_API_URL || runtimeEnv?.VITE_API_URL || '';
-    const apiBase = envBase || '';
-    const startUrl = apiBase ? `${apiBase.replace(/\/$/, '')}/api/live/start` : '/api/live/start';
-    const endUrl = apiBase ? `${apiBase.replace(/\/$/, '')}/api/live/end` : '/api/live/end';
-
     (async () => {
       try {
-        const res = await fetch(startUrl, {
+        const res = await fetch(apiUrl('/api/live/start'), {
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ room: effectiveStreamId }),
+          body: JSON.stringify({
+            room: effectiveStreamId,
+            // so viewers / ForYou can see the real creator name instead of the raw stream key
+            displayName: creatorNameRef.current,
+          }),
         });
         if (res.ok) {
           liveRegisteredRef.current = true;
           const data = await res.json().catch(() => ({}));
           let url = (data?.url ?? '').trim();
-          if (!url) url = (import.meta.env.VITE_LIVEKIT_URL ?? (window as any).__ENV?.VITE_LIVEKIT_URL ?? '').trim();
-          if (data?.token && url) setLiveKitCreds({ token: data.token, url });
+          if (!url) url = getLiveKitUrl();
+          if (data?.token && url) {
+            setLiveKitCreds({ token: data.token, url });
+          } else {
+            showToast('Live server missing token or LIVEKIT_URL. Check server .env and restart.');
+          }
         }
       } catch {
         // ignore; stream will just not appear in /api/live/streams
@@ -440,7 +374,7 @@ export default function LiveStream() {
       if (!liveRegisteredRef.current) return;
       (async () => {
         try {
-          await fetch(endUrl, {
+          await fetch(apiUrl('/api/live/end'), {
             method: 'POST',
             credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
@@ -455,7 +389,8 @@ export default function LiveStream() {
     };
   }, [isBroadcast, user?.id, effectiveStreamId]);
 
-  // LiveKit: connect as host and publish camera + mic so viewers can see the stream
+  // Live (TikTok-style): only LiveKit. Host publishes here; viewers subscribe via SpectatorPage.
+  // No Supabase/custom WebRTC; single connection = backend token + LiveKit.
   useEffect(() => {
     if (!isBroadcast || !liveKitCreds || !cameraStreamRef.current) return;
 
@@ -505,12 +440,7 @@ export default function LiveStream() {
     setCreatorsLoading(true);
     setCreatorsLoadFailed(false);
     try {
-      const runtimeEnv = (window as any).__ENV as Record<string, string> | undefined;
-      const envBase = import.meta.env.VITE_API_URL || runtimeEnv?.VITE_API_URL || '';
-      // If no explicit API base, fall back to same-origin
-      const apiBase = envBase || '';
-      const url = apiBase ? `${apiBase.replace(/\/$/, '')}/api/live/streams` : '/api/live/streams';
-
+      const url = apiUrl('/api/live/streams');
       const res = await fetch(url, {
         method: 'GET',
         credentials: 'include',
@@ -844,29 +774,15 @@ export default function LiveStream() {
 
     let cancelled = false;
     (async () => {
-      // Fetch host info for opponent slot
-      const { data: hostStream } = await noopClient
-        .from('live_streams')
-        .select('user_id, title')
-        .eq('stream_key', effectiveStreamId)
-        .maybeSingle();
-      let hName = 'Host';
-      let hAvatar = '';
-      if (hostStream?.user_id) {
-        const { data: hProfile } = await noopClient
-          .from('profiles')
-          .select('username, display_name, avatar_url')
-          .eq('user_id', hostStream.user_id)
-          .maybeSingle();
-        if (hProfile) {
-          hName = hProfile.display_name || hProfile.username || hostStream.title || 'Host';
-          hAvatar = hProfile.avatar_url || '';
-        }
-      }
+      // Derive host info from stream key (simplified without DB)
+      const hostLabel = effectiveStreamId.slice(0, 8).toUpperCase();
+      let hName = `Host ${hostLabel}`;
+      let hAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(hostLabel)}&background=121212&color=C9A96E`;
+      
       if (cancelled) return;
       setBattleSlots(prev => {
         const next = [...prev];
-        next[0] = { userId: hostStream?.user_id || effectiveStreamId, name: hName, status: 'accepted', avatar: hAvatar };
+        next[0] = { userId: effectiveStreamId, name: hName, status: 'accepted', avatar: hAvatar };
         return next;
       });
 
@@ -1052,8 +968,7 @@ export default function LiveStream() {
         navigate('/login');
         return;
       }
-      const apiBase = import.meta.env.VITE_API_URL || '';
-      const res = await fetch(`${apiBase}/api/create-subscription`, {
+      const res = await fetch(apiUrl('/api/create-subscription'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.session?.access_token}` },
         body: JSON.stringify({ creatorId: effectiveStreamId, userId: user.id }),
@@ -1940,7 +1855,6 @@ export default function LiveStream() {
 
     const handleGiftSent = (data: any) => {
       if (!mounted) return;
-      if (data.user_id === user?.id) return;
       const giftDef = GIFTS.find(g => g.id === data.giftId);
       if (giftDef) {
         const msg: LiveMessage = {
@@ -1958,7 +1872,7 @@ export default function LiveStream() {
         if (rawVideo && typeof rawVideo === 'string' && rawVideo.trim()) {
           const videoUrl = (rawVideo.startsWith('http://') || rawVideo.startsWith('https://'))
             ? rawVideo
-            : `${window.location.origin}${rawVideo.startsWith('/') ? rawVideo : `/${rawVideo}`}`;
+            : resolveGiftAssetUrl(rawVideo.startsWith('/') ? rawVideo : `/${rawVideo}`);
           setGiftQueue(prev => [...prev, videoUrl]);
         }
       }
@@ -2337,12 +2251,13 @@ export default function LiveStream() {
     if (!gift) return;
 
     try {
-      // Allow everyone to spend if they have coins locally (which we just set to max)
-      if (coinBalance < gift.coins) {
-          return;
-      }
-      if (gift.video && (gift.video.startsWith('http://') || gift.video.startsWith('https://'))) {
-        setGiftQueue(prev => [...prev, gift.video]);
+      // Local/dev: always allow sending gifts, even if coinBalance is low,
+      // so video gifts are never blocked from playing.
+      if (gift.video && gift.video.trim()) {
+        const videoUrl = (gift.video.startsWith('http://') || gift.video.startsWith('https://'))
+          ? gift.video
+          : resolveGiftAssetUrl(gift.video.startsWith('/') ? gift.video : `/${gift.video}`);
+        if (videoUrl) setGiftQueue(prev => [...prev, videoUrl]);
       }
       
       let newLevel = userLevel;
@@ -2554,8 +2469,11 @@ export default function LiveStream() {
       }
       
       // Always queue the video animation for the sender/viewer to see immediate feedback (remote only)
-      if (lastSentGift.video && (lastSentGift.video.startsWith('http://') || lastSentGift.video.startsWith('https://'))) {
-        setGiftQueue(prev => [...prev, lastSentGift.video]);
+      if (lastSentGift.video && lastSentGift.video.trim()) {
+        const videoUrl = (lastSentGift.video.startsWith('http://') || lastSentGift.video.startsWith('https://'))
+          ? lastSentGift.video
+          : resolveGiftAssetUrl(lastSentGift.video.startsWith('/') ? lastSentGift.video : `/${lastSentGift.video}`);
+        if (videoUrl) setGiftQueue(prev => [...prev, videoUrl]);
       }
       
       // Add to chat

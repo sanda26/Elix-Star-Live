@@ -1,10 +1,24 @@
+/**
+ * Video Upload Service — Hetzner backend + Bunny Storage CDN.
+ *
+ * Upload flow:
+ *  1. Validate file (type / size).
+ *  2. Generate a unique videoId client-side.
+ *  3. Upload video binary → POST /api/media/upload-file (Hetzner proxies to Bunny).
+ *  4. Generate thumbnail canvas blob → upload the same way.
+ *  5. POST /api/videos  to create the metadata record on the Hetzner backend.
+ *  6. Trigger FYP boost via POST /api/videos/:id/fyp.
+ *
+ * No Supabase / Railway / Vercel / Appwrite / DigitalOcean.
+ */
 
-import { noopClient } from './noopClient';
-import { trackEvent } from './analytics';
-import { boostNewVideo } from './fypEligibility';
+import { bunnyUpload } from "./bunnyStorage";
+import { apiUrl } from "./api";
+import { useAuthStore } from "../store/useAuthStore";
+import { trackEvent } from "./analytics";
 
 export interface UploadProgress {
-  stage: 'validating' | 'compressing' | 'uploading' | 'processing' | 'complete';
+  stage: "validating" | "compressing" | "uploading" | "processing" | "complete";
   progress: number; // 0-100
   message: string;
 }
@@ -17,313 +31,249 @@ export interface VideoMetadata {
   format: string;
 }
 
-// Configuration
-const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500MB
-const MAX_DURATION = 180; // 3 minutes (in seconds)
-const ALLOWED_FORMATS = ['video/mp4', 'video/quicktime', 'video/webm'];
+// ── Config ──────────────────────────────────────────────────────────────────
+const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500 MB
+const ALLOWED_FORMATS = ["video/mp4", "video/quicktime", "video/webm"];
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+function authHeaders(): Record<string, string> {
+  const token = useAuthStore.getState().session?.access_token;
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  return headers;
+}
+
+// ── Service class ─────────────────────────────────────────────────────────────
 
 export class VideoUploadService {
-  private onProgressCallback: ((progress: UploadProgress) => void) | null = null;
+  private onProgressCallback: ((progress: UploadProgress) => void) | null =
+    null;
 
-  /**
-   * Register callback for upload progress updates
-   */
+  /** Register callback for upload progress updates. */
   onProgress(callback: (progress: UploadProgress) => void) {
     this.onProgressCallback = callback;
   }
 
-  private updateProgress(stage: UploadProgress['stage'], progress: number, message: string) {
-    if (this.onProgressCallback) {
-      this.onProgressCallback({ stage, progress, message });
-    }
+  private updateProgress(
+    stage: UploadProgress["stage"],
+    progress: number,
+    message: string,
+  ) {
+    this.onProgressCallback?.({ stage, progress, message });
   }
 
+  // ── Public: validate ────────────────────────────────────────────────────────
+
   /**
-   * Validate video file before upload. Sync only – no metadata reading so upload never blocks.
+   * Synchronous validation — no async IO so the upload never blocks on this step.
    */
   validateVideo(file: File): VideoMetadata {
-    this.updateProgress('validating', 10, 'Validating video...');
+    this.updateProgress("validating", 10, "Validating video…");
 
-    const okType = ALLOWED_FORMATS.includes(file.type) || (file.type && file.type.startsWith('video/'));
+    const okType =
+      ALLOWED_FORMATS.includes(file.type) ||
+      (!!file.type && file.type.startsWith("video/"));
+
     if (!okType) {
-      throw new Error(`Invalid format. Use MP4 or WebM.`);
+      throw new Error("Invalid format. Please use MP4 or WebM.");
     }
-
     if (file.size > MAX_FILE_SIZE) {
-      throw new Error(`File too large. Maximum: ${MAX_FILE_SIZE / 1024 / 1024}MB`);
+      throw new Error(
+        `File too large. Maximum size is ${MAX_FILE_SIZE / 1024 / 1024} MB.`,
+      );
     }
 
-    this.updateProgress('validating', 30, 'Validation complete');
-    return { duration: 0, width: 0, height: 0, size: file.size, format: file.type };
-  }
-
-  /**
-   * Get video metadata using browser API. If the browser can't read it (e.g. codec), return defaults so upload can continue.
-   */
-  private getVideoMetadata(file: File): Promise<VideoMetadata> {
-    const defaults = {
+    this.updateProgress("validating", 30, "Validation complete");
+    return {
       duration: 0,
       width: 0,
       height: 0,
       size: file.size,
       format: file.type,
     };
-    return new Promise((resolve) => {
-      const video = document.createElement('video');
-      video.preload = 'metadata';
-      const timeout = setTimeout(() => {
-        URL.revokeObjectURL(video.src);
-        resolve(defaults);
-      }, 5000);
-
-      video.onloadedmetadata = () => {
-        clearTimeout(timeout);
-        URL.revokeObjectURL(video.src);
-        resolve({
-          duration: video.duration,
-          width: video.videoWidth,
-          height: video.videoHeight,
-          size: file.size,
-          format: file.type,
-        });
-      };
-
-      video.onerror = () => {
-        clearTimeout(timeout);
-        if (video.src) URL.revokeObjectURL(video.src);
-        resolve(defaults);
-      };
-
-      video.src = URL.createObjectURL(file);
-    });
   }
 
-  /**
-   * Upload video to storage
-   */
+  // ── Public: upload ──────────────────────────────────────────────────────────
+
   async uploadVideo(
     file: File,
     userId: string,
-    metadata: { description: string; hashtags: string[]; isPrivate: boolean; music?: any; duetWithVideoId?: string }
+    metadata: {
+      description: string;
+      hashtags: string[];
+      isPrivate: boolean;
+      music?: any;
+      duetWithVideoId?: string;
+    },
   ): Promise<string> {
     try {
-      const { data: { user } } = await noopClient.auth.getUser();
-      if (!user || user.id !== userId) {
-        throw new Error('You must be logged in to upload. Try signing in again.');
+      // ── Auth check ──────────────────────────────────────────────────
+      const storeUser = useAuthStore.getState().user;
+      if (!storeUser || storeUser.id !== userId) {
+        throw new Error(
+          "You must be logged in to upload. Try signing in again.",
+        );
       }
       if (!file || file.size === 0) {
-        throw new Error('Video file is empty. Record or choose a valid video.');
+        throw new Error("Video file is empty. Record or choose a valid video.");
       }
-      
+
       const videoMeta = this.validateVideo(file);
 
-      this.updateProgress('uploading', 40, 'Uploading video...');
+      this.updateProgress("uploading", 40, "Uploading video to Bunny CDN…");
 
-      // Generate Video ID upfront
+      // ── Generate IDs ─────────────────────────────────────────────────
       const videoId = crypto.randomUUID();
-      const fileExt = file.name.split('.').pop() || 'mp4';
-      
-      // Structure: videos/{userId}/{videoId}/original.ext
-      const fileName = `videos/${userId}/${videoId}/original.${fileExt}`;
+      const fileExt = file.name.split(".").pop() || "mp4";
+      const storagePath = `videos/${userId}/${videoId}/original.${fileExt}`;
 
-      const { error: uploadError } = await noopClient.storage
-        .from('user-content')
-        .upload(fileName, file, {
-          cacheControl: '3600',
-          upsert: true,
-          contentType: file.type || 'video/webm',
-        });
-        
-      if (uploadError) {
-        const msg = (uploadError as any)?.message ?? String(uploadError);
-        throw new Error(`Storage failed: ${msg}. Configure storage (e.g. Bunny) for user-content.`);
-      }
+      // ── Upload video to Bunny via Hetzner backend ────────────────────
+      const { cdnUrl: videoUrl } = await bunnyUpload(
+        file,
+        storagePath,
+        file.type || "video/mp4",
+      );
 
-      this.updateProgress('uploading', 70, 'Upload complete');
+      this.updateProgress("uploading", 70, "Video uploaded to CDN");
 
-      // Get public URL
-      const { data: { publicUrl } } = noopClient.storage
-        .from('user-content')
-        .getPublicUrl(fileName);
-
-      this.updateProgress('processing', 80, 'Creating video record...');
-
-      // Thumbnail
-      let thumbnailUrl = '';
+      // ── Generate & upload thumbnail ──────────────────────────────────
+      this.updateProgress("processing", 75, "Generating thumbnail…");
+      let thumbnailUrl = "";
       try {
         thumbnailUrl = await Promise.race([
-          this.generateThumbnail(file, userId, videoId),
-          new Promise<string>((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000)),
+          this.generateAndUploadThumbnail(file, userId, videoId),
+          new Promise<string>((_, reject) =>
+            setTimeout(() => reject(new Error("timeout")), 10_000),
+          ),
         ]);
       } catch {
-        // keep placeholder
+        // Non-critical — video still uploads without a thumbnail
       }
 
-      // Insert into 'videos' table
-      const payload = {
+      this.updateProgress("processing", 82, "Creating video record on server…");
+
+      // ── Create video record on Hetzner backend ────────────────────────
+      const payload: Record<string, unknown> = {
         id: videoId,
-        user_id: userId,
-        url: publicUrl,
-        thumbnail_url: thumbnailUrl,
-        description: metadata.description || '',
-        is_public: !metadata.isPrivate,
-        ...(metadata.duetWithVideoId && { duet_with_video_id: metadata.duetWithVideoId }),
+        url: videoUrl,
+        thumbnailUrl,
+        description: metadata.description || "",
+        hashtags: metadata.hashtags || [],
+        isPublic: !metadata.isPrivate,
+        ...(metadata.duetWithVideoId && {
+          duetWithVideoId: metadata.duetWithVideoId,
+        }),
       };
-      
-      const { data, error } = await noopClient
-        .from('videos')
-        .insert(payload)
-        .select()
-        .single();
-      
-      if (error) {
 
-          if (error.code === '23503') { // foreign_key_violation
-             throw new Error(`User ID mismatch (Code: 23503). Try logging out and back in.`);
-          }
-          throw new Error(`Database error: ${error.message} (Code: ${error.code})`);
-      }
-
-      if (!data) {
-        throw new Error('Database: No row returned');
-      }
-      
-      const videoData = data;
-
-      // Give new video an initial FYP boost so it gets early impressions
-      try {
-        await boostNewVideo(videoData.id);
-      } catch {
-        /* non-critical */
-      }
-
-      // Hashtags
-      if (metadata.hashtags.length > 0) {
-        try {
-          await this.addHashtags(videoData.id, metadata.hashtags);
-        } catch {
-          /* ignore */
-        }
-      }
-
-      this.updateProgress('complete', 100, 'Video uploaded successfully!');
-
-      trackEvent('video_upload', {
-        video_id: videoData.id,
-        duration: videoMeta.duration,
-        size_mb: (file.size / 1024 / 1024).toFixed(2),
+      const createRes = await fetch(apiUrl("/api/videos"), {
+        method: "POST",
+        headers: authHeaders(),
+        credentials: "include",
+        body: JSON.stringify(payload),
       });
 
-      return videoData.id;
-    } catch (error: any) {
+      if (!createRes.ok) {
+        const err = (await createRes.json().catch(() => ({}))) as {
+          error?: string;
+        };
+        throw new Error(
+          err.error ?? `Failed to create video record (${createRes.status})`,
+        );
+      }
 
-      trackEvent('video_upload_failed', { error: String(error) });
+      const createData = (await createRes.json()) as { id?: string };
+      const finalId = createData.id ?? videoId;
+
+      // ── FYP boost for new video ──────────────────────────────────────
+      this.updateProgress("processing", 92, "Boosting visibility…");
+      try {
+        await fetch(apiUrl(`/api/videos/${finalId}/fyp`), {
+          method: "POST",
+          headers: authHeaders(),
+          credentials: "include",
+          body: JSON.stringify({ boost: true }),
+        });
+      } catch {
+        // Non-critical
+      }
+
+      this.updateProgress("complete", 100, "Video uploaded successfully!");
+
+      trackEvent("video_upload", {
+        video_id: finalId,
+        duration: videoMeta.duration,
+        size_mb: Number((file.size / 1024 / 1024).toFixed(2)),
+      });
+
+      return finalId;
+    } catch (error: any) {
+      trackEvent("video_upload_failed", { error: String(error) });
       const msg = error?.message ?? error?.error_description ?? String(error);
-      throw new Error(msg || 'Upload failed');
+      throw new Error(msg || "Upload failed");
     }
   }
 
-  /**
-   * Generate thumbnail from video
-   */
-  private async generateThumbnail(file: File, userId: string, videoId: string): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const video = document.createElement('video');
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
+  // ── Private: thumbnail ──────────────────────────────────────────────────────
+
+  private generateAndUploadThumbnail(
+    file: File,
+    userId: string,
+    videoId: string,
+  ): Promise<string> {
+    return new Promise((resolve) => {
+      const video = document.createElement("video");
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
 
       video.onloadedmetadata = () => {
-        video.currentTime = Math.min(1, video.duration / 2); // 1 second or halfway
+        video.currentTime = Math.min(1, video.duration / 2);
       };
 
       video.onseeked = async () => {
         try {
-          canvas.width = video.videoWidth;
-          canvas.height = video.videoHeight;
+          canvas.width = video.videoWidth || 640;
+          canvas.height = video.videoHeight || 360;
           ctx?.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-          canvas.toBlob(async blob => {
-            if (!blob) {
-              reject(new Error('Failed to generate thumbnail'));
-              return;
-            }
+          canvas.toBlob(
+            async (blob) => {
+              URL.revokeObjectURL(video.src);
+              if (!blob) {
+                resolve("");
+                return;
+              }
 
-            const fileName = `thumbnails/${userId}/${videoId}/thumb.jpg`;
-            const { error } = await noopClient.storage
-              .from('user-content')
-              .upload(fileName, blob);
-
-            if (error) {
-              resolve('');
-              return;
-            }
-
-            const { data: { publicUrl } } = noopClient.storage
-              .from('user-content')
-              .getPublicUrl(fileName);
-
-            resolve(publicUrl);
-          }, 'image/jpeg', 0.85);
-        } catch (error) {
-          resolve('');
+              try {
+                const thumbPath = `thumbnails/${userId}/${videoId}/thumb.jpg`;
+                const { cdnUrl } = await bunnyUpload(
+                  blob,
+                  thumbPath,
+                  "image/jpeg",
+                );
+                resolve(cdnUrl);
+              } catch {
+                resolve("");
+              }
+            },
+            "image/jpeg",
+            0.85,
+          );
+        } catch {
+          URL.revokeObjectURL(video.src);
+          resolve("");
         }
       };
 
       video.onerror = () => {
-        resolve('');
+        if (video.src) URL.revokeObjectURL(video.src);
+        resolve(""); // Non-fatal — upload continues without thumbnail
       };
 
       video.src = URL.createObjectURL(file);
     });
-  }
-
-  /**
-   * Add hashtags to video
-   */
-  private async addHashtags(videoId: string, hashtags: string[]) {
-    // Clean and normalize hashtags
-    const cleanTags = [...new Set(hashtags.map(tag => tag.toLowerCase().replace(/[^a-z0-9_]/g, '')))].filter(t => t.length > 0);
-
-    for (const tag of cleanTags) {
-      let hashtagId: string | null = null;
-
-      // 1. Try to find existing hashtag
-      const { data: existingTag } = await noopClient
-        .from('hashtags')
-        .select('id, use_count')
-        .eq('tag', tag)
-        .single();
-
-      if (existingTag) {
-        hashtagId = existingTag.id;
-        // Increment use count
-        await noopClient
-            .from('hashtags')
-            .update({ use_count: (existingTag.use_count || 0) + 1 })
-            .eq('id', hashtagId);
-      } else {
-        // 2. Create new hashtag
-        const { data: newTag, error } = await noopClient
-          .from('hashtags')
-          .insert({ tag, use_count: 1 })
-          .select('id')
-          .single();
-        
-        if (newTag) {
-          hashtagId = newTag.id;
-        } else if (error) {
-             const { data: retryTag } = await noopClient.from('hashtags').select('id').eq('tag', tag).single();
-             if (retryTag) hashtagId = retryTag.id;
-        }
-      }
-
-      // 3. Link video to hashtag
-      if (hashtagId) {
-        await noopClient
-            .from('video_hashtags')
-            .insert({ video_id: videoId, hashtag_id: hashtagId });
-      }
-    }
   }
 }
 

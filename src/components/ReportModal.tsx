@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { AlertTriangle, Flag, Ban, EyeOff, MessageSquare, UserMinus } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { useVideoStore } from '../store/useVideoStore';
+import { apiUrl } from '../lib/api';
 import { noopClient } from '../lib/noopClient';
 import { showToast } from '../lib/toast';
 
@@ -130,8 +131,7 @@ export default function ReportModal({ isOpen, onClose, videoId, contentType, con
     };
 
     try {
-      const apiBase = import.meta.env.VITE_API_URL || '';
-      const res = await fetch(`${apiBase}/api/report`, {
+      const res = await fetch(apiUrl('/api/report'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -1,4 +1,6 @@
-import { noopClient } from './noopClient';
+import { bunnyUpload, bunnyDelete } from "./bunnyStorage";
+import { apiUrl } from "./api";
+import { useAuthStore } from "../store/useAuthStore";
 
 export interface AvatarUploadResult {
   success: boolean;
@@ -6,14 +8,25 @@ export interface AvatarUploadResult {
   error?: string;
 }
 
+// ── Auth helpers ─────────────────────────────────────────────────────────────
+
+function getAuthHeaders(): Record<string, string> {
+  const token = useAuthStore.getState().session?.access_token;
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  return headers;
+}
+
+// ── Service ──────────────────────────────────────────────────────────────────
+
 export class AvatarUploadService {
   /**
-   * Upload and process avatar image
+   * Upload and process avatar image.
+   * Uploads to Bunny CDN via Hetzner backend, then updates the profile.
    */
-  async uploadAvatar(
-    file: File,
-    userId: string
-  ): Promise<AvatarUploadResult> {
+  async uploadAvatar(file: File, userId: string): Promise<AvatarUploadResult> {
     try {
       // Validate file
       const validation = await this.validateImageFile(file);
@@ -21,284 +34,267 @@ export class AvatarUploadService {
         return { success: false, error: validation.error };
       }
 
-      // Process image (resize, compress)
+      // Resize / compress before uploading
       const processedFile = await this.processImage(file);
-      
-      // Generate unique file path
-      const fileExt = processedFile.name.split('.').pop() || 'jpg';
-      const fileName = `${userId}/${Date.now()}.${fileExt}`;
 
-      const { data, error: uploadError } = await noopClient.storage
-        .from('avatars')
-        .upload(fileName, processedFile, {
-          upsert: true,
-          contentType: processedFile.type,
-          cacheControl: '3600'
-        });
+      // Generate unique storage path: avatars/{userId}/{timestamp}.jpg
+      const storagePath = `avatars/${userId}/${Date.now()}.jpg`;
 
-      if (uploadError) {
-        throw new Error(`Upload failed: ${uploadError.message}`);
-      }
+      // Upload to Bunny CDN via Hetzner backend proxy
+      const { cdnUrl: publicUrl } = await bunnyUpload(
+        processedFile,
+        storagePath,
+        "image/jpeg",
+      );
 
-      // Get public URL
-      const { data: { publicUrl } } = noopClient.storage
-        .from('avatars')
-        .getPublicUrl(fileName);
+      // Update user profile with the new avatar URL (Hetzner backend)
+      const patchRes = await fetch(apiUrl(`/api/profiles/${userId}`), {
+        method: "PATCH",
+        headers: getAuthHeaders(),
+        credentials: "include",
+        body: JSON.stringify({ avatarUrl: publicUrl }),
+      });
 
-      // Update user profile
-      const { error: updateError } = await noopClient
-        .from('profiles')
-        .update({ avatar_url: publicUrl })
-        .eq('user_id', userId);
-
-      if (updateError) {
-        // Clean up uploaded file if profile update fails
-        await noopClient.storage
-          .from('avatars')
-          .remove([fileName]);
-        
-        throw new Error(`Profile update failed: ${updateError.message}`);
+      if (!patchRes.ok) {
+        // Upload succeeded but profile update failed — clean up the orphaned file
+        try {
+          await bunnyDelete(storagePath);
+        } catch {
+          // Best-effort cleanup
+        }
+        const errBody = (await patchRes.json().catch(() => ({}))) as {
+          error?: string;
+        };
+        throw new Error(
+          errBody.error ?? `Profile update failed (${patchRes.status})`,
+        );
       }
 
       return { success: true, publicUrl };
     } catch (error) {
-
-      return { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Upload failed' 
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Upload failed",
       };
     }
   }
 
   /**
-   * Remove avatar
+   * Remove the current avatar — deletes from Bunny CDN and clears the profile field.
    */
   async removeAvatar(userId: string): Promise<AvatarUploadResult> {
     try {
-      // Get current avatar URL
-      const { data: profile, error: fetchError } = await noopClient
-        .from('profiles')
-        .select('avatar_url')
-        .eq('user_id', userId)
-        .single();
+      // Fetch current avatar URL from backend
+      const profileRes = await fetch(apiUrl(`/api/profiles/${userId}`), {
+        headers: getAuthHeaders(),
+        credentials: "include",
+      });
 
-      if (fetchError) {
-        throw new Error(`Failed to fetch profile: ${fetchError.message}`);
+      if (!profileRes.ok) {
+        throw new Error(`Failed to fetch profile (${profileRes.status})`);
       }
 
-      // Remove from storage if URL exists
-      if (profile?.avatar_url) {
-        const filePath = this.extractFilePathFromUrl(profile.avatar_url);
-        if (filePath) {
-          const { error: deleteError } = await noopClient.storage
-            .from('avatars')
-            .remove([filePath]);
+      const { profile } = (await profileRes.json()) as {
+        profile?: { avatarUrl?: string };
+      };
 
-          if (deleteError) {
-
+      // Delete file from Bunny CDN if we can resolve the storage path
+      if (profile?.avatarUrl) {
+        const storagePath = this.extractStoragePathFromUrl(profile.avatarUrl);
+        if (storagePath) {
+          try {
+            await bunnyDelete(storagePath);
+          } catch {
+            // Non-fatal — proceed to clear the profile field
           }
         }
       }
 
-      // Update profile to remove avatar URL
-      const { error: updateError } = await noopClient
-        .from('profiles')
-        .update({ avatar_url: null })
-        .eq('user_id', userId);
+      // Clear avatar URL on the Hetzner backend
+      const patchRes = await fetch(apiUrl(`/api/profiles/${userId}`), {
+        method: "PATCH",
+        headers: getAuthHeaders(),
+        credentials: "include",
+        body: JSON.stringify({ avatarUrl: null }),
+      });
 
-      if (updateError) {
-        throw new Error(`Failed to update profile: ${updateError.message}`);
+      if (!patchRes.ok) {
+        const errBody = (await patchRes.json().catch(() => ({}))) as {
+          error?: string;
+        };
+        throw new Error(
+          errBody.error ?? `Failed to update profile (${patchRes.status})`,
+        );
       }
 
       return { success: true };
     } catch (error) {
-
-      return { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Removal failed' 
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Removal failed",
       };
     }
   }
 
-  /**
-   * Validate image file
-   */
-  private async validateImageFile(file: File): Promise<{ valid: boolean; error?: string }> {
-    // Check file type
-    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+  // ── Validation ─────────────────────────────────────────────────────────────
+
+  private async validateImageFile(
+    file: File,
+  ): Promise<{ valid: boolean; error?: string }> {
+    const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
     if (!allowedTypes.includes(file.type)) {
-      return { 
-        valid: false, 
-        error: 'Invalid file type. Please use JPG, PNG, or WebP.' 
+      return {
+        valid: false,
+        error: "Invalid file type. Please use JPG, PNG, or WebP.",
       };
     }
 
-    // Check file size (max 5MB)
-    const maxSize = 5 * 1024 * 1024; // 5MB
+    const maxSize = 5 * 1024 * 1024; // 5 MB
     if (file.size > maxSize) {
-      return { 
-        valid: false, 
-        error: 'File too large. Please use an image under 5MB.' 
+      return {
+        valid: false,
+        error: "File too large. Please use an image under 5 MB.",
       };
     }
 
-    // Check minimum dimensions
     return new Promise<{ valid: boolean; error?: string }>((resolve) => {
       const img = new Image();
+      const url = URL.createObjectURL(file);
+
       img.onload = () => {
-        URL.revokeObjectURL(img.src);
-        
+        URL.revokeObjectURL(url);
         if (img.width < 100 || img.height < 100) {
-          resolve({ 
-            valid: false, 
-            error: 'Image too small. Please use at least 100x100 pixels.' 
+          resolve({
+            valid: false,
+            error: "Image too small. Please use at least 100×100 pixels.",
           });
         } else {
           resolve({ valid: true });
         }
       };
-      
+
       img.onerror = () => {
-        URL.revokeObjectURL(img.src);
-        resolve({ 
-          valid: false, 
-          error: 'Invalid image file.' 
-        });
+        URL.revokeObjectURL(url);
+        resolve({ valid: false, error: "Invalid image file." });
       };
-      
-      img.src = URL.createObjectURL(file);
+
+      img.src = url;
     });
   }
 
-  /**
-   * Process image (resize and compress)
-   */
-  private async processImage(file: File): Promise<File> {
+  // ── Image processing ───────────────────────────────────────────────────────
+
+  private processImage(file: File): Promise<File> {
     return new Promise((resolve) => {
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
       const img = new Image();
+      const url = URL.createObjectURL(file);
 
       img.onload = () => {
-        URL.revokeObjectURL(img.src);
+        URL.revokeObjectURL(url);
 
-        // Calculate new dimensions (max 400x400, maintain aspect ratio)
+        // Crop / scale to max 400×400 while preserving aspect ratio
         const maxSize = 400;
         let { width, height } = img;
 
         if (width > height) {
           if (width > maxSize) {
-            height = (height * maxSize) / width;
+            height = Math.round((height * maxSize) / width);
             width = maxSize;
           }
         } else {
           if (height > maxSize) {
-            width = (width * maxSize) / height;
+            width = Math.round((width * maxSize) / height);
             height = maxSize;
           }
         }
 
-        // Set canvas dimensions
         canvas.width = width;
         canvas.height = height;
-
-        // Draw and resize image
         ctx?.drawImage(img, 0, 0, width, height);
 
-        // Convert to blob with compression
         canvas.toBlob(
           (blob) => {
             if (blob) {
-              const processedFile = new File([blob], file.name, {
-                type: 'image/jpeg',
-                lastModified: Date.now()
-              });
-              resolve(processedFile);
+              resolve(
+                new File([blob], "avatar.jpg", {
+                  type: "image/jpeg",
+                  lastModified: Date.now(),
+                }),
+              );
             } else {
-              resolve(file); // Fallback to original file
+              resolve(file); // Fallback to original
             }
           },
-          'image/jpeg',
-          0.8 // 80% quality
+          "image/jpeg",
+          0.82, // Good quality / size balance
         );
       };
 
       img.onerror = () => {
-        URL.revokeObjectURL(img.src);
-        resolve(file); // Fallback to original file
+        URL.revokeObjectURL(url);
+        resolve(file);
       };
 
-      img.src = URL.createObjectURL(file);
+      img.src = url;
     });
   }
 
+  // ── URL helpers ────────────────────────────────────────────────────────────
+
   /**
-   * Extract file path from storage URL
+   * Extract the Bunny storage path from a full CDN URL.
+   * e.g. "https://zone.b-cdn.net/avatars/userId/123.jpg" → "avatars/userId/123.jpg"
    */
-  private extractFilePathFromUrl(url: string): string | null {
+  private extractStoragePathFromUrl(url: string): string | null {
     try {
-      const urlObj = new URL(url);
-      const pathParts = urlObj.pathname.split('/');
-      
-      const bucketIndex = pathParts.findIndex(part => part === 'avatars');
-      if (bucketIndex !== -1 && pathParts.length > bucketIndex + 1) {
-        return pathParts.slice(bucketIndex + 1).join('/');
-      }
-      
-      return null;
+      const parsed = new URL(url);
+      // Strip leading slash
+      const path = parsed.pathname.replace(/^\//, "");
+      return path || null;
     } catch {
       return null;
     }
   }
 
   /**
-   * Get avatar URL with fallback
+   * Return a displayable avatar URL with a DiceBear fallback.
    */
-  getAvatarUrl(avatarUrl: string | null, userId?: string): string {
-    if (avatarUrl) {
-      return avatarUrl;
-    }
-    
-    // Generate a unique placeholder avatar
+  getAvatarUrl(avatarUrl: string | null | undefined, userId?: string): string {
+    if (avatarUrl) return avatarUrl;
     if (userId) {
-      return `https://api.dicebear.com/7.x/avataaars/svg?seed=${userId}`;
+      return `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(userId)}`;
     }
-    
-    return '/images/default-avatar.png';
+    return "/images/default-avatar.png";
   }
 
-  /**
-   * Check if avatar exists
-   */
+  /** Check that a URL is reachable (HEAD request). */
   async checkAvatarExists(avatarUrl: string): Promise<boolean> {
     try {
-      const response = await fetch(avatarUrl, { method: 'HEAD' });
-      return response.ok;
+      const res = await fetch(avatarUrl, { method: "HEAD" });
+      return res.ok;
     } catch {
       return false;
     }
   }
 
-  /**
-   * Generate avatar preview
-   */
+  /** Generate a base64 preview of a local File before uploading. */
   generatePreview(file: File): Promise<string> {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
-      
       reader.onload = (e) => {
         if (e.target?.result) {
           resolve(e.target.result as string);
         } else {
-          reject(new Error('Failed to read file'));
+          reject(new Error("Failed to read file"));
         }
       };
-      
-      reader.onerror = () => reject(new Error('Failed to read file'));
+      reader.onerror = () => reject(new Error("Failed to read file"));
       reader.readAsDataURL(file);
     });
   }
 }
 
-// Export singleton instance
+// Singleton instance
 export const avatarUploadService = new AvatarUploadService();

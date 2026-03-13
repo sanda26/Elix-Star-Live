@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
-import { Eye, EyeOff, Lock, Mail, Check } from 'lucide-react';
+import { Eye, EyeOff, Lock, Mail, Check, User } from 'lucide-react';
 
 export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { signInWithPassword, signInWithApple } = useAuthStore();
+  const { signInWithPassword, signInWithApple, signInAsGuest } = useAuthStore();
   
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -14,6 +14,7 @@ export default function Login() {
   const [saveDetails, setSaveDetails] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGuestLoading, setIsGuestLoading] = useState(false);
 
   const state = location.state as { from?: string } | null;
   const from = state?.from ?? '/';
@@ -183,6 +184,33 @@ export default function Login() {
             {isSubmitting ? 'Signing in...' : 'Sign in'}
           </button>
         </form>
+
+        {/* Guest login for quick access (local/testing) */}
+        <div className="mt-4 flex flex-col gap-2">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs text-white/40">Just want to look around?</span>
+          </div>
+          <button
+            type="button"
+            disabled={isSubmitting || isGuestLoading}
+            onClick={async () => {
+              if (isGuestLoading) return;
+              setError(null);
+              setIsGuestLoading(true);
+              const res = await signInAsGuest();
+              if (res.error) {
+                setError(res.error);
+                setIsGuestLoading(false);
+                return;
+              }
+              navigate(from, { replace: true });
+            }}
+            className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-white/8 hover:bg-white/15 text-white text-sm font-semibold py-2.5 border border-white/15 disabled:opacity-60 disabled:cursor-not-allowed transition"
+          >
+            <User className="w-4 h-4" />
+            {isGuestLoading ? 'Signing in as guest…' : 'Continue as guest'}
+          </button>
+        </div>
 
         <div className="relative my-5 flex items-center">
           <div className="flex-1 border-t border-white/10" />

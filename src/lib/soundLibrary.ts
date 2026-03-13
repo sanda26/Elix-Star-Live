@@ -1,4 +1,4 @@
-import { noopClient } from './noopClient';
+import { apiUrl } from "./api";
 
 export type SoundTrack = {
   id: number;
@@ -12,23 +12,22 @@ export type SoundTrack = {
   clipEndSeconds: number;
 };
 
-// Fetch sound tracks from database - NO HARDCODED DATA
+// Fetch sound tracks from Hetzner backend — no hardcoded data, no dead stubs
 export async function fetchSoundTracksFromDatabase(): Promise<SoundTrack[]> {
   try {
-    const { data: soundData, error } = await noopClient
-      .from('sound_library')
-      .select('*')
-      .eq('is_active', true)
-      .order('title', { ascending: true });
+    const res = await fetch(apiUrl("/api/sounds"), {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+    });
 
-    if (error) {
-
+    if (!res.ok) {
       return [];
     }
 
-    return soundData || [];
-  } catch (err) {
-
+    const data = (await res.json()) as { tracks?: SoundTrack[] };
+    return data.tracks ?? [];
+  } catch {
     return [];
   }
 }
@@ -36,12 +35,12 @@ export async function fetchSoundTracksFromDatabase(): Promise<SoundTrack[]> {
 // Default empty track for when no music is selected
 export const EMPTY_TRACK: SoundTrack = {
   id: 0,
-  title: 'No Music',
-  artist: '-',
-  duration: '0:00',
-  url: '',
-  license: '-',
-  source: 'Local',
+  title: "No Music",
+  artist: "-",
+  duration: "0:00",
+  url: "",
+  license: "-",
+  source: "Local",
   clipStartSeconds: 0,
-  clipEndSeconds: 0
+  clipEndSeconds: 0,
 };

@@ -1,8 +1,14 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import LivePreviewCard from '../components/LivePreviewCard';
-import EnhancedVideoPlayer from '../components/EnhancedVideoPlayer';
-import { useVideoStore } from '../store/useVideoStore';
+import React, { useEffect, useRef, useState, useCallback } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import LivePreviewCard from "../components/LivePreviewCard";
+import EnhancedVideoPlayer from "../components/EnhancedVideoPlayer";
+import { useVideoStore } from "../store/useVideoStore";
+import { useAuthStore } from "../store/useAuthStore";
+import { apiUrl, getWsUrl } from "../lib/api";
+
+/* ------------------------------------------------------------------ */
+/*  Types                                                              */
+/* ------------------------------------------------------------------ */
 
 type LiveStreamCard = {
   streamKey: string;
@@ -11,11 +17,142 @@ type LiveStreamCard = {
   viewers: number;
   title?: string;
   thumbnail?: string;
+  userId?: string;
 };
 
+interface RawStream {
+  stream_key?: string;
+  room_id?: string;
+  id?: string;
+  user_id?: string;
+  title?: string;
+  viewer_count?: number;
+}
+
 type FeedItem =
-  | { kind: 'live'; stream: LiveStreamCard }
-  | { kind: 'video'; videoId: string };
+  | { kind: "live"; stream: LiveStreamCard }
+  | { kind: "video"; videoId: string };
+
+/* When a live item is focused in For You, immediately join the live room */
+function AutoJoinLiveSlide({
+  streamKey,
+  index,
+  activeIndex,
+}: {
+  streamKey: string;
+  index: number;
+  activeIndex: number;
+}) {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (activeIndex === index && streamKey) {
+      navigate(`/watch/${streamKey}`, { replace: false });
+    }
+  }, [activeIndex, index, navigate, streamKey]);
+
+  return null;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Lightweight per-room WebSocket monitor                             */
+/*  Opens a subscribe-only WS to each active room so we receive       */
+/*  "stream_ended" the instant the host disconnects — no polling lag.  */
+/* ------------------------------------------------------------------ */
+
+class RoomMonitor {
+  private sockets = new Map<string, WebSocket>();
+  private onStreamEnded: (streamKey: string) => void;
+  private token: string;
+
+  constructor(token: string, onStreamEnded: (streamKey: string) => void) {
+    this.token = token;
+    this.onStreamEnded = onStreamEnded;
+  }
+
+  /** Reconcile: open sockets for new rooms, close sockets for removed rooms */
+  sync(activeKeys: string[]) {
+    const desired = new Set(activeKeys);
+
+    // Close sockets for rooms no longer active
+    for (const [key, ws] of this.sockets) {
+      if (!desired.has(key)) {
+        try {
+          ws.close();
+        } catch {
+          /* ignore */
+        }
+        this.sockets.delete(key);
+      }
+    }
+
+    // Open sockets for new rooms
+    for (const key of activeKeys) {
+      if (this.sockets.has(key)) continue;
+      this.openSocket(key);
+    }
+  }
+
+  private openSocket(roomKey: string) {
+    if (!this.token) return;
+    try {
+      const wsUrl = getWsUrl();
+      const ws = new WebSocket(
+        `${wsUrl}/live/${roomKey}?token=${encodeURIComponent(this.token)}`,
+      );
+
+      ws.onmessage = (evt) => {
+        try {
+          const msg = JSON.parse(evt.data);
+          if (msg.event === "stream_ended") {
+            this.onStreamEnded(msg.data?.stream_key || roomKey);
+          }
+        } catch {
+          /* malformed frame */
+        }
+      };
+
+      ws.onerror = () => {
+        /* silent */
+      };
+
+      ws.onclose = () => {
+        // Only delete if this exact socket is still the one we're tracking
+        if (this.sockets.get(roomKey) === ws) {
+          this.sockets.delete(roomKey);
+        }
+      };
+
+      // Send keepalive to prevent server-side timeout
+      const keepAlive = setInterval(() => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send("ping");
+        } else {
+          clearInterval(keepAlive);
+        }
+      }, 25_000);
+
+      this.sockets.set(roomKey, ws);
+    } catch {
+      /* connection failed — polling is still the fallback */
+    }
+  }
+
+  destroy() {
+    for (const [, ws] of this.sockets) {
+      try {
+        ws.close();
+      } catch {
+        /* ignore */
+      }
+    }
+    this.sockets.clear();
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/*  Component                                                          */
+/* ------------------------------------------------------------------ */
 
 export default function VideoFeed() {
   const location = useLocation();
@@ -25,28 +162,29 @@ export default function VideoFeed() {
   const [liveStreams, setLiveStreams] = useState<LiveStreamCard[]>([]);
   const [liveLoading, setLiveLoading] = useState(true);
   const removedKeysRef = useRef<Set<string>>(new Set());
+  const monitorRef = useRef<RoomMonitor | null>(null);
+
+  const session = useAuthStore((s) => s.session);
+  const token = session?.access_token || "";
 
   const { videos, fetchVideos, loading: videosLoading } = useVideoStore();
 
+  /* ---- Remove a live stream instantly ---- */
   const removeLiveStream = useCallback((streamKey: string) => {
     removedKeysRef.current.add(streamKey);
-    setLiveStreams(prev => prev.filter(s => s.streamKey !== streamKey));
-    setTimeout(() => removedKeysRef.current.delete(streamKey), 15000);
+    setLiveStreams((prev) => prev.filter((s) => s.streamKey !== streamKey));
+    // Keep it suppressed for 20s so polling doesn't re-add a stale entry
+    setTimeout(() => removedKeysRef.current.delete(streamKey), 20_000);
   }, []);
 
+  /* ---- Fetch live streams from REST ---- */
   const fetchLiveStreams = useCallback(async () => {
-    setLiveLoading(true);
     try {
-      const runtimeEnv = (window as any).__ENV as Record<string, string> | undefined;
-      const envBase = (import.meta.env.VITE_API_URL ?? runtimeEnv?.VITE_API_URL ?? '').toString().trim();
-      const url = envBase
-        ? `${envBase.replace(/\/$/, '')}/api/live/streams`
-        : '/api/live/streams';
-
+      const url = apiUrl("/api/live/streams");
       const res = await fetch(url, {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
       });
 
       if (!res.ok) {
@@ -55,8 +193,12 @@ export default function VideoFeed() {
         return;
       }
 
-      const body = await res.json().catch(() => ({ streams: [] as any[] }));
-      const streams = Array.isArray(body.streams) ? body.streams as any[] : [];
+      const body = await res
+        .json()
+        .catch(() => ({ streams: [] as RawStream[] }));
+      const streams: RawStream[] = Array.isArray(body.streams)
+        ? (body.streams as RawStream[])
+        : [];
 
       if (streams.length === 0) {
         setLiveStreams([]);
@@ -65,59 +207,83 @@ export default function VideoFeed() {
       }
 
       const removed = removedKeysRef.current;
-      setLiveStreams(
-        streams
-          .filter((s: any) => {
-            const key = s.stream_key || s.room_id || s.id;
-            return key && !removed.has(key);
-          })
-          .map((s: any) => {
-            const key = s.stream_key || s.room_id || s.id;
-            const userId = s.user_id || '';
-            const label = userId ? String(userId).slice(0, 8) : 'Creator';
-            return {
-              streamKey: key,
-              name: s.title || label,
-              avatar: userId ? `https://ui-avatars.com/api/?name=${encodeURIComponent(label)}&background=121212&color=C9A96E` : '',
-              viewers: Number(s.viewer_count ?? 0),
-              title: s.title || undefined,
-              thumbnail: '',
-            } as LiveStreamCard;
-          })
-      );
+      const mapped: LiveStreamCard[] = streams
+        .filter((s: RawStream) => {
+          const key = s.stream_key || s.room_id || s.id;
+          return key && !removed.has(key);
+        })
+        .map((s: RawStream) => {
+          const key = s.stream_key || s.room_id || s.id;
+          const userId = s.user_id || "";
+          const label = userId ? String(userId).slice(0, 8) : "Creator";
+          return {
+            streamKey: key,
+            name: s.title || label,
+            avatar: userId
+              ? `https://ui-avatars.com/api/?name=${encodeURIComponent(label)}&background=121212&color=C9A96E`
+              : "",
+            viewers: Number(s.viewer_count ?? 0),
+            title: s.title || undefined,
+            thumbnail: "",
+            userId,
+          } as LiveStreamCard;
+        });
+
+      setLiveStreams(mapped);
+
+      // Sync the room monitor so we get real-time stream_ended for every active room
+      if (monitorRef.current) {
+        monitorRef.current.sync(mapped.map((s) => s.streamKey));
+      }
     } catch {
       setLiveStreams([]);
     }
     setLiveLoading(false);
   }, []);
 
+  /* ---- Bootstrap: polling + WebSocket monitor ---- */
   useEffect(() => {
+    // Initial loads
+    setLiveLoading(true);
     fetchLiveStreams();
     fetchVideos();
 
-    const poll = setInterval(fetchLiveStreams, 5000);
+    // Poll every 3 seconds for fast discovery of NEW streams
+    const poll = setInterval(fetchLiveStreams, 3_000);
+
+    // Create room monitor for instant stream_ended detection
+    if (token) {
+      monitorRef.current = new RoomMonitor(token, (endedKey) => {
+        removeLiveStream(endedKey);
+      });
+    }
 
     return () => {
       clearInterval(poll);
+      monitorRef.current?.destroy();
+      monitorRef.current = null;
     };
-  }, [fetchLiveStreams, fetchVideos, removeLiveStream]);
+  }, [fetchLiveStreams, fetchVideos, removeLiveStream, token]);
 
+  /* ---- Re-fetch when navigating back to /feed ---- */
   useEffect(() => {
-    if (location.pathname === '/feed') {
+    if (location.pathname === "/feed") {
       setActiveIndex(0);
       fetchLiveStreams();
       fetchVideos();
       setTimeout(() => {
-        containerRef.current?.scrollTo({ top: 0, behavior: 'auto' });
+        containerRef.current?.scrollTo({ top: 0, behavior: "auto" });
       }, 0);
     }
   }, [location.pathname, fetchLiveStreams, fetchVideos]);
 
+  /* ---- Build unified feed: live streams first, then videos ---- */
   const feedItems: FeedItem[] = [
-    ...liveStreams.map((stream): FeedItem => ({ kind: 'live', stream })),
-    ...videos.map((v): FeedItem => ({ kind: 'video', videoId: v.id })),
+    ...liveStreams.map((stream): FeedItem => ({ kind: "live", stream })),
+    ...videos.map((v): FeedItem => ({ kind: "video", videoId: v.id })),
   ];
 
+  /* ---- Scroll handling ---- */
   const handleScroll = () => {
     if (!containerRef.current) return;
     const container = containerRef.current;
@@ -131,10 +297,11 @@ export default function VideoFeed() {
     if (!containerRef.current || index >= feedItems.length - 1) return;
     containerRef.current.scrollTo({
       top: (index + 1) * containerRef.current.clientHeight,
-      behavior: 'smooth',
+      behavior: "smooth",
     });
   };
 
+  /* ---- Keep activeIndex in bounds when items are removed ---- */
   const prevCountRef = useRef(feedItems.length);
   useEffect(() => {
     const prev = prevCountRef.current;
@@ -144,55 +311,119 @@ export default function VideoFeed() {
       setActiveIndex(cur - 1);
       containerRef.current?.scrollTo({
         top: (cur - 1) * (containerRef.current?.clientHeight || 0),
-        behavior: 'smooth',
+        behavior: "smooth",
       });
     }
   }, [feedItems.length, activeIndex]);
 
   const loading = liveLoading && videosLoading;
 
+  /* ================================================================ */
+  /*  Render                                                           */
+  /* ================================================================ */
   return (
     <div
       ref={containerRef}
       className="h-[100dvh] w-full overflow-y-scroll snap-y snap-mandatory relative bg-[#0A0B0E]"
-      style={{ scrollSnapType: 'y mandatory' }}
+      style={{ scrollSnapType: "y mandatory" }}
       onScroll={handleScroll}
     >
-      {/* Top Navigation Bar */}
-      <div className="fixed left-0 right-0 z-[9999] flex justify-center pointer-events-none"
-           style={{ top: 'calc(var(--safe-top) + 2px)' }}>
+      {/* ---- Top Navigation Bar ---- */}
+      <div
+        className="fixed left-0 right-0 z-[9999] flex justify-center pointer-events-none"
+        style={{ top: "calc(var(--safe-top) + 2px)" }}
+      >
         <div className="w-full max-w-[480px] relative px-2">
-          <div className="absolute inset-x-4 top-1/2 -translate-y-1/2 h-[200%] rounded-full pointer-events-none" style={{ background: 'radial-gradient(ellipse at center, rgba(201,169,110,0.15) 0%, rgba(201,169,110,0.05) 40%, transparent 70%)' }} />
+          <div
+            className="absolute inset-x-4 top-1/2 -translate-y-1/2 h-[200%] rounded-full pointer-events-none"
+            style={{
+              background:
+                "radial-gradient(ellipse at center, rgba(201,169,110,0.15) 0%, rgba(201,169,110,0.05) 40%, transparent 70%)",
+            }}
+          />
           <div className="relative w-full">
             <img
-              src="/Icons/Top Bar.png"
+              src="/Icons/topbar.png"
               alt="Navigation"
               className="w-full h-auto pointer-events-none"
-              style={{ filter: 'drop-shadow(0 0 20px rgba(201,169,110,0.4)) drop-shadow(0 4px 30px rgba(201,169,110,0.2)) drop-shadow(0 2px 8px rgba(0,0,0,0.6))' }}
+              style={{
+                filter:
+                  "drop-shadow(0 0 20px rgba(201,169,110,0.4)) drop-shadow(0 4px 30px rgba(201,169,110,0.2)) drop-shadow(0 2px 8px rgba(0,0,0,0.6))",
+              }}
             />
             <div className="absolute inset-0 flex items-center pointer-events-auto z-10">
-              <button type="button" onClick={() => navigate('/live', { replace: true })} className="h-full w-full bg-transparent border-0 p-0 m-0 cursor-pointer" style={{ width: '13%', minWidth: 0 }} title="Live" />
-              <button type="button" onClick={() => navigate('/stem')} className="h-full w-full bg-transparent border-0 p-0 m-0 cursor-pointer" style={{ width: '12%', minWidth: 0 }} title="STEM" />
-              <button type="button" onClick={() => navigate('/discover')} className="h-full w-full bg-transparent border-0 p-0 m-0 cursor-pointer" style={{ width: '15%', minWidth: 0 }} title="Explore" />
-              <button type="button" onClick={() => navigate('/following')} className="h-full w-full bg-transparent border-0 p-0 m-0 cursor-pointer" style={{ width: '18%', minWidth: 0 }} title="Following" />
-              <button type="button" onClick={() => navigate('/shop')} className="h-full w-full bg-transparent border-0 p-0 m-0 cursor-pointer" style={{ width: '12%', minWidth: 0 }} title="Shop" />
-              <button type="button" onClick={() => navigate('/feed', { replace: true })} className="h-full w-full bg-transparent border-0 p-0 m-0 cursor-pointer" style={{ width: '15%', minWidth: 0 }} title="For You" />
-              <button type="button" onClick={() => navigate('/search')} className="h-full w-full bg-transparent border-0 p-0 m-0 cursor-pointer" style={{ width: '15%', minWidth: 0 }} title="Search" />
+              <button
+                type="button"
+                onClick={() => navigate("/live", { replace: true })}
+                className="h-full w-full bg-transparent border-0 p-0 m-0 cursor-pointer"
+                style={{ width: "13%", minWidth: 0 }}
+                title="Live"
+              />
+              <button
+                type="button"
+                onClick={() => navigate("/stem")}
+                className="h-full w-full bg-transparent border-0 p-0 m-0 cursor-pointer"
+                style={{ width: "12%", minWidth: 0 }}
+                title="STEM"
+              />
+              <button
+                type="button"
+                onClick={() => navigate("/discover")}
+                className="h-full w-full bg-transparent border-0 p-0 m-0 cursor-pointer"
+                style={{ width: "15%", minWidth: 0 }}
+                title="Explore"
+              />
+              <button
+                type="button"
+                onClick={() => navigate("/following")}
+                className="h-full w-full bg-transparent border-0 p-0 m-0 cursor-pointer"
+                style={{ width: "18%", minWidth: 0 }}
+                title="Following"
+              />
+              <button
+                type="button"
+                onClick={() => navigate("/shop")}
+                className="h-full w-full bg-transparent border-0 p-0 m-0 cursor-pointer"
+                style={{ width: "12%", minWidth: 0 }}
+                title="Shop"
+              />
+              <button
+                type="button"
+                onClick={() => navigate("/feed", { replace: true })}
+                className="h-full w-full bg-transparent border-0 p-0 m-0 cursor-pointer"
+                style={{ width: "15%", minWidth: 0 }}
+                title="For You"
+              />
+              <button
+                type="button"
+                onClick={() => navigate("/search")}
+                className="h-full w-full bg-transparent border-0 p-0 m-0 cursor-pointer"
+                style={{ width: "15%", minWidth: 0 }}
+                title="Search"
+              />
             </div>
           </div>
         </div>
       </div>
 
-      {/* Feed items: live streams first, then videos */}
+      {/* ============================================================ */}
+      {/*  Feed items: live streams first, then videos                  */}
+      {/* ============================================================ */}
       {feedItems.map((item, index) => {
-        if (item.kind === 'live') {
+        if (item.kind === "live") {
           return (
             <div
               key={`live-${item.stream.streamKey}`}
               className="h-[100dvh] w-full snap-start relative flex justify-center bg-[#0A0B0E]"
-              style={{ scrollSnapAlign: 'start', scrollSnapStop: 'always' }}
+              style={{ scrollSnapAlign: "start", scrollSnapStop: "always" }}
             >
-              <div className="w-full max-w-[480px] h-full relative">
+              {/* As soon as this slide is focused, jump straight into the live room */}
+              <AutoJoinLiveSlide
+                streamKey={item.stream.streamKey}
+                index={index}
+                activeIndex={activeIndex}
+              />
+              <div className="w-full max-w-[480px] h-full relative flex items-center justify-center">
                 <LivePreviewCard
                   streamKey={item.stream.streamKey}
                   name={item.stream.name}
@@ -211,7 +442,7 @@ export default function VideoFeed() {
           <div
             key={`video-${item.videoId}-${index}`}
             className="h-[100dvh] w-full snap-start relative flex justify-center bg-[#0A0B0E]"
-            style={{ scrollSnapAlign: 'start', scrollSnapStop: 'always' }}
+            style={{ scrollSnapAlign: "start", scrollSnapStop: "always" }}
           >
             <div className="w-full max-w-[480px] h-full relative">
               <EnhancedVideoPlayer
@@ -224,21 +455,28 @@ export default function VideoFeed() {
         );
       })}
 
+      {/* ---- Loading spinner ---- */}
       {loading && feedItems.length === 0 && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <div className="w-8 h-8 border-2 border-[#C9A96E] border-t-transparent rounded-full animate-spin" />
         </div>
       )}
 
+      {/* ---- Empty state ---- */}
       {!loading && feedItems.length === 0 && (
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
           <div className="w-20 h-20 rounded-full bg-[#13151A] border border-white/10 flex items-center justify-center mb-4">
             <span className="text-3xl">📡</span>
           </div>
-          <p className="text-white/60 font-semibold text-base mb-1">Nothing here yet</p>
+          <p className="text-white/60 font-semibold text-base mb-1">
+            Nothing here yet
+          </p>
           <p className="text-white/30 text-sm mb-4">Check back soon!</p>
           <button
-            onClick={() => { fetchLiveStreams(); fetchVideos(); }}
+            onClick={() => {
+              fetchLiveStreams();
+              fetchVideos();
+            }}
             className="px-5 py-2 bg-[#C9A96E]/20 border border-[#C9A96E]/40 rounded-full text-[#C9A96E] text-sm font-bold pointer-events-auto active:scale-95 transition-transform"
           >
             Refresh

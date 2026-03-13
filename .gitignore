@@ -69,6 +69,7 @@ server/**/*.js.map
 # IDE files
 .vscode/
 .idea/
+.zed/
 *.swp
 *.swo
 

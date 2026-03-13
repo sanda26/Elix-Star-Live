@@ -1,4 +1,13 @@
-import { noopClient } from './noopClient';
+/**
+ * Push Notification Service — Hetzner backend.
+ *
+ * Device token registration and push subscription management now goes through
+ * the Hetzner Node/Fastify backend (POST /api/device-tokens).
+ * No Supabase / Appwrite / any third-party DB required.
+ */
+
+import { apiUrl } from "./api";
+import { useAuthStore } from "../store/useAuthStore";
 
 export interface PushNotification {
   id: string;
@@ -23,9 +32,26 @@ export interface DeviceToken {
   id: string;
   userId: string;
   token: string;
-  platform: 'web' | 'ios' | 'android';
+  platform: "web" | "ios" | "android";
   createdAt: string;
 }
+
+// ── Auth helpers ─────────────────────────────────────────────────────────────
+
+function getAuthHeaders(): Record<string, string> {
+  const token = useAuthStore.getState().session?.access_token;
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  return headers;
+}
+
+function getCurrentUserId(): string | null {
+  return useAuthStore.getState().user?.id ?? null;
+}
+
+// ── Service ──────────────────────────────────────────────────────────────────
 
 export class PushNotificationService {
   private isSupported: boolean = false;
@@ -36,21 +62,21 @@ export class PushNotificationService {
   }
 
   private checkSupport(): void {
-    this.isSupported = 'serviceWorker' in navigator && 'PushManager' in window;
+    this.isSupported =
+      typeof window !== "undefined" &&
+      "serviceWorker" in navigator &&
+      "PushManager" in window;
   }
 
   /**
-   * Request permission for push notifications
+   * Request permission for push notifications and subscribe if granted.
    */
   async requestPermission(): Promise<NotificationPermission> {
-    if (!this.isSupported) {
-      return 'denied';
-    }
+    if (!this.isSupported) return "denied";
 
-    // Request notification permission
     const permission = await Notification.requestPermission();
-    
-    if (permission === 'granted') {
+
+    if (permission === "granted") {
       await this.subscribeToPush();
     }
 
@@ -58,112 +84,117 @@ export class PushNotificationService {
   }
 
   /**
-   * Subscribe to push notifications
+   * Subscribe to the browser push manager and save the subscription on
+   * the Hetzner backend.
    */
   private async subscribeToPush(): Promise<void> {
     if (!this.isSupported) {
-      throw new Error('Push notifications not supported');
+      throw new Error("Push notifications not supported in this browser");
     }
 
     try {
-      // Register service worker
       const registration = await navigator.serviceWorker.ready;
-      
-      // Subscribe to push
+
+      const vapidKey = (import.meta.env.VITE_VAPID_PUBLIC_KEY ?? "")
+        .toString()
+        .trim();
+
+      if (!vapidKey) {
+        console.warn(
+          "[PushNotificationService] VITE_VAPID_PUBLIC_KEY not set — skipping push subscription",
+        );
+        return;
+      }
+
       this.subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: this.urlBase64ToUint8Array(
-          import.meta.env.VITE_VAPID_PUBLIC_KEY || ''
-        ),
+        applicationServerKey: this.urlBase64ToUint8Array(vapidKey),
       });
 
-      // Save subscription to backend
       await this.saveSubscriptionToBackend();
     } catch (error) {
-
+      console.error("[PushNotificationService] Subscribe failed:", error);
       throw error;
     }
   }
 
   /**
-   * Save push subscription to backend
+   * Save the Web Push subscription to the Hetzner backend
+   * (POST /api/device-tokens).
    */
   private async saveSubscriptionToBackend(): Promise<void> {
     if (!this.subscription) {
-      throw new Error('No subscription to save');
+      throw new Error("No push subscription to save");
     }
 
-    const { data: { user } } = await noopClient.auth.getUser();
-    if (!user) {
-      throw new Error('User not authenticated');
+    const userId = getCurrentUserId();
+    if (!userId) {
+      throw new Error("User not authenticated — cannot register push token");
     }
 
-    const subscriptionData = {
-      user_id: user.id,
-      token: JSON.stringify(this.subscription),
-      platform: 'web' as const,
-    };
+    const res = await fetch(apiUrl("/api/device-tokens"), {
+      method: "POST",
+      headers: getAuthHeaders(),
+      credentials: "include",
+      body: JSON.stringify({
+        userId,
+        token: JSON.stringify(this.subscription),
+        platform: "web",
+      }),
+    });
 
-    const { error } = await noopClient
-      .from('device_tokens')
-      .upsert(subscriptionData, {
-        onConflict: 'user_id,platform'
-      });
-
-    if (error) {
-
-      throw error;
+    if (!res.ok) {
+      const err = (await res.json().catch(() => ({}))) as { error?: string };
+      throw new Error(
+        err.error ?? `Failed to register push token (${res.status})`,
+      );
     }
   }
 
   /**
-   * Send push notification (server-side)
+   * Send a push notification via the Hetzner backend
+   * (POST /api/notifications/send).
    */
   async sendNotification(notification: PushNotification): Promise<boolean> {
     try {
-      const { error } = await noopClient.functions.invoke('send-push-notification', {
-        body: notification
+      const res = await fetch(apiUrl("/api/notifications/send"), {
+        method: "POST",
+        headers: getAuthHeaders(),
+        credentials: "include",
+        body: JSON.stringify(notification),
       });
 
-      if (error) {
-
-        return false;
-      }
-
-      return true;
+      return res.ok;
     } catch (error) {
-
+      console.error(
+        "[PushNotificationService] sendNotification failed:",
+        error,
+      );
       return false;
     }
   }
 
   /**
-   * Show local notification (fallback)
+   * Show a local (in-browser) notification as a fallback.
    */
   showLocalNotification(notification: PushNotification): void {
-    if (!('Notification' in window)) {
+    if (!("Notification" in window) || Notification.permission !== "granted") {
       return;
     }
 
-    const notificationOptions: NotificationOptions = {
+    const options: NotificationOptions = {
       body: notification.body,
-      icon: notification.icon || '/icon-192x192.png',
-      badge: notification.badge || '/icon-192x192.png',
+      icon: notification.icon || "/icon-192x192.png",
+      badge: notification.badge || "/icon-192x192.png",
       tag: notification.tag,
       requireInteraction: notification.requireInteraction,
       data: notification.data,
     };
 
-    if (notification.actions && notification.actions.length > 0) {
-      // notificationOptions.actions = notification.actions; // Actions not supported in basic NotificationOptions
-    }
+    const notif = new Notification(notification.title, options);
 
-    const notif = new Notification(notification.title, notificationOptions);
-
-    // Handle notification clicks
     notif.onclick = () => {
       notif.close();
-      // Handle navigation based on notification data
       if (notification.data?.url) {
         window.location.href = notification.data.url;
       }
@@ -171,13 +202,142 @@ export class PushNotificationService {
   }
 
   /**
-   * Convert VAPID key to Uint8Array
+   * Get current push subscription status.
    */
+  async getSubscriptionStatus(): Promise<{
+    isSupported: boolean;
+    isSubscribed: boolean;
+    permission: NotificationPermission;
+  }> {
+    return {
+      isSupported: this.isSupported,
+      isSubscribed: !!this.subscription,
+      permission:
+        typeof Notification !== "undefined"
+          ? Notification.permission
+          : "denied",
+    };
+  }
+
+  /**
+   * Unsubscribe from push notifications and remove the token from the
+   * Hetzner backend (DELETE /api/device-tokens).
+   */
+  async unsubscribe(): Promise<void> {
+    if (this.subscription) {
+      await this.subscription.unsubscribe();
+      this.subscription = null;
+
+      const userId = getCurrentUserId();
+      if (userId) {
+        try {
+          await fetch(apiUrl("/api/device-tokens"), {
+            method: "DELETE",
+            headers: getAuthHeaders(),
+            credentials: "include",
+            body: JSON.stringify({ userId, platform: "web" }),
+          });
+        } catch {
+          // Non-fatal — token will expire naturally
+        }
+      }
+    }
+  }
+
+  // ── Notification factory helpers ─────────────────────────────────────────
+
+  createFollowNotification(
+    followerName: string,
+    followerId: string,
+  ): PushNotification {
+    return {
+      id: `follow_${followerId}_${Date.now()}`,
+      userId: followerId,
+      title: "New Follower!",
+      body: `${followerName} started following you`,
+      icon: "/icon-192x192.png",
+      tag: "follow",
+      data: {
+        type: "follow",
+        followerId,
+        url: `/profile/${followerId}`,
+      },
+    };
+  }
+
+  createLikeNotification(
+    videoTitle: string,
+    likerName: string,
+    videoId: string,
+  ): PushNotification {
+    return {
+      id: `like_${videoId}_${Date.now()}`,
+      userId: "",
+      title: "New Like!",
+      body: `${likerName} liked your video "${videoTitle}"`,
+      icon: "/icon-192x192.png",
+      tag: "like",
+      data: {
+        type: "like",
+        videoId,
+        url: `/video/${videoId}`,
+      },
+    };
+  }
+
+  createCommentNotification(
+    commentText: string,
+    commenterName: string,
+    videoId: string,
+  ): PushNotification {
+    const preview =
+      commentText.length > 50
+        ? `${commentText.substring(0, 50)}…`
+        : commentText;
+    return {
+      id: `comment_${videoId}_${Date.now()}`,
+      userId: "",
+      title: "New Comment!",
+      body: `${commenterName} commented: "${preview}"`,
+      icon: "/icon-192x192.png",
+      tag: "comment",
+      data: {
+        type: "comment",
+        videoId,
+        url: `/video/${videoId}`,
+      },
+    };
+  }
+
+  createGiftNotification(
+    giftName: string,
+    senderName: string,
+    amount: number,
+  ): PushNotification {
+    return {
+      id: `gift_${Date.now()}`,
+      userId: "",
+      title: "Gift Received!",
+      body: `${senderName} sent you ${amount} coins with a ${giftName}!`,
+      icon: "/icon-192x192.png",
+      tag: "gift",
+      requireInteraction: true,
+      data: {
+        type: "gift",
+        amount,
+        url: "/live",
+      },
+    };
+  }
+
+  // ── Utility ──────────────────────────────────────────────────────────────
+
+  /** Convert a VAPID base64url key to a Uint8Array for the push manager. */
   private urlBase64ToUint8Array(base64String: string): Uint8Array {
-    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
     const base64 = (base64String + padding)
-      .replace(/-/g, '+')
-      .replace(/_/g, '/');
+      .replace(/-/g, "+")
+      .replace(/_/g, "/");
 
     const rawData = window.atob(base64);
     const outputArray = new Uint8Array(rawData.length);
@@ -188,112 +348,7 @@ export class PushNotificationService {
 
     return outputArray;
   }
-
-  /**
-   * Get current subscription status
-   */
-  async getSubscriptionStatus(): Promise<{
-    isSupported: boolean;
-    isSubscribed: boolean;
-    permission: NotificationPermission;
-  }> {
-    const permission = Notification.permission;
-    
-    return {
-      isSupported: this.isSupported,
-      isSubscribed: !!this.subscription,
-      permission,
-    };
-  }
-
-  /**
-   * Unsubscribe from push notifications
-   */
-  async unsubscribe(): Promise<void> {
-    if (this.subscription) {
-      await this.subscription.unsubscribe();
-      this.subscription = null;
-
-      // Remove from backend
-      const { data: { user } } = await noopClient.auth.getUser();
-      if (user) {
-        await noopClient
-          .from('device_tokens')
-          .delete()
-          .eq('user_id', user.id)
-          .eq('platform', 'web');
-      }
-    }
-  }
-
-  /**
-   * Create notification for different types
-   */
-  createFollowNotification(followerName: string, followerId: string): PushNotification {
-    return {
-      id: `follow_${followerId}_${Date.now()}`,
-      userId: followerId,
-      title: 'New Follower!',
-      body: `${followerName} started following you`,
-      icon: '/icon-192x192.png',
-      tag: 'follow',
-      data: {
-        type: 'follow',
-        followerId,
-        url: `/profile/${followerId}`
-      }
-    };
-  }
-
-  createLikeNotification(videoTitle: string, likerName: string, videoId: string): PushNotification {
-    return {
-      id: `like_${videoId}_${Date.now()}`,
-      userId: '', // Will be set by server
-      title: 'New Like!',
-      body: `${likerName} liked your video "${videoTitle}"`,
-      icon: '/icon-192x192.png',
-      tag: 'like',
-      data: {
-        type: 'like',
-        videoId,
-        url: `/video/${videoId}`
-      }
-    };
-  }
-
-  createCommentNotification(commentText: string, commenterName: string, videoId: string): PushNotification {
-    return {
-      id: `comment_${videoId}_${Date.now()}`,
-      userId: '', // Will be set by server
-      title: 'New Comment!',
-      body: `${commenterName} commented: "${commentText.substring(0, 50)}${commentText.length > 50 ? '...' : ''}"`,
-      icon: '/icon-192x192.png',
-      tag: 'comment',
-      data: {
-        type: 'comment',
-        videoId,
-        url: `/video/${videoId}`
-      }
-    };
-  }
-
-  createGiftNotification(giftName: string, senderName: string, amount: number): PushNotification {
-    return {
-      id: `gift_${Date.now()}`,
-      userId: '', // Will be set by server
-      title: 'Gift Received!',
-      body: `${senderName} sent you ${amount} coins with a ${giftName}!`,
-      icon: '/icon-192x192.png',
-      tag: 'gift',
-      requireInteraction: true,
-      data: {
-        type: 'gift',
-        amount,
-        url: '/live' // Or current live stream
-      }
-    };
-  }
 }
 
-// Export singleton instance
+// Singleton instance
 export const pushNotificationService = new PushNotificationService();

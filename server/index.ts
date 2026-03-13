@@ -1,13 +1,19 @@
-import './config';
-import express from 'express';
-import cors from 'cors';
-import compression from 'compression';
-import { createServer } from 'http';
-import { WebSocketServer, WebSocket } from 'ws';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
-import { createCheckoutSession, createPaymentIntent, createPromoteCheckoutSession, createSubscriptionSession } from './routes/checkout';
-import { handleStripeWebhook } from './routes/webhook';
+import "./config";
+import express from "express";
+import cors from "cors";
+import compression from "compression";
+import { createServer } from "http";
+import { WebSocketServer, WebSocket } from "ws";
+import { fileURLToPath } from "url";
+import { dirname, join } from "path";
+import {
+  createCheckoutSession,
+  createPaymentIntent,
+  createPromoteCheckoutSession,
+  createSubscriptionSession,
+} from "./routes/checkout";
+import { handleStripeWebhook } from "./routes/webhook";
+import { handleLiveKitWebhook } from "./routes/livekit-webhook";
 import {
   handleAnalytics,
   handleBlockUser,
@@ -16,13 +22,21 @@ import {
   handleSendNotification,
   handleVerifyPurchase,
   handlePromoteIAPComplete,
-} from './routes/misc';
+} from "./routes/misc";
 import {
   handleForYouFeed,
   handleTrackView,
   handleTrackInteraction,
   handleGetVideoScore,
-} from './routes/feed';
+} from "./routes/feed";
+import {
+  addVideo,
+  getVideo,
+  getAllVideos,
+  getVideosByUser,
+  deleteVideo,
+  type Video,
+} from "./lib/videoStore";
 import {
   handleGetCreatorBalance,
   handleGetCreatorEarnings,
@@ -37,8 +51,8 @@ import {
   handleShopBuy,
   handleShopRefund,
   handleShopPurchases,
-} from './routes/payout';
-import { handleLiveModerationCheck } from './routes/moderation';
+} from "./routes/payout";
+import { handleLiveModerationCheck } from "./routes/moderation";
 import {
   handleLogin,
   handleRegister,
@@ -46,171 +60,401 @@ import {
   handleMe,
   handleResendConfirmation,
   handleAppleStart,
-} from './routes/auth';
+  handleGuestLogin,
+} from "./routes/auth";
 import {
   handleGetStreams,
   handleLiveStart,
   handleLiveEnd,
   handleGetLiveToken,
   removeActiveStream,
-} from './routes/livestream';
-import { handleUploadVideo } from './routes/upload';
-import { handleSendGift } from './routes/gifts';
+} from "./routes/livestream";
+import { handleUploadVideo, handleUploadAvatar } from "./routes/upload";
+import { uploadToBunny, isBunnyConfigured } from "./services/bunny";
+import { getTokenFromRequest, verifyAuthToken } from "./routes/auth";
+import { handleSendGift } from "./routes/gifts";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const app = express();
 const server = createServer(app);
-const PORT = process.env.PORT || 8080;
+const PORT = Number(process.env.PORT) || 8080;
 
 // Middleware (credentials: true so auth cookie works when frontend is on another origin)
 app.use(cors({ credentials: true, origin: true }));
 app.use(compression());
 
-// Webhook needs raw body
-app.use('/api/stripe-webhook', express.raw({ type: 'application/json' }), handleStripeWebhook);
+// Webhooks need raw body for signature verification
+app.use(
+  "/api/stripe-webhook",
+  express.raw({ type: "application/json" }),
+  handleStripeWebhook,
+);
+app.post(
+  "/api/livekit/webhook",
+  express.raw({ type: "application/webhook+json" }),
+  handleLiveKitWebhook,
+);
 
 // Video upload: raw body (binary)
-app.use('/api/upload/video', express.raw({ type: ['application/octet-stream', 'video/mp4', 'video/webm'], limit: '500mb' }), handleUploadVideo);
+app.use(
+  "/api/upload/video",
+  express.raw({
+    type: ["application/octet-stream", "video/mp4", "video/webm"],
+    limit: "500mb",
+  }),
+  handleUploadVideo,
+);
+
+// Media upload: raw body (binary) — must be registered BEFORE express.json()
+app.use(
+  "/api/media/upload-file",
+  express.raw({
+    type: [
+      "application/octet-stream",
+      "video/mp4",
+      "video/webm",
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+    ],
+    limit: "600mb",
+  }),
+);
 
 // Other routes use JSON
 app.use(express.json());
 
 // Health check endpoint (must be before static files)
-app.get('/health', (_req, res) => {
+app.get("/health", (_req, res) => {
   try {
-    if (process.env.NODE_ENV !== 'production') console.log('Health check requested');
-    res.status(200).json({ 
-      status: 'ok', 
-      uptime: process.uptime(), 
+    if (process.env.NODE_ENV !== "production")
+      console.log("Health check requested");
+    res.status(200).json({
+      status: "ok",
+      uptime: process.uptime(),
       timestamp: new Date().toISOString(),
-      port: PORT
+      port: PORT,
     });
   } catch (error) {
-    console.error('Health check error:', error);
-    res.status(500).json({ status: 'error', message: 'Health check failed' });
+    console.error("Health check error:", error);
+    res.status(500).json({ status: "error", message: "Health check failed" });
   }
 });
 
-// Auth API (login, register, logout, me, resend-confirmation, apple/start)
-app.post('/api/auth/login', handleLogin);
-app.post('/api/auth/register', handleRegister);
-app.post('/api/auth/logout', handleLogout);
-app.get('/api/auth/me', handleMe);
-app.post('/api/auth/resend-confirmation', handleResendConfirmation);
-app.post('/api/auth/apple/start', handleAppleStart);
+// Auth API (login, register, logout, me, resend-confirmation, apple/start, guest)
+app.post("/api/auth/login", handleLogin);
+app.post("/api/auth/guest", handleGuestLogin);
+app.post("/api/auth/register", handleRegister);
+app.post("/api/auth/logout", handleLogout);
+app.get("/api/auth/me", handleMe);
+app.post("/api/auth/resend-confirmation", handleResendConfirmation);
+app.post("/api/auth/apple/start", handleAppleStart);
 
 // Profile (alias for /api/auth/me)
-app.get('/api/profile', handleMe);
+app.get("/api/profile", handleMe);
 
 // Live streaming (LiveKit tokens + stream lifecycle)
-app.get('/api/live/streams', handleGetStreams);
-app.post('/api/live/start', handleLiveStart);
-app.post('/api/live/end', handleLiveEnd);
-app.get('/api/live/token', handleGetLiveToken);
+app.get("/api/live/streams", handleGetStreams);
+app.post("/api/live/start", handleLiveStart);
+app.post("/api/live/end", handleLiveEnd);
+app.get("/api/live/token", handleGetLiveToken);
 
 // Upload video to Bunny Storage
 // (route mounted above with express.raw)
 
 // Gifts (REST; real-time still via WebSocket in room)
-app.post('/api/gifts/send', handleSendGift);
+app.post("/api/gifts/send", handleSendGift);
 
 // API Routes
-app.post('/api/create-checkout-session', createCheckoutSession);
-app.post('/api/create-promote-checkout', createPromoteCheckoutSession);
-app.post('/api/create-payment-intent', createPaymentIntent);
-app.post('/api/create-subscription', createSubscriptionSession);
-app.post('/api/analytics', handleAnalytics);
-app.post('/api/analytics/track', handleAnalytics);
-app.post('/api/block-user', handleBlockUser);
-app.post('/api/delete-account', handleDeleteAccount);
-app.post('/api/report', handleReport);
-app.post('/api/live/moderation/check', handleLiveModerationCheck);
-app.post('/api/send-notification', handleSendNotification);
-app.post('/api/verify-purchase', handleVerifyPurchase);
-app.post('/api/promote-iap-complete', handlePromoteIAPComplete);
+app.post("/api/create-checkout-session", createCheckoutSession);
+app.post("/api/create-promote-checkout", createPromoteCheckoutSession);
+app.post("/api/create-payment-intent", createPaymentIntent);
+app.post("/api/create-subscription", createSubscriptionSession);
+app.post("/api/analytics", handleAnalytics);
+app.post("/api/analytics/track", handleAnalytics);
+app.post("/api/block-user", handleBlockUser);
+app.post("/api/delete-account", handleDeleteAccount);
+app.post("/api/report", handleReport);
+app.post("/api/live/moderation/check", handleLiveModerationCheck);
+app.post("/api/send-notification", handleSendNotification);
+app.post("/api/verify-purchase", handleVerifyPurchase);
+app.post("/api/promote-iap-complete", handlePromoteIAPComplete);
 
 // Feed & Recommendation API
-app.get('/api/feed/foryou', handleForYouFeed);
-app.post('/api/feed/track-view', handleTrackView);
-app.post('/api/feed/track-interaction', handleTrackInteraction);
-app.get('/api/feed/score/:videoId', handleGetVideoScore);
+app.get("/api/feed/foryou", handleForYouFeed);
+app.post("/api/feed/track-view", handleTrackView);
+app.post("/api/feed/track-interaction", handleTrackInteraction);
+app.get("/api/feed/score/:videoId", handleGetVideoScore);
+
+// ── Video CRUD (in-memory store, no DB required) ───────────────────
+app.post("/api/videos", (req, res) => {
+  try {
+    const body = req.body;
+    if (!body || !body.url) {
+      return res.status(400).json({ error: "url is required" });
+    }
+
+    const id =
+      body.id || `vid_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+
+    const video: Video = {
+      id,
+      url: body.url,
+      thumbnail: body.thumbnail || "",
+      duration: body.duration || 0,
+      userId: body.userId || "anonymous",
+      username: body.username || "user",
+      displayName: body.displayName || body.username || "User",
+      avatar:
+        body.avatar ||
+        `https://ui-avatars.com/api/?name=${encodeURIComponent(body.username || "User")}&background=random&size=400`,
+      description: body.description || "",
+      hashtags: body.hashtags || [],
+      music: body.music || null,
+      views: 0,
+      likes: 0,
+      comments: 0,
+      shares: 0,
+      saves: 0,
+      createdAt: body.createdAt || new Date().toISOString(),
+      privacy: body.privacy || "public",
+    };
+
+    addVideo(video);
+    console.log(
+      `[Videos] Added video ${id} (${getAllVideos().length} total in memory)`,
+    );
+
+    return res.status(201).json(video);
+  } catch (err: any) {
+    console.error("[Videos] POST error:", err?.message || err);
+    return res.status(500).json({ error: "Failed to create video" });
+  }
+});
+
+app.get("/api/videos", (_req, res) => {
+  const videos = getAllVideos();
+  res.json({ videos, total: videos.length });
+});
+
+app.get("/api/videos/:id", (req, res) => {
+  const video = getVideo(req.params.id);
+  if (!video) return res.status(404).json({ error: "Video not found" });
+  res.json(video);
+});
+
+app.get("/api/videos/user/:userId", (req, res) => {
+  const videos = getVideosByUser(req.params.userId);
+  res.json({ videos, total: videos.length });
+});
+
+app.delete("/api/videos/:id", (req, res) => {
+  const deleted = deleteVideo(req.params.id);
+  if (!deleted) return res.status(404).json({ error: "Video not found" });
+  res.json({ ok: true });
+});
 
 // No-refund enforcement: block any coin refund/restore/reverse attempts
-app.post('/api/refund', (_req, res) => res.status(403).json({ error: 'All coin purchases are final and non-refundable.' }));
-app.post('/api/restore-coins', (_req, res) => res.status(403).json({ error: 'All coin purchases are final and non-refundable.' }));
-app.post('/api/reverse-gift', (_req, res) => res.status(403).json({ error: 'Gifts are final and cannot be reversed.' }));
-app.post('/api/cancel-purchase', (_req, res) => res.status(403).json({ error: 'All coin purchases are final and non-refundable.' }));
+app.post("/api/refund", (_req, res) =>
+  res
+    .status(403)
+    .json({ error: "All coin purchases are final and non-refundable." }),
+);
+app.post("/api/restore-coins", (_req, res) =>
+  res
+    .status(403)
+    .json({ error: "All coin purchases are final and non-refundable." }),
+);
+app.post("/api/reverse-gift", (_req, res) =>
+  res.status(403).json({ error: "Gifts are final and cannot be reversed." }),
+);
+app.post("/api/cancel-purchase", (_req, res) =>
+  res
+    .status(403)
+    .json({ error: "All coin purchases are final and non-refundable." }),
+);
 
 // Creator Payout API
-app.get('/api/creator/balance', handleGetCreatorBalance);
-app.get('/api/creator/earnings', handleGetCreatorEarnings);
-app.post('/api/creator/withdraw', handleCreatorWithdraw);
-app.get('/api/creator/payouts', handleGetCreatorPayouts);
-app.post('/api/creator/payout-method', handleSetPayoutMethod);
-app.get('/api/creator/payout-methods', handleGetPayoutMethods);
+app.get("/api/creator/balance", handleGetCreatorBalance);
+app.get("/api/creator/earnings", handleGetCreatorEarnings);
+app.post("/api/creator/withdraw", handleCreatorWithdraw);
+app.get("/api/creator/payouts", handleGetCreatorPayouts);
+app.post("/api/creator/payout-method", handleSetPayoutMethod);
+app.get("/api/creator/payout-methods", handleGetPayoutMethods);
 
 // Admin Payout API
-app.get('/api/admin/payouts', handleAdminListPayouts);
-app.post('/api/admin/payout/:id/approve', handleAdminApprovePayout);
-app.post('/api/admin/payout/:id/reject', handleAdminRejectPayout);
-app.post('/api/admin/chargeback', handleAdminChargeback);
+app.get("/api/admin/payouts", handleAdminListPayouts);
+app.post("/api/admin/payout/:id/approve", handleAdminApprovePayout);
+app.post("/api/admin/payout/:id/reject", handleAdminRejectPayout);
+app.post("/api/admin/chargeback", handleAdminChargeback);
 
 // Admin account management — endpoint disabled
-app.post('/api/admin/unfreeze/:userId', (_req, res) => {
-  res.status(501).json({ error: 'Admin unfreeze not available.' });
+app.post("/api/admin/unfreeze/:userId", (_req, res) => {
+  res.status(501).json({ error: "Admin unfreeze not available." });
 });
 
 // Shop Item Purchase & Refund API
-app.post('/api/shop/buy', handleShopBuy);
-app.post('/api/shop/refund', handleShopRefund);
-app.get('/api/shop/purchases', handleShopPurchases);
+app.post("/api/shop/buy", handleShopBuy);
+app.post("/api/shop/refund", handleShopRefund);
+app.get("/api/shop/purchases", handleShopPurchases);
+
+// ── Bunny Storage media routes (frontend calls these) ──────────────
+app.post("/api/media/upload-file", async (req, res) => {
+  const token = getTokenFromRequest(req);
+  if (!token) return res.status(401).json({ error: "Not authenticated." });
+  const payload = verifyAuthToken(token);
+  if (!payload)
+    return res.status(401).json({ error: "Invalid or expired session." });
+
+  if (!isBunnyConfigured()) {
+    return res.status(503).json({ error: "Bunny storage not configured." });
+  }
+
+  const storagePath = (req.query.path as string)?.trim();
+  const ct =
+    (req.query.ct as string)?.trim() ||
+    req.headers["content-type"] ||
+    "application/octet-stream";
+
+  if (!storagePath || storagePath.includes("..")) {
+    return res
+      .status(400)
+      .json({ error: "path query param is required and must be safe." });
+  }
+
+  const body = req.body;
+  if (!body || !(body instanceof Buffer) || body.length === 0) {
+    return res
+      .status(400)
+      .json({ error: "Request body must be non-empty binary." });
+  }
+
+  const result = await uploadToBunny(storagePath, body, ct);
+  if (!result.success) {
+    return res.status(502).json({ error: result.error || "Upload failed." });
+  }
+
+  return res.status(200).json({ path: result.path, cdnUrl: result.cdnUrl });
+});
+
+app.delete("/api/media/delete", async (req, res) => {
+  const token = getTokenFromRequest(req);
+  if (!token) return res.status(401).json({ error: "Not authenticated." });
+  const payload = verifyAuthToken(token);
+  if (!payload)
+    return res.status(401).json({ error: "Invalid or expired session." });
+
+  const { path: storagePath } = req.body ?? {};
+  if (!storagePath || typeof storagePath !== "string") {
+    return res.status(400).json({ error: "path is required in body." });
+  }
+
+  // Delete from Bunny Storage
+  const STORAGE_REGION = process.env.BUNNY_STORAGE_REGION || "de";
+  const STORAGE_ZONE = (process.env.BUNNY_STORAGE_ZONE || "").split(".")[0];
+  const ACCESS_KEY = process.env.BUNNY_STORAGE_API_KEY;
+  if (!ACCESS_KEY || !STORAGE_ZONE) {
+    return res.status(503).json({ error: "Bunny storage not configured." });
+  }
+
+  const baseUrl =
+    STORAGE_REGION === "de"
+      ? "https://storage.bunnycdn.com"
+      : `https://${STORAGE_REGION}.storage.bunnycdn.com`;
+  const url = `${baseUrl}/${STORAGE_ZONE}/${storagePath.replace(/^\/+/, "")}`;
+
+  try {
+    const delRes = await fetch(url, {
+      method: "DELETE",
+      headers: { AccessKey: ACCESS_KEY },
+    });
+    if (!delRes.ok && delRes.status !== 404) {
+      return res
+        .status(500)
+        .json({ error: `Bunny delete failed (${delRes.status})` });
+    }
+    return res.status(200).json({ success: true, path: storagePath });
+  } catch (err) {
+    return res.status(502).json({ error: "Could not reach Bunny Storage" });
+  }
+});
+
+app.use("/api/media/public", (req, res) => {
+  const filePath = req.path.replace(/^\/+/, "");
+  if (!filePath) return res.status(400).json({ error: "path is required" });
+  const cdnHost = process.env.VITE_BUNNY_CDN_HOSTNAME || "";
+  if (!cdnHost)
+    return res.status(503).json({ error: "CDN hostname not configured" });
+  return res.status(200).json({ url: `https://${cdnHost}/${filePath}` });
+});
 
 // Runtime env.js endpoint for VITE_ variables (+ LIVEKIT_URL as VITE_LIVEKIT_URL so client can connect)
-app.get('/env.js', (_req, res) => {
+app.get("/env.js", (_req, res) => {
   const env: Record<string, string> = {};
   for (const [k, v] of Object.entries(process.env)) {
-    if (!k.startsWith('VITE_')) continue;
-    if (typeof v !== 'string') continue;
+    if (!k.startsWith("VITE_")) continue;
+    if (typeof v !== "string") continue;
     env[k] = v;
   }
-  if (process.env.LIVEKIT_URL && typeof process.env.LIVEKIT_URL === 'string') {
+  if (process.env.LIVEKIT_URL && typeof process.env.LIVEKIT_URL === "string") {
     env.VITE_LIVEKIT_URL = process.env.LIVEKIT_URL;
   }
-  res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
-  res.setHeader('Cache-Control', 'no-store');
-  res.status(200).send('window.__ENV = Object.assign({}, window.__ENV || {}, ' + JSON.stringify(env) + ');');
+  res.setHeader("Content-Type", "application/javascript; charset=utf-8");
+  res.setHeader("Cache-Control", "no-store");
+  res
+    .status(200)
+    .send(
+      "window.__ENV = Object.assign({}, window.__ENV || {}, " +
+        JSON.stringify(env) +
+        ");",
+    );
 });
 
 // Serve static files from dist
-const distPath = join(__dirname, '..', 'dist');
-const indexPath = join(distPath, 'index.html');
+const distPath = join(__dirname, "..", "dist");
+const indexPath = join(distPath, "index.html");
 
 // Log dist path on startup for debugging
 console.log(`Serving static files from: ${distPath}`);
 console.log(`Index path: ${indexPath}`);
 
-import fs from 'fs';
+import fs from "fs";
 if (!fs.existsSync(indexPath)) {
   console.error(`ERROR: index.html not found at ${indexPath}`);
-  console.error('Available files:', fs.existsSync(distPath) ? fs.readdirSync(distPath).join(', ') : 'dist folder missing');
+  console.error(
+    "Available files:",
+    fs.existsSync(distPath)
+      ? fs.readdirSync(distPath).join(", ")
+      : "dist folder missing",
+  );
 } else {
-  console.log('index.html found successfully. Content preview:', fs.readFileSync(indexPath, 'utf8').substring(0, 200));
+  console.log(
+    "index.html found successfully. Content preview:",
+    fs.readFileSync(indexPath, "utf8").substring(0, 200),
+  );
 }
 
-app.use(express.static(distPath, {
-  maxAge: process.env.NODE_ENV === 'production' ? '1h' : 0,
-}));
+app.use(
+  express.static(distPath, {
+    maxAge: process.env.NODE_ENV === "production" ? "1h" : 0,
+  }),
+);
 
 // Fallback for SPA - all non-API routes serve index.html
-app.get(/.*/, (req, res) => {
-  if (process.env.NODE_ENV !== 'production') console.log(`Serving fallback for ${req.url}`);
+app.use((req, res) => {
+  if (process.env.NODE_ENV !== "production")
+    console.log(`Serving fallback for ${req.url}`);
   if (fs.existsSync(indexPath)) {
     res.sendFile(indexPath);
   } else {
     // Return 200 so deployment succeeds and we can debug
-    res.status(200).send('<h1>App build not found</h1><p>dist/index.html is missing. Check build logs.</p>');
+    res
+      .status(200)
+      .send(
+        "<h1>App build not found</h1><p>dist/index.html is missing. Check build logs.</p>",
+      );
   }
 });
 
@@ -224,9 +468,9 @@ console.log(`WebSocket server attached to HTTP server on port ${PORT}`);
 
 function decodeUserIdFromToken(token: string): string | null {
   try {
-    const parts = token.split('.');
+    const parts = token.split(".");
     if (parts.length < 2) return null;
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
+    const payload = JSON.parse(Buffer.from(parts[1], "base64").toString());
     return payload.sub ?? null;
   } catch {
     return null;
@@ -253,32 +497,77 @@ const processedTransactions = new Map<string, number>();
 // GIFT REGISTRY — Server-side source of truth for gift values
 // ═══════════════════════════════════════════════════════════════
 const GIFT_VALUES: Record<string, number> = {
-  s_rose: 1, s_heart: 5, s_coffee: 15, s_diamond: 300, s_crown: 1500,
-  s_panda: 10, s_butterfly: 25, s_cat: 50, s_dog: 100, s_sun: 250,
-  s_rainbow: 500, s_unicorn: 1000, global_universe: 1000000,
-  horse_gallop: 5000, rex_dino: 12000, treasure_chest: 15000, war_bird: 15000,
-  kitty_treasure: 17000, frost_wolf: 18000, voyager_ship: 19000, fiery_lion: 21000,
-  night_panther: 22000, titan_gorilla: 23000, misty_wolf: 25000, cosmic_panther: 26000,
-  star_wand: 28000, beast_relic: 31000, crystal_rhino: 32000, storm_phoenix: 34000,
-  ice_sorceress: 37000, fire_phoenix: 38000, lavarok: 40000, blazing_wizard: 42000,
-  aelyra_flameveil: 45000, golden_lion: 46000, dragon_egg: 49000, lava_demon: 52000,
-  dragon_wrath: 55000, flames_royalty: 55000, fire_unicorn: 55000, thunder_falcon: 58000,
-  infernal_lion: 60000, fantasy_unicorn: 61000, sky_guardian: 64000, majestic_bird: 65000,
-  flame_king: 65000, majestic_phoenix: 70000, molten_fury: 75000, universe: 80000,
-  lava_rampage: 80000, guardian_chest: 85000, storm_warrior: 85000, pink_jet: 88000,
-  frost_lion: 90000, night_owl: 90000, drake_cub: 95000, romantic_jet: 99000,
-  guardian_vault: 100000, elix_gold_universe: 120000, lightning_hypercar: 150000,
+  s_rose: 1,
+  s_heart: 5,
+  s_coffee: 15,
+  s_diamond: 300,
+  s_crown: 1500,
+  s_panda: 10,
+  s_butterfly: 25,
+  s_cat: 50,
+  s_dog: 100,
+  s_sun: 250,
+  s_rainbow: 500,
+  s_unicorn: 1000,
+  global_universe: 1000000,
+  horse_gallop: 5000,
+  rex_dino: 12000,
+  treasure_chest: 15000,
+  war_bird: 15000,
+  kitty_treasure: 17000,
+  frost_wolf: 18000,
+  voyager_ship: 19000,
+  fiery_lion: 21000,
+  night_panther: 22000,
+  titan_gorilla: 23000,
+  misty_wolf: 25000,
+  cosmic_panther: 26000,
+  star_wand: 28000,
+  beast_relic: 31000,
+  crystal_rhino: 32000,
+  storm_phoenix: 34000,
+  ice_sorceress: 37000,
+  fire_phoenix: 38000,
+  lavarok: 40000,
+  blazing_wizard: 42000,
+  aelyra_flameveil: 45000,
+  golden_lion: 46000,
+  dragon_egg: 49000,
+  lava_demon: 52000,
+  dragon_wrath: 55000,
+  flames_royalty: 55000,
+  fire_unicorn: 55000,
+  thunder_falcon: 58000,
+  infernal_lion: 60000,
+  fantasy_unicorn: 61000,
+  sky_guardian: 64000,
+  majestic_bird: 65000,
+  flame_king: 65000,
+  majestic_phoenix: 70000,
+  molten_fury: 75000,
+  universe: 80000,
+  lava_rampage: 80000,
+  guardian_chest: 85000,
+  storm_warrior: 85000,
+  pink_jet: 88000,
+  frost_lion: 90000,
+  night_owl: 90000,
+  drake_cub: 95000,
+  romantic_jet: 99000,
+  guardian_vault: 100000,
+  elix_gold_universe: 120000,
+  lightning_hypercar: 150000,
 };
 
 function getGiftValue(giftId: string): number {
   return GIFT_VALUES[giftId] || 0;
 }
 
-function normalizeBattleTarget(rawTarget: unknown): 'host' | 'opponent' | null {
-  if (rawTarget === 'host' || rawTarget === 'opponent') return rawTarget;
-  if (rawTarget === 'me') return 'host';
-  if (rawTarget === 'player4') return 'opponent';
-  if (rawTarget === 'player3') return 'host';
+function normalizeBattleTarget(rawTarget: unknown): "host" | "opponent" | null {
+  if (rawTarget === "host" || rawTarget === "opponent") return rawTarget;
+  if (rawTarget === "me") return "host";
+  if (rawTarget === "player4") return "opponent";
+  if (rawTarget === "player3") return "host";
   return null;
 }
 
@@ -300,38 +589,42 @@ interface BattleSession {
   opponentScore: number;
   player3Score: number;
   player4Score: number;
-  endsAt: number;         // Unix timestamp (ms) when battle ends
-  timeLeft: number;       // computed from endsAt for convenience
-  status: 'WAITING' | 'COUNTDOWN' | 'ACTIVE' | 'ENDED';
-  winner: 'host' | 'opponent' | 'player3' | 'player4' | 'draw' | null;
+  endsAt: number; // Unix timestamp (ms) when battle ends
+  timeLeft: number; // computed from endsAt for convenience
+  status: "WAITING" | "COUNTDOWN" | "ACTIVE" | "ENDED";
+  winner: "host" | "opponent" | "player3" | "player4" | "draw" | null;
   timer: ReturnType<typeof setInterval> | null;
   createdAt: number;
   hostReady: boolean;
   opponentReady: boolean;
 }
 
-const battles = new Map<string, BattleSession>();     // roomId -> BattleSession
-const userBattleRoom = new Map<string, string>();      // userId -> roomId (which battle they're in)
+const battles = new Map<string, BattleSession>(); // roomId -> BattleSession
+const userBattleRoom = new Map<string, string>(); // userId -> roomId (which battle they're in)
 
-function createBattle(hostRoomId: string, hostUserId: string, hostName: string): BattleSession {
+function createBattle(
+  hostRoomId: string,
+  hostUserId: string,
+  hostName: string,
+): BattleSession {
   const session: BattleSession = {
     id: `battle-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     hostRoomId,
     hostUserId,
     hostName,
-    opponentUserId: '',
-    opponentName: '',
-    player3UserId: '',
-    player3Name: '',
-    player4UserId: '',
-    player4Name: '',
+    opponentUserId: "",
+    opponentName: "",
+    player3UserId: "",
+    player3Name: "",
+    player4UserId: "",
+    player4Name: "",
     hostScore: 0,
     opponentScore: 0,
     player3Score: 0,
     player4Score: 0,
     endsAt: 0,
     timeLeft: 300,
-    status: 'WAITING',
+    status: "WAITING",
     winner: null,
     timer: null,
     createdAt: Date.now(),
@@ -343,16 +636,20 @@ function createBattle(hostRoomId: string, hostUserId: string, hostName: string):
   return session;
 }
 
-function joinBattle(roomId: string, userId: string, userName: string): BattleSession | null {
+function joinBattle(
+  roomId: string,
+  userId: string,
+  userName: string,
+): BattleSession | null {
   const session = battles.get(roomId);
-  if (!session || session.status !== 'WAITING') return null;
-  
+  if (!session || session.status !== "WAITING") return null;
+
   // Prevent duplicate join
   if (session.hostUserId === userId) return session;
   if (session.opponentUserId === userId) return session;
   if (session.player3UserId === userId) return session;
   if (session.player4UserId === userId) return session;
-  
+
   if (!session.opponentUserId) {
     session.opponentUserId = userId;
     session.opponentName = userName;
@@ -365,7 +662,7 @@ function joinBattle(roomId: string, userId: string, userName: string): BattleSes
   } else {
     return null; // Full
   }
-  
+
   userBattleRoom.set(userId, roomId);
   broadcastBattleState(roomId, session);
   return session;
@@ -374,20 +671,20 @@ function joinBattle(roomId: string, userId: string, userName: string): BattleSes
 function startBattleTimer(roomId: string) {
   const session = battles.get(roomId);
   if (!session) return;
-  session.status = 'ACTIVE';
+  session.status = "ACTIVE";
   session.endsAt = Date.now() + 300 * 1000; // 5 minutes from now
   session.timeLeft = 300;
   broadcastBattleState(roomId, session);
 
   session.timer = setInterval(() => {
     const s = battles.get(roomId);
-    if (!s || s.status !== 'ACTIVE') {
+    if (!s || s.status !== "ACTIVE") {
       if (s?.timer) clearInterval(s.timer);
       return;
     }
     s.timeLeft = Math.max(0, Math.round((s.endsAt - Date.now()) / 1000));
 
-    broadcastToRoom(roomId, 'battle_tick', {
+    broadcastToRoom(roomId, "battle_tick", {
       timeLeft: s.timeLeft,
       hostScore: s.hostScore,
       opponentScore: s.opponentScore,
@@ -402,21 +699,25 @@ function startBattleTimer(roomId: string) {
   }, 1000);
 }
 
-function addBattleScoreForTarget(roomId: string, target: 'host' | 'opponent' | 'player3' | 'player4', points: number) {
+function addBattleScoreForTarget(
+  roomId: string,
+  target: "host" | "opponent" | "player3" | "player4",
+  points: number,
+) {
   const session = battles.get(roomId);
-  if (!session || session.status !== 'ACTIVE') return;
+  if (!session || session.status !== "ACTIVE") return;
 
-  if (target === 'host') {
+  if (target === "host") {
     session.hostScore += points;
-  } else if (target === 'opponent') {
+  } else if (target === "opponent") {
     session.opponentScore += points;
-  } else if (target === 'player3') {
+  } else if (target === "player3") {
     session.player3Score += points;
-  } else if (target === 'player4') {
+  } else if (target === "player4") {
     session.player4Score += points;
   }
 
-  broadcastToRoom(roomId, 'battle_score', {
+  broadcastToRoom(roomId, "battle_score", {
     hostScore: session.hostScore,
     opponentScore: session.opponentScore,
     player3Score: session.player3Score,
@@ -435,19 +736,19 @@ function endBattle(roomId: string) {
     session.timer = null;
   }
 
-  session.status = 'ENDED';
+  session.status = "ENDED";
   const redTeam = session.hostScore + session.player3Score;
   const blueTeam = session.opponentScore + session.player4Score;
-  
+
   if (redTeam > blueTeam) {
-    session.winner = 'host'; // or 'red'
+    session.winner = "host"; // or 'red'
   } else if (blueTeam > redTeam) {
-    session.winner = 'opponent'; // or 'blue'
+    session.winner = "opponent"; // or 'blue'
   } else {
-    session.winner = 'draw';
+    session.winner = "draw";
   }
 
-  broadcastToRoom(roomId, 'battle_ended', {
+  broadcastToRoom(roomId, "battle_ended", {
     hostScore: session.hostScore,
     opponentScore: session.opponentScore,
     player3Score: session.player3Score,
@@ -472,9 +773,12 @@ function endBattle(roomId: string) {
 
 function broadcastBattleState(roomId: string, session: BattleSession) {
   if (session.endsAt > 0) {
-    session.timeLeft = Math.max(0, Math.round((session.endsAt - Date.now()) / 1000));
+    session.timeLeft = Math.max(
+      0,
+      Math.round((session.endsAt - Date.now()) / 1000),
+    );
   }
-  broadcastToRoom(roomId, 'battle_state_sync', {
+  broadcastToRoom(roomId, "battle_state_sync", {
     id: session.id,
     status: session.status,
     hostUserId: session.hostUserId,
@@ -497,43 +801,43 @@ function broadcastBattleState(roomId: string, session: BattleSession) {
   });
 }
 
-wss.on('connection', async (ws: WebSocket, req) => {
+wss.on("connection", async (ws: WebSocket, req) => {
   let client: Client | null = null;
 
   try {
-    console.log('New connection');
+    console.log("New connection");
 
     if (!req.url) {
-      ws.close(1008, 'Missing URL');
+      ws.close(1008, "Missing URL");
       return;
     }
 
     // Parse room and token from URL
-    const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
-    let roomId = url.searchParams.get('room');
-    const token = url.searchParams.get('token');
+    const url = new URL(req.url, `http://${req.headers.host || "localhost"}`);
+    let roomId = url.searchParams.get("room");
+    const token = url.searchParams.get("token");
 
     // If room not in query, try from pathname (e.g., /live/roomId)
-    if (!roomId && url.pathname.startsWith('/live/')) {
-      roomId = url.pathname.split('/')[2]; // /live/roomId -> roomId
+    if (!roomId && url.pathname.startsWith("/live/")) {
+      roomId = url.pathname.split("/")[2]; // /live/roomId -> roomId
     }
 
     if (!roomId || !token) {
-      ws.close(1008, 'Missing room or token');
+      ws.close(1008, "Missing room or token");
       return;
     }
 
     const userId = decodeUserIdFromToken(token);
     if (!userId) {
-      ws.close(1008, 'Invalid token');
+      ws.close(1008, "Invalid token");
       return;
     }
 
-    const username = 'Anonymous';
-    const displayName = '';
-    const avatarUrl = '';
+    const username = "Anonymous";
+    const displayName = "";
+    const avatarUrl = "";
     const level = 1;
-    const country = '';
+    const country = "";
 
     client = {
       ws,
@@ -558,7 +862,14 @@ wss.on('connection', async (ws: WebSocket, req) => {
     // Send welcome + full room state with deduplicated viewers
     const roomClients = rooms.get(roomId)!;
     const seenUserIds = new Set<string>();
-    const viewers: { user_id: string; username: string; display_name: string; avatar_url: string; level: number; country: string }[] = [];
+    const viewers: {
+      user_id: string;
+      username: string;
+      display_name: string;
+      avatar_url: string;
+      level: number;
+      country: string;
+    }[] = [];
     for (const c of roomClients) {
       if (seenUserIds.has(c.userId)) continue;
       seenUserIds.add(c.userId);
@@ -572,35 +883,43 @@ wss.on('connection', async (ws: WebSocket, req) => {
       });
     }
 
-    sendToClient(client, 'connected', {
+    sendToClient(client, "connected", {
       room_id: roomId,
       user_count: roomClients.size,
     });
 
-    sendToClient(client, 'room_state', {
+    sendToClient(client, "room_state", {
       viewers,
     });
 
     // Broadcast user joined
-    broadcastToRoom(roomId, 'user_joined', {
-      user_id: client.userId,
-      username: client.username,
-      display_name: client.displayName,
-      avatar_url: client.avatarUrl,
-      level: client.level,
-      country: client.country,
-    }, client);
+    broadcastToRoom(
+      roomId,
+      "user_joined",
+      {
+        user_id: client.userId,
+        username: client.username,
+        display_name: client.displayName,
+        avatar_url: client.avatarUrl,
+        level: client.level,
+        country: client.country,
+      },
+      client,
+    );
 
     // Update viewer count
     await updateViewerCount(roomId);
 
     // If there's an active battle in this room, send state to new joiner
     const activeBattleOnJoin = battles.get(roomId);
-    if (activeBattleOnJoin && activeBattleOnJoin.status !== 'ENDED') {
+    if (activeBattleOnJoin && activeBattleOnJoin.status !== "ENDED") {
       if (activeBattleOnJoin.endsAt > 0) {
-        activeBattleOnJoin.timeLeft = Math.max(0, Math.round((activeBattleOnJoin.endsAt - Date.now()) / 1000));
+        activeBattleOnJoin.timeLeft = Math.max(
+          0,
+          Math.round((activeBattleOnJoin.endsAt - Date.now()) / 1000),
+        );
       }
-      sendToClient(client, 'battle_state_sync', {
+      sendToClient(client, "battle_state_sync", {
         id: activeBattleOnJoin.id,
         status: activeBattleOnJoin.status,
         hostUserId: activeBattleOnJoin.hostUserId,
@@ -620,20 +939,19 @@ wss.on('connection', async (ws: WebSocket, req) => {
         winner: activeBattleOnJoin.winner,
       });
     }
-
   } catch (error) {
-    console.error('Connection setup error:', error);
-    ws.close(1011, 'Server error');
+    console.error("Connection setup error:", error);
+    ws.close(1011, "Server error");
     return;
   }
 
   // Add error handler
-  ws.on('error', (error) => {
-    console.error('WebSocket error:', error);
+  ws.on("error", (error) => {
+    console.error("WebSocket error:", error);
   });
 
   // Handle messages
-  ws.on('message', async (data) => {
+  ws.on("message", async (data) => {
     aliveClients.add(ws);
     try {
       let parsed: any;
@@ -643,61 +961,69 @@ wss.on('connection', async (ws: WebSocket, req) => {
         return;
       }
       const { event, data: eventData } = parsed;
-      
-      if (process.env.NODE_ENV !== 'production') console.log('Received message:', event, eventData);
+
+      if (process.env.NODE_ENV !== "production")
+        console.log("Received message:", event, eventData);
 
       // Dev-only: allow unauthenticated join for local testing
-      if (process.env.NODE_ENV !== 'production' && event === 'join_room' && eventData && eventData.skipAuth) {
+      if (
+        process.env.NODE_ENV !== "production" &&
+        event === "join_room" &&
+        eventData &&
+        eventData.skipAuth
+      ) {
         const { roomId, userId, username } = eventData;
-        
+
         client = {
           ws,
           userId,
           roomId,
           username,
           displayName: username,
-          avatarUrl: '',
+          avatarUrl: "",
           level: 1,
-          country: '',
+          country: "",
           connectedAt: new Date(),
         };
-        
+
         clients.set(ws, client);
-        
+
         if (!rooms.has(roomId)) {
           rooms.set(roomId, new Set());
         }
         rooms.get(roomId)!.add(client);
-        
-        sendToClient(client, 'room_joined', {
+
+        sendToClient(client, "room_joined", {
           roomId,
           userId,
-          username
+          username,
         });
-        
+
         return;
       }
 
       if (!client) {
-        console.error('Message from unauthenticated client');
+        console.error("Message from unauthenticated client");
         return;
       }
 
       await handleMessage(client, event, eventData);
     } catch (error) {
-      console.error('Failed to handle message:', error);
+      console.error("Failed to handle message:", error);
       try {
         if (client) {
-          sendToClient(client, 'error', { message: 'Invalid message format' });
+          sendToClient(client, "error", { message: "Invalid message format" });
         }
-      } catch { /* prevent double-throw */ }
+      } catch {
+        /* prevent double-throw */
+      }
     }
   });
 
   // Handle disconnect
-  ws.on('close', () => {
-    console.log('Client disconnected');
-    
+  ws.on("close", () => {
+    console.log("Client disconnected");
+
     if (!client) return;
 
     try {
@@ -705,7 +1031,7 @@ wss.on('connection', async (ws: WebSocket, req) => {
       if (room) {
         room.delete(client);
 
-        broadcastToRoom(client.roomId, 'user_left', {
+        broadcastToRoom(client.roomId, "user_left", {
           user_id: client.userId,
           username: client.username,
           avatar_url: client.avatarUrl,
@@ -725,11 +1051,13 @@ wss.on('connection', async (ws: WebSocket, req) => {
       const battleRoomId = userBattleRoom.get(client.userId);
       if (battleRoomId) {
         const battle = battles.get(battleRoomId);
-        if (battle && battle.status !== 'ENDED') {
+        if (battle && battle.status !== "ENDED") {
           const isHost = battle.hostUserId === client.userId;
           const isOpponent = battle.opponentUserId === client.userId;
           if (isHost || isOpponent) {
-            console.log(`Battle participant ${isHost ? 'host' : 'opponent'} disconnected, ending battle in room ${battleRoomId}`);
+            console.log(
+              `Battle participant ${isHost ? "host" : "opponent"} disconnected, ending battle in room ${battleRoomId}`,
+            );
             endBattle(battleRoomId);
           }
         }
@@ -737,7 +1065,7 @@ wss.on('connection', async (ws: WebSocket, req) => {
 
       clients.delete(ws);
     } catch (err) {
-      console.error('Error in close handler:', err);
+      console.error("Error in close handler:", err);
     }
   });
 });
@@ -746,20 +1074,27 @@ wss.on('connection', async (ws: WebSocket, req) => {
 async function checkAndBroadcastStreamEnd(roomId: string, userId: string) {
   // Remove from in-memory active streams so /api/live/streams no longer lists it
   removeActiveStream(roomId, userId);
-  broadcastToRoom(roomId, 'stream_ended', {
+  broadcastToRoom(roomId, "stream_ended", {
     stream_key: roomId,
     host_user_id: userId,
-    reason: 'host_disconnected',
+    reason: "host_disconnected",
   });
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 // WebSocket rate limiter: per-user per-event
 const wsRateLimits = new Map<string, number[]>();
-function wsRateCheck(userId: string, event: string, maxPerWindow: number, windowMs: number): boolean {
+function wsRateCheck(
+  userId: string,
+  event: string,
+  maxPerWindow: number,
+  windowMs: number,
+): boolean {
   const key = `${userId}:${event}`;
   const now = Date.now();
-  const timestamps = (wsRateLimits.get(key) || []).filter(t => now - t < windowMs);
+  const timestamps = (wsRateLimits.get(key) || []).filter(
+    (t) => now - t < windowMs,
+  );
   if (timestamps.length >= maxPerWindow) return false;
   timestamps.push(now);
   wsRateLimits.set(key, timestamps);
@@ -768,12 +1103,12 @@ function wsRateCheck(userId: string, event: string, maxPerWindow: number, window
 
 async function handleMessage(client: Client, event: string, data: any) {
   if (!data) data = {};
-  
+
   try {
     switch (event) {
-      case 'chat_message':
-        if (!wsRateCheck(client.userId, 'chat', 10, 10_000)) break; // max 10 msgs / 10s
-        broadcastToRoom(client.roomId, 'chat_message', {
+      case "chat_message":
+        if (!wsRateCheck(client.userId, "chat", 100, 10_000)) break; // max 100 msgs / 10s
+        broadcastToRoom(client.roomId, "chat_message", {
           ...data,
           user_id: client.userId,
           username: client.username,
@@ -781,23 +1116,23 @@ async function handleMessage(client: Client, event: string, data: any) {
         });
         break;
 
-      case 'gift_sent': {
-        if (!wsRateCheck(client.userId, 'gift', 5, 5_000)) break; // max 5 gifts / 5s
+      case "gift_sent": {
+        if (!wsRateCheck(client.userId, "gift", 50, 5_000)) break; // max 50 gifts / 5s
         const { transactionId } = data;
-        
+
         if (transactionId && processedTransactions.has(transactionId)) {
-          sendToClient(client, 'gift_ack', {
+          sendToClient(client, "gift_ack", {
             transactionId,
-            status: 'duplicate',
-            timestamp: processedTransactions.get(transactionId)
+            status: "duplicate",
+            timestamp: processedTransactions.get(transactionId),
           });
           return;
         }
-        
+
         const now = Date.now();
         if (transactionId) {
           processedTransactions.set(transactionId, now);
-          
+
           const fiveMinutesAgo = now - 5 * 60 * 1000;
           for (const [id, timestamp] of processedTransactions) {
             if (timestamp < fiveMinutesAgo) {
@@ -805,32 +1140,36 @@ async function handleMessage(client: Client, event: string, data: any) {
             }
           }
         }
-        
-        broadcastToRoom(client.roomId, 'gift_sent', {
+
+        broadcastToRoom(client.roomId, "gift_sent", {
           ...data,
           user_id: client.userId,
           username: client.username,
           timestamp: new Date().toISOString(),
         });
-        
+
         if (transactionId) {
-          sendToClient(client, 'gift_ack', {
+          sendToClient(client, "gift_ack", {
             transactionId,
-            status: 'success',
-            timestamp: now
+            status: "success",
+            timestamp: now,
           });
         }
 
         // Auto-score gifts in active battles — use server-side gift value, NOT client
         const activeBattle = battles.get(client.roomId);
-        if (activeBattle && activeBattle.status === 'ACTIVE') {
+        if (activeBattle && activeBattle.status === "ACTIVE") {
           const serverGiftValue = getGiftValue(data.giftId);
           if (serverGiftValue > 0) {
             const normalizedTarget = normalizeBattleTarget(data.battleTarget);
             if (normalizedTarget) {
-              addBattleScoreForTarget(client.roomId, normalizedTarget, serverGiftValue);
+              addBattleScoreForTarget(
+                client.roomId,
+                normalizedTarget,
+                serverGiftValue,
+              );
             } else {
-              addBattleScoreForTarget(client.roomId, 'host', serverGiftValue);
+              addBattleScoreForTarget(client.roomId, "host", serverGiftValue);
             }
           }
         }
@@ -838,7 +1177,7 @@ async function handleMessage(client: Client, event: string, data: any) {
       }
 
       // ═══ BATTLE EVENTS — server-controlled ═══
-      case 'battle_create': {
+      case "battle_create": {
         const existing = battles.get(client.roomId);
         if (existing) {
           if (existing.timer) clearInterval(existing.timer);
@@ -846,16 +1185,22 @@ async function handleMessage(client: Client, event: string, data: any) {
           userBattleRoom.delete(existing.opponentUserId);
           battles.delete(client.roomId);
         }
-        const session = createBattle(client.roomId, client.userId, data.hostName || client.displayName);
-        const opponentUserId = typeof data.opponentUserId === 'string' ? data.opponentUserId : '';
-        const opponentName = typeof data.opponentName === 'string' ? data.opponentName : '';
+        const session = createBattle(
+          client.roomId,
+          client.userId,
+          data.hostName || client.displayName,
+        );
+        const opponentUserId =
+          typeof data.opponentUserId === "string" ? data.opponentUserId : "";
+        const opponentName =
+          typeof data.opponentName === "string" ? data.opponentName : "";
         if (opponentUserId && opponentName) {
           session.opponentUserId = opponentUserId;
           session.opponentName = opponentName;
           if (opponentUserId) userBattleRoom.set(opponentUserId, client.roomId);
           startBattleTimer(client.roomId);
         } else {
-          sendToClient(client, 'battle_created', {
+          sendToClient(client, "battle_created", {
             battleId: session.id,
             status: session.status,
           });
@@ -864,22 +1209,22 @@ async function handleMessage(client: Client, event: string, data: any) {
         break;
       }
 
-      case 'battle_join': {
+      case "battle_join": {
         const battleSession = joinBattle(
           client.roomId,
           client.userId,
-          data.opponentName || client.displayName
+          data.opponentName || client.displayName,
         );
         if (!battleSession) {
-          sendToClient(client, 'battle_error', { message: 'No battle to join' });
+          sendToClient(client, "battle_error", {
+            message: "No battle to join",
+          });
           break;
         }
         break;
       }
 
-      
-
-      case 'battle_gift_score': {
+      case "battle_gift_score": {
         // Manual score event — validate target, use server gift value
         const bRoom = userBattleRoom.get(client.userId) || client.roomId;
         const target = normalizeBattleTarget(data.target);
@@ -892,7 +1237,7 @@ async function handleMessage(client: Client, event: string, data: any) {
         break;
       }
 
-      case 'battle_end': {
+      case "battle_end": {
         // Host manually ends battle
         const bSession = battles.get(client.roomId);
         if (bSession && bSession.hostUserId === client.userId) {
@@ -901,13 +1246,16 @@ async function handleMessage(client: Client, event: string, data: any) {
         break;
       }
 
-      case 'battle_get_state': {
+      case "battle_get_state": {
         const currentBattle = battles.get(client.roomId);
         if (currentBattle) {
           if (currentBattle.endsAt > 0) {
-            currentBattle.timeLeft = Math.max(0, Math.round((currentBattle.endsAt - Date.now()) / 1000));
+            currentBattle.timeLeft = Math.max(
+              0,
+              Math.round((currentBattle.endsAt - Date.now()) / 1000),
+            );
           }
-          sendToClient(client, 'battle_state_sync', {
+          sendToClient(client, "battle_state_sync", {
             id: currentBattle.id,
             status: currentBattle.status,
             hostUserId: currentBattle.hostUserId,
@@ -931,115 +1279,135 @@ async function handleMessage(client: Client, event: string, data: any) {
       }
 
       // ═══ BATTLE INVITES — host ↔ invited creators ═══
-      case 'battle_invite_send': {
-        if (!wsRateCheck(client.userId, 'battle_invite_send', 10, 60_000)) break;
-        const targetUserId = typeof data.targetUserId === 'string' ? data.targetUserId : '';
+      case "battle_invite_send": {
+        if (!wsRateCheck(client.userId, "battle_invite_send", 100, 60_000))
+          break;
+        const targetUserId =
+          typeof data.targetUserId === "string" ? data.targetUserId : "";
         if (!targetUserId) break;
         const payload = {
           hostUserId: client.userId,
           hostName: data.hostName || client.displayName,
-          hostAvatar: data.hostAvatar || client.avatarUrl || '',
+          hostAvatar: data.hostAvatar || client.avatarUrl || "",
           streamKey: client.roomId,
         };
-        sendToUserGlobal(targetUserId, 'battle_invite', payload);
-        console.log('[battle_invite] sent to userId:', targetUserId, 'from:', client.userId);
+        sendToUserGlobal(targetUserId, "battle_invite", payload);
+        console.log(
+          "[battle_invite] sent to userId:",
+          targetUserId,
+          "from:",
+          client.userId,
+        );
         break;
       }
 
-      case 'battle_invite_accept': {
-        if (!wsRateCheck(client.userId, 'battle_invite_accept', 10, 60_000)) break;
-        const hostUserId = typeof data.hostUserId === 'string' ? data.hostUserId : '';
+      case "battle_invite_accept": {
+        if (!wsRateCheck(client.userId, "battle_invite_accept", 100, 60_000))
+          break;
+        const hostUserId =
+          typeof data.hostUserId === "string" ? data.hostUserId : "";
         if (!hostUserId) break;
-        sendToUserGlobal(hostUserId, 'battle_invite_accepted', {
+        sendToUserGlobal(hostUserId, "battle_invite_accepted", {
           requesterUserId: client.userId,
           requesterName: data.requesterName || client.displayName,
-          requesterAvatar: data.requesterAvatar || client.avatarUrl || '',
+          requesterAvatar: data.requesterAvatar || client.avatarUrl || "",
           streamKey: data.streamKey || client.roomId,
         });
         break;
       }
 
-      case 'stream_end': {
-        broadcastToRoom(client.roomId, 'stream_ended', {
+      case "stream_end": {
+        broadcastToRoom(client.roomId, "stream_ended", {
           stream_key: client.roomId,
           host_user_id: client.userId,
-          reason: 'host_ended',
+          reason: "host_ended",
         });
         break;
       }
 
       // ═══ CO-HOST INVITES & REQUESTS ═══
-      case 'cohost_invite_send': {
-        if (!wsRateCheck(client.userId, 'cohost_invite_send', 20, 60_000)) break;
-        const targetUserId = typeof data.targetUserId === 'string' ? data.targetUserId : '';
+      case "cohost_invite_send": {
+        if (!wsRateCheck(client.userId, "cohost_invite_send", 200, 60_000))
+          break;
+        const targetUserId =
+          typeof data.targetUserId === "string" ? data.targetUserId : "";
         if (!targetUserId) break;
-        sendToUserGlobal(targetUserId, 'cohost_invite', {
+        sendToUserGlobal(targetUserId, "cohost_invite", {
           hostUserId: client.userId,
           hostName: data.hostName || client.displayName,
-          hostAvatar: data.hostAvatar || client.avatarUrl || '',
+          hostAvatar: data.hostAvatar || client.avatarUrl || "",
           streamKey: client.roomId,
         });
         break;
       }
 
-      case 'cohost_invite_accept': {
-        if (!wsRateCheck(client.userId, 'cohost_invite_accept', 20, 60_000)) break;
-        const hostUserId = typeof data.hostUserId === 'string' ? data.hostUserId : '';
+      case "cohost_invite_accept": {
+        if (!wsRateCheck(client.userId, "cohost_invite_accept", 200, 60_000))
+          break;
+        const hostUserId =
+          typeof data.hostUserId === "string" ? data.hostUserId : "";
         if (!hostUserId) break;
-        sendToUserGlobal(hostUserId, 'cohost_invite_accepted', {
+        sendToUserGlobal(hostUserId, "cohost_invite_accepted", {
           cohostUserId: client.userId,
           cohostName: data.cohostName || client.displayName,
-          cohostAvatar: data.cohostAvatar || client.avatarUrl || '',
+          cohostAvatar: data.cohostAvatar || client.avatarUrl || "",
           streamKey: data.streamKey || client.roomId,
         });
         break;
       }
 
-      case 'cohost_request_send': {
-        if (!wsRateCheck(client.userId, 'cohost_request_send', 10, 60_000)) break;
-        const hostUserId = typeof data.hostUserId === 'string' ? data.hostUserId : '';
+      case "cohost_request_send": {
+        if (!wsRateCheck(client.userId, "cohost_request_send", 100, 60_000))
+          break;
+        const hostUserId =
+          typeof data.hostUserId === "string" ? data.hostUserId : "";
         if (!hostUserId) break;
-        sendToUserGlobal(hostUserId, 'cohost_request', {
+        sendToUserGlobal(hostUserId, "cohost_request", {
           requesterUserId: client.userId,
           requesterName: data.requesterName || client.displayName,
-          requesterAvatar: data.requesterAvatar || client.avatarUrl || '',
+          requesterAvatar: data.requesterAvatar || client.avatarUrl || "",
         });
         break;
       }
 
-      case 'cohost_request_accept': {
-        if (!wsRateCheck(client.userId, 'cohost_request_accept', 20, 60_000)) break;
-        const requesterUserId = typeof data.requesterUserId === 'string' ? data.requesterUserId : '';
+      case "cohost_request_accept": {
+        if (!wsRateCheck(client.userId, "cohost_request_accept", 200, 60_000))
+          break;
+        const requesterUserId =
+          typeof data.requesterUserId === "string" ? data.requesterUserId : "";
         if (!requesterUserId) break;
-        sendToUserGlobal(requesterUserId, 'cohost_request_accepted', {
+        sendToUserGlobal(requesterUserId, "cohost_request_accepted", {
           hostUserId: client.userId,
           hostName: data.hostName || client.displayName,
-          hostAvatar: data.hostAvatar || client.avatarUrl || '',
+          hostAvatar: data.hostAvatar || client.avatarUrl || "",
           streamKey: client.roomId,
         });
         break;
       }
 
-      case 'cohost_request_decline': {
-        if (!wsRateCheck(client.userId, 'cohost_request_decline', 20, 60_000)) break;
-        const requesterUserId = typeof data.requesterUserId === 'string' ? data.requesterUserId : '';
+      case "cohost_request_decline": {
+        if (!wsRateCheck(client.userId, "cohost_request_decline", 200, 60_000))
+          break;
+        const requesterUserId =
+          typeof data.requesterUserId === "string" ? data.requesterUserId : "";
         if (!requesterUserId) break;
-        sendToUserGlobal(requesterUserId, 'cohost_request_declined', {
+        sendToUserGlobal(requesterUserId, "cohost_request_declined", {
           hostUserId: client.userId,
           hostName: data.hostName || client.displayName,
         });
         break;
       }
 
-      case 'booster_activated':
-        broadcastToRoom(client.roomId, 'booster_activated', {
+      case "booster_activated":
+        broadcastToRoom(client.roomId, "booster_activated", {
           ...data,
           user_id: client.userId,
         });
         break;
 
       default:
-        if (process.env.NODE_ENV !== 'production') console.log('Unknown event:', event);
+        if (process.env.NODE_ENV !== "production")
+          console.log("Unknown event:", event);
     }
   } catch (err) {
     console.error(`Error handling event '${event}':`, err);
@@ -1050,14 +1418,16 @@ async function handleMessage(client: Client, event: string, data: any) {
 function sendToClient(client: Client, event: string, data: any) {
   try {
     if (client.ws.readyState === WebSocket.OPEN) {
-      client.ws.send(JSON.stringify({
-        event,
-        data,
-        timestamp: new Date().toISOString(),
-      }));
+      client.ws.send(
+        JSON.stringify({
+          event,
+          data,
+          timestamp: new Date().toISOString(),
+        }),
+      );
     }
   } catch (error) {
-    console.error('Failed to send to client:', error);
+    console.error("Failed to send to client:", error);
   }
 }
 
@@ -1074,16 +1444,16 @@ function sendToUser(roomId: string, userId: string, event: string, data: any) {
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
-    console.error('Failed to serialize message:', error);
+    console.error("Failed to serialize message:", error);
     return;
   }
 
-  room.forEach(client => {
+  room.forEach((client) => {
     if (client.userId === userId && client.ws.readyState === WebSocket.OPEN) {
       try {
         client.ws.send(message);
       } catch (error) {
-        console.error('Failed to send to user:', error);
+        console.error("Failed to send to user:", error);
       }
     }
   });
@@ -1099,7 +1469,7 @@ function sendToUserGlobal(userId: string, event: string, data: any) {
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
-    console.error('Failed to serialize message:', error);
+    console.error("Failed to serialize message:", error);
     return;
   }
 
@@ -1110,17 +1480,26 @@ function sendToUserGlobal(userId: string, event: string, data: any) {
         client.ws.send(message);
         sent += 1;
       } catch (error) {
-        console.error('Failed to send to user (global):', error);
+        console.error("Failed to send to user (global):", error);
       }
     }
   });
-  if (event === 'battle_invite' && sent === 0) {
-    console.warn('[battle_invite] no connected client for userId:', userId, '(invitee may be offline or on another page)');
+  if (event === "battle_invite" && sent === 0) {
+    console.warn(
+      "[battle_invite] no connected client for userId:",
+      userId,
+      "(invitee may be offline or on another page)",
+    );
   }
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function broadcastToRoom(roomId: string, event: string, data: any, exclude?: Client) {
+function broadcastToRoom(
+  roomId: string,
+  event: string,
+  data: any,
+  exclude?: Client,
+) {
   const room = rooms.get(roomId);
   if (!room) return;
 
@@ -1132,16 +1511,16 @@ function broadcastToRoom(roomId: string, event: string, data: any, exclude?: Cli
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
-    console.error('Failed to serialize message:', error);
+    console.error("Failed to serialize message:", error);
     return;
   }
 
-  room.forEach(client => {
+  room.forEach((client) => {
     if (client !== exclude && client.ws.readyState === WebSocket.OPEN) {
       try {
         client.ws.send(message);
       } catch (error) {
-        console.error('Failed to send to client:', error);
+        console.error("Failed to send to client:", error);
       }
     }
   });
@@ -1166,12 +1545,16 @@ const heartbeatTimer = setInterval(() => {
   });
 }, HEARTBEAT_INTERVAL);
 
-wss.on('connection', (ws) => {
+wss.on("connection", (ws) => {
   aliveClients.add(ws);
-  ws.on('pong', () => { aliveClients.add(ws); });
+  ws.on("pong", () => {
+    aliveClients.add(ws);
+  });
 });
 
-wss.on('close', () => { clearInterval(heartbeatTimer); });
+wss.on("close", () => {
+  clearInterval(heartbeatTimer);
+});
 
 // Stale stream cleanup: mark streams as offline if their host has no active WebSocket
 // Uses updated_at to avoid killing streams that were recently created/updated
@@ -1182,41 +1565,41 @@ async function cleanupStaleStreams() {
 // Run cleanup on start (after 60s to allow reconnections after deploy) and every 30 seconds
 setTimeout(cleanupStaleStreams, 60_000);
 const staleCleanupTimer = setInterval(cleanupStaleStreams, 30_000);
-wss.on('close', () => { clearInterval(staleCleanupTimer); });
-
-
+wss.on("close", () => {
+  clearInterval(staleCleanupTimer);
+});
 
 // Start server
-console.log('Server build v3 — viewer count excludes host');
-console.log('Starting server...');
+console.log("Server build v3 — viewer count excludes host");
+console.log("Starting server...");
 console.log(`PORT: ${PORT}`);
 console.log(`NODE_ENV: ${process.env.NODE_ENV}`);
 
 try {
   // Bind to 0.0.0.0 to work in all environments
-  server.listen(PORT, '0.0.0.0', () => {
+  server.listen(PORT, "0.0.0.0", () => {
     console.log(`âœ… Server running successfully on port ${PORT}`);
     console.log(`âœ… Health check available at: http://0.0.0.0:${PORT}/health`);
-    console.log('âœ… Server startup completed');
+    console.log("âœ… Server startup completed");
   });
 } catch (error) {
-  console.error('âŒ Failed to start server:', error);
+  console.error("âŒ Failed to start server:", error);
   process.exit(1);
 }
 
 // Prevent server crash on unhandled errors
-process.on('unhandledRejection', (reason) => {
-  console.error('Unhandled Promise Rejection:', reason);
+process.on("unhandledRejection", (reason) => {
+  console.error("Unhandled Promise Rejection:", reason);
 });
-process.on('uncaughtException', (error) => {
-  console.error('Uncaught Exception:', error);
+process.on("uncaughtException", (error) => {
+  console.error("Uncaught Exception:", error);
 });
 
 // Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('Shutting down...');
+process.on("SIGTERM", () => {
+  console.log("Shutting down...");
   server.close(() => {
-    console.log('Server closed');
+    console.log("Server closed");
     process.exit(0);
   });
 });

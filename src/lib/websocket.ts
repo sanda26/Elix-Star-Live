@@ -1,43 +1,45 @@
-// WebSocket Real-Time Service
+// WebSocket Real-Time Service — single connection per room; URL from api.getWsUrl()
+
+import { getWsUrl } from "./api";
 
 export type WebSocketEvent =
   // Room events
-  | 'room_state'
-  | 'viewer_count_update'
-  | 'user_joined'
-  | 'user_left'
-  | 'connected'
+  | "room_state"
+  | "viewer_count_update"
+  | "user_joined"
+  | "user_left"
+  | "connected"
   // Chat events
-  | 'chat_message'
-  | 'chat_deleted'
+  | "chat_message"
+  | "chat_deleted"
   // Gift events
-  | 'gift_sent'
-  | 'big_gift_queue_update'
-  | 'leaderboard_update'
+  | "gift_sent"
+  | "big_gift_queue_update"
+  | "leaderboard_update"
   // Battle events (server-controlled)
-  | 'battle_invite'
-  | 'battle_invite_accepted'
-  | 'battle_ended'
-  | 'battle_created'
-  | 'battle_state_sync'
-  | 'battle_countdown'
-  | 'battle_tick'
-  | 'battle_score'
-  | 'battle_error'
-  | 'battle_ready'
-  | 'battle_ready_state'
+  | "battle_invite"
+  | "battle_invite_accepted"
+  | "battle_ended"
+  | "battle_created"
+  | "battle_state_sync"
+  | "battle_countdown"
+  | "battle_tick"
+  | "battle_score"
+  | "battle_error"
+  | "battle_ready"
+  | "battle_ready_state"
   // Co-host events
-  | 'cohost_request'
-  | 'cohost_request_accepted'
+  | "cohost_request"
+  | "cohost_request_accepted"
   // Moderation events (AI safety: warning → pause → suspend)
-  | 'user_muted'
-  | 'user_kicked'
-  | 'user_banned'
-  | 'moderation_warning'
-  | 'moderation_pause'
-  | 'moderation_suspend'
-  | 'room_full'
-  | 'stream_ended';
+  | "user_muted"
+  | "user_kicked"
+  | "user_banned"
+  | "moderation_warning"
+  | "moderation_pause"
+  | "moderation_suspend"
+  | "room_full"
+  | "stream_ended";
 
 export interface WebSocketMessage {
   event: WebSocketEvent;
@@ -58,54 +60,54 @@ class WebSocketService {
   private keepAliveTimer: ReturnType<typeof setInterval> | null = null;
 
   connect(roomId: string, token: string) {
-    if (this.ws?.readyState === WebSocket.OPEN || this.ws?.readyState === WebSocket.CONNECTING) {
+    if (
+      this.ws?.readyState === WebSocket.OPEN ||
+      this.ws?.readyState === WebSocket.CONNECTING
+    ) {
       if (this.roomId === roomId) return;
       this.disconnect();
     }
 
     this.roomId = roomId;
     this.token = token;
-    let wsUrl = import.meta.env.VITE_WS_URL;
-    if (!wsUrl) {
-      const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      wsUrl = `${proto}//${window.location.host}`;
-    }
-    if (wsUrl.startsWith('https://')) {
-      wsUrl = wsUrl.replace('https://', 'wss://');
-    } else if (wsUrl.startsWith('http://')) {
-      wsUrl = wsUrl.replace('http://', 'ws://');
-    }
-    if (!wsUrl.startsWith('ws://localhost') && wsUrl.startsWith('ws://')) {
-      wsUrl = wsUrl.replace('ws://', 'wss://');
-    }
-    this.ws = new WebSocket(`${wsUrl}/live/${roomId}?token=${encodeURIComponent(token)}`);
+    const wsUrl = getWsUrl();
+    this.ws = new WebSocket(
+      `${wsUrl}/live/${roomId}?token=${encodeURIComponent(token)}`,
+    );
 
     this.ws.onopen = () => {
       this.reconnectAttempts = 0;
       while (this.pendingMessages.length > 0) {
         const msg = this.pendingMessages.shift()!;
-        try { this.ws?.send(msg); } catch {}
+        try {
+          this.ws?.send(msg);
+        } catch {
+          /* pending message flush */
+        }
       }
       if (this.keepAliveTimer) clearInterval(this.keepAliveTimer);
       this.keepAliveTimer = setInterval(() => {
         if (this.ws?.readyState === WebSocket.OPEN) {
-          this.ws.send('ping');
+          this.ws.send("ping");
         }
       }, 25000);
-      this.handleMessage({ event: 'connected', data: {}, timestamp: new Date().toISOString() });
+      this.handleMessage({
+        event: "connected",
+        data: {},
+        timestamp: new Date().toISOString(),
+      });
     };
 
     this.ws.onmessage = (event) => {
       try {
         const message: WebSocketMessage = JSON.parse(event.data);
         this.handleMessage(message);
-      } catch (error) {
-        /* ignored */
+      } catch {
+        /* ignored — malformed WS frame */
       }
     };
 
-    this.ws.onerror = () => {
-    };
+    this.ws.onerror = () => {};
 
     this.ws.onclose = (event) => {
       this.attemptReconnect(event.code);
@@ -137,7 +139,11 @@ class WebSocketService {
   }
 
   send(event: string, data: any) {
-    const msg = JSON.stringify({ event, data, timestamp: new Date().toISOString() });
+    const msg = JSON.stringify({
+      event,
+      data,
+      timestamp: new Date().toISOString(),
+    });
     if (this.ws?.readyState === WebSocket.OPEN) {
       this.ws.send(msg);
     } else if (this.roomId && this.pendingMessages.length < 50) {
@@ -159,12 +165,17 @@ class WebSocketService {
   private handleMessage(message: WebSocketMessage) {
     const listeners = this.listeners.get(message.event);
     if (listeners) {
-      listeners.forEach(callback => callback(message.data));
+      listeners.forEach((callback) => callback(message.data));
     }
   }
 
   reconnectOnForeground() {
-    if (this.roomId && this.token && this.ws?.readyState !== WebSocket.OPEN && this.ws?.readyState !== WebSocket.CONNECTING) {
+    if (
+      this.roomId &&
+      this.token &&
+      this.ws?.readyState !== WebSocket.OPEN &&
+      this.ws?.readyState !== WebSocket.CONNECTING
+    ) {
       this.reconnectAttempts = 0;
       this.connect(this.roomId, this.token);
     }

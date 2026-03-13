@@ -14,6 +14,7 @@ import {
   trackFollow,
 } from '../lib/interactionTracker';
 import { showToast } from '../lib/toast';
+import { getVideoPosterUrl } from '../lib/bunnyStorage';
 
 interface User {
   id: string;
@@ -204,7 +205,7 @@ export const useVideoStore = create<VideoStore>()(
             return {
               id: v.id,
               url: v.url, 
-              thumbnail: v.thumbnail_url || '',
+              thumbnail: v.thumbnail_url || getVideoPosterUrl(v.url || ''),
               duration: '0:15',
               user: {
                 id: v.user_id || 'unknown',
@@ -310,7 +311,7 @@ export const useVideoStore = create<VideoStore>()(
               return {
                 id: v.id,
                 url: v.url,
-                thumbnail: v.thumbnail_url || '',
+                thumbnail: v.thumbnail_url || getVideoPosterUrl(v.url || ''),
                 duration: '0:15',
                 user: {
                   id: v.user_id || 'unknown',
@@ -423,7 +424,7 @@ export const useVideoStore = create<VideoStore>()(
               return {
                 id: v.id,
                 url: v.url,
-                thumbnail: v.thumbnail_url || '',
+                thumbnail: v.thumbnail_url || getVideoPosterUrl(v.url || ''),
                 duration: '0:15',
                 user: {
                   id: v.user_id || 'unknown',

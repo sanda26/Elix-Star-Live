@@ -1,50 +1,65 @@
-import { noopClient } from './noopClient';
+import { bunnyUpload } from "./bunnyStorage";
+import { apiUrl } from "./api";
+import { useAuthStore } from "../store/useAuthStore";
 
-export async function uploadAvatar(file: File, userId: string): Promise<string> {
-  // Storage is not configured (no backend storage); upload will no-op and return empty URL
+export async function uploadAvatar(
+  file: File,
+  userId: string,
+): Promise<string> {
   // Validate file type
-  if (!file.type.startsWith('image/')) {
-    throw new Error('Selected file is not an image.');
+  if (!file.type.startsWith("image/")) {
+    throw new Error("Selected file is not an image.");
   }
 
   // Validate file size (max 5MB)
   const maxBytes = 5 * 1024 * 1024;
   if (file.size > maxBytes) {
-    throw new Error('Image is too large (max 5MB).');
+    throw new Error("Image is too large (max 5MB).");
   }
 
-  // Generate clean filename
-  const fileExt = file.name.split('.').pop()?.toLowerCase() || 'jpg';
-  const fileName = `${Date.now()}.${fileExt}`;
-  const filePath = `${userId}/${fileName}`;
+  // Ensure the caller is uploading their own avatar
+  const currentUser = useAuthStore.getState().user;
+  if (!currentUser || currentUser.id !== userId) {
+    throw new Error("You must be logged in to upload an avatar.");
+  }
+
+  // Generate clean storage path: avatars/{userId}/{timestamp}.{ext}
+  const fileExt = file.name.split(".").pop()?.toLowerCase() || "jpg";
+  const storagePath = `avatars/${userId}/${Date.now()}.${fileExt}`;
 
   try {
-    const { error: uploadError } = await noopClient.storage
-      .from('avatars')
-      .upload(filePath, file, {
-        cacheControl: '3600',
-        upsert: true,
-        contentType: file.type
-      });
+    // Upload to Bunny CDN via Hetzner backend proxy
+    const { cdnUrl } = await bunnyUpload(file, storagePath, file.type);
 
-    if (uploadError) {
-
-      throw uploadError;
+    if (!cdnUrl) {
+      throw new Error("Failed to retrieve public CDN URL after upload.");
     }
 
-    // 2. Get Public URL
-    const { data } = noopClient.storage
-      .from('avatars')
-      .getPublicUrl(filePath);
+    // Persist the new avatar URL to the user's profile on the backend
+    const token = useAuthStore.getState().session?.access_token;
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    if (token) headers["Authorization"] = `Bearer ${token}`;
 
-    if (!data.publicUrl) {
-      throw new Error('Failed to retrieve public URL');
+    const patchRes = await fetch(apiUrl(`/api/profiles/${userId}`), {
+      method: "PATCH",
+      headers,
+      credentials: "include",
+      body: JSON.stringify({ avatarUrl: cdnUrl }),
+    });
+
+    if (!patchRes.ok) {
+      // Non-fatal: the upload succeeded even if the profile update failed.
+      // The caller can still use cdnUrl locally.
+      console.warn(
+        "[avatarUpload] Profile patch failed:",
+        await patchRes.text().catch(() => ""),
+      );
     }
 
-    return data.publicUrl;
-
+    return cdnUrl;
   } catch (err: any) {
-
-    throw new Error(err.message || 'Failed to upload image');
+    throw new Error(err?.message || "Failed to upload avatar");
   }
 }

@@ -1,9 +1,29 @@
-// Push Notification Service (Firebase Cloud Messaging compatible)
+// Push Notification Service — Hetzner backend + Capacitor native push.
+// No Supabase / Firebase / Appwrite. Device tokens are registered via
+// POST /api/device-tokens on the Hetzner Node backend.
 
-import { Capacitor } from '@capacitor/core';
-import { PushNotifications, Token, PushNotificationSchema } from '@capacitor/push-notifications';
-import { noopClient } from './noopClient';
-import { trackEvent } from './analytics';
+import { Capacitor } from "@capacitor/core";
+import {
+  PushNotifications,
+  Token,
+  PushNotificationSchema,
+} from "@capacitor/push-notifications";
+import { apiUrl } from "./api";
+import { useAuthStore } from "../store/useAuthStore";
+import { trackEvent } from "./analytics";
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function getAuthHeaders(): Record<string, string> {
+  const token = useAuthStore.getState().session?.access_token;
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  return headers;
+}
+
+// ── Service ───────────────────────────────────────────────────────────────────
 
 class NotificationService {
   private isInitialized = false;
@@ -12,7 +32,7 @@ class NotificationService {
 
   /** Escape HTML to prevent XSS in banner innerHTML */
   private escapeHtml(str: string): string {
-    const div = document.createElement('div');
+    const div = document.createElement("div");
     div.appendChild(document.createTextNode(str));
     return div.innerHTML;
   }
@@ -28,121 +48,118 @@ class NotificationService {
   }
 
   /**
-   * Initialize push notifications
+   * Initialize push notifications (native only).
+   * Requests permission and registers the device token with the Hetzner backend.
    */
-  async initialize() {
-    if (!Capacitor.isNativePlatform()) {
-
-      return;
-    }
-
+  async initialize(): Promise<void> {
+    if (!Capacitor.isNativePlatform()) return;
     if (this.isInitialized) return;
 
     try {
-      // Request permission
       const permStatus = await PushNotifications.requestPermissions();
 
-      if (permStatus.receive === 'granted') {
-        // Register for push
+      if (permStatus.receive === "granted") {
         await PushNotifications.register();
 
-        // Listen for token
-        await PushNotifications.addListener('registration', this.handleRegistration.bind(this));
-
-        // Listen for notification received
         await PushNotifications.addListener(
-          'pushNotificationReceived',
-          this.handleNotificationReceived.bind(this)
+          "registration",
+          this.handleRegistration.bind(this),
         );
-
-        // Listen for notification action
         await PushNotifications.addListener(
-          'pushNotificationActionPerformed',
-          this.handleNotificationAction.bind(this)
+          "pushNotificationReceived",
+          this.handleNotificationReceived.bind(this),
+        );
+        await PushNotifications.addListener(
+          "pushNotificationActionPerformed",
+          this.handleNotificationAction.bind(this),
         );
 
         this.isInitialized = true;
-      } else {
       }
-    } catch (error) {
-
+    } catch {
+      // Fail silently — push notifications are non-critical
     }
   }
 
   /**
-   * Handle device token registration
+   * Handle device token received from OS.
+   * Registers the token with the Hetzner backend via POST /api/device-tokens.
    */
-  private async handleRegistration(token: Token) {
-
+  private async handleRegistration(token: Token): Promise<void> {
     this.deviceToken = token.value;
 
-    // Save token to backend
-    try {
-      const { data: userData } = await noopClient.auth.getUser();
-      if (!userData.user) return;
+    const user = useAuthStore.getState().user;
+    if (!user) return;
 
-      await noopClient.from('device_tokens').upsert({
-        user_id: userData.user.id,
-        token: token.value,
-        platform: Capacitor.getPlatform(),
-        updated_at: new Date().toISOString(),
+    try {
+      await fetch(apiUrl("/api/device-tokens"), {
+        method: "POST",
+        headers: getAuthHeaders(),
+        credentials: "include",
+        body: JSON.stringify({
+          userId: user.id,
+          token: token.value,
+          platform: Capacitor.getPlatform(),
+        }),
       });
 
-      trackEvent('push_token_registered', { platform: Capacitor.getPlatform() });
-    } catch (error) {
-
+      trackEvent("push_token_registered", {
+        platform: Capacitor.getPlatform(),
+      });
+    } catch {
+      // Non-critical — token registration failure does not break the app
     }
   }
 
   /**
-   * Handle notification received while app is in foreground
+   * Handle notification received while the app is in the foreground.
    */
-  private handleNotificationReceived(notification: PushNotificationSchema) {
-
-
-    // Show in-app notification banner
+  private handleNotificationReceived(
+    notification: PushNotificationSchema,
+  ): void {
     this.showInAppNotification(notification);
 
-    trackEvent('notification_received', {
+    trackEvent("notification_received", {
       title: notification.title,
       foreground: true,
     });
   }
 
   /**
-   * Handle notification tap/action
+   * Handle notification tap / action (app was backgrounded or closed).
    */
-  private handleNotificationAction(action: any) {
-
-
+  private handleNotificationAction(action: any): void {
     const notification = action.notification;
-    const data = notification.data;
+    const data = notification?.data ?? {};
 
-    trackEvent('notification_tap', {
-      title: notification.title,
+    trackEvent("notification_tap", {
+      title: notification?.title,
       action_url: data?.action_url,
     });
 
-    // Navigate based on notification data (only same-origin)
     if (data?.action_url && this.isSafeUrl(data.action_url)) {
       window.location.href = data.action_url;
     }
   }
 
   /**
-   * Show in-app notification banner
+   * Show a temporary in-app notification banner (foreground notifications).
    */
-  private showInAppNotification(notification: PushNotificationSchema) {
-    // Create temporary notification element
-    const banner = document.createElement('div');
-    banner.className = 'fixed top-4 left-4 right-4 bg-[#13151A]/90 backdrop-blur-sm rounded-2xl p-4 shadow-2xl z-50 animate-slide-down';
-    const safeTitle = this.escapeHtml(notification.title || '');
-    const safeBody = this.escapeHtml(notification.body || '');
+  private showInAppNotification(notification: PushNotificationSchema): void {
+    const banner = document.createElement("div");
+    banner.className =
+      "fixed top-4 left-4 right-4 bg-[#13151A]/90 backdrop-blur-sm rounded-2xl p-4 shadow-2xl z-50 animate-slide-down";
+
+    const safeTitle = this.escapeHtml(notification.title || "");
+    const safeBody = this.escapeHtml(notification.body || "");
+
     banner.innerHTML = `
       <div class="flex items-start gap-3">
         <div class="w-10 h-10 bg-[#C9A96E] rounded-full flex items-center justify-center flex-shrink-0">
           <svg class="w-5 h-5 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9">
+            </path>
           </svg>
         </div>
         <div class="flex-1 min-w-0">
@@ -154,68 +171,88 @@ class NotificationService {
 
     document.body.appendChild(banner);
 
-    // Auto-remove after 5 seconds, track timer for cleanup
-    if (this.autoRemoveTimer) clearTimeout(this.autoRemoveTimer);
-    this.autoRemoveTimer = setTimeout(() => {
+    const remove = () => {
       banner.remove();
-      this.autoRemoveTimer = null;
-    }, 5000);
+      if (this.autoRemoveTimer) {
+        clearTimeout(this.autoRemoveTimer);
+        this.autoRemoveTimer = null;
+      }
+    };
 
-    // Remove on click
-    banner.addEventListener('click', () => {
-      banner.remove();
-      if (this.autoRemoveTimer) { clearTimeout(this.autoRemoveTimer); this.autoRemoveTimer = null; }
+    banner.addEventListener("click", () => {
+      remove();
       const actionUrl = notification.data?.action_url;
       if (actionUrl && this.isSafeUrl(actionUrl)) {
         window.location.href = actionUrl;
       }
     });
+
+    if (this.autoRemoveTimer) clearTimeout(this.autoRemoveTimer);
+    this.autoRemoveTimer = setTimeout(remove, 5000);
   }
 
   /**
-   * Request notification permission (for web)
+   * Request browser notification permission (web).
    */
   async requestPermission(): Promise<boolean> {
-    if (!('Notification' in window)) {
+    if (!("Notification" in window)) return false;
+    if (Notification.permission === "granted") return true;
+    if (Notification.permission === "denied") return false;
 
-      return false;
-    }
-
-    if (Notification.permission === 'granted') {
-      return true;
-    }
-
-    if (Notification.permission !== 'denied') {
-      const permission = await Notification.requestPermission();
-      return permission === 'granted';
-    }
-
-    return false;
+    const permission = await Notification.requestPermission();
+    return permission === "granted";
   }
 
   /**
-   * Show local notification (for web)
+   * Show a local OS notification (web, when permission is granted).
    */
-  showLocalNotification(title: string, body: string, actionUrl?: string) {
-    if (!('Notification' in window) || Notification.permission !== 'granted') {
+  showLocalNotification(title: string, body: string, actionUrl?: string): void {
+    if (!("Notification" in window) || Notification.permission !== "granted")
       return;
-    }
 
-    const notification = new Notification(title, {
+    const notif = new Notification(title, {
       body,
-      icon: '/apple-touch-icon.svg',
-      badge: '/favicon.svg',
-      tag: 'elixstar-notification',
+      icon: "/apple-touch-icon.svg",
+      badge: "/favicon.svg",
+      tag: "anber-notification",
     });
 
-    notification.onclick = () => {
-      if (actionUrl) {
+    notif.onclick = () => {
+      if (actionUrl && this.isSafeUrl(actionUrl)) {
         window.location.href = actionUrl;
       }
-      notification.close();
+      notif.close();
     };
 
-    trackEvent('local_notification_show', { title });
+    trackEvent("local_notification_show", { title });
+  }
+
+  /**
+   * Unregister the current device token from the Hetzner backend.
+   * Call on sign-out so the user stops receiving push notifications.
+   */
+  async unregisterToken(): Promise<void> {
+    if (!this.deviceToken) return;
+
+    const user = useAuthStore.getState().user;
+    if (!user) return;
+
+    try {
+      await fetch(apiUrl("/api/device-tokens"), {
+        method: "DELETE",
+        headers: getAuthHeaders(),
+        credentials: "include",
+        body: JSON.stringify({
+          userId: user.id,
+          token: this.deviceToken,
+          platform: Capacitor.getPlatform(),
+        }),
+      });
+    } catch {
+      // Non-critical
+    } finally {
+      this.deviceToken = null;
+    }
   }
 }
 

@@ -1,5 +1,4 @@
-# Use npm install so the build succeeds when package-lock.json is out of sync
-# (e.g. different branch or cache). For reproducible builds, keep package-lock.json
-# committed and in sync with package.json, then you can remove this override.
+# Use npm install so the build succeeds if lock file is out of sync with package.json.
+# After any package.json change, run: npm install (and commit package-lock.json).
 [phases.install]
-cmds = ["npm install"]
+cmds = ['npm install']

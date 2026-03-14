@@ -81,7 +81,7 @@ self.addEventListener('notificationclick', (event) => {
   if (event.action === 'explore') {
     // Open the app to specific content
     event.waitUntil(
-      clients.openWindow('/')
+      self.clients.openWindow('/')
     );
   } else if (event.action === 'close') {
     // Just close the notification
@@ -89,7 +89,7 @@ self.addEventListener('notificationclick', (event) => {
   } else {
     // Default: open the app
     event.waitUntil(
-      clients.openWindow('/')
+      self.clients.openWindow('/')
     );
   }
 });

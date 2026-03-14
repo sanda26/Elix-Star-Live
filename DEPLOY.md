@@ -2,6 +2,8 @@
 
 This app is wired for **Coolify** on a **Hetzner** server, with **Bunny** storage and **LiveKit** for streaming.
 
+**Coolify users:** If the build fails with `npm ci` / "Missing: … from lock file", see **[COOLIFY.md](COOLIFY.md)** — switch the build pack to **Dockerfile** and redeploy.
+
 ## Stack
 
 | Service    | Purpose |
@@ -54,7 +56,7 @@ The server exposes `/env.js` and injects `LIVEKIT_URL` as `VITE_LIVEKIT_URL` so 
 3. **Source:** Connect to GitHub → `sanda26/Elix-Star-Live`, select branch (e.g. `main` or `app-delivery`).
 4. **Build:**
    - Prefer **Dockerfile**: in Coolify, set build type to **Dockerfile** and use the repo’s root `Dockerfile`. It uses `npm install` (not `npm ci`) so the build succeeds even when the lockfile is out of sync.
-   - If you use **Nixpacks** instead, the repo’s `nixpacks.toml` overrides the install step to `npm install`. If Coolify still runs `npm ci` (e.g. cached build), switch to the Dockerfile or clear the build cache.
+   - If you use **Nixpacks** instead, the repo’s `nixpacks.toml` overrides the install step to `npm install`. If you see "Missing: ... from lock file", run locally: `npm install`, commit the updated `package-lock.json`, push, and redeploy; or switch the build to **Dockerfile**.
 5. **Run:** Start command can be `npm run start:prod` or `node server/index.js` after build (depending on how you build the server). If you use `npm run build` then the start command should serve from `dist/` and run the Node server (see `package.json` scripts).
 6. **Env:** Paste or set all variables from the table above in Coolify’s environment for this service.
 7. **Domain:** Point your domain (e.g. `your-app.example.com`) to this service in Coolify and enable HTTPS.

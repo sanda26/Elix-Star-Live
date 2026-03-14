@@ -775,8 +775,8 @@ export default function LiveStream() {
     (async () => {
       // Derive host info from stream key (simplified without DB)
       const hostLabel = effectiveStreamId.slice(0, 8).toUpperCase();
-      let hName = `Host ${hostLabel}`;
-      let hAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(hostLabel)}&background=121212&color=C9A96E`;
+      const hName = `Host ${hostLabel}`;
+      const hAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(hostLabel)}&background=121212&color=C9A96E`;
       
       if (cancelled) return;
       setBattleSlots(prev => {

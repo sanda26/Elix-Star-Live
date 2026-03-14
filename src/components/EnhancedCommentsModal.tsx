@@ -61,7 +61,7 @@ export default function CommentsModal({ isOpen, onClose, videoId }: CommentsModa
 
       const rows = data || [];
       const userIds = [...new Set(rows.map((c: any) => c.user_id).filter(Boolean))];
-      let profilesMap: Record<string, { username?: string; avatar_url?: string; level?: number }> = {};
+      const profilesMap: Record<string, { username?: string; avatar_url?: string; level?: number }> = {};
       if (userIds.length > 0) {
         const { data: profiles } = await apiStub
           .from('profiles')
@@ -106,7 +106,7 @@ export default function CommentsModal({ isOpen, onClose, videoId }: CommentsModa
       const rows = data || [];
       if (rows.length === 0) return [];
       const userIds = [...new Set(rows.map((r: any) => r.user_id).filter(Boolean))];
-      let profilesMap: Record<string, { username?: string; avatar_url?: string; level?: number }> = {};
+      const profilesMap: Record<string, { username?: string; avatar_url?: string; level?: number }> = {};
       if (userIds.length > 0) {
         const { data: profiles } = await apiStub
           .from('profiles')

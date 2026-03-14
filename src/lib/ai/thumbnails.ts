@@ -75,7 +75,7 @@ function analyzeFrame(ctx: CanvasRenderingContext2D, w: number, h: number): numb
 
   let totalLum = 0;
   let totalSat = 0;
-  let lumValues: number[] = [];
+  const lumValues: number[] = [];
 
   for (let i = 0; i < data.length; i += 16) {
     const r = data[i], g = data[i + 1], b = data[i + 2];

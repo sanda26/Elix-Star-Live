@@ -31,7 +31,13 @@ export default function InlineLiveViewer({
   const roomRef = useRef<Room | null>(null);
   const [hasStream, setHasStream] = useState(false);
   const [connecting, setConnecting] = useState(false);
-  const getAuthHeaders = useAuthStore((s) => s.getAuthHeaders);
+
+  const getAuthHeaders = (): Record<string, string> => {
+    const token = useAuthStore.getState().session?.access_token;
+    const h: Record<string, string> = { "Content-Type": "application/json" };
+    if (token) h["Authorization"] = `Bearer ${token}`;
+    return h;
+  };
 
   useEffect(() => {
     if (!isActive || !streamKey) return;
@@ -99,7 +105,7 @@ export default function InlineLiveViewer({
       setHasStream(false);
       setConnecting(false);
     };
-  }, [isActive, streamKey, getAuthHeaders]);
+  }, [isActive, streamKey]);
 
   const formattedViewers =
     viewerCount >= 1_000_000

@@ -1081,7 +1081,7 @@ async function checkAndBroadcastStreamEnd(roomId: string, userId: string) {
   });
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 // WebSocket rate limiter: per-user per-event
 const wsRateLimits = new Map<string, number[]>();
 function wsRateCheck(
@@ -1493,7 +1493,7 @@ function sendToUserGlobal(userId: string, event: string, data: any) {
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 function broadcastToRoom(
   roomId: string,
   event: string,

@@ -160,7 +160,7 @@ export const useVideoStore = create<VideoStore>()(
           }
 
           const userIds = [...new Set(data.map((v: any) => v.user_id).filter(Boolean))];
-          let profilesMap: Record<string, any> = {};
+          const profilesMap: Record<string, any> = {};
           if (userIds.length > 0) {
             const { data: profiles } = await apiStub
               .from('profiles')
@@ -267,7 +267,7 @@ export const useVideoStore = create<VideoStore>()(
           }
 
           const userIds = [...new Set(data.map((v: any) => v.user_id).filter(Boolean))];
-          let profilesMap: Record<string, any> = {};
+          const profilesMap: Record<string, any> = {};
           if (userIds.length > 0) {
             const { data: profiles } = await apiStub
               .from('profiles')
@@ -385,7 +385,7 @@ export const useVideoStore = create<VideoStore>()(
             return;
           }
           const userIds = [...new Set(data.map((v: any) => v.user_id).filter(Boolean))];
-          let profilesMap: Record<string, any> = {};
+          const profilesMap: Record<string, any> = {};
           if (userIds.length > 0) {
             const { data: profiles } = await apiStub
               .from('profiles')

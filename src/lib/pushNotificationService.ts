@@ -104,7 +104,7 @@ export class PushNotificationService {
 
       this.subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: this.urlBase64ToUint8Array(vapidKey),
+        applicationServerKey: this.urlBase64ToUint8Array(vapidKey) as BufferSource,
       });
 
       await this.saveSubscriptionToBackend();

@@ -18,7 +18,7 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import { OfflineBanner } from "./components/OfflineBanner";
 import { IncomingCallModal } from "./components/IncomingCallModal";
 import { subscribeToIncomingCalls } from "./lib/callService";
-import { noopClient } from "./lib/noopClient";
+import { apiStub } from "./lib/apiStub";
 import { showToast } from "./lib/toast";
 import { websocket } from "./lib/websocket";
 
@@ -184,9 +184,7 @@ function App() {
       document.removeEventListener("visibilitychange", handleVisibility);
   }, []);
 
-  // NOTE: realtime DM/cohost notifications via Supabase channels have been disabled
-  // because the app now uses a custom Node/WebSocket backend. This prevents
-  // legacy channel().on().subscribe() crashes while keeping auth & core flows working.
+  // Realtime DM/cohost via Node/WebSocket backend.
 
   const isFullScreen =
     location.pathname === "/" ||

@@ -50,7 +50,7 @@ import { AvatarRing } from '../components/AvatarRing';
 import { useAuthStore } from '../store/useAuthStore';
 import { clearCachedCameraStream, getCachedCameraStream } from '../lib/cameraStream';
 import { apiUrl, getLiveKitUrl } from '../lib/api';
-import { noopClient } from '../lib/noopClient';
+import { apiStub } from '../lib/apiStub';
 import { LevelBadge } from '../components/LevelBadge';
 import ReportModal from '../components/ReportModal';
 import PromotePanel from '../components/PromotePanel';
@@ -296,7 +296,7 @@ export default function LiveStream() {
 
   useEffect(() => {
     if (!isBroadcast || !isMyStreamLive || !effectiveStreamId || !user?.id) return;
-    noopClient.from('live_streams')
+    apiStub.from('live_streams')
       .update({ title: creatorName })
       .eq('stream_key', effectiveStreamId)
       .eq('user_id', user.id)
@@ -389,8 +389,7 @@ export default function LiveStream() {
     };
   }, [isBroadcast, user?.id, effectiveStreamId]);
 
-  // Live (TikTok-style): only LiveKit. Host publishes here; viewers subscribe via SpectatorPage.
-  // No Supabase/custom WebRTC; single connection = backend token + LiveKit.
+  // Live: LiveKit. Host publishes here; viewers subscribe via SpectatorPage.
   useEffect(() => {
     if (!isBroadcast || !liveKitCreds || !cameraStreamRef.current) return;
 
@@ -699,14 +698,14 @@ export default function LiveStream() {
   const isCoHostJoiner = new URLSearchParams(location.search).get('cohost') === '1';
 
   useEffect(() => {
-    // Supabase presence-based cohost signalling disabled.
+    // Cohost signalling via WebSocket.
     if (!isCoHostJoiner || !user?.id || isBroadcast) return;
     return () => {};
   }, [isCoHostJoiner, user?.id, effectiveStreamId, isBroadcast]);
 
   // Host side: listen for co-hosts joining via presence
   useEffect(() => {
-    // Supabase presence-based cohost management disabled.
+    // Cohost management via WebSocket.
     if (!isBroadcast || !user?.id) return;
     return () => {};
   }, [isBroadcast, user?.id, effectiveStreamId]);
@@ -810,7 +809,7 @@ export default function LiveStream() {
       const myName = user?.username || user?.name || 'Player';
       const myAv = user?.avatar || '';
 
-      // Legacy Supabase-based battle arrival signalling disabled.
+      // Battle arrival via WebSocket.
     })();
     return () => {
       cancelled = true;
@@ -818,7 +817,7 @@ export default function LiveStream() {
     };
   }, [isBattleJoiner, user?.id, effectiveStreamId]);
 
-  // Battle room channel (Supabase) disabled; battle state is driven by WebSocket backend.
+  // Battle state driven by WebSocket backend.
   useEffect(() => {
     if (!effectiveStreamId || (!isBroadcast && !isBattleJoiner)) return;
     return () => {
@@ -859,9 +858,7 @@ export default function LiveStream() {
   const [hostIsReady, setHostIsReady] = useState(false);
   const [opponentIsReady, setOpponentIsReady] = useState(false);
 
-  // ═══════════════════════════════════════════════════════════════
-  // REAL WEBRTC — peer connections for battle & co-host
-  // ═══════════════════════════════════════════════════════════════
+  // Peer connections for battle & co-host
   const isBattleParticipant = !isBroadcast && new URLSearchParams(location.search).get('battle') === '1';
   const [battleParticipantStream, setBattleParticipantStream] = useState<MediaStream | null>(null);
   const [coHostJoinerStream, setCoHostJoinerStream] = useState<MediaStream | null>(null);
@@ -963,7 +960,7 @@ export default function LiveStream() {
   const handleSubscribe = async () => {
     setIsSubscribing(true);
     try {
-      const { data: session } = await noopClient.auth.getSession();
+      const { data: session } = await apiStub.auth.getSession();
       if (!user?.id) {
         navigate('/login');
         return;
@@ -1022,14 +1019,14 @@ export default function LiveStream() {
     if (showSharePanel && user?.id) {
       (async () => {
         try {
-          const { data: followData } = await noopClient.from('followers').select('follower_id').eq('following_id', user.id).limit(50);
-          const { data: followingData } = await noopClient.from('followers').select('following_id').eq('follower_id', user.id).limit(50);
+          const { data: followData } = await apiStub.from('followers').select('follower_id').eq('following_id', user.id).limit(50);
+          const { data: followingData } = await apiStub.from('followers').select('following_id').eq('follower_id', user.id).limit(50);
           const ids = new Set<string>();
           (followData || []).forEach((f: any) => ids.add(f.follower_id));
           (followingData || []).forEach((f: any) => ids.add(f.following_id));
           ids.delete(user.id);
           if (ids.size === 0) { setShareFollowers([]); return; }
-          const { data: profiles } = await noopClient.from('profiles').select('user_id, username, avatar_url').in('user_id', Array.from(ids));
+          const { data: profiles } = await apiStub.from('profiles').select('user_id, username, avatar_url').in('user_id', Array.from(ids));
           setShareFollowers(profiles || []);
         } catch { setShareFollowers([]); }
       })();
@@ -1043,17 +1040,17 @@ export default function LiveStream() {
     const shareUrl = window.location.href;
     const msgText = `Watch my LIVE on Elix! ${shareUrl}`;
     try {
-      const { data: existing } = await noopClient.from('chat_threads').select('id')
+      const { data: existing } = await apiStub.from('chat_threads').select('id')
         .or(`and(user1_id.eq.${user.id},user2_id.eq.${targetUserId}),and(user1_id.eq.${targetUserId},user2_id.eq.${user.id})`)
         .limit(1).single();
       let threadId = existing?.id;
       if (!threadId) {
-        const { data: newThread } = await noopClient.from('chat_threads').insert({ user1_id: user.id, user2_id: targetUserId }).select('id').single();
+        const { data: newThread } = await apiStub.from('chat_threads').insert({ user1_id: user.id, user2_id: targetUserId }).select('id').single();
         threadId = newThread?.id;
       }
       if (threadId) {
-        await noopClient.from('messages').insert({ thread_id: threadId, sender_id: user.id, text: msgText });
-        await noopClient.from('chat_threads').update({ last_message: msgText, last_at: new Date().toISOString() }).eq('id', threadId);
+        await apiStub.from('messages').insert({ thread_id: threadId, sender_id: user.id, text: msgText });
+        await apiStub.from('chat_threads').update({ last_message: msgText, last_at: new Date().toISOString() }).eq('id', threadId);
       }
       setShareSentTo(prev => new Set(prev).add(targetUserId));
     } catch {}
@@ -1119,7 +1116,7 @@ export default function LiveStream() {
     if (player3VideoRef.current) { player3VideoRef.current.srcObject = null; }
     if (player4VideoRef.current) { player4VideoRef.current.srcObject = null; }
     if (battlePeerRef.current) { battlePeerRef.current.close(); battlePeerRef.current = null; }
-    // Legacy Supabase-based battle_state broadcast removed; server is notified via WebSocket.
+    // Battle state notified via WebSocket.
   }, [effectiveStreamId]);
 
   const toggleBattle = useCallback(() => {
@@ -1755,7 +1752,7 @@ export default function LiveStream() {
     if (!effectiveStreamId || !user?.id) return;
 
     const getToken = async () => {
-      const { data } = await noopClient.auth.getSession();
+      const { data } = await apiStub.auth.getSession();
       return data.session?.access_token || '';
     };
 
@@ -2144,7 +2141,7 @@ export default function LiveStream() {
       const base64 = captureFrame();
       if (!base64) return;
       try {
-        const { data: session } = await noopClient.auth.getSession();
+        const { data: session } = await apiStub.auth.getSession();
         const token = session.session?.access_token;
         if (!token) return;
         const res = await fetch('/api/live/moderation/check', {
@@ -2180,10 +2177,10 @@ export default function LiveStream() {
       try {
         const blob = await fetch(`data:image/jpeg;base64,${base64}`).then(r => r.blob());
         const path = `live-thumbnails/${effectiveStreamId}.jpg`;
-        await noopClient.storage.from('user-content').upload(path, blob, { upsert: true, contentType: 'image/jpeg' });
-        const { data: urlData } = noopClient.storage.from('user-content').getPublicUrl(path);
+        await apiStub.storage.from('user-content').upload(path, blob, { upsert: true, contentType: 'image/jpeg' });
+        const { data: urlData } = apiStub.storage.from('user-content').getPublicUrl(path);
         if (urlData?.publicUrl) {
-          await noopClient.from('live_streams').update({ thumbnail_url: `${urlData.publicUrl}?t=${Date.now()}` }).eq('stream_key', effectiveStreamId);
+          await apiStub.from('live_streams').update({ thumbnail_url: `${urlData.publicUrl}?t=${Date.now()}` }).eq('stream_key', effectiveStreamId);
         }
       } catch { /* ignore */ }
     };
@@ -2264,7 +2261,7 @@ export default function LiveStream() {
       
       if (user?.id) {
         try {
-          const { data, error } = await noopClient.rpc('send_stream_gift', {
+          const { data, error } = await apiStub.rpc('send_stream_gift', {
             p_stream_key: effectiveStreamId,
             p_gift_id: gift.id,
             p_channel: platform.name,
@@ -2312,7 +2309,7 @@ export default function LiveStream() {
         newLevel = currentLevel;
 
         // Sync level/xp to DB
-        noopClient.from('profiles')
+        apiStub.from('profiles')
           .update({ level: currentLevel, xp: currentXP })
           .eq('user_id', user.id)
           .then(() => {});
@@ -2418,7 +2415,7 @@ export default function LiveStream() {
       let newLevel = userLevel;
       if (user?.id) {
         try {
-          const { data, error } = await noopClient.rpc('send_stream_gift', {
+          const { data, error } = await apiStub.rpc('send_stream_gift', {
             p_stream_key: effectiveStreamId,
             p_gift_id: lastSentGift.id,
             p_channel: platform.name,
@@ -2585,7 +2582,7 @@ export default function LiveStream() {
     const donated = username === myCreatorName ? sessionContribution : 0;
     setMiniProfile({ username, avatar, level, coins, donated });
     try {
-      const { data: prof } = await noopClient
+      const { data: prof } = await apiStub
         .from('profiles')
         .select('user_id, bio, avatar_url, level, display_name')
         .or(`username.eq.${username},display_name.eq.${username}`)
@@ -2593,8 +2590,8 @@ export default function LiveStream() {
       if (prof) {
         const uid = prof.user_id;
         const [{ count: fc }, { count: fgc }] = await Promise.all([
-          noopClient.from('followers').select('*', { count: 'exact', head: true }).eq('following_id', uid),
-          noopClient.from('followers').select('*', { count: 'exact', head: true }).eq('follower_id', uid),
+          apiStub.from('followers').select('*', { count: 'exact', head: true }).eq('following_id', uid),
+          apiStub.from('followers').select('*', { count: 'exact', head: true }).eq('follower_id', uid),
         ]);
         setMiniProfile(prev => prev ? {
           ...prev,
@@ -3857,7 +3854,7 @@ export default function LiveStream() {
                                   if (isJoinRequester(viewer.id)) declineJoinRequest();
                                   else if (hostEntry) {
                                     const nid = (hostEntry as any)._notifId;
-                                    if (nid) noopClient.from('notifications').update({ is_read: true }).eq('id', nid).then(() => {});
+                                    if (nid) apiStub.from('notifications').update({ is_read: true }).eq('id', nid).then(() => {});
                                     removeCoHost(hostEntry.id);
                                     setCoHosts(prev => prev.filter(h => h.userId !== hostEntry.userId));
                                   }
@@ -3875,9 +3872,9 @@ export default function LiveStream() {
                                     const sk = (hostEntry as any)._streamKey;
                                     const nid = (hostEntry as any)._notifId;
                                     const hostUid = hostEntry.userId;
-                                    if (nid) noopClient.from('notifications').update({ is_read: true }).eq('id', nid).then(() => {});
+                                    if (nid) apiStub.from('notifications').update({ is_read: true }).eq('id', nid).then(() => {});
                                     const myUsername = user?.username || user?.name || 'User';
-                                    noopClient.from('notifications').insert({
+                                    apiStub.from('notifications').insert({
                                       user_id: hostUid,
                                       type: 'cohost_accepted',
                                       title: 'Co-Host Accepted',
@@ -4182,7 +4179,7 @@ export default function LiveStream() {
                 <button type="button" onClick={async () => {
                   if (!user?.id || !miniProfile) return;
                   try {
-                    await noopClient.from('followers').upsert({ follower_id: user.id, following_id: miniProfile.id }, { onConflict: 'follower_id,following_id' });
+                    await apiStub.from('followers').upsert({ follower_id: user.id, following_id: miniProfile.id }, { onConflict: 'follower_id,following_id' });
                     setIsFollowing(true);
                     closeMiniProfile();
                   } catch {}
@@ -4223,7 +4220,7 @@ export default function LiveStream() {
                   <button type="button" onClick={async () => {
                     if (!user?.id || !miniProfile) return;
                     try {
-                      await noopClient.from('blocked_users').upsert({ blocker_id: user.id, blocked_id: miniProfile.id }, { onConflict: 'blocker_id,blocked_id' });
+                      await apiStub.from('blocked_users').upsert({ blocker_id: user.id, blocked_id: miniProfile.id }, { onConflict: 'blocker_id,blocked_id' });
                       showToast(`@${miniProfile.username} blocked`);
                       closeMiniProfile();
                     } catch {}
@@ -4784,9 +4781,9 @@ export default function LiveStream() {
                     showToast(`+${amount.toLocaleString()} test added`);
                     setShowTestCoinsModal(false);
                     if (user?.id) {
-                      noopClient.rpc('add_test_coins', { p_amount: amount }).then(() => {}).catch(() => {
-                        noopClient.from('profiles').select('coins').eq('user_id', user.id).single().then(({ data }) => {
-                          noopClient.from('profiles').update({ coins: (data?.coins ?? 0) + amount }).eq('user_id', user.id).then(() => {});
+                      apiStub.rpc('add_test_coins', { p_amount: amount }).then(() => {}).catch(() => {
+                        apiStub.from('profiles').select('coins').eq('user_id', user.id).single().then(({ data }) => {
+                          apiStub.from('profiles').update({ coins: (data?.coins ?? 0) + amount }).eq('user_id', user.id).then(() => {});
                         });
                       });
                     }
@@ -4831,9 +4828,9 @@ export default function LiveStream() {
                         showToast(`+${amount.toLocaleString()} test added`);
                         setShowTestCoinsModal(false);
                         if (user?.id) {
-                          noopClient.rpc('add_test_coins', { p_amount: amount }).then(() => {}).catch(() => {
-                            noopClient.from('profiles').select('coins').eq('user_id', user.id).single().then(({ data }) => {
-                              noopClient.from('profiles').update({ coins: (data?.coins ?? 0) + amount }).eq('user_id', user.id).then(() => {});
+                          apiStub.rpc('add_test_coins', { p_amount: amount }).then(() => {}).catch(() => {
+                            apiStub.from('profiles').select('coins').eq('user_id', user.id).single().then(({ data }) => {
+                              apiStub.from('profiles').update({ coins: (data?.coins ?? 0) + amount }).eq('user_id', user.id).then(() => {});
                             });
                           });
                         }

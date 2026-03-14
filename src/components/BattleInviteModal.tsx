@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { noopClient } from '../lib/noopClient';
+import { apiStub } from '../lib/apiStub';
 import { websocket } from '../lib/websocket';
 import { Sword, Clock, Users } from 'lucide-react';
 import { trackEvent } from '../lib/analytics';
@@ -37,7 +37,7 @@ export default function BattleInviteModal({
     const timeout = new Promise<never>((_, rej) => setTimeout(() => rej(new Error('timeout')), 12000));
     try {
       await Promise.race([timeout, (async () => {
-        const { data: streams, error: streamError } = await noopClient
+        const { data: streams, error: streamError } = await apiStub
           .from('live_streams')
           .select('id, user_id, title, thumbnail_url, viewer_count')
           .eq('is_live', true)
@@ -49,7 +49,7 @@ export default function BattleInviteModal({
         if (!streams || streams.length === 0) { setLiveStreams([]); return; }
 
         const userIds = [...new Set(streams.map(s => s.user_id))];
-        const { data: profiles } = await noopClient
+        const { data: profiles } = await apiStub
           .from('profiles')
           .select('user_id, username, avatar_url')
           .in('user_id', userIds);

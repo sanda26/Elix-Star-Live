@@ -1,15 +1,5 @@
 /**
- * Call Service — Hetzner WebSocket signaling.
- *
- * All call invite / accept / reject signals are sent over the existing
- * WebSocket connection (src/lib/websocket.ts) to the Hetzner backend.
- * No Supabase / Appwrite / any third-party DB required.
- *
- * Signal flow:
- *   Caller  → WS 'call_invite'    → Server → Callee
- *   Callee  → WS 'call_accepted'  → Server → Caller
- *   Callee  → WS 'call_rejected'  → Server → Caller
- *   Either  → WS 'call_ended'     → Server → Both
+ * Call Service — WebSocket signaling (call_invite, call_accepted, call_rejected, call_ended).
  */
 
 import { websocket } from "./websocket";

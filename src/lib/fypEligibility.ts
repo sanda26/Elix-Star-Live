@@ -13,8 +13,7 @@
  *   New uploads start with a small "new-video boost" so they get
  *   initial impressions before organic engagement kicks in.
  *
- * All persistence goes through the Hetzner Node/Fastify backend
- * (PATCH /api/videos/:id/fyp).  No Supabase / Appwrite / any dead stub.
+ * Persistence via PATCH /api/videos/:id/fyp on the Node backend.
  */
 
 import { apiUrl } from "./api";

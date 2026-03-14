@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { noopClient } from '../lib/noopClient';
+import { apiStub } from '../lib/apiStub';
 import { useAuthStore } from '../store/useAuthStore';
 import { Plus, X, Camera, Tag, MessageCircle } from 'lucide-react';
 import { AvatarRing } from '../components/AvatarRing';
@@ -43,7 +43,7 @@ export default function Shop() {
   const fetchItems = async () => {
     setLoading(true);
     try {
-      let query = noopClient
+      let query = apiStub
         .from('shop_items')
         .select('*')
         .eq('is_active', true)
@@ -58,7 +58,7 @@ export default function Shop() {
       const list = (rows as ShopItem[]) || [];
       if (list.length > 0) {
         const userIds = [...new Set(list.map((i: ShopItem) => i.user_id).filter(Boolean))];
-        const { data: profiles } = await noopClient
+        const { data: profiles } = await apiStub
           .from('profiles')
           .select('user_id, username, display_name, avatar_url')
           .in('user_id', userIds);
@@ -93,14 +93,14 @@ export default function Shop() {
       if (newImage) {
         const ext = newImage.name.split('.').pop() || 'jpg';
         const path = `shop/${user.id}/${Date.now()}.${ext}`;
-        const { error: uploadErr } = await noopClient.storage.from('shop-images').upload(path, newImage);
+        const { error: uploadErr } = await apiStub.storage.from('shop-images').upload(path, newImage);
         if (!uploadErr) {
-          const { data: urlData } = noopClient.storage.from('shop-images').getPublicUrl(path);
+          const { data: urlData } = apiStub.storage.from('shop-images').getPublicUrl(path);
           imageUrl = urlData.publicUrl;
         }
       }
 
-      const { error: insertError } = await noopClient.from('shop_items').insert({
+      const { error: insertError } = await apiStub.from('shop_items').insert({
         user_id: user.id,
         title: newTitle.trim(),
         description: newDescription.trim(),
@@ -130,7 +130,7 @@ export default function Shop() {
 
   const contactSeller = async (sellerId: string) => {
     if (!user?.id || sellerId === user.id) return;
-    const { data: existing } = await noopClient
+    const { data: existing } = await apiStub
       .from('chat_threads')
       .select('id')
       .or(`and(user1_id.eq.${user.id},user2_id.eq.${sellerId}),and(user1_id.eq.${sellerId},user2_id.eq.${user.id})`)
@@ -139,7 +139,7 @@ export default function Shop() {
     if (existing?.id) {
       navigate(`/inbox/${existing.id}`);
     } else {
-      const { data: newThread } = await noopClient
+      const { data: newThread } = await apiStub
         .from('chat_threads')
         .insert({ user1_id: user.id, user2_id: sellerId })
         .select('id')

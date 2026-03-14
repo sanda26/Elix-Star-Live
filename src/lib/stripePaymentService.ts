@@ -1,5 +1,5 @@
 import { loadStripe } from '@stripe/stripe-js';
-import { noopClient } from '../lib/noopClient';
+import { apiStub } from '../lib/apiStub';
 import { platform } from '../lib/platform';
 
 export interface CoinPackage {
@@ -39,7 +39,7 @@ export class StripePaymentService {
    */
   async getCoinPackages(): Promise<CoinPackage[]> {
     try {
-      const { data, error } = await noopClient
+      const { data, error } = await apiStub
         .from('coin_packages')
         .select('*')
         .eq('is_active', true)
@@ -66,7 +66,7 @@ export class StripePaymentService {
   ): Promise<{ sessionId: string; error?: string }> {
     try {
       // Create payment session via backend
-      const { data, error } = await noopClient.functions.invoke('create-payment-session', {
+      const { data, error } = await apiStub.functions.invoke('create-payment-session', {
         body: {
           packageId,
           userId,
@@ -95,7 +95,7 @@ export class StripePaymentService {
   ): Promise<{ sessionId: string; error?: string }> {
     try {
       // Create subscription session via backend
-      const { data, error } = await noopClient.functions.invoke('create-subscription-session', {
+      const { data, error } = await apiStub.functions.invoke('create-subscription-session', {
         body: {
           priceId: 'price_super_fan_gbp', // This would be the real Stripe Price ID
           userId,
@@ -192,7 +192,7 @@ export class StripePaymentService {
   async verifyPayment(sessionId: string): Promise<PaymentResult> {
     try {
       // Verify payment via backend
-      const { data, error } = await noopClient.functions.invoke('verify-payment', {
+      const { data, error } = await apiStub.functions.invoke('verify-payment', {
         body: { sessionId }
       });
 
@@ -221,7 +221,7 @@ export class StripePaymentService {
    */
   async getUserBalance(userId: string): Promise<number> {
     try {
-      const { data, error } = await noopClient
+      const { data, error } = await apiStub
         .from('profiles')
         .select('coins')
         .eq('user_id', userId)

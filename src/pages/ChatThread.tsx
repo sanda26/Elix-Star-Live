@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { Send, ArrowLeft, Video } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { noopClient } from '../lib/noopClient';
+import { apiStub } from '../lib/apiStub';
 import { useAuthStore } from '../store/useAuthStore';
 import { LevelBadge } from '../components/LevelBadge';
 import { initiateCall } from '../lib/callService';
@@ -42,7 +42,7 @@ export default function ChatThread() {
     const loadConversation = async () => {
       try {
         // 1. Get conversation to find other participant
-        const { data: conv, error } = await noopClient
+        const { data: conv, error } = await apiStub
           .from('chat_threads')
           .select('user1_id, user2_id')
           .eq('id', threadId)
@@ -53,7 +53,7 @@ export default function ChatThread() {
         const otherId = conv.user1_id === user.id ? conv.user2_id : conv.user1_id;
         
         // 2. Get other user profile
-        const { data: profile } = await noopClient
+        const { data: profile } = await apiStub
           .from('profiles')
           .select('user_id, username, avatar_url, display_name, level')
           .eq('user_id', otherId)
@@ -80,7 +80,7 @@ export default function ChatThread() {
     if (!threadId || isSystemThread) return;
 
     const fetchMessages = async () => {
-      const { data } = await noopClient
+      const { data } = await apiStub
         .from('messages')
         .select('*')
         .eq('thread_id', threadId)
@@ -113,7 +113,7 @@ export default function ChatThread() {
     setDraft('');
 
     try {
-        const { error } = await noopClient.from('messages').insert({
+        const { error } = await apiStub.from('messages').insert({
             thread_id: threadId,
             sender_id: user.id,
             text: msgText,
@@ -121,7 +121,7 @@ export default function ChatThread() {
 
         if (error) throw error;
 
-        await noopClient
+        await apiStub
             .from('chat_threads')
             .update({
                 last_message: msgText,

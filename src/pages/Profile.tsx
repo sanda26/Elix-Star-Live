@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Share2, Menu, Lock, Play, Heart, Camera, Sparkles, LogOut, UserPlus, X, Bookmark, Grid3X3, Coins, ShoppingBag, Repeat2, ChevronDown, ChevronRight, Store, Search, Copy, MessageCircle, Check, TrendingUp, Flag, Download, Plus } from 'lucide-react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
-import { noopClient } from '../lib/noopClient';
+import { apiStub } from '../lib/apiStub';
 import { showToast } from '../lib/toast';
 import { uploadAvatar } from '../lib/avatarUpload';
 import { AvatarRing } from '../components/AvatarRing';
@@ -71,12 +71,12 @@ export default function Profile() {
     setShareSent(new Set());
     if (!user?.id) return;
     try {
-      const { data: followData } = await noopClient
+      const { data: followData } = await apiStub
         .from('followers')
         .select('follower_id')
         .eq('following_id', user.id)
         .limit(50);
-      const { data: followingData } = await noopClient
+      const { data: followingData } = await apiStub
         .from('followers')
         .select('following_id')
         .eq('follower_id', user.id)
@@ -86,7 +86,7 @@ export default function Profile() {
       (followingData || []).forEach((f: any) => ids.add(f.following_id));
       ids.delete(user.id);
       if (ids.size === 0) { setShareFollowers([]); return; }
-      const { data: profiles } = await noopClient
+      const { data: profiles } = await apiStub
         .from('profiles')
         .select('user_id, username, avatar_url')
         .in('user_id', Array.from(ids));
@@ -99,7 +99,7 @@ export default function Profile() {
     const profileUrl = `${window.location.origin}/profile/${effectiveUserId}`;
     const msgText = `Check out this profile: ${displayName} ${profileUrl}`;
     try {
-      const { data: existing } = await noopClient
+      const { data: existing } = await apiStub
         .from('chat_threads')
         .select('id')
         .or(`and(user1_id.eq.${user.id},user2_id.eq.${targetUserId}),and(user1_id.eq.${targetUserId},user2_id.eq.${user.id})`)
@@ -107,7 +107,7 @@ export default function Profile() {
         .single();
       let threadId = existing?.id;
       if (!threadId) {
-        const { data: newThread } = await noopClient
+        const { data: newThread } = await apiStub
           .from('chat_threads')
           .insert({ user1_id: user.id, user2_id: targetUserId })
           .select('id')
@@ -115,8 +115,8 @@ export default function Profile() {
         threadId = newThread?.id;
       }
       if (threadId) {
-        await noopClient.from('messages').insert({ thread_id: threadId, sender_id: user.id, text: msgText });
-        await noopClient.from('chat_threads').update({ last_message: msgText, last_at: new Date().toISOString() }).eq('id', threadId);
+        await apiStub.from('messages').insert({ thread_id: threadId, sender_id: user.id, text: msgText });
+        await apiStub.from('chat_threads').update({ last_message: msgText, last_at: new Date().toISOString() }).eq('id', threadId);
       }
       setShareSent(prev => new Set(prev).add(targetUserId));
     } catch {}
@@ -145,7 +145,7 @@ export default function Profile() {
       return;
     }
     const usernameClean = (displayUserId || '').replace(/^@+/, '');
-    noopClient
+    apiStub
       .from('profiles')
       .select('user_id')
       .eq('username', usernameClean)
@@ -181,7 +181,7 @@ export default function Profile() {
       const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000));
       
       const fetchProfile = async () => {
-        const { data, error } = await noopClient
+        const { data, error } = await apiStub
           .from('profiles')
           .select('*')
           .eq('user_id', effectiveUserId)
@@ -208,8 +208,8 @@ export default function Profile() {
         data.following_count = 0;
         try {
           const [{ count: followersCount }, { count: followingCount }] = await Promise.all([
-            noopClient.from('followers').select('*', { count: 'exact', head: true }).eq('following_id', effectiveUserId),
-            noopClient.from('followers').select('*', { count: 'exact', head: true }).eq('follower_id', effectiveUserId),
+            apiStub.from('followers').select('*', { count: 'exact', head: true }).eq('following_id', effectiveUserId),
+            apiStub.from('followers').select('*', { count: 'exact', head: true }).eq('follower_id', effectiveUserId),
           ]);
           data.followers_count = followersCount ?? 0;
           data.following_count = followingCount ?? 0;
@@ -217,13 +217,13 @@ export default function Profile() {
 
         data.likes_count = 0;
         try {
-          const { data: userVideos } = await noopClient
+          const { data: userVideos } = await apiStub
             .from('videos')
             .select('id')
             .eq('user_id', effectiveUserId);
           if (userVideos && userVideos.length > 0) {
             const videoIds = userVideos.map(v => v.id);
-            const { count: totalLikes } = await noopClient
+            const { count: totalLikes } = await apiStub
               .from('likes')
               .select('*', { count: 'exact', head: true })
               .in('video_id', videoIds);
@@ -239,7 +239,7 @@ export default function Profile() {
       trackEvent('profile_view', { user_id: effectiveUserId, is_own: isOwnProfile });
 
       if (data?.is_creator) {
-        noopClient.rpc('get_weekly_creator_ranking', { p_limit: 99 }).then(({ data: rankingData }) => {
+        apiStub.rpc('get_weekly_creator_ranking', { p_limit: 99 }).then(({ data: rankingData }) => {
           if (rankingData) {
             const myRank = rankingData.find((r: any) => r.user_id === effectiveUserId);
             if (myRank) setRanking(myRank.rank);
@@ -271,14 +271,14 @@ export default function Profile() {
     if (!effectiveUserId) return;
     setVideosLoading(true);
     try {
-      let query = noopClient.from('videos').select('id, thumbnail_url, views, is_public');
+      let query = apiStub.from('videos').select('id, thumbnail_url, views, is_public');
 
       if (activeTab === 'videos') {
         query = query.eq('user_id', effectiveUserId).eq('is_public', true);
       } else if (activeTab === 'private' && isOwnProfile) {
         query = query.eq('user_id', effectiveUserId).eq('is_public', false);
       } else if (activeTab === 'liked') {
-        const { data: likes } = await noopClient
+        const { data: likes } = await apiStub
           .from('likes')
           .select('video_id')
           .eq('user_id', effectiveUserId);
@@ -286,7 +286,7 @@ export default function Profile() {
         if (videoIds.length === 0) { setVideos([]); setVideosLoading(false); return; }
         query = query.in('id', videoIds);
       } else if (activeTab === 'saved') {
-        const { data: saved } = await noopClient
+        const { data: saved } = await apiStub
           .from('saved_videos')
           .select('video_id')
           .eq('user_id', effectiveUserId);
@@ -294,7 +294,7 @@ export default function Profile() {
         if (videoIds.length === 0) { setVideos([]); setVideosLoading(false); return; }
         query = query.in('id', videoIds);
       } else if (activeTab === 'reposts') {
-        const { data: shares } = await noopClient
+        const { data: shares } = await apiStub
           .from('shares')
           .select('video_id')
           .eq('user_id', effectiveUserId);
@@ -303,7 +303,7 @@ export default function Profile() {
         query = query.in('id', videoIds);
       } else if (activeTab === 'shop') {
         try {
-          const { data: shopData } = await noopClient
+          const { data: shopData } = await apiStub
             .from('shop_items')
             .select('id, title, price, image_url')
             .eq('user_id', effectiveUserId)
@@ -330,7 +330,7 @@ export default function Profile() {
   const checkFollowing = async () => {
     if (!user?.id || !effectiveUserId || isOwnProfile) return;
 
-    const { data } = await noopClient
+    const { data } = await apiStub
       .from('followers')
       .select('id')
       .eq('follower_id', user.id)
@@ -347,14 +347,14 @@ export default function Profile() {
     setIsFollowing(!wasFollowing);
     try {
       if (wasFollowing) {
-        const { error } = await noopClient
+        const { error } = await apiStub
           .from('followers')
           .delete()
           .eq('follower_id', user.id)
           .eq('following_id', effectiveUserId);
         if (error) throw error;
       } else {
-        const { error } = await noopClient
+        const { error } = await apiStub
           .from('followers')
           .insert({ follower_id: user.id, following_id: effectiveUserId });
         if (error && error.code !== '23505') throw error;
@@ -411,28 +411,28 @@ export default function Profile() {
       setProfileData(prev => prev ? { ...prev, avatar_url: compressed } : prev);
       setIsUploadingAvatar(false);
 
-      const { data: { user: authUser } } = await noopClient.auth.getUser();
+      const { data: { user: authUser } } = await apiStub.auth.getUser();
       if (!authUser) return;
 
       const fileExt = file.name.split('.').pop()?.toLowerCase() || 'jpg';
       const filePath = `${authUser.id}/${Date.now()}.${fileExt}`;
 
-      const { error: upErr } = await noopClient.storage
+      const { error: upErr } = await apiStub.storage
         .from('avatars')
         .upload(filePath, file, { cacheControl: '3600', upsert: true, contentType: file.type });
 
       let savedUrl = compressed;
       if (!upErr) {
-        const pub = noopClient.storage.from('avatars').getPublicUrl(filePath).data?.publicUrl;
+        const pub = apiStub.storage.from('avatars').getPublicUrl(filePath).data?.publicUrl;
         if (pub) {
           savedUrl = pub;
           localStorage.setItem('elix_avatar_' + user.id, savedUrl);
         }
       }
 
-      noopClient.auth.updateUser({ data: { avatar_url: savedUrl } }).catch(() => {});
-      noopClient.from('profiles').update({ avatar_url: savedUrl }).eq('user_id', authUser.id).then(() => {});
-      noopClient.from('profiles').upsert({ user_id: authUser.id, avatar_url: savedUrl, username: authUser.email?.split('@')[0] || 'user' }, { onConflict: 'user_id' }).then(() => {});
+      apiStub.auth.updateUser({ data: { avatar_url: savedUrl } }).catch(() => {});
+      apiStub.from('profiles').update({ avatar_url: savedUrl }).eq('user_id', authUser.id).then(() => {});
+      apiStub.from('profiles').upsert({ user_id: authUser.id, avatar_url: savedUrl, username: authUser.email?.split('@')[0] || 'user' }, { onConflict: 'user_id' }).then(() => {});
 
       updateUser({ avatar: savedUrl });
       setProfileData(prev => prev ? { ...prev, avatar_url: savedUrl } : prev);

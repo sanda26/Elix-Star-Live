@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { noopClient } from '../lib/noopClient';
+import { apiStub } from '../lib/apiStub';
 import { Camera } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { trackEvent } from '../lib/analytics';
@@ -40,12 +40,12 @@ export default function EditProfile() {
 
   const loadProfile = async () => {
     try {
-      const { data: userData } = await noopClient.auth.getUser();
+      const { data: userData } = await apiStub.auth.getUser();
       if (!userData.user) return;
 
       setCurrentUserId(userData.user.id);
 
-      const { data, error } = await noopClient
+      const { data, error } = await apiStub
         .from('profiles')
         .select('*')
         .eq('user_id', userData.user.id)
@@ -82,7 +82,7 @@ export default function EditProfile() {
         trackEvent('profile_avatar_change', {});
         
         // Optional: Force a refresh of the user metadata if needed by other components
-        await noopClient.auth.refreshSession();
+        await apiStub.auth.refreshSession();
       } else {
         showToast(result.error || 'Failed to upload avatar');
       }
@@ -99,7 +99,7 @@ export default function EditProfile() {
 
     setLoading(true);
     try {
-      const { error } = await noopClient
+      const { error } = await apiStub
         .from('profiles')
         .update({
           display_name: profile.display_name,

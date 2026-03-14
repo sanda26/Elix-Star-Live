@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Lock, CheckCircle } from 'lucide-react';
-import { noopClient } from '../lib/noopClient';
+import { apiStub } from '../lib/apiStub';
 
 export default function ResetPassword() {
   const navigate = useNavigate();
@@ -12,7 +12,7 @@ export default function ResetPassword() {
   const [success, setSuccess] = useState(false);
 
   useEffect(() => {
-    const { data: listener } = noopClient.auth.onAuthStateChange((event) => {
+    const { data: listener } = apiStub.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY') {
         // User arrived via password reset link — form is ready
       }
@@ -35,7 +35,7 @@ export default function ResetPassword() {
 
     setIsSubmitting(true);
     try {
-      const { error: updateError } = await noopClient.auth.updateUser({ password });
+      const { error: updateError } = await apiStub.auth.updateUser({ password });
       if (updateError) {
         setError(updateError.message);
       } else {

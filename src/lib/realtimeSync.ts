@@ -1,12 +1,6 @@
 /**
- * Realtime Sync — Hetzner WebSocket backend.
- *
- * Legacy Supabase-based realtime feed sync has been fully removed.
- * The app now uses the custom WebSocket service (src/lib/websocket.ts)
- * connected to the Hetzner Node/Fastify backend for all real-time events.
- *
- * This module is kept as a named export so existing import sites
- * continue to compile without changes.
+ * Realtime Sync — WebSocket (src/lib/websocket.ts) for real-time events.
+ * This module is a named export for existing imports; use websocket.connect() for live data.
  */
 
 /**

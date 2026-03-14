@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Bookmark, Play } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { noopClient } from '../lib/noopClient';
+import { apiStub } from '../lib/apiStub';
 
 interface SavedVideo {
   id: string;
@@ -19,10 +19,10 @@ export default function SavedVideos() {
   useEffect(() => {
     const load = async () => {
       try {
-        const { data: { user } } = await noopClient.auth.getUser();
+        const { data: { user } } = await apiStub.auth.getUser();
         if (!user) { setLoading(false); return; }
 
-        const { data: saved } = await noopClient
+        const { data: saved } = await apiStub
           .from('saved_videos')
           .select('video_id')
           .eq('user_id', user.id)
@@ -31,7 +31,7 @@ export default function SavedVideos() {
         if (!saved || saved.length === 0) { setVideos([]); setLoading(false); return; }
 
         const videoIds = saved.map(s => s.video_id);
-        const { data: vids } = await noopClient
+        const { data: vids } = await apiStub
           .from('videos')
           .select('id, url, thumbnail_url, views, description')
           .in('id', videoIds);

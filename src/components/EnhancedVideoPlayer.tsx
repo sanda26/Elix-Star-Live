@@ -29,7 +29,7 @@ import UserProfileModal from './UserProfileModal';
 import ReportModal from './ReportModal';
 import PromotePanel from './PromotePanel';
 import { LevelBadge } from './LevelBadge';
-import { noopClient } from '../lib/noopClient';
+import { apiStub } from '../lib/apiStub';
 import { getVideoPosterUrl } from '../lib/bunnyStorage';
 
 interface EnhancedVideoPlayerProps {
@@ -171,7 +171,7 @@ export default function EnhancedVideoPlayer({
     }
     let cancelled = false;
     (async () => {
-      const { data } = await noopClient.from('videos').select('url').eq('id', video.duetWithVideoId!).single();
+      const { data } = await apiStub.from('videos').select('url').eq('id', video.duetWithVideoId!).single();
       if (!cancelled && data?.url) setDuetOriginalUrl(data.url);
     })();
     return () => { cancelled = true; };

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { noopClient } from '../lib/noopClient';
+import { apiStub } from '../lib/apiStub';
 import { useAuthStore } from '../store/useAuthStore';
 import { Heart, UserPlus, Search, ShoppingBag, Archive, MicOff, Plus, Sword, X, ChevronRight, Trash2 } from 'lucide-react';
 import { AvatarRing } from '../components/AvatarRing';
@@ -82,7 +82,7 @@ export default function Inbox() {
   const isThreadDeleted = (id: string): boolean => deletedThreadIdsRef.current.has(id) || getDeletedThreadIds().has(id);
 
   const loadCurrentUser = async () => {
-    const { data } = await noopClient.auth.getUser();
+    const { data } = await apiStub.auth.getUser();
     setCurrentUserId(data.user?.id || null);
   };
 
@@ -95,7 +95,7 @@ export default function Inbox() {
     deletedThreadIdsRef.current = getDeletedThreadIds();
     const fetchNotifications = async () => {
       try {
-        const { data } = await noopClient
+        const { data } = await apiStub
           .from('notifications')
           .select('*')
           .eq('user_id', currentUserId)
@@ -119,7 +119,7 @@ export default function Inbox() {
     };
     const fetchConversations = async () => {
       try {
-        const { data } = await noopClient
+        const { data } = await apiStub
           .from('chat_threads')
           .select('*')
           .or(`user1_id.eq.${currentUserId},user2_id.eq.${currentUserId}`)
@@ -128,13 +128,13 @@ export default function Inbox() {
         if (data) {
           const mapped = await Promise.all(data.map(async (t: any) => {
             const otherId = t.user1_id === currentUserId ? t.user2_id : t.user1_id;
-            const { data: profile } = await noopClient
+            const { data: profile } = await apiStub
               .from('profiles')
               .select('username, display_name, avatar_url')
               .eq('user_id', otherId)
               .single();
             const otherUser = profile ? { username: profile.username || 'User', display_name: profile.display_name || null, avatar_url: profile.avatar_url } : { username: 'User', display_name: null, avatar_url: null };
-            const { count } = await noopClient
+            const { count } = await apiStub
               .from('messages')
               .select('*', { count: 'exact', head: true })
               .eq('thread_id', t.id)
@@ -162,7 +162,7 @@ export default function Inbox() {
     };
     const fetchFollowers = async () => {
       try {
-        const { data } = await noopClient
+        const { data } = await apiStub
           .from('followers')
           .select('follower_id')
           .eq('following_id', currentUserId)
@@ -171,7 +171,7 @@ export default function Inbox() {
         if (data && data.length > 0) {
           const ids = data.map((f: any) => f.follower_id).filter((id: string) => id !== currentUserId);
           if (ids.length === 0) { setFollowers([]); return; }
-          const { data: profiles } = await noopClient
+          const { data: profiles } = await apiStub
             .from('profiles')
             .select('user_id, username, display_name, avatar_url')
             .in('user_id', ids);
@@ -189,13 +189,13 @@ export default function Inbox() {
     };
     const fetchSuggestedUsers = async () => {
       try {
-        const { data: usersData, error } = await noopClient
+        const { data: usersData, error } = await apiStub
           .from('profiles')
           .select('user_id, username, display_name, avatar_url')
           .neq('user_id', currentUserId || '')
           .limit(50);
         if (error) throw error;
-        const { data: liveData } = await noopClient
+        const { data: liveData } = await apiStub
           .from('live_streams')
           .select('user_id')
           .eq('is_live', true);
@@ -411,7 +411,7 @@ export default function Inbox() {
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     if (!window.confirm('Delete this conversation? Messages will be removed.')) return;
-                                    noopClient.from('chat_threads').delete().eq('id', conv.id).then(({ error }) => {
+                                    apiStub.from('chat_threads').delete().eq('id', conv.id).then(({ error }) => {
                                         if (error) showToast('Could not delete');
                                         else {
                                           addDeletedThreadId(conv.id);
@@ -453,7 +453,7 @@ export default function Inbox() {
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     if (!window.confirm('Delete this conversation? Messages will be removed.')) return;
-                                    noopClient.from('chat_threads').delete().eq('id', conv.id).then(({ error }) => {
+                                    apiStub.from('chat_threads').delete().eq('id', conv.id).then(({ error }) => {
                                         if (error) showToast('Could not delete');
                                         else {
                                           addDeletedThreadId(conv.id);

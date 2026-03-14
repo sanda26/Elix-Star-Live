@@ -1,9 +1,5 @@
 /**
- * Push Notification Service — Hetzner backend.
- *
- * Device token registration and push subscription management now goes through
- * the Hetzner Node/Fastify backend (POST /api/device-tokens).
- * No Supabase / Appwrite / any third-party DB required.
+ * Push Notification Service — device tokens via POST /api/device-tokens.
  */
 
 import { apiUrl } from "./api";

@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Search as SearchIcon, X } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { noopClient } from '../lib/noopClient';
+import { apiStub } from '../lib/apiStub';
 import { AvatarRing } from '../components/AvatarRing';
 
 const TRENDING_SEARCHES = [
@@ -78,12 +78,12 @@ export default function SearchPage() {
     (async () => {
       try {
         const [usersRes, videosRes] = await Promise.all([
-          noopClient
+          apiStub
             .from('profiles')
             .select('user_id, username, display_name, avatar_url')
             .or(`username.ilike.%${normalizedQuery}%,display_name.ilike.%${normalizedQuery}%`)
             .limit(20),
-          noopClient
+          apiStub
             .from('videos')
             .select('id, description, thumbnail_url, user_id, hashtags')
             .eq('is_public', true)
@@ -105,7 +105,7 @@ export default function SearchPage() {
 
         if (videosRes.data) {
           const userIds = [...new Set(videosRes.data.map((v: any) => v.user_id))];
-          const { data: profiles } = await noopClient
+          const { data: profiles } = await apiStub
             .from('profiles')
             .select('user_id, username')
             .in('user_id', userIds);

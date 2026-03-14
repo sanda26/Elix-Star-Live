@@ -1,6 +1,4 @@
-// Push Notification Service — Hetzner backend + Capacitor native push.
-// No Supabase / Firebase / Appwrite. Device tokens are registered via
-// POST /api/device-tokens on the Hetzner Node backend.
+// Push notifications — Capacitor native push; device tokens via POST /api/device-tokens.
 
 import { Capacitor } from "@capacitor/core";
 import {

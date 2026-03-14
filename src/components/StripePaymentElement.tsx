@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
 import { useAuthStore } from '@/store/useAuthStore';
 import { IS_STORE_BUILD } from '@/config/build';
-import { noopClient } from '@/lib/noopClient';
+import { apiStub } from '@/lib/apiStub';
 import { platform } from '@/lib/platform';
 
 const stripePromise = (!platform.isNative && hasStripeKey()) ? loadStripe(getStripeKey()) : null;
@@ -115,7 +115,7 @@ export const StripePaymentElement: React.FC<StripePaymentElementProps> = ({
     }
     const fetchClientSecret = async () => {
         try {
-            const { data, error } = await noopClient.functions.invoke('create-payment-intent', {
+            const { data, error } = await apiStub.functions.invoke('create-payment-intent', {
                 body: { 
                     amount: Math.round(coinPackage.price * 100),
                     currency: 'usd',

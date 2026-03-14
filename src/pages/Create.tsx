@@ -23,7 +23,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
 import { setCachedCameraStream } from '../lib/cameraStream';
 import { type SoundTrack, fetchSoundTracksFromDatabase } from '../lib/soundLibrary';
-import { noopClient } from '../lib/noopClient';
+import { apiStub } from '../lib/apiStub';
 import ElixCameraLayout from '../components/ElixCameraLayout';
 
 type CreateMode = 'upload' | 'post' | 'create' | 'live';

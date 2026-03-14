@@ -1,4 +1,4 @@
-import { noopClient } from './noopClient';
+import { apiStub } from './apiStub';
 
 export type GiftCatalogRow = {
   gift_id: string;
@@ -24,7 +24,7 @@ export type GiftUiItem = {
 // Fetch gifts from database - NO HARDCODED DATA
 export async function fetchGiftsFromDatabase(): Promise<GiftUiItem[]> {
   try {
-    const { data: giftsData, error } = await noopClient
+    const { data: giftsData, error } = await apiStub
       .from('gifts_catalog')
       .select('*')
       .eq('is_active', true)
@@ -44,7 +44,7 @@ export async function fetchGiftsFromDatabase(): Promise<GiftUiItem[]> {
 
 export async function fetchGiftPriceMap(): Promise<Map<string, number>> {
   try {
-    const { data: giftsData, error } = await noopClient
+    const { data: giftsData, error } = await apiStub
       .from('gifts_catalog')
       .select('gift_id, coin_cost')
       .eq('is_active', true);

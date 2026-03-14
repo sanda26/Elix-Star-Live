@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { noopClient } from '../../lib/noopClient';
+import { apiStub } from '../../lib/apiStub';
 import { BarChart3, Users, Video, DollarSign, Flag, Zap } from 'lucide-react';
 
 interface DashboardStats {
@@ -29,11 +29,11 @@ export default function AdminDashboard() {
   const loadStats = async () => {
     try {
       const [users, videos, liveRooms, reports, purchases] = await Promise.all([
-        noopClient.from('profiles').select('id', { count: 'exact', head: true }),
-        noopClient.from('videos').select('id', { count: 'exact', head: true }),
-        noopClient.from('live_streams').select('id', { count: 'exact', head: true }).eq('is_live', true),
-        noopClient.from('reports').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
-        noopClient.from('purchases').select('price_minor').eq('status', 'verified'),
+        apiStub.from('profiles').select('id', { count: 'exact', head: true }),
+        apiStub.from('videos').select('id', { count: 'exact', head: true }),
+        apiStub.from('live_streams').select('id', { count: 'exact', head: true }).eq('is_live', true),
+        apiStub.from('reports').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+        apiStub.from('purchases').select('price_minor').eq('status', 'verified'),
       ]);
 
       const revenue = purchases.data?.reduce((sum, p) => sum + (p.price_minor || 0), 0) || 0;

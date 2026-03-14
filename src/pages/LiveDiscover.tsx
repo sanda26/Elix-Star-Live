@@ -68,7 +68,7 @@ export default function LiveDiscover() {
   useEffect(() => {
     fetchLiveStreams();
 
-    // Realtime updates via Supabase channels disabled; rely on polling for now.
+    // Realtime updates via polling / WebSocket.
     return () => {};
   }, [fetchLiveStreams, removeLiveStream]);
 

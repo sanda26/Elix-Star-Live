@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { noopClient } from '../../lib/noopClient';
+import { apiStub } from '../../lib/apiStub';
 import { Flag, CheckCircle, XCircle, Eye } from 'lucide-react';
 import { showToast } from '../../lib/toast';
 
@@ -27,7 +27,7 @@ export default function AdminReports() {
 
   const loadReports = async () => {
     try {
-      let query = noopClient
+      let query = apiStub
         .from('reports')
         .select('*, reporter:profiles!reporter_id(username)')
         .order('created_at', { ascending: false })
@@ -50,8 +50,8 @@ export default function AdminReports() {
 
   const handleResolve = async (reportId: string, outcome: 'removed' | 'warned' | 'no_action') => {
     try {
-      const { data: { user } } = await noopClient.auth.getUser();
-      const { error } = await noopClient
+      const { data: { user } } = await apiStub.auth.getUser();
+      const { error } = await apiStub
         .from('reports')
         .update({
           status: 'resolved',

@@ -1,5 +1,5 @@
 import React from 'react';
-import { noopClient } from '../lib/noopClient';
+import { apiStub } from '../lib/apiStub';
 import {
   ChevronRight,
   User,
@@ -24,7 +24,7 @@ export default function Settings() {
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 2000); };
 
   const handleLogout = async () => {
-    await noopClient.auth.signOut();
+    await apiStub.auth.signOut();
     navigate('/login');
   };
 
@@ -40,7 +40,7 @@ export default function Settings() {
     if (!doubleConfirm) return;
 
     try {
-      const { data } = await noopClient.auth.getSession();
+      const { data } = await apiStub.auth.getSession();
       const token = data.session?.access_token;
 
       if (token) {
@@ -53,7 +53,7 @@ export default function Settings() {
         });
 
         if (response.ok) {
-          await noopClient.auth.signOut();
+          await apiStub.auth.signOut();
           navigate('/login');
         } else {
           showToast('Failed to delete account. Please contact support.');

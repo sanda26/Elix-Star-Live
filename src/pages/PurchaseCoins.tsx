@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { noopClient } from '../lib/noopClient';
+import { apiStub } from '../lib/apiStub';
 import { Check, Sparkles, RotateCcw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { trackEvent } from '../lib/analytics';
@@ -37,7 +37,7 @@ export default function PurchaseCoins() {
 
   const loadCurrentUser = async () => {
     try {
-      const { data } = await noopClient.auth.getUser();
+      const { data } = await apiStub.auth.getUser();
       setCurrentUserId(data.user?.id || null);
     } catch {
       setCurrentUserId(null);

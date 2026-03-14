@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { noopClient } from '../lib/noopClient';
+import { apiStub } from '../lib/apiStub';
 
 export default function AuthCallback() {
   const navigate = useNavigate();
@@ -24,7 +24,7 @@ export default function AuthCallback() {
         }
 
         if (code) {
-          const { error: exchangeError } = await noopClient.auth.exchangeCodeForSession(code);
+          const { error: exchangeError } = await apiStub.auth.exchangeCodeForSession(code);
           if (exchangeError) {
             setStatus('error');
             setMessage(exchangeError.message);
@@ -32,7 +32,7 @@ export default function AuthCallback() {
           }
         }
 
-        const { data } = await noopClient.auth.getSession();
+        const { data } = await apiStub.auth.getSession();
         if (data.session) {
           if (!cancelled) navigate('/profile', { replace: true });
           return;

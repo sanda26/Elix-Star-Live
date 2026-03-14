@@ -3,7 +3,7 @@ import { AlertTriangle, Flag, Ban, EyeOff, MessageSquare, UserMinus } from 'luci
 import { useAuthStore } from '../store/useAuthStore';
 import { useVideoStore } from '../store/useVideoStore';
 import { apiUrl } from '../lib/api';
-import { noopClient } from '../lib/noopClient';
+import { apiStub } from '../lib/apiStub';
 import { showToast } from '../lib/toast';
 
 interface ReportModalProps {
@@ -91,7 +91,7 @@ export default function ReportModal({ isOpen, onClose, videoId, contentType, con
     setVideoOwnerIdFromDb(null);
     void (async () => {
     try {
-      const { data } = await noopClient
+      const { data } = await apiStub
         .from('videos')
         .select('user_id')
         .eq('id', videoId)
@@ -163,7 +163,7 @@ export default function ReportModal({ isOpen, onClose, videoId, contentType, con
         if (contentType === 'video') payload.video_id = targetId;
         if (contentType === 'user' && targetId) payload.reported_id = targetId;
 
-        const { error } = await noopClient.from('reports').insert(payload);
+        const { error } = await apiStub.from('reports').insert(payload);
         if (error) throw error;
         done();
       } catch (directErr) {

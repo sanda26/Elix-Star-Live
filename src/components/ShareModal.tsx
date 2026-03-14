@@ -14,7 +14,7 @@ import {
   Users2,
   Plus,
 } from 'lucide-react';
-import { noopClient } from '../lib/noopClient';
+import { apiStub } from '../lib/apiStub';
 import { useAuthStore } from '../store/useAuthStore';
 import { AvatarRing } from './AvatarRing';
 import PromotePanel from './PromotePanel';
@@ -60,10 +60,10 @@ export default function ShareModal({ isOpen, onClose, video, onReport, onJoin, i
     if (!user?.id) return;
     try {
       // Only people who follow you (your followers), not people you follow
-      const { data: followData } = await noopClient.from('followers').select('follower_id').eq('following_id', user.id).limit(50);
+      const { data: followData } = await apiStub.from('followers').select('follower_id').eq('following_id', user.id).limit(50);
       const ids = (followData || []).map((f: { follower_id: string }) => f.follower_id);
       if (ids.length === 0) { setFollowers([]); return; }
-      const { data: profiles } = await noopClient.from('profiles').select('user_id, username, avatar_url').in('user_id', ids);
+      const { data: profiles } = await apiStub.from('profiles').select('user_id, username, avatar_url').in('user_id', ids);
       setFollowers(profiles || []);
     } catch { setFollowers([]); }
   };
@@ -73,17 +73,17 @@ export default function ShareModal({ isOpen, onClose, video, onReport, onJoin, i
     const videoUrl = `${window.location.origin}/video/${video.id}`;
     const msgText = `Check out this video by @${video.user.username}: ${videoUrl}`;
     try {
-      const { data: existing } = await noopClient.from('chat_threads').select('id')
+      const { data: existing } = await apiStub.from('chat_threads').select('id')
         .or(`and(user1_id.eq.${user.id},user2_id.eq.${targetUserId}),and(user1_id.eq.${targetUserId},user2_id.eq.${user.id})`)
         .limit(1).single();
       let threadId = existing?.id;
       if (!threadId) {
-        const { data: newThread } = await noopClient.from('chat_threads').insert({ user1_id: user.id, user2_id: targetUserId }).select('id').single();
+        const { data: newThread } = await apiStub.from('chat_threads').insert({ user1_id: user.id, user2_id: targetUserId }).select('id').single();
         threadId = newThread?.id;
       }
       if (threadId) {
-        await noopClient.from('messages').insert({ thread_id: threadId, sender_id: user.id, text: msgText });
-        await noopClient.from('chat_threads').update({ last_message: msgText, last_at: new Date().toISOString() }).eq('id', threadId);
+        await apiStub.from('messages').insert({ thread_id: threadId, sender_id: user.id, text: msgText });
+        await apiStub.from('chat_threads').update({ last_message: msgText, last_at: new Date().toISOString() }).eq('id', threadId);
       }
       setSentTo(prev => new Set(prev).add(targetUserId));
     } catch {}

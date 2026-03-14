@@ -38,7 +38,7 @@ import { ChatOverlay } from '../components/ChatOverlay';
 import { AvatarRing } from '../components/AvatarRing';
 import { useAuthStore } from '../store/useAuthStore';
 import { apiUrl, getLiveKitUrl } from '../lib/api';
-import { noopClient } from '../lib/noopClient';
+import { apiStub } from '../lib/apiStub';
 import ReportModal from '../components/ReportModal';
 import PromotePanel from '../components/PromotePanel';
 import { RankingPanel } from '../components/RankingPanel';
@@ -155,12 +155,12 @@ export default function SpectatorPage() {
   // ═══════════════════════════════════════════════════
   const [isCoHosting, setIsCoHosting] = useState(false);
   const [coHostStream, setCoHostStream] = useState<MediaStream | null>(null);
-  const coHostChanRef = useRef<ReturnType<typeof noopClient.channel> | null>(null);
+  const coHostChanRef = useRef<ReturnType<typeof apiStub.channel> | null>(null);
   const [pendingCoHostInvite, setPendingCoHostInvite] = useState<{ notifId: string; hostName: string; hostAvatar: string; streamKey: string; hostUserId: string } | null>(null);
 
   useEffect(() => {
     if (!user?.id) return;
-    // Supabase-based cohost invite notifications disabled; relies on explicit navigation.
+    // Cohost invite uses explicit navigation / WebSocket.
     return () => {};
   }, [user?.id]);
   const myVideoRef = useRef<HTMLVideoElement>(null);
@@ -209,7 +209,7 @@ export default function SpectatorPage() {
       setCoHostStream(null);
     }
     if (coHostChanRef.current) {
-      noopClient.removeChannel(coHostChanRef.current);
+      apiStub.removeChannel(coHostChanRef.current);
       coHostChanRef.current = null;
     }
     setIsCoHosting(false);
@@ -267,7 +267,7 @@ export default function SpectatorPage() {
     return () => clearTimeout(t);
   }, [hasStream]);
 
-  // Fetch host / stream state from backend (Node) instead of Supabase
+  // Fetch host / stream state from backend
   useEffect(() => {
     if (!effectiveStreamId) return;
     (async () => {
@@ -442,7 +442,7 @@ export default function SpectatorPage() {
   // Refresh coins when gift panel opens - use max of local, DB and persisted so test coins stay
   useEffect(() => {
     if (showGiftPanel && user?.id) {
-      noopClient
+      apiStub
         .from('profiles')
         .select('coins')
         .eq('user_id', user.id)
@@ -460,7 +460,7 @@ export default function SpectatorPage() {
   const handleSubscribe = async () => {
     setIsSubscribing(true);
     try {
-      const { data: session } = await noopClient.auth.getSession();
+      const { data: session } = await apiStub.auth.getSession();
       if (!user?.id) {
         navigate('/login');
         return;
@@ -501,7 +501,7 @@ export default function SpectatorPage() {
   useEffect(() => {
     if (!effectiveStreamId) return;
 
-    // Supabase-based viewer_count realtime disabled; rely on WebSocket/backend events.
+    // Viewer count from WebSocket/backend events.
     return () => {};
   }, [effectiveStreamId, navigate]);
 

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { noopClient } from '../lib/noopClient';
+import { apiStub } from '../lib/apiStub';
 import {
   calculateEngagementScore,
   isEligibleForFyp,
@@ -147,7 +147,7 @@ export const useVideoStore = create<VideoStore>()(
       fetchVideos: async () => {
         set({ loading: true });
         try {
-          const { data, error } = await noopClient
+          const { data, error } = await apiStub
             .from('videos')
             .select('*')
             .eq('is_public', true)
@@ -162,7 +162,7 @@ export const useVideoStore = create<VideoStore>()(
           const userIds = [...new Set(data.map((v: any) => v.user_id).filter(Boolean))];
           let profilesMap: Record<string, any> = {};
           if (userIds.length > 0) {
-            const { data: profiles } = await noopClient
+            const { data: profiles } = await apiStub
               .from('profiles')
               .select('user_id, username, display_name, avatar_url, is_creator, followers_count, following_count')
               .in('user_id', userIds);
@@ -176,13 +176,13 @@ export const useVideoStore = create<VideoStore>()(
           let savedIds: string[] = [];
           let blockedUserIds: string[] = [];
           try {
-            const { data: { user } } = await noopClient.auth.getUser();
+            const { data: { user } } = await apiStub.auth.getUser();
             if (user) {
               const [{ data: likes }, { data: follows }, { data: saves }, { data: blocks }] = await Promise.all([
-                noopClient.from('likes').select('video_id').eq('user_id', user.id),
-                noopClient.from('followers').select('following_id').eq('follower_id', user.id),
-                noopClient.from('saved_videos').select('video_id').eq('user_id', user.id),
-                noopClient.from('blocked_users').select('blocked_id').eq('blocker_id', user.id),
+                apiStub.from('likes').select('video_id').eq('user_id', user.id),
+                apiStub.from('followers').select('following_id').eq('follower_id', user.id),
+                apiStub.from('saved_videos').select('video_id').eq('user_id', user.id),
+                apiStub.from('blocked_users').select('blocked_id').eq('blocker_id', user.id),
               ]);
               likedIds = likes?.map((r: { video_id: string }) => r.video_id) ?? [];
               followedUserIds = follows?.map((r: { following_id: string }) => r.following_id) ?? [];
@@ -253,7 +253,7 @@ export const useVideoStore = create<VideoStore>()(
       fetchStemVideos: async () => {
         set({ stemLoading: true });
         try {
-          const { data, error } = await noopClient
+          const { data, error } = await apiStub
             .from('videos')
             .select('*')
             .eq('is_public', true)
@@ -269,7 +269,7 @@ export const useVideoStore = create<VideoStore>()(
           const userIds = [...new Set(data.map((v: any) => v.user_id).filter(Boolean))];
           let profilesMap: Record<string, any> = {};
           if (userIds.length > 0) {
-            const { data: profiles } = await noopClient
+            const { data: profiles } = await apiStub
               .from('profiles')
               .select('user_id, username, display_name, avatar_url, is_creator, followers_count, following_count')
               .in('user_id', userIds);
@@ -283,13 +283,13 @@ export const useVideoStore = create<VideoStore>()(
           let savedIds: string[] = [];
           let blockedUserIds: string[] = [];
           try {
-            const { data: { user } } = await noopClient.auth.getUser();
+            const { data: { user } } = await apiStub.auth.getUser();
             if (user) {
               const [{ data: likes }, { data: follows }, { data: saves }, { data: blocks }] = await Promise.all([
-                noopClient.from('likes').select('video_id').eq('user_id', user.id),
-                noopClient.from('followers').select('following_id').eq('follower_id', user.id),
-                noopClient.from('saved_videos').select('video_id').eq('user_id', user.id),
-                noopClient.from('blocked_users').select('blocked_id').eq('blocker_id', user.id),
+                apiStub.from('likes').select('video_id').eq('user_id', user.id),
+                apiStub.from('followers').select('following_id').eq('follower_id', user.id),
+                apiStub.from('saved_videos').select('video_id').eq('user_id', user.id),
+                apiStub.from('blocked_users').select('blocked_id').eq('blocker_id', user.id),
               ]);
               likedIds = likes?.map((r: { video_id: string }) => r.video_id) ?? [];
               followedUserIds = follows?.map((r: { following_id: string }) => r.following_id) ?? [];
@@ -359,12 +359,12 @@ export const useVideoStore = create<VideoStore>()(
       fetchFriendVideos: async () => {
         set({ friendsLoading: true });
         try {
-          const { data: { user: authUser } } = await noopClient.auth.getUser();
+          const { data: { user: authUser } } = await apiStub.auth.getUser();
           if (!authUser?.id) {
             set({ friendVideos: [], friendsLoading: false });
             return;
           }
-          const { data: followData } = await noopClient
+          const { data: followData } = await apiStub
             .from('followers')
             .select('following_id')
             .eq('follower_id', authUser.id);
@@ -373,7 +373,7 @@ export const useVideoStore = create<VideoStore>()(
             set({ friendVideos: [], friendsLoading: false });
             return;
           }
-          const { data, error } = await noopClient
+          const { data, error } = await apiStub
             .from('videos')
             .select('*')
             .eq('is_public', true)
@@ -387,7 +387,7 @@ export const useVideoStore = create<VideoStore>()(
           const userIds = [...new Set(data.map((v: any) => v.user_id).filter(Boolean))];
           let profilesMap: Record<string, any> = {};
           if (userIds.length > 0) {
-            const { data: profiles } = await noopClient
+            const { data: profiles } = await apiStub
               .from('profiles')
               .select('user_id, username, display_name, avatar_url, is_creator, followers_count, following_count')
               .in('user_id', userIds);
@@ -401,10 +401,10 @@ export const useVideoStore = create<VideoStore>()(
           let blockedUserIds: string[] = [];
           try {
             const [{ data: likes }, { data: follows }, { data: saves }, { data: blocks }] = await Promise.all([
-              noopClient.from('likes').select('video_id').eq('user_id', authUser.id),
-              noopClient.from('followers').select('following_id').eq('follower_id', authUser.id),
-              noopClient.from('saved_videos').select('video_id').eq('user_id', authUser.id),
-              noopClient.from('blocked_users').select('blocked_id').eq('blocker_id', authUser.id),
+              apiStub.from('likes').select('video_id').eq('user_id', authUser.id),
+              apiStub.from('followers').select('following_id').eq('follower_id', authUser.id),
+              apiStub.from('saved_videos').select('video_id').eq('user_id', authUser.id),
+              apiStub.from('blocked_users').select('blocked_id').eq('blocker_id', authUser.id),
             ]);
             likedIds = likes?.map((r: { video_id: string }) => r.video_id) ?? [];
             followedUserIds = follows?.map((r: { following_id: string }) => r.following_id) ?? [];
@@ -484,13 +484,13 @@ export const useVideoStore = create<VideoStore>()(
       deleteVideo: async (videoId) => {
         const snapshot = get();
         try {
-          const { data: auth } = await noopClient.auth.getUser();
+          const { data: auth } = await apiStub.auth.getUser();
           const user = auth.user;
           if (!user) {
             throw new Error('Please sign in to delete videos.');
           }
 
-          const { data: row, error: rowError } = await noopClient
+          const { data: row, error: rowError } = await apiStub
             .from('videos')
             .select('id,user_id,url,thumbnail_url')
             .eq('id', videoId)
@@ -524,10 +524,10 @@ export const useVideoStore = create<VideoStore>()(
             (k): k is string => !!k
           );
           if (keys.length) {
-            await noopClient.storage.from('user-content').remove(keys).catch(() => {});
+            await apiStub.storage.from('user-content').remove(keys).catch(() => {});
           }
 
-          const { error: deleteError } = await noopClient.from('videos').delete().eq('id', videoId).eq('user_id', user.id);
+          const { error: deleteError } = await apiStub.from('videos').delete().eq('id', videoId).eq('user_id', user.id);
           if (deleteError) {
             throw new Error(deleteError.message || 'Failed to delete video.');
           }
@@ -563,15 +563,15 @@ export const useVideoStore = create<VideoStore>()(
         });
 
         try {
-          const { data: { user } } = await noopClient.auth.getUser();
+          const { data: { user } } = await apiStub.auth.getUser();
           if (!user) return;
           if (wasLiked) {
-            await noopClient.from('likes').delete().eq('video_id', videoId).eq('user_id', user.id);
+            await apiStub.from('likes').delete().eq('video_id', videoId).eq('user_id', user.id);
           } else {
-            await noopClient.from('likes').insert({ video_id: videoId, user_id: user.id });
+            await apiStub.from('likes').insert({ video_id: videoId, user_id: user.id });
             trackLike(videoId).catch(() => {});
           }
-          await noopClient
+          await apiStub
             .from('videos')
             .update({
               likes: newLikes,
@@ -611,12 +611,12 @@ export const useVideoStore = create<VideoStore>()(
         });
 
         try {
-          const { data: { user } } = await noopClient.auth.getUser();
+          const { data: { user } } = await apiStub.auth.getUser();
           if (!user) return;
           if (wasSaved) {
-            await noopClient.from('saved_videos').delete().eq('user_id', user.id).eq('video_id', videoId);
+            await apiStub.from('saved_videos').delete().eq('user_id', user.id).eq('video_id', videoId);
           } else {
-            await noopClient.from('saved_videos').insert({ user_id: user.id, video_id: videoId });
+            await apiStub.from('saved_videos').insert({ user_id: user.id, video_id: videoId });
           }
         } catch {
           const s = get();
@@ -656,7 +656,7 @@ export const useVideoStore = create<VideoStore>()(
           });
         };
 
-        const { data: { user } } = await noopClient.auth.getUser();
+        const { data: { user } } = await apiStub.auth.getUser();
         if (!user) {
           showToast('Please sign in to follow');
           return;
@@ -687,10 +687,10 @@ export const useVideoStore = create<VideoStore>()(
 
         try {
           if (wasFollowing) {
-            const { error } = await noopClient.from('followers').delete().eq('follower_id', user.id).eq('following_id', userId);
+            const { error } = await apiStub.from('followers').delete().eq('follower_id', user.id).eq('following_id', userId);
             if (error) throw error;
           } else {
-            const { error } = await noopClient.from('followers').insert({ follower_id: user.id, following_id: userId });
+            const { error } = await apiStub.from('followers').insert({ follower_id: user.id, following_id: userId });
             if (error && error.code !== '23505') throw error; // 23505 = unique, already following
             if (!error) trackFollow(userId).catch(() => {});
           }
@@ -736,7 +736,7 @@ export const useVideoStore = create<VideoStore>()(
         if (!video) return;
 
         // Get current user for optimistic UI
-        const { data: { user } } = await noopClient.auth.getUser();
+        const { data: { user } } = await apiStub.auth.getUser();
         if (!user) return; // Must be logged in
 
         // Optimistic update
@@ -764,7 +764,7 @@ export const useVideoStore = create<VideoStore>()(
 
         try {
           // Persist to DB
-          const { data: insertedComment, error } = await noopClient
+          const { data: insertedComment, error } = await apiStub
             .from('comments')
             .insert({
               video_id: videoId,
@@ -807,7 +807,7 @@ export const useVideoStore = create<VideoStore>()(
           friendVideos: state.friendVideos.map(commentDelUpdate),
         }));
         try {
-          await noopClient.from('comments').delete().eq('id', commentId);
+          await apiStub.from('comments').delete().eq('id', commentId);
         } catch (err) {
           /* ignored */
         }
@@ -838,13 +838,13 @@ export const useVideoStore = create<VideoStore>()(
         }));
 
         try {
-          const { data: { user } } = await noopClient.auth.getUser();
+          const { data: { user } } = await apiStub.auth.getUser();
           if (!user) return;
 
           if (wasLiked) {
-             await noopClient.from('comment_likes').delete().eq('comment_id', commentId).eq('user_id', user.id);
+             await apiStub.from('comment_likes').delete().eq('comment_id', commentId).eq('user_id', user.id);
           } else {
-             await noopClient.from('comment_likes').insert({ comment_id: commentId, user_id: user.id });
+             await apiStub.from('comment_likes').insert({ comment_id: commentId, user_id: user.id });
           }
         } catch (err) {
           /* ignored */
@@ -867,7 +867,7 @@ export const useVideoStore = create<VideoStore>()(
 
         try {
           // Persist view count to DB
-          await noopClient
+          await apiStub
             .from('videos')
             .update({ views: newViews })
             .eq('id', videoId);

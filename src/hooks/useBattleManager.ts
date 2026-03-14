@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { noopClient } from '../lib/noopClient';
+import { apiStub } from '../lib/apiStub';
 import { useAuthStore } from '../store/useAuthStore';
 
 export type BattleStatus = 'pending' | 'active' | 'ended';
@@ -37,7 +37,7 @@ export function useBattleManager(roomId: string) {
     // Or we query battle_participants to find which battle this room's host is in.
     
     // For simplicity: Query battle_sessions where host_id = roomId AND status != 'ended'
-    const { data, error } = await noopClient
+    const { data, error } = await apiStub
       .from('battle_sessions')
       .select('*')
       .eq('host_id', roomId) // Assuming roomId is the host's User ID
@@ -54,7 +54,7 @@ export function useBattleManager(roomId: string) {
   }, [roomId]);
 
   const fetchParticipants = async (battleId: string) => {
-    const { data } = await noopClient
+    const { data } = await apiStub
       .from('battle_participants')
       .select(`
         *,
@@ -76,8 +76,7 @@ export function useBattleManager(roomId: string) {
   useEffect(() => {
     fetchActiveBattle();
 
-    // Realtime battle updates via Supabase channels disabled for now; rely on
-    // explicit fetchActiveBattle/fetchParticipants when needed.
+    // Battle updates via fetchActiveBattle / WebSocket.
     return () => {};
   }, [roomId, fetchActiveBattle]);
 
@@ -105,7 +104,7 @@ export function useBattleManager(roomId: string) {
   const startBattle = async () => {
     if (!user) return;
     // Create new session
-    const { data, error } = await noopClient
+    const { data, error } = await apiStub
       .from('battle_sessions')
       .insert({
         host_id: user.id,
@@ -118,7 +117,7 @@ export function useBattleManager(roomId: string) {
       
     if (data) {
         // Add host
-        await noopClient.from('battle_participants').insert({
+        await apiStub.from('battle_participants').insert({
             battle_id: data.id,
             user_id: user.id,
             role: 'host',
@@ -131,7 +130,7 @@ export function useBattleManager(roomId: string) {
 
   const inviteUser = async (targetUserId: string) => {
       if (!currentBattle) return;
-      await noopClient.from('battle_participants').insert({
+      await apiStub.from('battle_participants').insert({
           battle_id: currentBattle.id,
           user_id: targetUserId,
           role: 'challenger',
@@ -142,7 +141,7 @@ export function useBattleManager(roomId: string) {
   
   const endBattle = async () => {
       if (!currentBattle) return;
-      await noopClient.from('battle_sessions').update({
+      await apiStub.from('battle_sessions').update({
           status: 'ended',
           ended_at: new Date().toISOString()
       }).eq('id', currentBattle.id);

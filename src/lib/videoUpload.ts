@@ -1,15 +1,6 @@
 /**
- * Video Upload Service — Hetzner backend + Bunny Storage CDN.
- *
- * Upload flow:
- *  1. Validate file (type / size).
- *  2. Generate a unique videoId client-side.
- *  3. Upload video binary → POST /api/media/upload-file (Hetzner proxies to Bunny).
- *  4. Generate thumbnail canvas blob → upload the same way.
- *  5. POST /api/videos  to create the metadata record on the Hetzner backend.
- *  6. Trigger FYP boost via POST /api/videos/:id/fyp.
- *
- * No Supabase / Railway / Vercel / Appwrite / DigitalOcean.
+ * Video Upload — Node backend + Bunny Storage CDN.
+ * Flow: validate → upload binary/thumbnail via /api/media/upload-file → POST /api/videos → FYP boost.
  */
 
 import { bunnyUpload } from "./bunnyStorage";

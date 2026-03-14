@@ -7,7 +7,7 @@ import { AvatarRing } from './AvatarRing';
 import { useSafetyStore } from '../store/useSafetyStore';
 import ReportModal from './ReportModal';
 import { showToast } from '../lib/toast';
-import { noopClient } from '../lib/noopClient';
+import { apiStub } from '../lib/apiStub';
 
 interface User {
   id: string;
@@ -58,15 +58,15 @@ export default function UserProfileModal({ isOpen, onClose, user, onFollow }: Us
     let cancelled = false;
     (async () => {
       try {
-        const { data: profile } = await noopClient
+        const { data: profile } = await apiStub
           .from('profiles')
           .select('user_id, username, display_name, avatar_url, is_creator')
           .eq('user_id', user.id)
           .single();
         if (cancelled || !profile) return;
         const [{ count: followersCount }, { count: followingCount }] = await Promise.all([
-          noopClient.from('followers').select('*', { count: 'exact', head: true }).eq('following_id', user.id),
-          noopClient.from('followers').select('*', { count: 'exact', head: true }).eq('follower_id', user.id),
+          apiStub.from('followers').select('*', { count: 'exact', head: true }).eq('following_id', user.id),
+          apiStub.from('followers').select('*', { count: 'exact', head: true }).eq('follower_id', user.id),
         ]);
         if (cancelled) return;
         const uname = profile.username || profile.display_name || 'user';

@@ -1,5 +1,5 @@
 /**
- * Payout & shop: require DB (e.g. Postgres on Hetzner). No Supabase.
+ * Payout & shop: require DB (e.g. Postgres on server).
  * When getDb() is null, all handlers return 501.
  */
 import { Request, Response } from 'express';

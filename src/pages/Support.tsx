@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Book, HelpCircle, Mail, MessageCircle, Send, Shield } from 'lucide-react';
-import { noopClient } from '../lib/noopClient';
+import { apiStub } from '../lib/apiStub';
 import { trackEvent } from '../lib/analytics';
 import { showToast } from '../lib/toast';
 
@@ -49,9 +49,9 @@ export default function Support() {
 
     setLoading(true);
     try {
-      const { data: userData } = await noopClient.auth.getUser();
+      const { data: userData } = await apiStub.auth.getUser();
 
-      const { error } = await noopClient.from('reports').insert({
+      const { error } = await apiStub.from('reports').insert({
         reporter_id: userData.user?.id || null,
         target_type: 'support',
         target_id: 'support_ticket',

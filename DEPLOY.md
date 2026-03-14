@@ -37,6 +37,7 @@ Set these in Coolify (or your host) for the app service. Use `.env.example` as a
 | `BUNNY_STORAGE_REGION` | Bunny region | `de`, `ny`, `la`, `sg`, etc. |
 | `VITE_BUNNY_CDN_HOSTNAME` | Bunny CDN hostname (for public media URLs) | `your-zone.b-cdn.net` |
 | `JWT_SECRET` | Secret for auth (use a strong random value) | Long random string |
+| `NODE_ENV` | Set to `production` so the app runs in production mode (recommended even if Coolify only has “Developer” environment) | `production` |
 
 ### Optional
 
@@ -50,13 +51,22 @@ The server exposes `/env.js` and injects `LIVEKIT_URL` as `VITE_LIVEKIT_URL` so 
 
 1. **Server:** Add your Hetzner server in Coolify.
 2. **Project:** Create a project and add a new application.
-3. **Source:** Connect to GitHub → `sanda26/Elix-Star-Live`, select branch (e.g. `main`).
+3. **Source:** Connect to GitHub → `sanda26/Elix-Star-Live`, select branch (e.g. `main` or `app-delivery`).
 4. **Build:**
-   - Build pack: **Nixpacks** (or use the repo’s Dockerfile if you add one).
-   - The app has a `nixpacks.toml` that uses `npm install` so the build works even if the lockfile is out of sync.
+   - Prefer **Dockerfile**: in Coolify, set build type to **Dockerfile** and use the repo’s root `Dockerfile`. It uses `npm install` (not `npm ci`) so the build succeeds even when the lockfile is out of sync.
+   - If you use **Nixpacks** instead, the repo’s `nixpacks.toml` overrides the install step to `npm install`. If Coolify still runs `npm ci` (e.g. cached build), switch to the Dockerfile or clear the build cache.
 5. **Run:** Start command can be `npm run start:prod` or `node server/index.js` after build (depending on how you build the server). If you use `npm run build` then the start command should serve from `dist/` and run the Node server (see `package.json` scripts).
 6. **Env:** Paste or set all variables from the table above in Coolify’s environment for this service.
 7. **Domain:** Point your domain (e.g. `your-app.example.com`) to this service in Coolify and enable HTTPS.
+
+### Coolify only shows “Developer” (no Production option)
+
+Some Coolify setups only offer a **Developer** or **Preview** environment, not a separate **Production** type. You can still run the app in **production mode**:
+
+- In Coolify, open your application → **Environment Variables**.
+- Add (or override): **`NODE_ENV`** = **`production`**.
+
+The app uses `NODE_ENV` for caching, security, and logging. With `NODE_ENV=production` set in Coolify, the app behaves as production regardless of Coolify’s “developer” label. No code change is required.
 
 ## 4. Bunny (Bunny.net)
 

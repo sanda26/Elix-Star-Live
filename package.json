@@ -29,11 +29,11 @@
     "generate:gift-posters": "node scripts/generate-gift-posters.mjs"
   },
   "dependencies": {
-    "@capacitor/android": "^7.4.3",
+    "@capacitor/android": "^8.0.0",
     "@capacitor/app": "^8.0.0",
     "@capacitor/clipboard": "^8.0.0",
-    "@capacitor/core": "^8.0.2",
-    "@capacitor/ios": "^7.4.3",
+    "@capacitor/core": "^8.2.0",
+    "@capacitor/ios": "^8.0.0",
     "@capacitor/preferences": "^8.0.0",
     "@capacitor/push-notifications": "^8.0.0",
     "@capacitor/share": "^8.0.0",
@@ -69,7 +69,7 @@
   },
   "devDependencies": {
     "concurrently": "^9.1.0",
-    "@capacitor/cli": "^7.4.3",
+    "@capacitor/cli": "^8.0.0",
     "@eslint/js": "^9.25.0",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/react": "^16.3.0",

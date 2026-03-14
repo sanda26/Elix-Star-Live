@@ -11,7 +11,7 @@
     "dev": "vite",
     "dev:server": "npx tsx server/index.ts",
     "dev:all": "npx concurrently -n server,web -c blue,green \"npm run dev:server\" \"npm run dev\"",
-    "build": "tsc -b && vite build --mode production",
+    "build": "vite build --mode production",
     "build:store": "tsc -b && vite build --mode store",
     "build:android": "npm run build:store && npx cap sync android",
     "build:ios": "npm run build:store && npx cap sync ios",

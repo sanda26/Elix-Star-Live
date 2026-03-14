@@ -14,6 +14,17 @@ export function isBunnyConfigured(): boolean {
   return Boolean(ACCESS_KEY && STORAGE_ZONE_NAME);
 }
 
+/** Human-readable reason when Bunny is not configured (for error responses). */
+export function getBunnyConfigError(): string {
+  if (!STORAGE_ZONE_NAME) {
+    return 'Bunny storage zone missing. Set BUNNY_STORAGE_ZONE in your environment (e.g. elixlive.b-cdn.net).';
+  }
+  if (!ACCESS_KEY) {
+    return 'Bunny storage API key missing. Set BUNNY_STORAGE_API_KEY in your environment (from Bunny dashboard → Storage → Pull Zone → Password).';
+  }
+  return 'Bunny storage is not configured.';
+}
+
 /**
  * Upload a file to Bunny Storage.
  * @param path - Path under the zone, e.g. "streams/video.mp4"
@@ -27,7 +38,7 @@ export async function uploadToBunny(
   contentType?: string
 ): Promise<{ success: boolean; path: string; cdnUrl?: string; error?: string }> {
   if (!ACCESS_KEY || !STORAGE_ZONE_NAME) {
-    return { success: false, path, error: 'Bunny Storage is not configured' };
+    return { success: false, path, error: getBunnyConfigError() };
   }
 
   const baseUrl = STORAGE_REGION === 'de'

@@ -6,7 +6,7 @@
 
 import { Request, Response } from 'express';
 import { getTokenFromRequest, verifyAuthToken } from '../routes/auth';
-import { createLiveToken, isLiveKitConfigured, getLiveKitUrl } from '../services/livekit';
+import { createLiveToken, isLiveKitConfigured, getLiveKitUrl, listActiveRoomsFromLiveKit } from '../services/livekit';
 
 // In-memory active streams (key = roomName). Replace with DB when using Postgres.
 // Extended payload so viewers can see the creator's display name.
@@ -37,15 +37,41 @@ function requireAuth(req: Request, res: Response): { userId: string } | null {
   return { userId: payload.sub };
 }
 
-/** GET /api/live/streams — list active streams */
+/** GET /api/live/streams — list active streams (from LiveKit when configured, so all instances see the same list) */
 export async function handleGetStreams(_req: Request, res: Response) {
+  if (isLiveKitConfigured()) {
+    try {
+      const liveRooms = await listActiveRoomsFromLiveKit();
+      const streams = liveRooms
+        .filter((r) => r.name)
+        .map((room) => {
+          const mem = activeStreams.get(room.name);
+          return {
+            room_id: room.name,
+            stream_key: room.name,
+            user_id: mem?.userId ?? room.name,
+            started_at: mem?.startedAt ?? new Date().toISOString(),
+            status: 'live' as const,
+            title: mem?.displayName ?? undefined,
+            display_name: mem?.displayName ?? undefined,
+            viewer_count: room.numParticipants,
+          };
+        });
+      return res.status(200).json({ streams });
+    } catch (err) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.error('[live] list streams from LiveKit failed, falling back to in-memory:', err);
+      }
+      // fall through to in-memory
+    }
+  }
+
   const streams = Array.from(activeStreams.entries()).map(([room, data]) => ({
     room_id: room,
     stream_key: room,
     user_id: data.userId,
     started_at: data.startedAt,
     status: 'live',
-    // Expose a human-friendly title so For You / Spectator can show real creator name
     title: data.displayName || undefined,
     display_name: data.displayName || undefined,
   }));

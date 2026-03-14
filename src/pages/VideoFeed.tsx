@@ -20,13 +20,21 @@ type LiveStreamCard = {
   userId?: string;
 };
 
+/** Backend may return snake_case (Express) or camelCase (Fastify); we accept both. */
 interface RawStream {
   stream_key?: string;
+  streamKey?: string;
   room_id?: string;
+  roomId?: string;
   id?: string;
   user_id?: string;
+  userId?: string;
+  hostUserId?: string;
   title?: string;
+  display_name?: string;
+  displayName?: string;
   viewer_count?: number;
+  viewerCount?: number;
 }
 
 type FeedItem =
@@ -209,21 +217,29 @@ export default function VideoFeed() {
       const removed = removedKeysRef.current;
       const mapped: LiveStreamCard[] = streams
         .filter((s: RawStream) => {
-          const key = s.stream_key || s.room_id || s.id;
+          const key =
+            s.stream_key ?? s.streamKey ?? s.room_id ?? s.roomId ?? s.id;
           return key && !removed.has(key);
         })
         .map((s: RawStream) => {
-          const key = s.stream_key || s.room_id || s.id;
-          const userId = s.user_id || "";
+          const key =
+            s.stream_key ?? s.streamKey ?? s.room_id ?? s.roomId ?? s.id;
+          const userId =
+            s.user_id ?? s.userId ?? s.hostUserId ?? "";
+          const title =
+            s.title ?? s.display_name ?? s.displayName ?? undefined;
           const label = userId ? String(userId).slice(0, 8) : "Creator";
+          const viewers = Number(
+            s.viewer_count ?? s.viewerCount ?? 0
+          );
           return {
             streamKey: key,
-            name: s.title || label,
+            name: title || label,
             avatar: userId
               ? `https://ui-avatars.com/api/?name=${encodeURIComponent(label)}&background=121212&color=C9A96E`
               : "",
-            viewers: Number(s.viewer_count ?? 0),
-            title: s.title || undefined,
+            viewers,
+            title: title || undefined,
             thumbnail: "",
             userId,
           } as LiveStreamCard;

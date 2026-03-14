@@ -5,7 +5,7 @@
 
 import { Request, Response } from "express";
 import { getTokenFromRequest, verifyAuthToken } from "./auth";
-import { uploadToBunny, isBunnyConfigured } from "../services/bunny";
+import { uploadToBunny, isBunnyConfigured, getBunnyConfigError } from "../services/bunny";
 
 function requireAuth(req: Request, res: Response): { userId: string } | null {
   const token = getTokenFromRequest(req);
@@ -32,7 +32,7 @@ export async function handleUploadVideo(req: Request, res: Response) {
   if (!auth) return;
 
   if (!isBunnyConfigured()) {
-    return res.status(503).json({ error: "Upload storage is not configured." });
+    return res.status(503).json({ error: getBunnyConfigError() });
   }
 
   const path = (req.query.path as string)?.trim();

@@ -449,11 +449,16 @@ export default function LiveStream() {
       }
       const json = await res.json();
       const streams = Array.isArray(json.streams) ? json.streams : [];
+      // Support both snake_case (Express) and camelCase (Fastify) from /api/live/streams
       const liveCreators = streams
-        .filter((s: any) => s.user_id && s.user_id !== user.id)
         .map((s: any) => {
-          const uid: string = s.user_id;
-          const label = uid.slice(0, 8);
+          const uid = s.user_id ?? s.userId ?? s.hostUserId ?? '';
+          const title = s.title ?? s.display_name ?? s.displayName ?? '';
+          const label = title ? title.slice(0, 20) : (uid ? uid.slice(0, 8) : 'Creator');
+          return { uid, label };
+        })
+        .filter(({ uid }) => uid && uid !== user.id)
+        .map(({ uid, label }) => {
           const avatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(label)}&background=121212&color=C9A96E`;
           return {
             id: uid,
@@ -4077,7 +4082,7 @@ export default function LiveStream() {
                       )}
                     </div>
                     <p className="text-white/40 text-xs font-medium">
-                      {creatorsLoading ? 'Loading creators...' : creatorsLoadFailed ? "Couldn't load creators" : creators.some(c => c.isLive) ? 'No creators match your search' : 'No creators are live right now'}
+                      {creatorsLoading ? 'Loading creators...' : creatorsLoadFailed ? "Couldn't load creators" : creators.some(c => c.isLive) ? 'No creators match your search' : 'No other creators are live right now. When someone else goes live, they\'ll appear here so you can invite them.'}
                     </p>
                     {creatorsLoadFailed && (
                       <button type="button" onClick={() => loadCreators()} className="mt-2 px-3 py-1.5 rounded-lg bg-[#C9A96E]/20 border border-[#C9A96E]/40 text-[#C9A96E] text-[10px] font-bold active:scale-95">

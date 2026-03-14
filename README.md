@@ -74,9 +74,9 @@ A full-featured social video platform with live streaming, battles, virtual gift
 
 3. **Set up environment variables:**
    ```bash
-   cp .env.example .env
+   npm run setup:env
    ```
-   Edit `.env`: set `PORT=8080`, and optionally Stripe keys, `VITE_WS_URL` / `VITE_API_URL` when deploying to your server (e.g. Hetzner).
+   This creates `.env` from `.env.example` if missing. Edit `.env` with your values (e.g. `PORT=8080`, LiveKit, Bunny, Stripe). In production (e.g. Coolify) set variables in the dashboard—no `.env` file is used.
 
 4. **Start development server:**
    ```bash

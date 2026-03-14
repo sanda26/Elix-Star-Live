@@ -405,18 +405,6 @@ export default function SpectatorPage() {
       room.disconnect();
     };
   }, [streamIsLive, effectiveStreamId, user?.id, liveConnectRetryKey]);
-<<<<<<< HEAD
-=======
-
-  // If we're still "connecting" after 18s, hint that host may not be publishing
-  useEffect(() => {
-    if (!streamIsLive || hasStream) return;
-    const t = setTimeout(() => {
-      showToast('Stream not loading? Make sure the host is live and try again.');
-    }, 18000);
-    return () => clearTimeout(t);
-  }, [streamIsLive, hasStream]);
->>>>>>> 243998ce8c450ace74ea9eb6dfea9717b4e90b8a
 
   // If we're still "connecting" after 18s, hint that host may not be publishing
   useEffect(() => {

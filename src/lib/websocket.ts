@@ -1,10 +1,6 @@
 // WebSocket Real-Time Service — single connection per room; URL from api.getWsUrl()
 
-<<<<<<< HEAD
 import { getWsUrl } from "./api";
-=======
-import { getWsUrl } from './api';
->>>>>>> 243998ce8c450ace74ea9eb6dfea9717b4e90b8a
 
 export type WebSocketEvent =
   // Room events
@@ -75,13 +71,9 @@ class WebSocketService {
     this.roomId = roomId;
     this.token = token;
     const wsUrl = getWsUrl();
-<<<<<<< HEAD
     this.ws = new WebSocket(
       `${wsUrl}/live/${roomId}?token=${encodeURIComponent(token)}`,
     );
-=======
-    this.ws = new WebSocket(`${wsUrl}/live/${roomId}?token=${encodeURIComponent(token)}`);
->>>>>>> 243998ce8c450ace74ea9eb6dfea9717b4e90b8a
 
     this.ws.onopen = () => {
       this.reconnectAttempts = 0;

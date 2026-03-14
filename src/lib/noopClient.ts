@@ -1,5 +1,4 @@
 /**
-<<<<<<< HEAD
  * ⚠️  DEPRECATED COMPATIBILITY STUB — DO NOT ADD NEW CALL SITES.
  *
  * This file exists only to prevent compile errors in any remaining legacy
@@ -22,13 +21,6 @@
  * sites fail gracefully instead of throwing at runtime.
  */
 const msg = "Use backend API (Bunny + Hetzner + LiveKit stack).";
-=======
- * Placeholder client: no Supabase/Vercel/Railway/Appwrite. App stack is Bunny + Hetzner + LiveKit.
- * All data should eventually come from backend API (auth, feed, profiles). This stub returns
- * empty so the app does not throw. Replace call sites with fetch() to Node API as needed.
- */
-const msg = 'Use backend API (Bunny + Hetzner + LiveKit stack).';
->>>>>>> 243998ce8c450ace74ea9eb6dfea9717b4e90b8a
 
 function noopQuery() {
   const base: any = {

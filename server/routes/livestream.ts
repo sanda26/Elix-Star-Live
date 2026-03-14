@@ -61,17 +61,11 @@ export async function handleLiveStart(req: Request, res: Response) {
     return res.status(503).json({ error: 'Live streaming is not configured.' });
   }
 
-<<<<<<< HEAD
   const { room, displayName } = req.body ?? {};
-  const raw = typeof room === 'string' && room.trim() ? room.trim() : auth.userId;
+  const raw = typeof room === "string" && room.trim() ? room.trim() : auth.userId;
   const roomName =
-    raw.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 128) ||
-    auth.userId.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 128);
-=======
-  const { room } = req.body ?? {};
-  const raw = typeof room === 'string' && room.trim() ? room.trim() : auth.userId;
-  const roomName = raw.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 128) || auth.userId.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 128);
->>>>>>> 243998ce8c450ace74ea9eb6dfea9717b4e90b8a
+    raw.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 128) ||
+    auth.userId.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 128);
 
   const safeDisplayName =
     typeof displayName === 'string'

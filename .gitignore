@@ -85,6 +85,9 @@ Thumbs.db
 # Sensitive files (auto-detected)
 .env
 
+# Git rewrite / internal
+.git-rewrite/
+
 # Local assistant artifacts
 .do/backup_*/
 .do/*.ps1

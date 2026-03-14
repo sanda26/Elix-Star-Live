@@ -1,0 +1,11 @@
+.git
+node_modules
+dist
+android
+ios
+*.mp4
+*.webm
+*.avi
+*.mov
+*.mkv
+node_modules_trash

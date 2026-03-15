@@ -793,21 +793,99 @@ export default function LiveStream() {
     showToast('Request declined');
   };
 
-  // Co-host presence: when joining as cohost, announce to host (feature disabled)
   const isCoHostJoiner = new URLSearchParams(location.search).get('cohost') === '1';
+  const coHostLkRoomRef = useRef<Room | null>(null);
+  const coHostVideoRef = useRef<HTMLVideoElement | null>(null);
+  const [hasCoHostStream, setHasCoHostStream] = useState(false);
 
+  // Co-host joiner: start camera and connect to host's LiveKit room
   useEffect(() => {
-    // Cohost signalling via WebSocket.
     if (!isCoHostJoiner || !user?.id || isBroadcast) return;
-    return () => {};
-  }, [isCoHostJoiner, user?.id, effectiveStreamId, isBroadcast]);
+    let mounted = true;
 
-  // Host side: listen for co-hosts joining via presence
-  useEffect(() => {
-    // Cohost management via WebSocket.
-    if (!isBroadcast || !user?.id) return;
-    return () => {};
-  }, [isBroadcast, user?.id, effectiveStreamId]);
+    (async () => {
+      // Start camera
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'user' },
+          audio: { echoCancellation: true, noiseSuppression: true },
+        });
+        if (!mounted) { stream.getTracks().forEach(t => t.stop()); return; }
+        cameraStreamRef.current = stream;
+        setCameraStream(stream);
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          videoRef.current.play().catch(() => {});
+        }
+      } catch {
+        showToast('Camera access needed to co-host');
+      }
+
+      // Connect to host's LiveKit room to see their video
+      try {
+        const res = await fetch(apiUrl(`/api/live/token?room=${encodeURIComponent(effectiveStreamId)}`), { method: 'GET', credentials: 'include' });
+        if (!res.ok || !mounted) return;
+        const payload = await res.json().catch(() => ({}));
+        const token = payload?.token;
+        const url = (payload?.url ?? '').trim() || getLiveKitUrl();
+        if (!token || !url || !mounted) return;
+
+        const room = new Room();
+        coHostLkRoomRef.current = room;
+
+        room.on(RoomEvent.TrackSubscribed, (track) => {
+          if (!mounted || track.kind !== 'video') return;
+          const el = coHostVideoRef.current;
+          if (el) {
+            track.attach(el);
+            setHasCoHostStream(true);
+          }
+        });
+
+        await room.connect(url, token);
+        if (!mounted) { room.disconnect(); return; }
+
+        // Check if host is already publishing
+        for (const [, participant] of room.remoteParticipants) {
+          for (const [, pub] of participant.videoTrackPublications) {
+            if (pub.track && pub.isSubscribed && coHostVideoRef.current) {
+              pub.track.attach(coHostVideoRef.current);
+              setHasCoHostStream(true);
+            }
+          }
+        }
+
+        // Publish own camera to LiveKit so host can see us
+        if (cameraStreamRef.current) {
+          const vTrack = cameraStreamRef.current.getVideoTracks()[0];
+          const aTrack = cameraStreamRef.current.getAudioTracks()[0];
+          if (vTrack) {
+            const localVideo = new LocalVideoTrack(vTrack);
+            await room.localParticipant.publishTrack(localVideo, { name: 'camera' });
+          }
+          if (aTrack) {
+            const localAudio = new LocalAudioTrack(aTrack);
+            await room.localParticipant.publishTrack(localAudio, { name: 'mic' });
+          }
+        }
+
+        // Notify host via WebSocket
+        websocket.send('cohost_joined', {
+          hostUserId: effectiveStreamId,
+          cohostName: user?.username || user?.name || 'Co-Host',
+          cohostAvatar: user?.avatar || '',
+        });
+      } catch (e) {
+        console.error('[CoHost] Failed to connect to host LiveKit room:', e);
+      }
+    })();
+
+    return () => {
+      mounted = false;
+      if (coHostLkRoomRef.current) { coHostLkRoomRef.current.disconnect(); coHostLkRoomRef.current = null; }
+      setHasCoHostStream(false);
+    };
+  }, [isCoHostJoiner, user?.id, effectiveStreamId, isBroadcast]);
 
   const removeCoHost = (hostId: string) => {
     const host = coHosts.find(h => h.id === hostId);
@@ -965,26 +1043,7 @@ export default function LiveStream() {
   const [battleParticipantStream, setBattleParticipantStream] = useState<MediaStream | null>(null);
   const [coHostJoinerStream, setCoHostJoinerStream] = useState<MediaStream | null>(null);
 
-  useEffect(() => {
-    if (!isCoHostJoiner || isBroadcast || !user?.id) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'user' },
-          audio: { echoCancellation: true, noiseSuppression: true },
-        });
-        if (cancelled) { stream.getTracks().forEach(t => t.stop()); return; }
-        setCoHostJoinerStream(stream);
-      } catch {
-        showToast('Camera access needed to co-host');
-      }
-    })();
-    return () => {
-      cancelled = true;
-      setCoHostJoinerStream(prev => { if (prev) prev.getTracks().forEach(t => t.stop()); return null; });
-    };
-  }, [isCoHostJoiner, isBroadcast, user?.id]);
+  // Co-host joiner camera is handled in the main co-host useEffect above
 
   useEffect(() => {
     if (!isBattleParticipant || battleParticipantStream) return;
@@ -2870,7 +2929,7 @@ export default function LiveStream() {
                 if (now - last <= 320) handleComboClick();
               } : undefined}
             >
-            {isBroadcast || isBattleParticipant ? (
+            {isBroadcast || isBattleParticipant || isCoHostJoiner ? (
               <>
                 <video
                   ref={videoRef}
@@ -2878,8 +2937,18 @@ export default function LiveStream() {
                   autoPlay
                   playsInline
                   muted
-                  style={isBroadcast ? { transform: 'scaleX(-1)', opacity: isCamOff ? 0 : 1, transition: 'opacity 0.3s ease' } : undefined}
+                  style={isBroadcast || isCoHostJoiner ? { transform: 'scaleX(-1)', opacity: isCamOff ? 0 : 1, transition: 'opacity 0.3s ease' } : undefined}
                 />
+                {isCoHostJoiner && (
+                  <video
+                    ref={coHostVideoRef}
+                    className="absolute top-2 right-2 w-28 h-40 object-cover rounded-lg border-2 border-[#C9A96E]/60 shadow-lg z-20"
+                    autoPlay
+                    playsInline
+                    muted={false}
+                    style={{ opacity: hasCoHostStream ? 1 : 0, transition: 'opacity 0.3s ease' }}
+                  />
+                )}
                 {isCamOff && (
                   <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-[#13151A] z-[5]">
                     {(user?.avatar || myAvatar) ? (

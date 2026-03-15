@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Eye } from 'lucide-react';
-import { supabase } from '../lib/supabase';
 
 interface LivePreviewCardProps {
   streamKey: string;
@@ -14,40 +13,14 @@ interface LivePreviewCardProps {
 }
 
 export default function LivePreviewCard({
-  streamKey,
   name,
   avatar,
   viewers,
   title,
   thumbnail,
-  isActive,
 }: LivePreviewCardProps) {
   const navigate = useNavigate();
   const [liveThumb, setLiveThumb] = useState(thumbnail || '');
-
-  // Poll for updated thumbnail every 10s while active (when Supabase is configured)
-  useEffect(() => {
-    if (!isActive || !streamKey || !supabase) return;
-    let cancelled = false;
-
-    const poll = async () => {
-      try {
-        const { data } = await supabase
-          .from('live_streams')
-          .select('thumbnail_url, viewer_count')
-          .eq('stream_key', streamKey)
-          .eq('is_live', true)
-          .maybeSingle();
-        if (!cancelled && data?.thumbnail_url) {
-          setLiveThumb(data.thumbnail_url);
-        }
-      } catch { /* ignore */ }
-    };
-
-    poll();
-    const interval = setInterval(poll, 10000);
-    return () => { cancelled = true; clearInterval(interval); };
-  }, [isActive, streamKey]);
 
   useEffect(() => {
     if (thumbnail) setLiveThumb(thumbnail);
@@ -68,7 +41,7 @@ export default function LivePreviewCard({
       className="w-full h-full relative bg-black overflow-hidden"
       title="Tap to join live"
     >
-      {/* Live thumbnail — full screen, updated every 10s by broadcaster when Supabase live_streams is used */}
+      {/* Live thumbnail — full screen */}
       {previewImg ? (
         <img
           src={previewImg}

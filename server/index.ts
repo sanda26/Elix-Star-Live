@@ -477,6 +477,12 @@ app.get("/env.js", (_req, res) => {
   if (process.env.LIVEKIT_URL && typeof process.env.LIVEKIT_URL === "string") {
     env.VITE_LIVEKIT_URL = process.env.LIVEKIT_URL;
   }
+  if (!env.VITE_GIFT_ASSET_BASE_URL && process.env.BUNNY_STORAGE_HOSTNAME) {
+    env.VITE_GIFT_ASSET_BASE_URL = `https://${process.env.BUNNY_STORAGE_HOSTNAME}`;
+  }
+  if (!env.VITE_BUNNY_CDN_HOSTNAME && process.env.BUNNY_STORAGE_HOSTNAME) {
+    env.VITE_BUNNY_CDN_HOSTNAME = process.env.BUNNY_STORAGE_HOSTNAME;
+  }
   res.setHeader("Content-Type", "application/javascript; charset=utf-8");
   res.setHeader("Cache-Control", "no-store");
   res

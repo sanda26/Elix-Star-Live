@@ -43,10 +43,15 @@ function requireAuth(req: Request, res: Response): { userId: string } | null {
 
 /** GET /api/live/streams — list active streams (from LiveKit when configured, so all instances see the same list) */
 export async function handleGetStreams(_req: Request, res: Response) {
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'livestream.ts:handleGetStreams',message:'streams-query',data:{livekitConfigured:isLiveKitConfigured(),activeStreamCount:activeStreams.size,activeStreamKeys:Array.from(activeStreams.keys())},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
+  // #endregion
   if (isLiveKitConfigured()) {
     try {
       const liveRooms = await listActiveRoomsFromLiveKit();
-      const streams = liveRooms
+      const liveRoomNames = new Set(liveRooms.map((r) => r.name));
+
+      const fromLiveKit = liveRooms
         .filter((r) => r.name)
         .map((room) => {
           const mem = activeStreams.get(room.name);
@@ -61,7 +66,21 @@ export async function handleGetStreams(_req: Request, res: Response) {
             viewer_count: room.numParticipants,
           };
         });
-      return res.status(200).json({ streams });
+
+      const fromMemory = Array.from(activeStreams.entries())
+        .filter(([key]) => !liveRoomNames.has(key))
+        .map(([room, data]) => ({
+          room_id: room,
+          stream_key: room,
+          user_id: data.userId,
+          started_at: data.startedAt,
+          status: 'live' as const,
+          title: data.displayName || undefined,
+          display_name: data.displayName || undefined,
+          viewer_count: 0,
+        }));
+
+      return res.status(200).json({ streams: [...fromLiveKit, ...fromMemory] });
     } catch (err) {
       logger.warn({ err }, "LiveKit list streams failed, falling back to in-memory");
       // fall through to in-memory
@@ -100,59 +119,70 @@ export async function handleGetStreams(_req: Request, res: Response) {
 
 /** POST /api/live/start — creator starts stream; returns LiveKit token with canPublish */
 export async function handleLiveStart(req: Request, res: Response) {
-  const auth = requireAuth(req, res);
-  if (!auth) return;
-
-  if (!isLiveKitConfigured()) {
-    return res.status(503).json({ error: 'Live streaming is not configured.' });
-  }
-
-  const { room, displayName } = req.body ?? {};
-  const raw = typeof room === "string" && room.trim() ? room.trim() : auth.userId;
-  const roomName =
-    raw.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 128) ||
-    auth.userId.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 128);
-
-  const safeDisplayName =
-    typeof displayName === 'string'
-      ? displayName.toString().slice(0, 80)
-      : undefined;
-
-  const startedAt = new Date().toISOString();
-  activeStreams.set(roomName, {
-    userId: auth.userId,
-    startedAt,
-    displayName: safeDisplayName,
-  });
-  dbInsertLiveStream(roomName, auth.userId, safeDisplayName).catch(() => {});
-
-  broadcastToFeedSubscribers('stream_started', {
-    room_id: roomName,
-    stream_key: roomName,
-    user_id: auth.userId,
-    title: safeDisplayName,
-    display_name: safeDisplayName,
-    started_at: startedAt,
-    status: 'live',
-  });
-
   try {
+    const auth = requireAuth(req, res);
+    if (!auth) return;
+
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'livestream.ts:handleLiveStart',message:'live-start-entry',data:{userId:auth.userId,livekitConfigured:isLiveKitConfigured(),livekitUrl:Boolean(getLiveKitUrl()),body:req.body},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
+    // #endregion
+
+    if (!isLiveKitConfigured()) {
+      return res.status(503).json({ error: 'Live streaming is not configured.' });
+    }
+
+    const { room, displayName } = req.body ?? {};
+    const raw = typeof room === "string" && room.trim() ? room.trim() : auth.userId;
+    const roomName =
+      raw.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 128) ||
+      auth.userId.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 128);
+
+    const safeDisplayName =
+      typeof displayName === 'string'
+        ? displayName.toString().slice(0, 80)
+        : undefined;
+
+    const startedAt = new Date().toISOString();
+    activeStreams.set(roomName, {
+      userId: auth.userId,
+      startedAt,
+      displayName: safeDisplayName,
+    });
+    dbInsertLiveStream(roomName, auth.userId, safeDisplayName).catch(() => {});
+
+    broadcastToFeedSubscribers('stream_started', {
+      room_id: roomName,
+      stream_key: roomName,
+      user_id: auth.userId,
+      title: safeDisplayName,
+      display_name: safeDisplayName,
+      started_at: startedAt,
+      status: 'live',
+    });
+
     const token = await createLiveToken({
       userId: auth.userId,
       roomName,
       canPublish: true,
       name: auth.userId,
     });
+
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'livestream.ts:handleLiveStart',message:'live-start-success',data:{roomName,tokenLength:token?.length,livekitUrl:getLiveKitUrl()},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
+    // #endregion
+
     return res.status(200).json({
       room: roomName,
       token,
       stream_key: roomName,
       url: getLiveKitUrl(),
     });
-  } catch (err) {
-    activeStreams.delete(roomName);
-    broadcastToFeedSubscribers('stream_ended', { stream_key: roomName });
+  } catch (err: any) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'livestream.ts:handleLiveStart',message:'live-start-error',data:{error:err?.message||String(err),stack:err?.stack?.slice(0,500)},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
+    // #endregion
     const message = err instanceof Error ? err.message : 'Failed to create token';
+    logger.error({ err: message }, "live/start failed");
     return res.status(500).json({ error: message });
   }
 }

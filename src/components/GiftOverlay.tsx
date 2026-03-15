@@ -44,10 +44,6 @@ export function GiftOverlay({ videoSrc, previewSrc, onEnded, isBattleMode: _isBa
     setVideoReady(false);
     setPhase('preview');
 
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GiftOverlay.tsx:useEffect',message:'Gift overlay triggered',data:{videoSrc,previewSrc,cached:videoCache.has(videoSrc)},timestamp:Date.now(),hypothesisId:'H4'})}).catch(()=>{});
-    // #endregion
-
     safetyTimerRef.current = setTimeout(() => { onEndedRef.current(); }, 15000);
 
     const path = videoSrc.split('?')[0].toLowerCase();

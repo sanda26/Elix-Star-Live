@@ -249,9 +249,6 @@ export async function handleMe(req: Request, res: Response) {
   const token = getTokenFromRequest(req);
   if (!token) return res.status(401).json({ error: 'Not authenticated.' });
   const payload = verifyAuthToken(token);
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/routes/auth.ts:handleMe',message:'Auth /me check',data:{hasToken:!!token,payloadValid:!!payload,userId:payload?.sub||null},timestamp:Date.now(),hypothesisId:'H5'})}).catch(()=>{});
-  // #endregion
   if (!payload) return res.status(401).json({ error: 'Invalid or expired session.' });
   const user = usersById.get(payload.sub);
   if (!user) return res.status(401).json({ error: 'User not found.' });

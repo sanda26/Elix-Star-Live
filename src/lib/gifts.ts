@@ -10,14 +10,10 @@ function getGiftAssetBase(): string {
   return url;
 }
 
-let _giftBaseLogged = false;
 /** Full URL for a gift asset (PNG icon or MP4/WebM video). Path e.g. "/gifts/Horse.png" or "gifts/Horse.mp4". */
 export function resolveGiftAssetUrl(path: string): string {
   if (path.startsWith('http://') || path.startsWith('https://')) return path;
   const base = getGiftAssetBase();
-  // #region agent log
-  if (!_giftBaseLogged) { _giftBaseLogged = true; fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'gifts.ts:resolveGiftAssetUrl',message:'Gift CDN base resolution',data:{base,inputPath:path,VITE_GIFT_ASSET_BASE_URL:(import.meta.env.VITE_GIFT_ASSET_BASE_URL||'NOT_SET'),VITE_BUNNY_CDN_HOSTNAME:(import.meta.env.VITE_BUNNY_CDN_HOSTNAME||'NOT_SET'),runtimeEnv:!!(window as any).__ENV},timestamp:Date.now(),hypothesisId:'H4'})}).catch(()=>{}); }
-  // #endregion
   if (!base) return path.startsWith('/') ? path : `/${path}`;
   const trimmed = path.startsWith('/') ? path.slice(1) : path;
   return `${base}/${trimmed}`;

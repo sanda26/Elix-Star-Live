@@ -280,9 +280,6 @@ export default function VideoFeed() {
 
   /* ---- Bootstrap: polling + WebSocket monitor ---- */
   useEffect(() => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'VideoFeed.tsx:bootstrap',message:'Feed bootstrap started',data:{hasToken:!!token,apiBase:(window as any).__apiBase||(import.meta as any).env?.VITE_API_URL||'same-origin',wsUrl:(import.meta as any).env?.VITE_WS_URL||''},timestamp:Date.now(),hypothesisId:'H5'})}).catch(()=>{});
-    // #endregion
     setLiveLoading(true);
     fetchLiveStreams();
     fetchVideos();

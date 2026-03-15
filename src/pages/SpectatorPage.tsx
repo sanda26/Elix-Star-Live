@@ -350,8 +350,14 @@ export default function SpectatorPage() {
 
     (async () => {
       try {
+        // #region agent log
+        fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'spectator-livekit-start', data: { streamId: effectiveStreamId, userId: user?.id }, timestamp: Date.now(), hypothesisId: 'H1' }) }).catch(() => {});
+        // #endregion
         const res = await fetch(apiUrl(`/api/live/token?room=${encodeURIComponent(effectiveStreamId)}`), { method: 'GET', credentials: 'include' });
         if (!res.ok || !mounted) {
+          // #region agent log
+          fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'spectator-token-fail', data: { status: res.status, mounted }, timestamp: Date.now(), hypothesisId: 'H1' }) }).catch(() => {});
+          // #endregion
           if (res.status === 401) showToast('Please log in to watch');
           else if (res.status === 503) showToast('Live video is not configured on server');
           return;
@@ -360,12 +366,18 @@ export default function SpectatorPage() {
         let url = (data?.url ?? '').trim();
         if (!url) url = getLiveKitUrl();
         const token = data?.token;
+        // #region agent log
+        fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'spectator-token-ok', data: { hasUrl: Boolean(url), urlPrefix: url?.slice(0, 30), hasToken: Boolean(token), tokenLen: token?.length || 0 }, timestamp: Date.now(), hypothesisId: 'H1' }) }).catch(() => {});
+        // #endregion
         if (!url || !token || !mounted) {
           showToast('Missing LiveKit URL. Set LIVEKIT_URL on server.');
           return;
         }
 
         const onTrackSubscribed = (track: import('livekit-client').RemoteTrack) => {
+          // #region agent log
+          fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'spectator-track-subscribed', data: { kind: track.kind }, timestamp: Date.now(), hypothesisId: 'H1' }) }).catch(() => {});
+          // #endregion
           if (!mounted || track.kind !== 'video') return;
           const el = videoRef.current;
           if (el) {
@@ -376,11 +388,13 @@ export default function SpectatorPage() {
 
         room.on(RoomEvent.TrackSubscribed, onTrackSubscribed);
         await room.connect(url, token);
+        // #region agent log
+        fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'spectator-room-connected', data: { remoteParticipants: room.remoteParticipants.size }, timestamp: Date.now(), hypothesisId: 'H1' }) }).catch(() => {});
+        // #endregion
         if (!mounted) {
           room.disconnect();
           return;
         }
-        // If host already published, we may have remote participants; attach first video track if any
         for (const [, participant] of room.remoteParticipants) {
           for (const [, publication] of participant.videoTrackPublications) {
             if (publication.track && publication.isSubscribed) {
@@ -393,6 +407,9 @@ export default function SpectatorPage() {
       } catch (err) {
         if (mounted) {
           setHasStream(false);
+          // #region agent log
+          fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'spectator-livekit-error', data: { error: String(err), stack: (err as Error)?.stack?.slice(0, 300) }, timestamp: Date.now(), hypothesisId: 'H1' }) }).catch(() => {});
+          // #endregion
           console.error('[LiveKit] Viewer connect failed:', err);
           showToast('Could not connect to stream. Is the host live?');
         }

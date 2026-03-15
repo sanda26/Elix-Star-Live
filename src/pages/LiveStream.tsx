@@ -347,19 +347,27 @@ export default function LiveStream() {
             displayName: creatorNameRef.current,
           }),
         });
+        // #region agent log
+        fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'host-live-start-response', data: { status: res.status, ok: res.ok }, timestamp: Date.now(), hypothesisId: 'H2' }) }).catch(() => {});
+        // #endregion
         if (res.ok) {
           liveRegisteredRef.current = true;
           const data = await res.json().catch(() => ({}));
           let url = (data?.url ?? '').trim();
           if (!url) url = getLiveKitUrl();
+          // #region agent log
+          fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'host-live-start-data', data: { hasToken: Boolean(data?.token), tokenLen: data?.token?.length, url: url?.slice(0, 40), room: data?.room }, timestamp: Date.now(), hypothesisId: 'H2' }) }).catch(() => {});
+          // #endregion
           if (data?.token && url) {
             setLiveKitCreds({ token: data.token, url });
           } else {
             showToast('Live server missing token or LIVEKIT_URL. Check server .env and restart.');
           }
         }
-      } catch {
-        // ignore; stream will just not appear in /api/live/streams
+      } catch (startErr) {
+        // #region agent log
+        fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'host-live-start-error', data: { error: String(startErr) }, timestamp: Date.now(), hypothesisId: 'H2' }) }).catch(() => {});
+        // #endregion
       }
     })();
 
@@ -397,7 +405,13 @@ export default function LiveStream() {
 
     (async () => {
       try {
+        // #region agent log
+        fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'host-livekit-connecting', data: { url: liveKitCreds.url?.slice(0, 40), tokenLen: liveKitCreds.token?.length, hasVideo: Boolean(videoTrack), hasAudio: Boolean(audioTrack) }, timestamp: Date.now(), hypothesisId: 'H1' }) }).catch(() => {});
+        // #endregion
         await room.connect(liveKitCreds.url, liveKitCreds.token);
+        // #region agent log
+        fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'host-livekit-connected', data: { roomName: room.name }, timestamp: Date.now(), hypothesisId: 'H1' }) }).catch(() => {});
+        // #endregion
         if (videoTrack) {
           const localVideo = new LocalVideoTrack(videoTrack);
           await room.localParticipant.publishTrack(localVideo, { name: 'camera' });
@@ -406,8 +420,13 @@ export default function LiveStream() {
           const localAudio = new LocalAudioTrack(audioTrack);
           await room.localParticipant.publishTrack(localAudio, { name: 'mic' });
         }
-        if (import.meta.env.DEV) console.log('[LiveKit] Host connected and published');
+        // #region agent log
+        fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'host-livekit-published', data: { publishedTracks: room.localParticipant.trackPublications.size }, timestamp: Date.now(), hypothesisId: 'H1' }) }).catch(() => {});
+        // #endregion
       } catch (e) {
+        // #region agent log
+        fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'host-livekit-error', data: { error: String(e), stack: (e as Error)?.stack?.slice(0, 300) }, timestamp: Date.now(), hypothesisId: 'H1' }) }).catch(() => {});
+        // #endregion
         console.error('[LiveKit] Host connect/publish failed:', e);
         showToast('Live video could not start. Check LIVEKIT_URL and keys on server.');
       }

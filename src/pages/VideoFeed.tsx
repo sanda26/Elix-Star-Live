@@ -41,26 +41,9 @@ type FeedItem =
   | { kind: "live"; stream: LiveStreamCard }
   | { kind: "video"; videoId: string };
 
-/* When a live item is focused in For You, immediately join the live room */
-function AutoJoinLiveSlide({
-  streamKey,
-  index,
-  activeIndex,
-}: {
-  streamKey: string;
-  index: number;
-  activeIndex: number;
-}) {
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    if (activeIndex === index && streamKey) {
-      navigate(`/watch/${streamKey}`, { replace: false });
-    }
-  }, [activeIndex, index, navigate, streamKey]);
-
-  return null;
-}
+/* AutoJoinLiveSlide removed: auto-navigating caused an infinite loop when
+   pressing X returned to /feed — the live card at the same index would
+   immediately re-trigger navigation. Users now tap LivePreviewCard to join. */
 
 /* ------------------------------------------------------------------ */
 /*  Lightweight per-room WebSocket monitor                             */
@@ -383,7 +366,7 @@ export default function VideoFeed() {
   const feedLogRef = useRef(0);
   if (feedItems.length !== feedLogRef.current) {
     feedLogRef.current = feedItems.length;
-    fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'feed-items-changed', data: { total: feedItems.length, liveCount: liveStreams.length, videoCount: videos.length, liveLoading, videosLoading: loading, firstVideoId: videos[0]?.id || 'none', firstVideoUrl: videos[0]?.url?.slice(0, 60) || 'none' } }) }).catch(() => {});
+    fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'feed-items-changed', data: { total: feedItems.length, liveCount: liveStreams.length, videoCount: videos.length, liveLoading, videosLoading, firstVideoId: videos[0]?.id || 'none', firstVideoUrl: videos[0]?.url?.slice(0, 60) || 'none' } }) }).catch(() => {});
   }
   // #endregion
 
@@ -521,12 +504,6 @@ export default function VideoFeed() {
               className="h-[100dvh] w-full snap-start relative flex justify-center bg-[#0A0B0E]"
               style={{ scrollSnapAlign: "start", scrollSnapStop: "always" }}
             >
-              {/* As soon as this slide is focused, jump straight into the live room */}
-              <AutoJoinLiveSlide
-                streamKey={item.stream.streamKey}
-                index={index}
-                activeIndex={activeIndex}
-              />
               <div className="w-full max-w-[480px] h-full relative flex items-center justify-center">
                 <LivePreviewCard
                   streamKey={item.stream.streamKey}

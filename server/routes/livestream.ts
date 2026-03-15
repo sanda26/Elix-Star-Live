@@ -91,6 +91,7 @@ export async function handleGetStreams(_req: Request, res: Response) {
       status: 'live',
       title: row.display_name || undefined,
       display_name: row.display_name || undefined,
+      viewer_count: row.viewer_count ?? 0,
     });
   }
 

@@ -27,7 +27,6 @@ import { apiStub } from '../lib/apiStub';
 import ElixCameraLayout from '../components/ElixCameraLayout';
 
 type CreateMode = 'upload' | 'post' | 'create' | 'live';
-type CreateView = 'main' | 'camera';
 type TemplateTab = 'for_you' | 'viral_song' | 'trendy' | 'ai' | 'aesthetic' | 'one_clip';
 
 type Sound = SoundTrack;
@@ -208,7 +207,7 @@ const FEATURE_TOOLS = [
 export default function Create() {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
-  const [view, setView] = useState<CreateView>('main');
+  const [showCreateHub, setShowCreateHub] = useState(false);
   const [mode, setMode] = useState<CreateMode>('create');
   const [isSoundOpen, setIsSoundOpen] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -247,9 +246,8 @@ export default function Create() {
     return t;
   }, [templateTab, searchQuery]);
 
-  // Camera setup
+  // Camera setup (runs whenever not showing create hub so overlay doesn't stop stream)
   useEffect(() => {
-    if (view !== 'camera') return;
 
     const stopStream = () => {
       if (keepStreamOnUnmountRef.current) return;
@@ -301,7 +299,7 @@ export default function Create() {
     };
     start();
     return () => { cancelled = true; stopStream(); };
-  }, [isFrontCamera, previewUrl, retryCamera, view]);
+  }, [isFrontCamera, previewUrl, retryCamera]);
 
   const openUploadPicker = () => fileInputRef.current?.click();
   const flipCamera = () => { setIsFrontCamera((v) => !v); setZoomLevel(1); };
@@ -436,18 +434,18 @@ export default function Create() {
     } catch { setCameraError('Camera access denied'); }
   };
 
-  const openCamera = (m: CreateMode) => {
+  const openCameraFromHub = (m: CreateMode) => {
+    setShowCreateHub(false);
     setMode(m);
-    setView('camera');
   };
 
   const gradientColors = ['#C9A96E', '#D4B87A', '#E8D5A3', '#C9A96E'];
 
-  // ═══ MAIN CREATE VIEW ═══
-  if (view === 'main') {
-    return (
-      <div className="fixed inset-0 bg-[#13151A] text-white flex justify-center">
-      <div className="w-full max-w-[480px] flex flex-col">
+  // ═══ CREATE HUB OVERLAY (templates, New video, Drafts) — opened from camera "Create" tab ═══
+  const createHubOverlay = showCreateHub && (
+    <div className="fixed inset-0 z-[100] flex justify-center">
+      <div className="absolute inset-0 bg-black/60" onClick={() => setShowCreateHub(false)} aria-hidden />
+      <div className="relative w-full max-w-[480px] flex flex-col bg-[#13151A] text-white min-h-[100dvh] max-h-[100dvh] overflow-hidden animate-in slide-in-from-bottom duration-300">
         <input
           ref={fileInputRef}
           type="file"
@@ -460,26 +458,22 @@ export default function Create() {
             const nextUrl = URL.createObjectURL(file);
             setPreviewUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return nextUrl; });
             setIsPreviewPlaying(true);
-            setView('camera');
+            setShowCreateHub(false);
             setMode('create');
           }}
         />
-
-        {/* Header */}
         <div className="flex items-center justify-between px-4 pt-[calc(env(safe-area-inset-top,0px)+8px)] pb-2">
           <div className="w-7 h-7" aria-hidden />
           <h1 className="text-sm font-black tracking-wider text-[#C9A96E] uppercase">Create</h1>
-          <button onClick={() => navigate('/feed')} className="w-7 h-7 flex items-center justify-center" aria-label="Close">
+          <button onClick={() => setShowCreateHub(false)} className="w-7 h-7 flex items-center justify-center" aria-label="Close">
             <img src="/Icons/Gold power buton.png" alt="Close" className="w-5 h-5 object-contain" />
           </button>
         </div>
-
-        {/* Feature Tools Row */}
         <div className="flex items-center justify-around px-6 py-2">
           {FEATURE_TOOLS.map((tool) => (
             <button
               key={tool.id}
-              onClick={() => openCamera('create')}
+              onClick={() => openCameraFromHub('create')}
               className="flex flex-col items-center gap-1 active:scale-95 transition-transform"
             >
               <div className="w-9 h-9 rounded-full bg-[#13151A] border border-[#C9A96E]/30 flex items-center justify-center relative">
@@ -490,11 +484,9 @@ export default function Create() {
             </button>
           ))}
         </div>
-
-        {/* New Video + Drafts */}
         <div className="flex items-center gap-2 px-4 py-2">
           <button
-            onClick={() => openCamera('create')}
+            onClick={() => openCameraFromHub('create')}
             className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg bg-[#C9A96E]/10 border border-[#C9A96E]/25 active:scale-[0.98] transition-transform"
           >
             <div className="w-5 h-5 rounded-full bg-[#C9A96E] flex items-center justify-center">
@@ -503,23 +495,20 @@ export default function Create() {
             <span className="text-white/80 font-semibold text-xs">New video</span>
           </button>
           <button
-            onClick={() => navigate('/upload')}
+            onClick={() => { setShowCreateHub(false); navigate('/upload'); }}
             className="flex items-center gap-1.5 px-4 py-2.5 rounded-lg bg-white/5 border border-white/8 active:scale-[0.98] transition-transform"
           >
             <FileText className="w-4 h-4 text-white/40" strokeWidth={1.5} />
             <span className="text-white/60 font-semibold text-xs">Drafts</span>
           </button>
         </div>
-
-        {/* Templates Section */}
-        <div className="flex-1 flex flex-col min-h-0 px-4">
+        <div className="flex-1 flex flex-col min-h-0 px-4 overflow-hidden">
           <div className="flex items-center justify-between mb-1.5">
             <h2 className="text-white/80 font-bold text-xs uppercase tracking-wider">Templates</h2>
             <button title="Search templates" onClick={() => setShowSearch(!showSearch)} className="w-6 h-6 rounded-full flex items-center justify-center">
               <Search className="w-3.5 h-3.5 text-white/40" />
             </button>
           </div>
-
           {showSearch && (
             <div className="mb-1.5 flex items-center gap-2 bg-white/5 rounded-lg px-2.5 py-1.5 border border-white/10">
               <Search className="w-3 h-3 text-white/30" />
@@ -532,31 +521,25 @@ export default function Create() {
               />
             </div>
           )}
-
-          {/* Template Tabs */}
           <div className="flex items-center gap-1 overflow-x-auto no-scrollbar mb-2">
             {TEMPLATE_TABS.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => { setTemplateTab(tab.id); setSearchQuery(''); }}
                 className={`px-2.5 py-1 rounded-full text-[10px] font-semibold whitespace-nowrap transition-colors ${
-                  templateTab === tab.id
-                    ? 'bg-[#C9A96E] text-black'
-                    : 'bg-white/5 text-white/50'
+                  templateTab === tab.id ? 'bg-[#C9A96E] text-black' : 'bg-white/5 text-white/50'
                 }`}
               >
                 {tab.label}
               </button>
             ))}
           </div>
-
-          {/* Template Grid */}
           <div className="flex-1 overflow-y-auto no-scrollbar pb-2">
             <div className="grid grid-cols-2 gap-1.5">
               {filteredTemplates.map((tpl) => (
                 <button
                   key={tpl.id}
-                  onClick={() => openCamera('create')}
+                  onClick={() => openCameraFromHub('create')}
                   className="relative rounded-lg overflow-hidden aspect-[3/4] bg-gradient-to-br from-[#1C1E24] to-[#13151A] border border-white/5 active:scale-[0.97] transition-transform"
                 >
                   <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent z-10" />
@@ -574,29 +557,14 @@ export default function Create() {
             </div>
           </div>
         </div>
-
-        {/* Bottom Tabs */}
         <div className="flex items-center justify-center gap-8 py-2 pb-[calc(env(safe-area-inset-bottom,0px)+8px)] border-t border-white/5">
-          <button
-            onClick={() => navigate('/upload')}
-            className="text-[11px] font-semibold text-white/40 uppercase tracking-wide"
-          >
-            Post
-          </button>
-          <span className="text-[11px] font-black text-[#C9A96E] uppercase tracking-wide border-b border-[#C9A96E] pb-px">
-            Create
-          </span>
-          <button
-            onClick={() => openCamera('live')}
-            className="text-[11px] font-semibold text-white/40 uppercase tracking-wide"
-          >
-            Live
-          </button>
+          <button onClick={() => { setShowCreateHub(false); navigate('/upload'); }} className="text-[11px] font-semibold text-white/40 uppercase tracking-wide">Post</button>
+          <span className="text-[11px] font-black text-[#C9A96E] uppercase tracking-wide border-b border-[#C9A96E] pb-px">Create</span>
+          <button onClick={() => openCameraFromHub('live')} className="text-[11px] font-semibold text-white/40 uppercase tracking-wide">Live</button>
         </div>
       </div>
-      </div>
-    );
-  }
+    </div>
+  );
 
   // ═══ CAMERA VIEW ═══
   return (
@@ -673,12 +641,14 @@ export default function Create() {
           </div>
         )}
 
+        {createHubOverlay}
+
         <ElixCameraLayout
           videoRef={videoRef}
           isRecording={isRecording}
           isPaused={false}
           onRecord={mode === 'live' ? startLive : (isRecording ? stopRecording : startRecording)}
-          onClose={() => setView('main')}
+          onClose={() => navigate('/feed')}
           onFlipCamera={flipCamera}
           onSelectMusic={() => setIsSoundOpen(true)}
           onAIMusicGenerator={() => setIsSoundOpen(true)}
@@ -687,10 +657,10 @@ export default function Create() {
           onZoomOut={handleZoomOut}
           onZoomReset={handleZoomReset}
           onGalleryOpen={openUploadPicker}
-          onPostTab={() => { setView('main'); navigate('/upload'); }}
-          onCreateTab={() => setMode('create')}
+          onPostTab={() => navigate('/upload')}
+          onCreateTab={() => setShowCreateHub(true)}
           onLiveTab={() => setMode('live')}
-          selectedTab={mode === 'live' ? 'live' : mode === 'post' ? 'post' : 'create'}
+          selectedTab={showCreateHub ? 'create' : mode === 'live' ? 'live' : mode === 'post' ? 'post' : 'create'}
           onFlashToggle={handleFlashToggle}
           flashActive={flashEnabled}
           timerDelay={recordingDelaySeconds}

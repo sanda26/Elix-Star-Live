@@ -955,8 +955,9 @@ export default function ElixCameraLayout({
                 <span className={`text-sm font-semibold ${selectedTab === 'post' ? 'text-[#FFD700] drop-shadow-[0_0_8px_rgba(255,215,0,1)]' : 'text-white/70'}`}>POST</span>
               </button>
               <button 
-                onClick={onCreateTab}
+                onClick={() => onCreateTab?.()}
                 className="relative flex items-center justify-center h-10 px-6 min-w-[80px] rounded-full"
+                type="button"
               >
                 <span className={`text-sm font-semibold ${selectedTab === 'create' ? 'text-[#FFD700] drop-shadow-[0_0_8px_rgba(255,215,0,1)]' : 'text-white/70'}`}>CREATE</span>
               </button>

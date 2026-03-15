@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import LivePreviewCard from "../components/LivePreviewCard";
+import InlineLiveViewer from "../components/InlineLiveViewer";
 import EnhancedVideoPlayer from "../components/EnhancedVideoPlayer";
 import { useVideoStore } from "../store/useVideoStore";
 import { useAuthStore } from "../store/useAuthStore";
@@ -504,15 +504,13 @@ export default function VideoFeed() {
               className="h-[100dvh] w-full snap-start relative flex justify-center bg-[#0A0B0E]"
               style={{ scrollSnapAlign: "start", scrollSnapStop: "always" }}
             >
-              <div className="w-full max-w-[480px] h-full relative flex items-center justify-center">
-                <LivePreviewCard
+              <div className="w-full max-w-[480px] h-full relative">
+                <InlineLiveViewer
                   streamKey={item.stream.streamKey}
-                  name={item.stream.name}
-                  avatar={item.stream.avatar}
-                  viewers={item.stream.viewers}
-                  title={item.stream.title}
-                  thumbnail={item.stream.thumbnail}
                   isActive={activeIndex === index}
+                  creatorName={item.stream.name}
+                  creatorAvatar={item.stream.avatar}
+                  viewerCount={item.stream.viewers}
                 />
               </div>
             </div>

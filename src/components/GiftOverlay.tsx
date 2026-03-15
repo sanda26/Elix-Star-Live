@@ -49,14 +49,26 @@ export function GiftOverlay({ videoSrc, previewSrc, onEnded, isBattleMode: _isBa
     const path = videoSrc.split('?')[0].toLowerCase();
     const isVideo = path.endsWith('.mp4') || path.endsWith('.webm');
 
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GiftOverlay.tsx:init',message:'gift-overlay-init',data:{videoSrc:videoSrc?.slice(0,80),previewSrc:previewSrc?.slice(0,80),isVideo,cached:videoCache.has(videoSrc)},timestamp:Date.now(),hypothesisId:'H12'})}).catch(()=>{});
+    // #endregion
+
     if (isVideo) {
       if (videoCache.has(videoSrc)) {
         setVideoReady(true);
         setPhase('video');
       } else {
         preloadVideo(videoSrc)
-          .then(() => { setVideoReady(true); setPhase('video'); })
-          .catch(() => {
+          .then(() => {
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GiftOverlay.tsx:preloadOk',message:'gift-video-preload-ok',data:{videoSrc:videoSrc?.slice(0,80)},timestamp:Date.now(),hypothesisId:'H12'})}).catch(()=>{});
+            // #endregion
+            setVideoReady(true); setPhase('video');
+          })
+          .catch((err) => {
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GiftOverlay.tsx:preloadFail',message:'gift-video-preload-fail',data:{videoSrc:videoSrc?.slice(0,80),error:String(err),hasPreview:!!previewSrc},timestamp:Date.now(),hypothesisId:'H12'})}).catch(()=>{});
+            // #endregion
             if (previewSrc) {
               setTimeout(() => onEndedRef.current(), 2000);
             } else {

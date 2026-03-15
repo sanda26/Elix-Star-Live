@@ -746,9 +746,9 @@ export default function LiveStream() {
   useEffect(() => {
     if (!pendingCohostInvite) return;
     const inv = pendingCohostInvite;
-    setLiveCreators(prev => {
+    setCreators(prev => {
       if (prev.some(c => c.id === inv.hostUserId)) return prev;
-      return [...prev, { id: inv.hostUserId, name: inv.hostName, avatar: inv.hostAvatar, streamKey: inv.streamKey }];
+      return [...prev, { id: inv.hostUserId, name: inv.hostName, username: inv.hostName, followers: '', avatar: inv.hostAvatar, isLive: true }];
     });
   }, [pendingCohostInvite]);
 

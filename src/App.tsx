@@ -308,6 +308,7 @@ function App() {
                   element={<Navigate to="/live" replace />}
                 />
                 <Route path="/live/broadcast" element={<LiveStreamKeyed />} />
+                {/* Low-use: no in-app link; used by direct/bookmark URLs. Check 404 logs before removing. */}
                 <Route
                   path="/live/watch/:streamId"
                   element={<LiveStreamKeyed />}
@@ -316,6 +317,7 @@ function App() {
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/profile/:userId" element={<Profile />} />
                 <Route path="/friends" element={<FriendsFeed />} />
+                {/* Standalone saved page; Profile has inline Saved tab. Consider linking from Profile or check 404s before removing. */}
                 <Route path="/saved" element={<SavedVideos />} />
                 <Route path="/music/:songId" element={<MusicFeed />} />
                 <Route path="/create" element={<Create />} />

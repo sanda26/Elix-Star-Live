@@ -112,9 +112,8 @@ export default function AdminDashboard() {
         {/* Quick Actions */}
         <div className="bg-[#1C1E24] rounded-lg p-6">
           <h2 className="text-xl font-bold mb-4">Quick Actions</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             <ActionButton href="/admin/users" label="Manage Users" />
-            <ActionButton href="/admin/videos" label="Manage Videos" />
             <ActionButton href="/admin/reports" label="Review Reports" />
             <ActionButton href="/admin/economy" label="Economy Controls" />
           </div>

@@ -75,15 +75,6 @@ import { handleUploadVideo, handleUploadAvatar } from "./routes/upload";
 import { uploadToBunny, isBunnyConfigured } from "./services/bunny";
 import { getTokenFromRequest, verifyAuthToken } from "./routes/auth";
 import { handleSendGift } from "./routes/gifts";
-import {
-  handleGetProfile,
-  handleGetFollowers,
-  handleGetFollowing,
-  handlePatchProfile,
-  handleFollow,
-  handleUnfollow,
-  handleSeedProfile,
-} from "./routes/profiles";
 import { addFeedSubscriber, removeFeedSubscriber, broadcastToFeedSubscribers } from "./feedBroadcast";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -166,15 +157,6 @@ app.post("/api/auth/apple/start", handleAppleStart);
 
 // Profile (alias for /api/auth/me)
 app.get("/api/profile", handleMe);
-
-// Profile CRUD and follow (in-memory; replace with DB when ready)
-app.get("/api/profiles/:userId", handleGetProfile);
-app.get("/api/profiles/:userId/followers", handleGetFollowers);
-app.get("/api/profiles/:userId/following", handleGetFollowing);
-app.patch("/api/profiles/:userId", handlePatchProfile);
-app.post("/api/profiles/:userId/follow", handleFollow);
-app.post("/api/profiles/:userId/unfollow", handleUnfollow);
-app.post("/api/profiles", handleSeedProfile);
 
 // Live streaming (LiveKit tokens + stream lifecycle)
 app.get("/api/live/streams", handleGetStreams);

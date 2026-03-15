@@ -50,6 +50,7 @@ import { AvatarRing } from '../components/AvatarRing';
 import { useAuthStore } from '../store/useAuthStore';
 import { clearCachedCameraStream, getCachedCameraStream } from '../lib/cameraStream';
 import { apiUrl, getLiveKitUrl } from '../lib/api';
+import { supabase } from '../lib/supabase';
 import { LevelBadge } from '../components/LevelBadge';
 import ReportModal from '../components/ReportModal';
 import PromotePanel from '../components/PromotePanel';
@@ -293,6 +294,14 @@ export default function LiveStream() {
     }
   }, [effectiveStreamId, isBroadcast, user?.id]);
 
+  useEffect(() => {
+    if (!isBroadcast || !isMyStreamLive || !effectiveStreamId || !user?.id) return;
+    supabase.from('live_streams')
+      .update({ title: creatorName })
+      .eq('stream_key', effectiveStreamId)
+      .eq('user_id', user.id)
+      .then(() => {});
+  }, [creatorName, isBroadcast, isMyStreamLive, effectiveStreamId, user?.id]);
 
   useEffect(() => {
     if (showTestCoinsModal) {
@@ -956,14 +965,14 @@ export default function LiveStream() {
   const handleSubscribe = async () => {
     setIsSubscribing(true);
     try {
-      const token = useAuthStore.getState().session?.access_token;
-      if (!user?.id || !token) {
+      const { data: session } = await supabase.auth.getSession();
+      if (!user?.id) {
         navigate('/login');
         return;
       }
       const res = await fetch(apiUrl('/api/create-subscription'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.session?.access_token}` },
         body: JSON.stringify({ creatorId: effectiveStreamId, userId: user.id }),
       });
       if (res.ok) {
@@ -1013,7 +1022,19 @@ export default function LiveStream() {
 
   useEffect(() => {
     if (showSharePanel && user?.id) {
-      setShareFollowers([]);
+      (async () => {
+        try {
+          const { data: followData } = await supabase.from('followers').select('follower_id').eq('following_id', user.id).limit(50);
+          const { data: followingData } = await supabase.from('followers').select('following_id').eq('follower_id', user.id).limit(50);
+          const ids = new Set<string>();
+          (followData || []).forEach((f: any) => ids.add(f.follower_id));
+          (followingData || []).forEach((f: any) => ids.add(f.following_id));
+          ids.delete(user.id);
+          if (ids.size === 0) { setShareFollowers([]); return; }
+          const { data: profiles } = await supabase.from('profiles').select('user_id, username, avatar_url').in('user_id', Array.from(ids));
+          setShareFollowers(profiles || []);
+        } catch { setShareFollowers([]); }
+      })();
     } else {
       setShareSentTo(new Set());
     }
@@ -1022,9 +1043,20 @@ export default function LiveStream() {
   const sendShareToFollower = async (targetUserId: string) => {
     if (!user?.id || shareSentTo.has(targetUserId)) return;
     const shareUrl = window.location.href;
+    const msgText = `Watch my LIVE on Elix! ${shareUrl}`;
     try {
-      await navigator.clipboard.writeText(shareUrl);
-      showToast('Link copied to clipboard');
+      const { data: existing } = await supabase.from('chat_threads').select('id')
+        .or(`and(user1_id.eq.${user.id},user2_id.eq.${targetUserId}),and(user1_id.eq.${targetUserId},user2_id.eq.${user.id})`)
+        .limit(1).single();
+      let threadId = existing?.id;
+      if (!threadId) {
+        const { data: newThread } = await supabase.from('chat_threads').insert({ user1_id: user.id, user2_id: targetUserId }).select('id').single();
+        threadId = newThread?.id;
+      }
+      if (threadId) {
+        await supabase.from('messages').insert({ thread_id: threadId, sender_id: user.id, text: msgText });
+        await supabase.from('chat_threads').update({ last_message: msgText, last_at: new Date().toISOString() }).eq('id', threadId);
+      }
       setShareSentTo(prev => new Set(prev).add(targetUserId));
     } catch {}
   };
@@ -1725,7 +1757,8 @@ export default function LiveStream() {
     if (!effectiveStreamId || !user?.id) return;
 
     const getToken = async () => {
-      return useAuthStore.getState().session?.access_token ?? '';
+      const { data } = await supabase.auth.getSession();
+      return data.session?.access_token || '';
     };
 
     let mounted = true;
@@ -2112,9 +2145,9 @@ export default function LiveStream() {
     const runCheck = async () => {
       const base64 = captureFrame();
       if (!base64) return;
-      const token = useAuthStore.getState().session?.access_token;
-      if (!token) return;
       try {
+        const { data: session } = await supabase.auth.getSession();
+        const token = session.session?.access_token;
         if (!token) return;
         const res = await fetch(apiUrl('/api/live/moderation/check'), {
           method: 'POST',
@@ -2143,11 +2176,29 @@ export default function LiveStream() {
 
     moderationIntervalRef.current = setInterval(runCheck, 30000);
 
+    // Save thumbnail snapshot every 10s so ForYou page shows live preview instantly
+    const saveThumbnail = async () => {
+      const base64 = captureFrame();
+      if (!base64) return;
+      try {
+        const blob = await fetch(`data:image/jpeg;base64,${base64}`).then(r => r.blob());
+        const path = `live-thumbnails/${effectiveStreamId}.jpg`;
+        await supabase.storage.from('user-content').upload(path, blob, { upsert: true, contentType: 'image/jpeg' });
+        const { data: urlData } = supabase.storage.from('user-content').getPublicUrl(path);
+        if (urlData?.publicUrl) {
+          await supabase.from('live_streams').update({ thumbnail_url: `${urlData.publicUrl}?t=${Date.now()}` }).eq('stream_key', effectiveStreamId);
+        }
+      } catch { /* ignore */ }
+    };
+    saveThumbnail();
+    const thumbInterval = setInterval(saveThumbnail, 10000);
+
     return () => {
       if (moderationIntervalRef.current) {
         clearInterval(moderationIntervalRef.current);
         moderationIntervalRef.current = null;
       }
+      clearInterval(thumbInterval);
     };
   }, [isBroadcast, user?.id, effectiveStreamId, navigate]);
 
@@ -2215,27 +2266,36 @@ export default function LiveStream() {
       let newLevel = userLevel;
       
       if (user?.id) {
-        const token = useAuthStore.getState().session?.access_token;
         try {
-          const res = await fetch(apiUrl('/api/gifts/send'), {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token ?? ''}` },
-            body: JSON.stringify({
-              room_id: effectiveStreamId,
-              gift_id: gift.id,
-              transaction_id: `gift_${Date.now()}_${Math.random().toString(36).slice(2)}`,
-            }),
+          const { data, error } = await supabase.rpc('send_stream_gift', {
+            p_stream_key: effectiveStreamId,
+            p_gift_id: gift.id,
+            p_channel: platform.name,
           });
-          if (!res.ok) {
-            const err = await res.json().catch(() => ({}));
-            const msg = typeof err?.error === 'string' ? err.error : '';
+
+          if (error) {
+            const msg = typeof error.message === 'string' ? error.message : '';
             if (msg.includes('frozen')) {
               showToast('Account is frozen. Contact support.');
               return;
             }
             setCoinBalance(prev => { const n = Math.max(0, prev - gift.coins); persistTestCoinsBalance(user?.id, n); return n; });
           } else {
-            setCoinBalance(prev => { const n = Math.max(0, prev - gift.coins); persistTestCoinsBalance(user?.id, n); return n; });
+            const row = Array.isArray(data) ? data[0] : data;
+            if (row?.new_balance != null) {
+              const nb = Number(row.new_balance);
+              setCoinBalance(nb);
+              persistTestCoinsBalance(user?.id, nb);
+            }
+            if (row?.new_level != null) {
+              const updatedLevel = Number(row.new_level);
+              setUserLevel(updatedLevel);
+              updateUser({ level: updatedLevel });
+              newLevel = updatedLevel;
+            }
+            if (row?.new_xp != null) {
+              setUserXP(Number(row.new_xp));
+            }
           }
         } catch {
           setCoinBalance(prev => { const n = Math.max(0, prev - gift.coins); persistTestCoinsBalance(user?.id, n); return n; });
@@ -2253,6 +2313,12 @@ export default function LiveStream() {
         setUserXP(currentXP);
         updateUser({ level: currentLevel });
         newLevel = currentLevel;
+
+        // Sync level/xp to DB
+        supabase.from('profiles')
+          .update({ level: currentLevel, xp: currentXP })
+          .eq('user_id', user.id)
+          .then(() => {});
       } else {
         setCoinBalance(prev => { const n = Math.max(0, prev - gift.coins); persistTestCoinsBalance(user?.id, n); return n; });
       }
@@ -2354,27 +2420,33 @@ export default function LiveStream() {
 
       let newLevel = userLevel;
       if (user?.id) {
-        const token = useAuthStore.getState().session?.access_token;
         try {
-          const res = await fetch(apiUrl('/api/gifts/send'), {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token ?? ''}` },
-            body: JSON.stringify({
-              room_id: effectiveStreamId,
-              gift_id: lastSentGift.id,
-              transaction_id: `gift_${Date.now()}_${Math.random().toString(36).slice(2)}`,
-            }),
+          const { data, error } = await supabase.rpc('send_stream_gift', {
+            p_stream_key: effectiveStreamId,
+            p_gift_id: lastSentGift.id,
+            p_channel: platform.name,
           });
-          if (!res.ok) {
-            const err = await res.json().catch(() => ({}));
-            const msg = typeof err?.error === 'string' ? err.error : '';
+
+          if (error) {
+            const msg = typeof error.message === 'string' ? error.message : '';
             if (msg.includes('insufficient_funds')) {
               showToast('Not enough coins');
               return;
             }
             setCoinBalance(prev => { const n = Math.max(0, prev - lastSentGift.coins); persistTestCoinsBalance(user?.id, n); return n; });
           } else {
-            setCoinBalance(prev => { const n = Math.max(0, prev - lastSentGift.coins); persistTestCoinsBalance(user?.id, n); return n; });
+            const row = Array.isArray(data) ? data[0] : data;
+            if (row?.new_balance != null) {
+              const nb = Number(row.new_balance);
+              setCoinBalance(nb);
+              persistTestCoinsBalance(user?.id, nb);
+            }
+            if (row?.new_level != null) {
+              newLevel = Number(row.new_level);
+              setUserLevel(newLevel);
+              updateUser({ level: newLevel });
+            }
+            if (row?.new_xp != null) setUserXP(Number(row.new_xp));
           }
         } catch {
           setCoinBalance(prev => { const n = Math.max(0, prev - lastSentGift.coins); persistTestCoinsBalance(user?.id, n); return n; });
@@ -2515,6 +2587,29 @@ export default function LiveStream() {
     const level = username === myCreatorName ? userLevel : null;
     const donated = username === myCreatorName ? sessionContribution : 0;
     setMiniProfile({ username, avatar, level, coins, donated });
+    try {
+      const { data: prof } = await supabase
+        .from('profiles')
+        .select('user_id, bio, avatar_url, level, display_name')
+        .or(`username.eq.${username},display_name.eq.${username}`)
+        .maybeSingle();
+      if (prof) {
+        const uid = prof.user_id;
+        const [{ count: fc }, { count: fgc }] = await Promise.all([
+          supabase.from('followers').select('*', { count: 'exact', head: true }).eq('following_id', uid),
+          supabase.from('followers').select('*', { count: 'exact', head: true }).eq('follower_id', uid),
+        ]);
+        setMiniProfile(prev => prev ? {
+          ...prev,
+          id: uid,
+          bio: prof.bio || '',
+          avatar: prof.avatar_url || prev.avatar,
+          level: prof.level ?? prev.level,
+          followers_count: fc ?? 0,
+          following_count: fgc ?? 0,
+        } : prev);
+      }
+    } catch { /* keep what we have */ }
   };
 
   const closeMiniProfile = () => setMiniProfile(null);
@@ -3764,6 +3859,8 @@ export default function LiveStream() {
                                 onClick={() => {
                                   if (isJoinRequester(viewer.id)) declineJoinRequest();
                                   else if (hostEntry) {
+                                    const nid = (hostEntry as any)._notifId;
+                                    if (nid) supabase.from('notifications').update({ is_read: true }).eq('id', nid).then(() => {});
                                     removeCoHost(hostEntry.id);
                                     setCoHosts(prev => prev.filter(h => h.userId !== hostEntry.userId));
                                   }
@@ -3779,6 +3876,17 @@ export default function LiveStream() {
                                   if (isJoinRequester(viewer.id)) acceptJoinRequest();
                                   else if (hostEntry) {
                                     const sk = (hostEntry as any)._streamKey;
+                                    const nid = (hostEntry as any)._notifId;
+                                    const hostUid = hostEntry.userId;
+                                    if (nid) supabase.from('notifications').update({ is_read: true }).eq('id', nid).then(() => {});
+                                    const myUsername = user?.username || user?.name || 'User';
+                                    supabase.from('notifications').insert({
+                                      user_id: hostUid,
+                                      type: 'cohost_accepted',
+                                      title: 'Co-Host Accepted',
+                                      body: `@${myUsername} accepted your co-host invite!`,
+                                      data: { actor_id: user?.id, accepted_name: myUsername, accepted_avatar: user?.avatar || '', stream_key: sk },
+                                    }).then(() => {});
                                     showToast(`Joining co-host...`);
                                     if (sk) navigate(`/live/${sk}?cohost=1`);
                                   }
@@ -4075,17 +4183,11 @@ export default function LiveStream() {
 
               <div className="mt-5 grid grid-cols-4 gap-2">
                 <button type="button" onClick={async () => {
-                  if (!user?.id || !miniProfile?.id) return;
-                  const token = useAuthStore.getState().session?.access_token;
+                  if (!user?.id || !miniProfile) return;
                   try {
-                    const res = await fetch(apiUrl(`/api/profiles/${miniProfile.id}/follow`), {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token ?? ''}` },
-                    });
-                    if (res.ok) {
-                      setIsFollowing(true);
-                      closeMiniProfile();
-                    }
+                    await supabase.from('followers').upsert({ follower_id: user.id, following_id: miniProfile.id }, { onConflict: 'follower_id,following_id' });
+                    setIsFollowing(true);
+                    closeMiniProfile();
                   } catch {}
                 }} className="h-9 rounded-lg bg-[#C9A96E] text-black text-[11px] font-black hover:bg-[#C9A96E]/90 active:scale-95 transition-all">
                   Follow
@@ -4122,18 +4224,11 @@ export default function LiveStream() {
                     </button>
                   )}
                   <button type="button" onClick={async () => {
-                    if (!user?.id || !miniProfile?.id) return;
-                    const token = useAuthStore.getState().session?.access_token;
+                    if (!user?.id || !miniProfile) return;
                     try {
-                      const res = await fetch(apiUrl('/api/block-user'), {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token ?? ''}` },
-                        body: JSON.stringify({ blocked_id: miniProfile.id }),
-                      });
-                      if (res.ok) {
-                        showToast(`@${miniProfile.username} blocked`);
-                        closeMiniProfile();
-                      }
+                      await supabase.from('blocked_users').upsert({ blocker_id: user.id, blocked_id: miniProfile.id }, { onConflict: 'blocker_id,blocked_id' });
+                      showToast(`@${miniProfile.username} blocked`);
+                      closeMiniProfile();
                     } catch {}
                   }} className="h-9 rounded-lg bg-red-950/50 text-red-400 text-[11px] font-bold border border-red-900/50 hover:bg-red-900/50 active:scale-95 transition-all">
                     Block
@@ -4691,6 +4786,13 @@ export default function LiveStream() {
                     persistTestCoinsBalance(user?.id, newBal);
                     showToast(`+${amount.toLocaleString()} test added`);
                     setShowTestCoinsModal(false);
+                    if (user?.id) {
+                      supabase.rpc('add_test_coins', { p_amount: amount }).then(() => {}).catch(() => {
+                        supabase.from('profiles').select('coins').eq('user_id', user.id).single().then(({ data }) => {
+                          supabase.from('profiles').update({ coins: (data?.coins ?? 0) + amount }).eq('user_id', user.id).then(() => {});
+                        });
+                      });
+                    }
                   }}
                 >
                   <p className="text-white/40 text-xs mb-3">These coins are for testing only and have no real value.</p>
@@ -4731,6 +4833,13 @@ export default function LiveStream() {
                         persistTestCoinsBalance(user?.id, newBal);
                         showToast(`+${amount.toLocaleString()} test added`);
                         setShowTestCoinsModal(false);
+                        if (user?.id) {
+                          supabase.rpc('add_test_coins', { p_amount: amount }).then(() => {}).catch(() => {
+                            supabase.from('profiles').select('coins').eq('user_id', user.id).single().then(({ data }) => {
+                              supabase.from('profiles').update({ coins: (data?.coins ?? 0) + amount }).eq('user_id', user.id).then(() => {});
+                            });
+                          });
+                        }
                       }}
                       className="py-1.5 rounded-lg text-xs font-bold transition-colors bg-[#C9A96E]/30 text-[#C9A96E] hover:bg-[#C9A96E]/40 col-span-3"
                     >

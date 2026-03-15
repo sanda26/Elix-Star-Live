@@ -554,7 +554,7 @@ export default function VideoFeed() {
         </div>
       )}
 
-      {/* ---- Empty state ---- */}
+      {/* ---- Empty state: For You is for watching only — no "go live" here ---- */}
       {!loading && feedItems.length === 0 && (
         <div className="absolute inset-0 flex flex-col items-center justify-center px-6">
           <div className="w-20 h-20 rounded-full bg-[#13151A] border border-white/10 flex items-center justify-center mb-4 pointer-events-none">
@@ -564,28 +564,19 @@ export default function VideoFeed() {
             Nothing here yet
           </p>
           <p className="text-white/30 text-sm mb-4 text-center">
-            Go live or upload a video to get started. Check back soon!
+            No live streams or videos right now. When creators go live, they appear here in real time. Check back soon!
           </p>
-          <div className="flex flex-wrap gap-2 justify-center">
-            <button
-              type="button"
-              onClick={() => navigate("/live", { replace: true })}
-              className="px-4 py-2 bg-[#C9A96E]/20 border border-[#C9A96E]/40 rounded-full text-[#C9A96E] text-sm font-bold active:scale-95 transition-transform"
-            >
-              Go live
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setLiveLoading(true);
-                fetchLiveStreams();
-                fetchVideos();
-              }}
-              className="px-4 py-2 bg-white/10 border border-white/20 rounded-full text-white/80 text-sm font-bold active:scale-95 transition-transform"
-            >
-              Refresh
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setLiveLoading(true);
+              fetchLiveStreams();
+              fetchVideos();
+            }}
+            className="px-5 py-2 bg-white/10 border border-white/20 rounded-full text-white/80 text-sm font-bold active:scale-95 transition-transform"
+          >
+            Refresh
+          </button>
         </div>
       )}
     </div>

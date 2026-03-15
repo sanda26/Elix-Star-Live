@@ -569,6 +569,9 @@ export default function LiveStream() {
     const invite = pendingInvite;
     setPendingInvite(null);
     if (!invite.streamKey) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveStream.tsx:acceptBattleInvite:no-streamKey',message:'missing-stream-key',data:{invite:{hostName:invite.hostName,hostUserId:invite.hostUserId?.slice(0,12),streamKey:invite.streamKey}},timestamp:Date.now(),hypothesisId:'H4'})}).catch(()=>{});
+      // #endregion
       showToast('Invalid invite — missing stream key');
       return;
     }
@@ -580,6 +583,9 @@ export default function LiveStream() {
         requesterAvatar: viewerAvatar,
         streamKey: invite.streamKey,
       });
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveStream.tsx:acceptBattleInvite:sent',message:'battle-accept-ws-sent',data:{hostUserId:invite.hostUserId?.slice(0,12),streamKey:invite.streamKey?.slice(0,20),isBroadcast},timestamp:Date.now(),hypothesisId:'H5'})}).catch(()=>{});
+      // #endregion
     } catch { /* fire-and-forget */ }
 
     if (isBroadcast) {
@@ -2051,6 +2057,9 @@ export default function LiveStream() {
 
     // Battle & Co-Host invite / request signalling over WebSocket
     const handleBattleInvite = (data: any) => {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveStream.tsx:handleBattleInvite',message:'battle-invite-received',data:{hasUserId:!!user?.id,hostName:data.hostName,hostUserId:data.hostUserId?.slice(0,12),streamKey:data.streamKey?.slice(0,20),effectiveStreamId:effectiveStreamId?.slice(0,20),rawKeys:Object.keys(data)},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+      // #endregion
       if (!user?.id) return;
       setPendingInvite({
         hostName: data.hostName || 'Creator',
@@ -2061,6 +2070,9 @@ export default function LiveStream() {
     };
 
     const handleBattleInviteAccepted = (data: any) => {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveStream.tsx:handleBattleInviteAccepted',message:'battle-invite-accepted-received',data:{isBroadcast,rawKeys:Object.keys(data),requesterId:data.requesterUserId?.slice(0,12),requesterName:data.requesterName},timestamp:Date.now(),hypothesisId:'H5'})}).catch(()=>{});
+      // #endregion
       if (!isBroadcast) return;
       const requesterId = data.requesterUserId as string | undefined;
       const requesterName = data.requesterName as string | undefined;
@@ -4082,12 +4094,18 @@ export default function LiveStream() {
                   const handleReject = (ev: React.MouseEvent) => {
                     ev.preventDefault();
                     ev.stopPropagation();
+                    // #region agent log
+                    fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveStream.tsx:handleReject-btn',message:'reject-btn-clicked',data:{creatorId:c.id?.slice(0,12),hasPendingInvite:!!pendingInvite},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
+                    // #endregion
                     setBattleSlots(prev => prev.map(s => s.userId === c.id ? { userId: '', name: '', status: 'empty' as const, avatar: '' } : s));
                     if (pendingInvite && pendingInvite.hostUserId === c.id) declineBattleInvite();
                   };
                   const handleJoin = async (ev: React.MouseEvent) => {
                     ev.preventDefault();
                     ev.stopPropagation();
+                    // #region agent log
+                    fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveStream.tsx:handleJoin-btn',message:'join-btn-clicked',data:{creatorId:c.id?.slice(0,12),hasPendingInvite:!!pendingInvite,pendingHostUserId:pendingInvite?.hostUserId?.slice(0,12),match:pendingInvite?.hostUserId===c.id},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
+                    // #endregion
                     if (pendingInvite && pendingInvite.hostUserId === c.id) acceptBattleInvite();
                   };
 

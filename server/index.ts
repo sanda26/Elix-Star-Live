@@ -75,6 +75,17 @@ import { handleUploadVideo, handleUploadAvatar } from "./routes/upload";
 import { uploadToBunny, isBunnyConfigured } from "./services/bunny";
 import { getTokenFromRequest, verifyAuthToken } from "./routes/auth";
 import { handleSendGift } from "./routes/gifts";
+import {
+  handleGetProfile,
+  handleGetProfileByUsername,
+  handleGetFollowers,
+  handleGetFollowing,
+  handlePatchProfile,
+  handleFollow,
+  handleUnfollow,
+  handleSeedProfile,
+  handleAddTestCoins,
+} from "./routes/profiles";
 import { addFeedSubscriber, removeFeedSubscriber, broadcastToFeedSubscribers } from "./feedBroadcast";
 import { logger } from "./lib/logger";
 
@@ -199,6 +210,18 @@ app.post("/api/create-subscription", createSubscriptionSession);
 app.post("/api/analytics", handleAnalytics);
 app.post("/api/analytics/track", handleAnalytics);
 app.post("/api/block-user", handleBlockUser);
+app.post("/api/test-coins", handleAddTestCoins);
+
+// Profiles
+app.get("/api/profiles/by-username/:username", handleGetProfileByUsername);
+app.get("/api/profiles/:userId", handleGetProfile);
+app.get("/api/profiles/:userId/followers", handleGetFollowers);
+app.get("/api/profiles/:userId/following", handleGetFollowing);
+app.patch("/api/profiles/:userId", handlePatchProfile);
+app.post("/api/profiles/:userId/follow", handleFollow);
+app.post("/api/profiles/:userId/unfollow", handleUnfollow);
+app.post("/api/profiles", handleSeedProfile);
+
 app.post("/api/delete-account", handleDeleteAccount);
 app.post("/api/report", handleReport);
 app.post("/api/live/moderation/check", handleLiveModerationCheck);

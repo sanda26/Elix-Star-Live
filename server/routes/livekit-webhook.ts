@@ -7,6 +7,7 @@
 import { Request, Response } from 'express';
 import { WebhookReceiver } from 'livekit-server-sdk';
 import { removeActiveStream } from './livestream';
+import { broadcastToFeedSubscribers } from '../feedBroadcast';
 
 const API_KEY = (process.env.LIVEKIT_API_KEY || '').trim();
 const API_SECRET = (process.env.LIVEKIT_API_SECRET || '').trim();
@@ -39,6 +40,7 @@ export async function handleLiveKitWebhook(req: Request, res: Response) {
       case 'room_finished':
         if (event.room?.name) {
           removeActiveStream(event.room.name);
+          broadcastToFeedSubscribers('stream_ended', { stream_key: event.room.name });
           if (process.env.NODE_ENV !== 'production') {
             console.log('[livekit-webhook] room_finished:', event.room.name);
           }

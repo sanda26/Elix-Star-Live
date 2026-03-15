@@ -147,6 +147,51 @@ export function handleUnfollow(req: Request, res: Response): void {
   res.json({ success: true, followers: target.followers });
 }
 
+/** GET /api/profiles/by-username/:username */
+export function handleGetProfileByUsername(req: Request, res: Response): void {
+  const username = req.params.username;
+  if (!username) {
+    res.status(400).json({ error: "username is required" });
+    return;
+  }
+  for (const profile of profiles.values()) {
+    if (profile.username === username || profile.displayName === username) {
+      res.json({
+        user_id: profile.userId,
+        username: profile.username,
+        display_name: profile.displayName,
+        avatar_url: profile.avatarUrl,
+        bio: profile.bio,
+        level: profile.level,
+        followers_count: profile.followers,
+        following_count: profile.following,
+      });
+      return;
+    }
+  }
+  res.status(404).json({ error: "Profile not found" });
+}
+
+/** POST /api/test-coins — add test coins to current user */
+export function handleAddTestCoins(req: Request, res: Response): void {
+  const token = getTokenFromRequest(req);
+  const jwtUser = token ? verifyAuthToken(token) : null;
+  if (!jwtUser) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  const { amount } = req.body ?? {};
+  const numAmount = Number(amount);
+  if (!numAmount || numAmount <= 0 || numAmount > 100000000) {
+    res.status(400).json({ error: "Invalid amount" });
+    return;
+  }
+  const profile = getOrCreateProfile(jwtUser.sub);
+  profile.coins += numAmount;
+  profiles.set(jwtUser.sub, profile);
+  res.json({ success: true, coins: profile.coins });
+}
+
 /** POST /api/profiles — seed/upsert (e.g. after auth); no auth required */
 export function handleSeedProfile(req: Request, res: Response): void {
   const body = req.body as { userId?: string; username?: string; email?: string; avatarUrl?: string };

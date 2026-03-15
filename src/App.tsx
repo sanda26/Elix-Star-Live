@@ -82,14 +82,14 @@ function LiveStreamKeyed() {
 function LiveStreamGuard() {
   const loc = useLocation();
   const params = (loc.pathname.match(/^\/live\/(.+)/) || [])[1];
-  const isInviteJoin =
-    loc.search.includes("battle=1") || loc.search.includes("cohost=1");
+  const isBattleJoin = loc.search.includes("battle=1");
+  // Send viewers and co-host joiners to spectator (watch) page; only battle participants stay on LiveStream.
   if (
     params &&
     params !== "broadcast" &&
     params !== "start" &&
     params !== "watch" &&
-    !isInviteJoin
+    !isBattleJoin
   ) {
     return <Navigate to={`/watch/${params}`} replace />;
   }

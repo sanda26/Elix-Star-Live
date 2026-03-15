@@ -6,7 +6,6 @@ import { createServer } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
-import { appendFile } from "fs";
 import {
   createCheckoutSession,
   createPaymentIntent,
@@ -93,22 +92,6 @@ import { logger } from "./lib/logger";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const DEBUG_LOG_PATH = join(__dirname, ".cursor", "debug.log");
-
-// #region agent log
-function writeDebugLog(entry: any) {
-  try {
-    const line =
-      JSON.stringify({
-        ...entry,
-        id: `log_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-      }) + "\n";
-    appendFile(DEBUG_LOG_PATH, line, () => {});
-  } catch {
-    // ignore debug log errors
-  }
-}
-// #endregion
 
 const app = express();
 const server = createServer(app);
@@ -180,26 +163,9 @@ app.use(
 // Other routes use JSON
 app.use(express.json());
 
-// #region agent log
-// Debug log collector — frontend sends diagnostics here so we can read them from /api/debug-log
-const debugLogBuffer: Array<{ts: string; msg: string; data: any}> = [];
-app.post("/api/debug-log", (req, res) => {
-  const entry = { ts: new Date().toISOString(), msg: req.body?.message || "", data: req.body?.data || {} };
-  debugLogBuffer.push(entry);
-  if (debugLogBuffer.length > 100) debugLogBuffer.shift();
-  res.status(204).end();
-});
-app.get("/api/debug-log", (_req, res) => {
-  res.status(200).json({ logs: debugLogBuffer });
-});
-// #endregion
-
 // Health check endpoint (must be before static files)
 const BUILD_VERSION = "2026-03-15T07:00-inline-live-gift-fix";
 app.get("/health", (_req, res) => {
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/index.ts:health',message:'health-check',data:{version:BUILD_VERSION,uptime:process.uptime(),videoCount:getAllVideos().length},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
-  // #endregion
   res.status(200).json({
     status: "ok",
     version: BUILD_VERSION,
@@ -250,21 +216,7 @@ app.get("/api/profile", handleMe);
 app.get("/api/live/streams", handleGetStreams);
 app.post("/api/live/start", handleLiveStart);
 app.post("/api/live/end", handleLiveEnd);
-app.get("/api/live/token", async (req, res) => {
-  const start = Date.now();
-  await handleGetLiveToken(req, res);
-  const ms = Date.now() - start;
-  // #region agent log
-  writeDebugLog({
-    location: "server/index.ts:/api/live/token",
-    message: "live-token-duration",
-    data: { ms, method: req.method, url: req.originalUrl },
-    timestamp: Date.now(),
-    runId: "pre-fix",
-    hypothesisId: "H2",
-  });
-  // #endregion
-});
+app.get("/api/live/token", handleGetLiveToken);
 
 // Upload video to Bunny Storage
 // (route mounted above with express.raw)
@@ -300,21 +252,7 @@ app.post("/api/verify-purchase", handleVerifyPurchase);
 app.post("/api/promote-iap-complete", handlePromoteIAPComplete);
 
 // Feed & Recommendation API
-app.get("/api/feed/foryou", async (req, res) => {
-  const start = Date.now();
-  await handleForYouFeed(req, res);
-  const ms = Date.now() - start;
-  // #region agent log
-  writeDebugLog({
-    location: "server/index.ts:/api/feed/foryou",
-    message: "feed-foryou-duration",
-    data: { ms, method: req.method, url: req.originalUrl },
-    timestamp: Date.now(),
-    runId: "pre-fix",
-    hypothesisId: "H1",
-  });
-  // #endregion
-});
+app.get("/api/feed/foryou", handleForYouFeed);
 app.post("/api/feed/track-view", handleTrackView);
 app.post("/api/feed/track-interaction", handleTrackInteraction);
 app.get("/api/feed/score/:videoId", handleGetVideoScore);
@@ -602,10 +540,6 @@ app.use((req, res) => {
 // Centralized error handler (must be after all routes)
 app.use((err: Error, req: express.Request, res: express.Response, _next: express.NextFunction) => {
   logger.error({ err, method: req.method, url: req.originalUrl }, "Unhandled error");
-  // #region agent log
-  debugLogBuffer.push({ ts: new Date().toISOString(), msg: 'server-unhandled-error', data: { method: req.method, url: req.originalUrl, error: err?.message || String(err), stack: err?.stack?.slice(0, 500), name: err?.name } });
-  if (debugLogBuffer.length > 200) debugLogBuffer.shift();
-  // #endregion
   if (!res.headersSent) {
     res.status(500).json({ error: "Internal server error" });
   }
@@ -1254,10 +1188,6 @@ wss.on("connection", async (ws: WebSocket, req) => {
 
 // When a user disconnects, check if they were the stream host and notify all viewers
 async function checkAndBroadcastStreamEnd(roomId: string, userId: string) {
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/index.ts:checkAndBroadcastStreamEnd',message:'check-and-broadcast-stream-end',data:{roomId,userId},timestamp:Date.now(),runId:'pre-fix',hypothesisId:'H1'})}).catch(()=>{});
-  // #endregion
-
   // Remove from in-memory active streams so /api/live/streams no longer lists it
   removeActiveStream(roomId, userId);
   broadcastToRoom(roomId, "stream_ended", {
@@ -1536,9 +1466,6 @@ async function handleMessage(client: Client, event: string, data: any) {
           hostAvatar: data.hostAvatar || client.avatarUrl || "",
           streamKey: client.roomId,
         });
-        // #region agent log
-        console.log("[cohost_invite] sent to userId:", targetUserId, "from:", client.userId, "delivered:", cohostSent);
-        // #endregion
         sendToClient(client, "cohost_invite_ack", { targetUserId, delivered: cohostSent });
         break;
       }
@@ -1564,19 +1491,6 @@ async function handleMessage(client: Client, event: string, data: any) {
         const hostUserId =
           typeof data.hostUserId === "string" ? data.hostUserId : "";
         if (!hostUserId) break;
-        // #region agent log
-        fetch("http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            location: "server/index.ts:cohost_request_send",
-            message: "server-cohost-request-send",
-            data: { hostUserId: hostUserId.slice(0, 12), requesterId: (client.userId || "").slice(0, 12) },
-            timestamp: Date.now(),
-            hypothesisId: "H-cohost-server",
-          }),
-        }).catch(() => {});
-        // #endregion
         sendToUserGlobal(hostUserId, "cohost_request", {
           requesterUserId: client.userId,
           requesterName: data.requesterName || client.displayName,
@@ -1882,10 +1796,6 @@ try {
       logger.info({ count: sampleVideos.length }, "Seed videos added (no DB videos found)");
     }
 
-    // #region agent log
-    console.log(`[DEPLOY-CHECK] version=${BUILD_VERSION} videoCount=${getAllVideos().length} validCount=${getAllVideos().filter(v=>v.url&&v.url.trim()).length}`);
-    fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/index.ts:startup',message:'server-ready',data:{version:BUILD_VERSION,videoCount:getAllVideos().length,validVideoCount:getAllVideos().filter(v=>v.url&&v.url.trim()).length,dbVideoCount:dbVideos.length},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
-    // #endregion
     logger.info({ port: PORT, version: BUILD_VERSION }, "Server running successfully");
   });
 } catch (error) {

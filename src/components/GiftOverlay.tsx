@@ -41,18 +41,12 @@ export function GiftOverlay({ videoSrc, previewSrc: _previewSrc, onEnded, isBatt
     setVideoReady(false);
 
     safetyTimerRef.current = setTimeout(() => {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:'gift-safety-timer-fired',data:{videoSrc:videoSrc?.slice(0,60)},timestamp:Date.now(),hypothesisId:'H17'})}).catch(()=>{});
-      // #endregion
       onEndedRef.current();
     }, 8000);
 
     const path = videoSrc.split('?')[0].toLowerCase();
     const isVideo = path.endsWith('.mp4') || path.endsWith('.webm');
 
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GiftOverlay.tsx:init',message:'gift-overlay-init',data:{videoSrc:videoSrc?.slice(0,80),isVideo,cached:videoCache.has(videoSrc)},timestamp:Date.now(),hypothesisId:'H12'})}).catch(()=>{});
-    // #endregion
 
     if (!isVideo) {
       if (safetyTimerRef.current) clearTimeout(safetyTimerRef.current);
@@ -65,15 +59,9 @@ export function GiftOverlay({ videoSrc, previewSrc: _previewSrc, onEnded, isBatt
     } else {
       preloadVideo(videoSrc)
         .then(() => {
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GiftOverlay.tsx:preloadOk',message:'gift-video-preload-ok',data:{videoSrc:videoSrc?.slice(0,80)},timestamp:Date.now(),hypothesisId:'H12'})}).catch(()=>{});
-          // #endregion
           setVideoReady(true);
         })
         .catch(() => {
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GiftOverlay.tsx:preloadFail',message:'gift-video-preload-fail',data:{videoSrc:videoSrc?.slice(0,80)},timestamp:Date.now(),hypothesisId:'H12'})}).catch(()=>{});
-          // #endregion
           if (safetyTimerRef.current) clearTimeout(safetyTimerRef.current);
           onEndedRef.current();
         });
@@ -104,24 +92,15 @@ export function GiftOverlay({ videoSrc, previewSrc: _previewSrc, onEnded, isBatt
         muted
         preload="auto"
         onLoadedData={() => {
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:'gift-video-loadeddata',data:{videoSrc:videoSrc?.slice(0,60),duration:videoRef.current?.duration,paused:videoRef.current?.paused},timestamp:Date.now(),hypothesisId:'H17'})}).catch(()=>{});
-          // #endregion
           if (videoRef.current?.paused) {
             videoRef.current.play().catch(() => {});
           }
         }}
         onEnded={() => {
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:'gift-video-ended',data:{videoSrc:videoSrc?.slice(0,60)},timestamp:Date.now(),hypothesisId:'H17'})}).catch(()=>{});
-          // #endregion
           if (safetyTimerRef.current) clearTimeout(safetyTimerRef.current);
           onEnded();
         }}
         onError={() => {
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:'gift-video-error',data:{videoSrc:videoSrc?.slice(0,60)},timestamp:Date.now(),hypothesisId:'H17'})}).catch(()=>{});
-          // #endregion
           if (safetyTimerRef.current) clearTimeout(safetyTimerRef.current);
           onEnded();
         }}

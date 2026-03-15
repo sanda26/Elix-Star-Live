@@ -53,9 +53,6 @@ export default function InlineLiveViewer({
     (async () => {
       setConnecting(true);
       setHasStream(false);
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'InlineLiveViewer.tsx:connect',message:'inline-viewer-start',data:{streamKey,isActive},timestamp:Date.now(),hypothesisId:'H11'})}).catch(()=>{});
-      // #endregion
       try {
         const headers: Record<string, string> = {
           "Content-Type": "application/json",
@@ -65,9 +62,6 @@ export default function InlineLiveViewer({
           apiUrl(`/api/live/token?room=${encodeURIComponent(streamKey)}`),
           { method: "GET", credentials: "include", headers }
         );
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'InlineLiveViewer.tsx:token',message:'inline-viewer-token-res',data:{ok:res.ok,status:res.status},timestamp:Date.now(),hypothesisId:'H11'})}).catch(()=>{});
-        // #endregion
         if (!res.ok || !mounted) return;
 
         const data = await res.json().catch(() => ({}));
@@ -82,17 +76,11 @@ export default function InlineLiveViewer({
           if (el) {
             track.attach(el);
             setHasStream(true);
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'InlineLiveViewer.tsx:track',message:'inline-viewer-video-attached',data:{streamKey,trackSid:track.sid},timestamp:Date.now(),hypothesisId:'H13'})}).catch(()=>{});
-            // #endregion
           }
         };
 
         room.on(RoomEvent.TrackSubscribed, onTrackSubscribed);
         await room.connect(url, token);
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'InlineLiveViewer.tsx:connected',message:'inline-viewer-connected',data:{streamKey,remoteParticipants:room.remoteParticipants.size},timestamp:Date.now(),hypothesisId:'H11'})}).catch(()=>{});
-        // #endregion
         if (!mounted) {
           room.disconnect();
           return;
@@ -108,9 +96,6 @@ export default function InlineLiveViewer({
           }
         }
       } catch (err) {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'InlineLiveViewer.tsx:error',message:'inline-viewer-error',data:{streamKey,error:String(err)},timestamp:Date.now(),hypothesisId:'H11'})}).catch(()=>{});
-        // #endregion
         if (mounted) setHasStream(false);
       } finally {
         if (mounted) setConnecting(false);

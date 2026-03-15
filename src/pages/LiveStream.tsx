@@ -53,6 +53,7 @@ import { apiUrl, getLiveKitUrl } from '../lib/api';
 import { LevelBadge } from '../components/LevelBadge';
 import ReportModal from '../components/ReportModal';
 import PromotePanel from '../components/PromotePanel';
+import { GiftPanel } from '../components/GiftPanel';
 import { RankingPanel } from '../components/RankingPanel';
 import { websocket } from '../lib/websocket';
 import LiveAIFilters from '../components/LiveAIFilters';
@@ -132,8 +133,6 @@ export default function LiveStream() {
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [showModerationWarning, setShowModerationWarning] = useState(false);
-  const [showSpectatorChatInput, setShowSpectatorChatInput] = useState(false);
-  const spectatorChatInputRef = useRef<HTMLInputElement>(null);
   const [spectatorCoHostRequestSent, setSpectatorCoHostRequestSent] = useState(false);
   const [moderationWarningMessage, setModerationWarningMessage] = useState('');
   const [showTestCoinsModal, setShowTestCoinsModal] = useState(false);
@@ -347,17 +346,11 @@ export default function LiveStream() {
             displayName: creatorNameRef.current,
           }),
         });
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'host-live-start-response', data: { status: res.status, ok: res.ok }, timestamp: Date.now(), hypothesisId: 'H2' }) }).catch(() => {});
-        // #endregion
         if (res.ok) {
           liveRegisteredRef.current = true;
           const data = await res.json().catch(() => ({}));
           let url = (data?.url ?? '').trim();
           if (!url) url = getLiveKitUrl();
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'host-live-start-data', data: { hasToken: Boolean(data?.token), tokenLen: data?.token?.length, url: url?.slice(0, 40), room: data?.room }, timestamp: Date.now(), hypothesisId: 'H2' }) }).catch(() => {});
-          // #endregion
           if (data?.token && url) {
             setLiveKitCreds({ token: data.token, url });
           } else {
@@ -365,9 +358,6 @@ export default function LiveStream() {
           }
         }
       } catch (startErr) {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'host-live-start-error', data: { error: String(startErr) }, timestamp: Date.now(), hypothesisId: 'H2' }) }).catch(() => {});
-        // #endregion
       }
     })();
 
@@ -417,13 +407,7 @@ export default function LiveStream() {
 
     (async () => {
       try {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'host-livekit-connecting', data: { url: liveKitCreds.url?.slice(0, 40), tokenLen: liveKitCreds.token?.length, hasVideo: Boolean(videoTrack), hasAudio: Boolean(audioTrack) }, timestamp: Date.now(), hypothesisId: 'H1' }) }).catch(() => {});
-        // #endregion
         await room.connect(liveKitCreds.url, liveKitCreds.token);
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'host-livekit-connected', data: { roomName: room.name }, timestamp: Date.now(), hypothesisId: 'H1' }) }).catch(() => {});
-        // #endregion
         for (const [, participant] of room.remoteParticipants) {
           for (const [, pub] of participant.videoTrackPublications) {
             if (pub.track && pub.isSubscribed) attachRemoteVideoToCoHostSlot(pub.track, participant);
@@ -437,13 +421,7 @@ export default function LiveStream() {
           const localAudio = new LocalAudioTrack(audioTrack);
           await room.localParticipant.publishTrack(localAudio, { name: 'mic' });
         }
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'host-livekit-published', data: { publishedTracks: room.localParticipant.trackPublications.size }, timestamp: Date.now(), hypothesisId: 'H1' }) }).catch(() => {});
-        // #endregion
       } catch (e) {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'host-livekit-error', data: { error: String(e), stack: (e as Error)?.stack?.slice(0, 300) }, timestamp: Date.now(), hypothesisId: 'H1' }) }).catch(() => {});
-        // #endregion
         console.error('[LiveKit] Host connect/publish failed:', e);
         const errMsg = String(e).includes('401') ? 'LiveKit auth failed — check API keys'
           : String(e).includes('timeout') ? 'LiveKit connection timed out — retrying...'
@@ -582,16 +560,10 @@ export default function LiveStream() {
   }, [pendingInvite]);
 
   const acceptBattleInvite = async () => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveStream.tsx:acceptBattleInvite',message:'battle-accept-called',data:{hasPendingInvite:!!pendingInvite,hasUserId:!!user?.id,isBroadcast,streamKey:pendingInvite?.streamKey?.slice(0,20),hostUserId:pendingInvite?.hostUserId?.slice(0,12)},timestamp:Date.now(),hypothesisId:'H15'})}).catch(()=>{});
-    // #endregion
     if (!pendingInvite || !user?.id) return;
     const invite = pendingInvite;
     setPendingInvite(null);
     if (!invite.streamKey) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveStream.tsx:acceptBattleInvite:no-streamKey',message:'missing-stream-key',data:{invite:{hostName:invite.hostName,hostUserId:invite.hostUserId?.slice(0,12),streamKey:invite.streamKey}},timestamp:Date.now(),hypothesisId:'H4'})}).catch(()=>{});
-      // #endregion
       showToast('Invalid invite — missing stream key');
       return;
     }
@@ -603,9 +575,6 @@ export default function LiveStream() {
         requesterAvatar: viewerAvatar,
         streamKey: invite.streamKey,
       });
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveStream.tsx:acceptBattleInvite:sent',message:'battle-accept-ws-sent',data:{hostUserId:invite.hostUserId?.slice(0,12),streamKey:invite.streamKey?.slice(0,20),isBroadcast},timestamp:Date.now(),hypothesisId:'H5'})}).catch(()=>{});
-      // #endregion
     } catch { /* fire-and-forget */ }
 
     if (isBroadcast) {
@@ -673,7 +642,7 @@ export default function LiveStream() {
   const _allSlotsAccepted = allFilledAccepted;
 
   // ═══════════════════════════════════════════════════════════════
-  // MULTI-HOST (up to 12 co-hosts) — Normal Live only, NOT battle
+  // MULTI-HOST (8 co-host slots + 1 host = 8+1) — Normal Live only, NOT battle
   // ═══════════════════════════════════════════════════════════════
   type CoHost = {
     id: string;
@@ -691,7 +660,7 @@ export default function LiveStream() {
   const coHostTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const coHostsRef = useRef<CoHost[]>([]);
   const isBroadcastRef = useRef(false);
-  const MAX_CO_HOSTS = 12;
+  const MAX_CO_HOSTS = 8;
 
   // Keep refs in sync for use inside WebSocket handlers (avoid stale closure)
   useEffect(() => {
@@ -704,9 +673,6 @@ export default function LiveStream() {
     if (!isBroadcast || !effectiveStreamId || !user?.id) return;
     const list = coHosts.map((h) => ({ id: h.id, userId: h.userId, name: h.name, avatar: h.avatar, status: h.status }));
     const payload = { roomId: effectiveStreamId, coHosts: list, hostUserId: user.id };
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveStream.tsx:cohost_layout_sync',message:'host-cohost-layout-sent',data:{coHostCount:list.length,userIds:list.map(h=>h.userId?.slice(0,12)),hasDupe:list.length!==new Set(list.map(h=>h.userId)).size},timestamp:Date.now(),hypothesisId:'H-dup'})}).catch(()=>{});
-    // #endregion
     websocket.send('cohost_layout_sync', payload);
   }, [isBroadcast, effectiveStreamId, user?.id, coHosts]);
 
@@ -729,9 +695,6 @@ export default function LiveStream() {
     setCoHosts(prev => [...prev, newHost]);
 
     if (!user?.id) return;
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'cohost-invite-sent', data: { targetUserId: creator.id?.slice(0, 12), hostName: myCreatorName }, timestamp: Date.now() }) }).catch(() => {});
-    // #endregion
     websocket.send('cohost_invite_send', {
       targetUserId: creator.id,
       hostName: myCreatorName,
@@ -753,9 +716,6 @@ export default function LiveStream() {
   }, [pendingCohostInvite]);
 
   const acceptCohostInvite = async () => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'cohost-accept-called', data: { hasPending: !!pendingCohostInvite, hasUserId: !!user?.id, streamKey: pendingCohostInvite?.streamKey?.slice(0, 20) }, timestamp: Date.now() }) }).catch(() => {});
-    // #endregion
     if (!pendingCohostInvite || !user?.id) return;
     const inv = pendingCohostInvite;
     setPendingCohostInvite(null);
@@ -766,8 +726,8 @@ export default function LiveStream() {
       cohostAvatar: user?.avatar || '',
       streamKey: inv.streamKey,
     });
-    showToast(`Joining @${inv.hostName}'s live as co-host...`);
-    if (inv.streamKey) navigate(`/live/${inv.streamKey}?cohost=1`);
+    showToast(`Joining @${inv.hostName}'s live as spectator`);
+    if (inv.streamKey) navigate(`/watch/${inv.streamKey}`);
   };
 
   const declineCohostInvite = () => {
@@ -810,103 +770,6 @@ export default function LiveStream() {
     if (requesterId) websocket.send('cohost_request_decline', { requesterUserId: requesterId });
     showToast('Request declined');
   };
-
-  const isCoHostJoiner = new URLSearchParams(location.search).get('cohost') === '1';
-  const coHostLkRoomRef = useRef<Room | null>(null);
-  const coHostVideoRef = useRef<HTMLVideoElement | null>(null);
-  const [hasCoHostStream, setHasCoHostStream] = useState(false);
-
-  // Co-host joiner: start camera and connect to host's LiveKit room
-  useEffect(() => {
-    if (!isCoHostJoiner || !user?.id || isBroadcast) return;
-    let mounted = true;
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'cohost-joiner-effect', data: { isCoHostJoiner, effectiveStreamId: effectiveStreamId?.slice(0, 20), hasVideoRef: !!videoRef.current }, timestamp: Date.now() }) }).catch(() => {});
-    // #endregion
-
-    (async () => {
-      // Start camera
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'user' },
-          audio: { echoCancellation: true, noiseSuppression: true },
-        });
-        if (!mounted) { stream.getTracks().forEach(t => t.stop()); return; }
-        cameraStreamRef.current = stream;
-        setCameraStream(stream);
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          videoRef.current.play().catch(() => {});
-        }
-      } catch {
-        showToast('Camera access needed to co-host');
-      }
-
-      // Connect to host's LiveKit room and publish so creator sees us in a co-host slot (token needs canPublish)
-      try {
-        const res = await fetch(apiUrl(`/api/live/token?room=${encodeURIComponent(effectiveStreamId)}&publish=1`), { method: 'GET', credentials: 'include' });
-        if (!res.ok || !mounted) return;
-        const payload = await res.json().catch(() => ({}));
-        const token = payload?.token;
-        const url = (payload?.url ?? '').trim() || getLiveKitUrl();
-        if (!token || !url || !mounted) return;
-
-        const room = new Room();
-        coHostLkRoomRef.current = room;
-
-        room.on(RoomEvent.TrackSubscribed, (track) => {
-          if (!mounted || track.kind !== 'video') return;
-          const el = coHostVideoRef.current;
-          if (el) {
-            track.attach(el);
-            setHasCoHostStream(true);
-          }
-        });
-
-        await room.connect(url, token);
-        if (!mounted) { room.disconnect(); return; }
-
-        // Check if host is already publishing
-        for (const [, participant] of room.remoteParticipants) {
-          for (const [, pub] of participant.videoTrackPublications) {
-            if (pub.track && pub.isSubscribed && coHostVideoRef.current) {
-              pub.track.attach(coHostVideoRef.current);
-              setHasCoHostStream(true);
-            }
-          }
-        }
-
-        // Publish own camera to LiveKit so host can see us
-        if (cameraStreamRef.current) {
-          const vTrack = cameraStreamRef.current.getVideoTracks()[0];
-          const aTrack = cameraStreamRef.current.getAudioTracks()[0];
-          if (vTrack) {
-            const localVideo = new LocalVideoTrack(vTrack);
-            await room.localParticipant.publishTrack(localVideo, { name: 'camera' });
-          }
-          if (aTrack) {
-            const localAudio = new LocalAudioTrack(aTrack);
-            await room.localParticipant.publishTrack(localAudio, { name: 'mic' });
-          }
-        }
-
-        // Notify host via WebSocket
-        websocket.send('cohost_joined', {
-          hostUserId: effectiveStreamId,
-          cohostName: user?.username || user?.name || 'Co-Host',
-          cohostAvatar: user?.avatar || '',
-        });
-      } catch (e) {
-        console.error('[CoHost] Failed to connect to host LiveKit room:', e);
-      }
-    })();
-
-    return () => {
-      mounted = false;
-      if (coHostLkRoomRef.current) { coHostLkRoomRef.current.disconnect(); coHostLkRoomRef.current = null; }
-      setHasCoHostStream(false);
-    };
-  }, [isCoHostJoiner, user?.id, effectiveStreamId, isBroadcast]);
 
   const removeCoHost = (hostId: string) => {
     const host = coHosts.find(h => h.id === hostId);
@@ -1062,9 +925,7 @@ export default function LiveStream() {
   // Peer connections for battle & co-host
   const isBattleParticipant = !isBroadcast && new URLSearchParams(location.search).get('battle') === '1';
   const [battleParticipantStream, setBattleParticipantStream] = useState<MediaStream | null>(null);
-  const [coHostJoinerStream, setCoHostJoinerStream] = useState<MediaStream | null>(null);
 
-  // Co-host joiner camera is handled in the main co-host useEffect above
 
   useEffect(() => {
     if (!isBattleParticipant || battleParticipantStream) return;
@@ -1096,7 +957,7 @@ export default function LiveStream() {
     videoRef.current.play().catch(() => {});
   }, [isBattleParticipant, battleParticipantStream]);
 
-  const isRegularViewer = !isBroadcast && !isBattleParticipant && !isCoHostJoiner;
+  const isRegularViewer = !isBroadcast && !isBattleParticipant;
 
   // Connect to opponent's LiveKit room to receive their video during battle
   useEffect(() => {
@@ -1104,16 +965,10 @@ export default function LiveStream() {
     let mounted = true;
     const room = new Room();
     opponentLkRoomRef.current = room;
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'battle-opp-lk-start', data: { opponentStreamKey: opponentStreamKey?.slice(0, 20) }, timestamp: Date.now() }) }).catch(() => {});
-    // #endregion
 
     (async () => {
       try {
         const res = await fetch(apiUrl(`/api/live/token?room=${encodeURIComponent(opponentStreamKey)}`), { method: 'GET', credentials: 'include' });
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'battle-opp-token-res', data: { status: res.status, ok: res.ok }, timestamp: Date.now() }) }).catch(() => {});
-        // #endregion
         if (!res.ok || !mounted) return;
         const payload = await res.json().catch(() => ({}));
         const token = payload?.token;
@@ -1122,9 +977,6 @@ export default function LiveStream() {
 
         room.on(RoomEvent.TrackSubscribed, (track) => {
           if (!mounted || track.kind !== 'video') return;
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'battle-opp-track-subscribed', data: { kind: track.kind }, timestamp: Date.now() }) }).catch(() => {});
-          // #endregion
           const el = opponentVideoRef.current;
           if (el) {
             track.attach(el);
@@ -1133,9 +985,6 @@ export default function LiveStream() {
         });
 
         await room.connect(url, token);
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'battle-opp-lk-connected', data: { remoteParts: room.remoteParticipants.size }, timestamp: Date.now() }) }).catch(() => {});
-        // #endregion
         if (!mounted) { room.disconnect(); return; }
 
         for (const [, participant] of room.remoteParticipants) {
@@ -1147,9 +996,6 @@ export default function LiveStream() {
           }
         }
       } catch (e) {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'battle-opp-lk-error', data: { error: String(e) }, timestamp: Date.now() }) }).catch(() => {});
-        // #endregion
         console.error('[Battle] Failed to connect to opponent LiveKit room:', e);
       }
     })();
@@ -1256,6 +1102,7 @@ export default function LiveStream() {
   const [currentUniverse, setCurrentUniverse] = useState<UniverseTickerMessage | null>(null);
 
   const [showSharePanel, setShowSharePanel] = useState(false);
+  const [showGiftPanel, setShowGiftPanel] = useState(false);
   const [showPromotePanel, setShowPromotePanel] = useState(false);
   const [shareQuery, setShareQuery] = useState('');
   const [shareFollowers, setShareFollowers] = useState<{ user_id: string; username: string; avatar_url: string | null }[]>([]);
@@ -2243,9 +2090,6 @@ export default function LiveStream() {
 
     // Battle & Co-Host invite / request signalling over WebSocket
     const handleBattleInvite = (data: any) => {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveStream.tsx:handleBattleInvite',message:'battle-invite-received',data:{hasUserId:!!user?.id,hostName:data.hostName,hostUserId:data.hostUserId?.slice(0,12),streamKey:data.streamKey?.slice(0,20),effectiveStreamId:effectiveStreamId?.slice(0,20),rawKeys:Object.keys(data)},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
-      // #endregion
       if (!user?.id) return;
       setPendingInvite({
         hostName: data.hostName || 'Creator',
@@ -2256,9 +2100,6 @@ export default function LiveStream() {
     };
 
     const handleBattleInviteAccepted = (data: any) => {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveStream.tsx:handleBattleInviteAccepted',message:'battle-invite-accepted-received',data:{isBroadcast,rawKeys:Object.keys(data),requesterId:data.requesterUserId?.slice(0,12),requesterName:data.requesterName},timestamp:Date.now(),hypothesisId:'H5'})}).catch(()=>{});
-      // #endregion
       if (!isBroadcast) return;
       const requesterId = data.requesterUserId as string | undefined;
       const requesterName = data.requesterName as string | undefined;
@@ -2302,9 +2143,6 @@ export default function LiveStream() {
     };
 
     const handleCohostInvite = (data: any) => {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'cohost-invite-received', data: { hasUserId: !!user?.id, hostName: data.hostName, hostUserId: data.hostUserId, streamKey: data.streamKey?.slice(0, 20), rawKeys: Object.keys(data) }, timestamp: Date.now() }) }).catch(() => {});
-      // #endregion
       if (!user?.id) return;
       setPendingCohostInvite({
         hostName: data.hostName || 'Creator',
@@ -2314,11 +2152,8 @@ export default function LiveStream() {
       });
     };
 
-    // #region agent log
     const handleCohostInviteAck = (data: any) => {
-      fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveStream.tsx:cohostInviteAck',message:'cohost-invite-ack',data:{targetUserId:data.targetUserId,delivered:data.delivered},timestamp:Date.now(),hypothesisId:'H16'})}).catch(()=>{});
     };
-    // #endregion
 
     websocket.on('battle_invite', handleBattleInvite);
     websocket.on('battle_invite_accepted', handleBattleInviteAccepted);
@@ -2599,6 +2434,7 @@ export default function LiveStream() {
         transactionId: `${user?.id || 'anon'}-${Date.now()}`,
         battleTarget: isBattleMode ? giftTarget : undefined,
         creator_name: hostName || 'Creator',
+        ...(!isBroadcast && { host_user_id: effectiveStreamId }),
       });
 
       // Handle Combo Logic
@@ -2947,7 +2783,7 @@ export default function LiveStream() {
                 if (now - last <= 320) handleComboClick();
               } : undefined}
             >
-            {isBroadcast || isBattleParticipant || isCoHostJoiner ? (
+            {isBroadcast || isBattleParticipant ? (
               <>
                 <video
                   ref={videoRef}
@@ -2955,18 +2791,8 @@ export default function LiveStream() {
                   autoPlay
                   playsInline
                   muted
-                  style={isBroadcast || isCoHostJoiner ? { transform: 'scaleX(-1)', opacity: isCamOff ? 0 : 1, transition: 'opacity 0.3s ease' } : undefined}
+                  style={isBroadcast ? { transform: 'scaleX(-1)', opacity: isCamOff ? 0 : 1, transition: 'opacity 0.3s ease' } : undefined}
                 />
-                {isCoHostJoiner && (
-                  <video
-                    ref={coHostVideoRef}
-                    className="absolute top-2 right-2 w-28 h-40 object-cover rounded-lg border-2 border-[#C9A96E]/60 shadow-lg z-20"
-                    autoPlay
-                    playsInline
-                    muted={false}
-                    style={{ opacity: hasCoHostStream ? 1 : 0, transition: 'opacity 0.3s ease' }}
-                  />
-                )}
                 {isCamOff && (
                   <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-[#13151A] z-[5]">
                     {(user?.avatar || myAvatar) ? (
@@ -3902,45 +3728,42 @@ export default function LiveStream() {
           )}
         </AnimatePresence>
         <div className="flex flex-col items-end">
-          {/* Spectator bottom bar: Co-Host (request only), keyboard, share, more — hidden during gift animation */}
+          {/* Spectator bottom bar: same as SpectatorPage — inline "Say something..." + Co-Host, Gift, Share, More (one row) */}
           {!isBroadcast && !currentGift && (
-            <div className="flex items-center justify-center gap-3 pointer-events-auto">
-              <div className="flex flex-col items-center gap-0.5">
-                <button
-                  type="button"
-                  title={spectatorCoHostRequestSent ? 'Request sent' : 'Co-Host'}
-                  disabled={spectatorCoHostRequestSent || !user?.id}
-                  onClick={async () => {
-                    if (!user?.id || !effectiveStreamId || spectatorCoHostRequestSent) return;
-                    const requesterName = user?.username || user?.name || 'Someone';
-                    websocket.send('cohost_request_send', {
-                      hostUserId: effectiveStreamId,
-                      requesterName,
-                      requesterAvatar: user?.avatar || '',
-                    });
-                    setSpectatorCoHostRequestSent(true);
-                    showToast('Co-host request sent!');
-                  }}
-                  className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg relative disabled:opacity-60 active:scale-95 transition-transform"
-                >
-                  <span className="flex items-center justify-center w-full h-full relative z-[2]"><UserPlus size={20} className="text-[#C9A96E] shrink-0" strokeWidth={2} /></span>
-                  <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-125 translate-y-0.5" />
-                </button>
-                <span className="text-white/60 text-[8px] font-medium">{spectatorCoHostRequestSent ? 'Request sent' : 'Co-Host'}</span>
-              </div>
+            <div className="flex items-center gap-2 w-full max-w-[480px] pointer-events-auto">
+              <form className="flex-1 flex items-center gap-2 bg-black/40 backdrop-blur-sm rounded-full px-3 py-2 border border-white/10 h-10 min-w-0" onSubmit={(e) => { e.preventDefault(); handleSendMessage(e); }}>
+                <input type="text" inputMode="text" enterKeyHint="send" autoComplete="off" placeholder="Say something..." className="bg-transparent text-white text-xs outline-none flex-1 placeholder:text-white/30 min-w-0" value={inputValue} onChange={(e) => setInputValue(e.target.value)} />
+                {inputValue.trim() && <button type="submit" title="Send message" className="text-[#C9A96E] flex-shrink-0"><Send size={16} /></button>}
+              </form>
               <button
                 type="button"
-                title="Type a message"
-                onClick={() => setShowSpectatorChatInput(true)}
-                className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform relative flex-shrink-0"
+                title={spectatorCoHostRequestSent ? 'Request sent' : 'Co-Host'}
+                disabled={spectatorCoHostRequestSent || !user?.id}
+                onClick={async () => {
+                  if (!user?.id || !effectiveStreamId || spectatorCoHostRequestSent) return;
+                  const requesterName = user?.username || user?.name || 'Someone';
+                  websocket.send('cohost_request_send', {
+                    hostUserId: effectiveStreamId,
+                    requesterName,
+                    requesterAvatar: user?.avatar || '',
+                  });
+                  setSpectatorCoHostRequestSent(true);
+                  showToast('Co-host request sent!');
+                }}
+                className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg relative disabled:opacity-60 active:scale-95 transition-transform flex-shrink-0"
               >
-                <MessageCircle size={20} className="text-[#C9A96E] relative z-[2]" />
+                <span className="flex items-center justify-center w-full h-full relative z-[2]"><UserPlus size={20} className="text-[#C9A96E] shrink-0" strokeWidth={2} /></span>
+                <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-125 translate-y-0.5" />
               </button>
-              <button type="button" title="Share" onClick={() => setShowSharePanel(true)} className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform relative">
+              <button type="button" title="Send gift" onClick={() => setShowGiftPanel(true)} className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform relative flex-shrink-0">
+                <Gift size={20} className="text-[#C9A96E] relative z-[2]" />
+                <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-125 translate-y-0.5" />
+              </button>
+              <button type="button" title="Share" onClick={() => setShowSharePanel(true)} className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform relative flex-shrink-0">
                 <Share2 size={20} className="text-[#C9A96E] relative z-[2]" />
                 <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-125 translate-y-0.5" />
               </button>
-              <button type="button" title="More options" onClick={() => setIsMoreMenuOpen(true)} className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform relative">
+              <button type="button" title="More options" onClick={() => setIsMoreMenuOpen(true)} className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform relative flex-shrink-0">
                 <MoreVertical size={20} className="text-[#C9A96E] relative z-[2]" />
                 <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-125 translate-y-0.5" />
               </button>
@@ -4021,34 +3844,20 @@ export default function LiveStream() {
         </div>
       </div>
 
-      {/* Spectator chat input overlay — appears when keyboard icon is tapped */}
-      {showSpectatorChatInput && !isBroadcast && (
-        <div className="fixed inset-0 z-[100000] flex flex-col justify-end pointer-events-none max-w-[480px] mx-auto">
-          <div className="absolute inset-0 bg-black/40 pointer-events-auto" onClick={() => setShowSpectatorChatInput(false)} />
-          <div className="pointer-events-auto relative z-10 px-3 pb-[max(12px,env(safe-area-inset-bottom))]">
-            <form
-              onSubmit={(e) => { handleSendMessage(e); setShowSpectatorChatInput(false); }}
-              className="flex items-center gap-2 bg-[#13151A]/95 backdrop-blur-md rounded-full px-4 py-2 border border-[#C9A96E]/40 h-12"
-            >
-              <input
-                ref={spectatorChatInputRef}
-                type="text"
-                inputMode="text"
-                enterKeyHint="send"
-                autoComplete="off"
-                autoCorrect="off"
-                autoFocus
-                placeholder="Say something..."
-                className="bg-transparent text-white text-sm outline-none flex-1 placeholder:text-white/40 min-w-0"
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-              />
-              <button type="submit" className="text-[#C9A96E] hover:text-[#C9A96E]/80 transition flex-shrink-0" title="Send">
-                <Send size={20} />
-              </button>
-            </form>
+      {/* Gift panel for spectators (same as SpectatorPage) */}
+      {showGiftPanel && !isBroadcast && (
+        <>
+          <div className="fixed inset-0 bg-black/50 pointer-events-auto" style={{ zIndex: 200 }} onClick={() => setShowGiftPanel(false)} />
+          <div className="fixed bottom-0 left-0 right-0 pointer-events-auto max-w-[480px] mx-auto" style={{ zIndex: 201 }}>
+            <GiftPanel
+              onSelectGift={handleSendGift}
+              userCoins={coinBalance}
+              onRechargeSuccess={(newBalance) => { setCoinBalance(newBalance); persistTestCoinsBalance(user?.id, newBalance); }}
+              onWeeklyRanking={() => { setShowGiftPanel(false); setShowRankingPanel(true); }}
+              onMembership={() => { setShowGiftPanel(false); setShowFanClub(true); }}
+            />
           </div>
-        </div>
+        </>
       )}
 
       {/* Single co-host panel: Join requests & Spectators (viewer list). No duplicate Invite Co-Hosts panel. */}
@@ -4124,18 +3933,12 @@ export default function LiveStream() {
                   const handleReject = (ev: React.MouseEvent) => {
                     ev.preventDefault();
                     ev.stopPropagation();
-                    // #region agent log
-                    fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveStream.tsx:handleReject-btn',message:'reject-btn-clicked',data:{creatorId:c.id?.slice(0,12),hasPendingInvite:!!pendingInvite},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
-                    // #endregion
                     setBattleSlots(prev => prev.map(s => s.userId === c.id ? { userId: '', name: '', status: 'empty' as const, avatar: '' } : s));
                     if (pendingInvite && pendingInvite.hostUserId === c.id) declineBattleInvite();
                   };
                   const handleJoin = async (ev: React.MouseEvent) => {
                     ev.preventDefault();
                     ev.stopPropagation();
-                    // #region agent log
-                    fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveStream.tsx:handleJoin-btn',message:'join-btn-clicked',data:{creatorId:c.id?.slice(0,12),hasPendingInvite:!!pendingInvite,pendingHostUserId:pendingInvite?.hostUserId?.slice(0,12),match:pendingInvite?.hostUserId===c.id},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
-                    // #endregion
                     if (pendingInvite && pendingInvite.hostUserId === c.id) acceptBattleInvite();
                   };
 

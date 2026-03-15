@@ -287,23 +287,11 @@ export default function SpectatorPage() {
 
   // Spectators should not create their own co-host layout; co-hosting is controlled by the creator's room.
   // We intentionally do NOT auto-start co-hosting on ?cohost=1 for the spectator route.
+  // Spectators on ?cohost=1 stay on watch page; no auto co-host start.
   useEffect(() => {
-    // #region agent log
     if (isCoHostFromUrl) {
-      fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          location: 'SpectatorPage.tsx:cohostQueryIgnored',
-          message: 'spectator-cohost-query-param-ignored',
-          data: { pathname: location.pathname, streamId: effectiveStreamId?.slice(0, 20) },
-          timestamp: Date.now(),
-          runId: 'spectator-cohost-fix',
-          hypothesisId: 'H-cohost-dup',
-        }),
-      }).catch(() => {});
+      // Optional: could show a one-time toast that co-host is request-only from here.
     }
-    // #endregion
   }, [isCoHostFromUrl, effectiveStreamId, location.pathname]);
 
   const startCoHosting = async () => {
@@ -400,9 +388,6 @@ export default function SpectatorPage() {
 
   // Fetch host / stream state from backend
   useEffect(() => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'spectator-mount', data: { effectiveStreamId, hasUser: Boolean(user?.id), userId: user?.id?.slice(0, 8), pathname: location.pathname }, timestamp: Date.now(), hypothesisId: 'H8' }) }).catch(() => {});
-    // #endregion
     if (!effectiveStreamId) return;
     (async () => {
       try {
@@ -426,9 +411,6 @@ export default function SpectatorPage() {
         }
 
         setStreamIsLive(true);
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'spectator-stream-found', data: { streamKey: stream.stream_key, userId: stream.user_id, viewerCount: stream.viewer_count, totalStreams: streams.length }, timestamp: Date.now(), hypothesisId: 'H9' }) }).catch(() => {});
-        // #endregion
         if (stream.user_id) {
           const uid = String(stream.user_id);
           setHostUserId(uid);
@@ -476,9 +458,6 @@ export default function SpectatorPage() {
   // LiveKit: connect as viewer and attach host video to videoRef
   const liveKitRoomRef = useRef<Room | null>(null);
   useEffect(() => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'spectator-livekit-guard', data: { streamIsLive, effectiveStreamId: effectiveStreamId?.slice(0, 12), hasUserId: Boolean(user?.id), retryKey: liveConnectRetryKey }, timestamp: Date.now(), hypothesisId: 'H8' }) }).catch(() => {});
-    // #endregion
     if (!streamIsLive || !effectiveStreamId || !user?.id) return;
 
     let mounted = true;
@@ -487,14 +466,8 @@ export default function SpectatorPage() {
 
     (async () => {
       try {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'spectator-livekit-start', data: { streamId: effectiveStreamId, userId: user?.id }, timestamp: Date.now(), hypothesisId: 'H1' }) }).catch(() => {});
-        // #endregion
         const res = await fetch(apiUrl(`/api/live/token?room=${encodeURIComponent(effectiveStreamId)}`), { method: 'GET', credentials: 'include' });
         if (!res.ok || !mounted) {
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'spectator-token-fail', data: { status: res.status, mounted }, timestamp: Date.now(), hypothesisId: 'H1' }) }).catch(() => {});
-          // #endregion
           if (res.status === 401) showToast('Please log in to watch');
           else if (res.status === 503) showToast('Live video is not configured on server');
           return;
@@ -503,9 +476,6 @@ export default function SpectatorPage() {
         let url = (data?.url ?? '').trim();
         if (!url) url = getLiveKitUrl();
         const token = data?.token;
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'spectator-token-ok', data: { hasUrl: Boolean(url), urlPrefix: url?.slice(0, 30), hasToken: Boolean(token), tokenLen: token?.length || 0 }, timestamp: Date.now(), hypothesisId: 'H1' }) }).catch(() => {});
-        // #endregion
         if (!url || !token || !mounted) {
           showToast('Missing LiveKit URL. Set LIVEKIT_URL on server.');
           return;
@@ -513,9 +483,6 @@ export default function SpectatorPage() {
 
         const hostId = hostUserIdRef.current || effectiveStreamId;
         const onTrackSubscribed = (track: import('livekit-client').RemoteTrack, publication?: import('livekit-client').TrackPublication, participant?: import('livekit-client').RemoteParticipant) => {
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'spectator-track-subscribed', data: { kind: track.kind }, timestamp: Date.now(), hypothesisId: 'H1' }) }).catch(() => {});
-          // #endregion
           if (!mounted) return;
           if (track.kind === 'audio') {
             track.attach();
@@ -539,9 +506,6 @@ export default function SpectatorPage() {
           onTrackSubscribed(track, publication, participant);
         });
         await room.connect(url, token);
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'spectator-room-connected', data: { remoteParticipants: room.remoteParticipants.size }, timestamp: Date.now(), hypothesisId: 'H1' }) }).catch(() => {});
-        // #endregion
         if (!mounted) {
           room.disconnect();
           return;
@@ -568,9 +532,6 @@ export default function SpectatorPage() {
       } catch (err) {
         if (mounted) {
           setHasStream(false);
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'spectator-livekit-error', data: { error: String(err), stack: (err as Error)?.stack?.slice(0, 300) }, timestamp: Date.now(), hypothesisId: 'H1' }) }).catch(() => {});
-          // #endregion
           console.error('[LiveKit] Viewer connect failed:', err);
           showToast('Could not connect to stream. Is the host live?');
         }
@@ -797,9 +758,6 @@ export default function SpectatorPage() {
     };
 
     const handleStreamEnded = (data?: any) => {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SpectatorPage.tsx:handleStreamEnded',message:'stream-ended-event',data:{effectiveStreamId,reason:data?.reason||null,hostUserId:data?.host_user_id||null},timestamp:Date.now(),runId:'pre-fix',hypothesisId:'H1'})}).catch(()=>{});
-      // #endregion
 
       if (!mounted) return;
       setStreamEndedReceived(true);
@@ -881,8 +839,8 @@ export default function SpectatorPage() {
       if (!mounted || !user?.id) return;
       const hostName = data.hostName || 'Creator';
       const streamKey = data.streamKey || effectiveStreamId;
-      showToast(`@${hostName} accepted your co-host request!`);
-      navigate(`/live/${streamKey}?cohost=1`);
+      showToast(`@${hostName} accepted — you're watching as spectator`);
+      navigate(`/watch/${streamKey}`);
     };
 
     const handleCohostRequestDeclined = () => {
@@ -1117,9 +1075,6 @@ export default function SpectatorPage() {
   const handleLikeTap = () => {
     setActiveLikes(prev => prev + 1);
     const connected = websocket.isConnected();
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SpectatorPage.tsx:handleLikeTap',message:'spectator-heart-tap',data:{wsConnected:connected,username:viewerName},timestamp:Date.now(),hypothesisId:'H14'})}).catch(()=>{});
-    // #endregion
     if (connected) {
       websocket.send('heart_sent', { username: viewerName, avatar: viewerAvatar });
     }
@@ -1467,8 +1422,8 @@ export default function SpectatorPage() {
                             setPendingCoHostInvite(null);
                             setShowCoHostPanel(false);
                             websocket.send('cohost_invite_accept', { hostUserId: inv.hostUserId, cohostName: user?.username || user?.name || 'User', cohostAvatar: user?.avatar || '', streamKey: inv.streamKey });
-                            showToast(`Joining @${inv.hostName}'s co-host...`);
-                            if (inv.streamKey) navigate(`/live/${inv.streamKey}?cohost=1`);
+                            showToast(`Joining @${inv.hostName}'s live as spectator`);
+                            if (inv.streamKey) navigate(`/watch/${inv.streamKey}`);
                           }}
                           className="px-2.5 py-1 rounded-full bg-green-500 flex items-center gap-0.5 active:scale-95 transition-transform cursor-pointer"
                         >

@@ -21,11 +21,6 @@ const activeStreams = new Map<
 /** Internal helper so other modules (WebSocket server) can mark streams offline. */
 export function removeActiveStream(roomId: string, userId?: string) {
   const s = activeStreams.get(roomId);
-
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'livestream.ts:removeActiveStream',message:'remove-active-stream-invoked',data:{roomId,userId,hasEntry:Boolean(s),entryUserId:s?.userId},timestamp:Date.now(),runId:'pre-fix',hypothesisId:'H1'})}).catch(()=>{});
-  // #endregion
-
   if (!s) return;
   if (userId && s.userId !== userId) return;
   activeStreams.delete(roomId);
@@ -48,9 +43,6 @@ function requireAuth(req: Request, res: Response): { userId: string } | null {
 
 /** GET /api/live/streams — list active streams (from LiveKit when configured, so all instances see the same list) */
 export async function handleGetStreams(_req: Request, res: Response) {
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'livestream.ts:handleGetStreams',message:'streams-query',data:{livekitConfigured:isLiveKitConfigured(),activeStreamCount:activeStreams.size,activeStreamKeys:Array.from(activeStreams.keys())},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
-  // #endregion
   if (isLiveKitConfigured()) {
     try {
       const liveRooms = await listActiveRoomsFromLiveKit();
@@ -128,10 +120,6 @@ export async function handleLiveStart(req: Request, res: Response) {
     const auth = requireAuth(req, res);
     if (!auth) return;
 
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'livestream.ts:handleLiveStart',message:'live-start-entry',data:{userId:auth.userId,livekitConfigured:isLiveKitConfigured(),livekitUrl:Boolean(getLiveKitUrl()),body:req.body},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
-    // #endregion
-
     if (!isLiveKitConfigured()) {
       return res.status(503).json({ error: 'Live streaming is not configured.' });
     }
@@ -172,10 +160,6 @@ export async function handleLiveStart(req: Request, res: Response) {
       name: auth.userId,
     });
 
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'livestream.ts:handleLiveStart',message:'live-start-success',data:{roomName,tokenLength:token?.length,livekitUrl:getLiveKitUrl()},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
-    // #endregion
-
     return res.status(200).json({
       room: roomName,
       token,
@@ -183,9 +167,6 @@ export async function handleLiveStart(req: Request, res: Response) {
       url: getLiveKitUrl(),
     });
   } catch (err: any) {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'livestream.ts:handleLiveStart',message:'live-start-error',data:{error:err?.message||String(err),stack:err?.stack?.slice(0,500)},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
-    // #endregion
     const message = err instanceof Error ? err.message : 'Failed to create token';
     logger.error({ err: message }, "live/start failed");
     return res.status(500).json({ error: message });

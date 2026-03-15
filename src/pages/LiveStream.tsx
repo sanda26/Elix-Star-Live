@@ -4363,35 +4363,12 @@ export default function LiveStream() {
                 </div>
               </div>
               <div className="flex-1 overflow-y-auto no-scrollbar px-4 pb-4 min-h-0">
-                {/* Join request — host-only: Accept/Decline */}
-                {pendingJoinRequest && (
-                  <div className="mb-3 px-3 py-2.5 rounded-xl bg-[#C9A96E]/10 border border-[#C9A96E]/40 flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 min-w-0 flex-1">
-                      <div className="w-9 h-9 rounded-full border-2 border-[#C9A96E]/50 overflow-hidden bg-[#13151A] flex-shrink-0">
-                        {pendingJoinRequest.requesterAvatar ? (
-                          <img src={pendingJoinRequest.requesterAvatar} alt="" className="w-full h-full object-cover" />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-[#C9A96E] font-bold text-sm">
-                            {(pendingJoinRequest.requesterName || '?').slice(0, 1).toUpperCase()}
-                          </div>
-                        )}
-                      </div>
-                      <div>
-                        <p className="text-white text-xs font-semibold truncate">{pendingJoinRequest.requesterName}</p>
-                        <p className="text-white/50 text-[10px]">Requested to co-host</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1.5 flex-shrink-0">
-                      <button type="button" onClick={() => { declineJoinRequest(); setShowViewerList(false); }} className="px-2.5 py-1 rounded-full bg-white/10 text-white/80 text-[10px] font-bold">Decline</button>
-                      <button type="button" onClick={() => { acceptJoinRequest(); setShowViewerList(false); }} className="px-2.5 py-1 rounded-full bg-[#C9A96E] text-black text-[10px] font-bold">Accept</button>
-                    </div>
-                  </div>
-                )}
-                {/* Spectators — invite as co-host or open profile */}
+                {/* Spectators — invite as co-host or open profile; join request (Accept/Decline) shown on requester's row */}
                 <p className="text-white/50 text-[10px] font-bold uppercase tracking-wider mb-1.5">Spectators</p>
                 {activeViewers.length > 0 ? (
                   activeViewers.map((v, i) => {
                     const alreadyInvited = coHosts.some(h => h.userId === v.id);
+                    const isJoinRequester = pendingJoinRequest?.requesterId === v.id;
                     return (
                       <div
                         key={v.id}
@@ -4414,11 +4391,16 @@ export default function LiveStream() {
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-white text-sm font-semibold truncate">{v.displayName}</p>
-                            <p className="text-white/40 text-[10px] font-medium">Level {v.level}</p>
+                            <p className="text-white/40 text-[10px] font-medium">{isJoinRequester ? 'Requested to co-host' : `Level ${v.level}`}</p>
                           </div>
                         </button>
                         {isBroadcast && isMyStreamLive && (
-                          coHosts.length < MAX_CO_HOSTS && !alreadyInvited ? (
+                          isJoinRequester ? (
+                            <div className="flex items-center gap-1.5 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                              <button type="button" onClick={() => { declineJoinRequest(); setShowViewerList(false); }} className="px-2.5 py-1 rounded-full bg-white/10 text-white/80 text-[10px] font-bold">Decline</button>
+                              <button type="button" onClick={() => { acceptJoinRequest(); setShowViewerList(false); }} className="px-2.5 py-1 rounded-full bg-[#C9A96E] text-black text-[10px] font-bold">Accept</button>
+                            </div>
+                          ) : coHosts.length < MAX_CO_HOSTS && !alreadyInvited ? (
                             <button
                               type="button"
                               onClick={(e) => { e.stopPropagation(); inviteCoHost({ id: v.id, name: v.displayName, avatar: v.avatar }); setShowViewerList(false); }}

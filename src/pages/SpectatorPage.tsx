@@ -72,6 +72,7 @@ export default function SpectatorPage() {
   const [hostUserId, setHostUserId] = useState('');
   const hostUserIdRef = useRef('');
   const [streamIsLive, setStreamIsLive] = useState<boolean | null>(null);
+  const [streamRetryKey, setStreamRetryKey] = useState(0);
   const [viewerCount, setViewerCount] = useState(0);
   const [activeLikes, setActiveLikes] = useState(0);
 
@@ -279,7 +280,6 @@ export default function SpectatorPage() {
         if (!res.ok) {
           setStreamIsLive(false);
           showToast('Stream is offline');
-          setTimeout(() => navigate('/feed', { replace: true }), 2000);
           return;
         }
 
@@ -292,7 +292,6 @@ export default function SpectatorPage() {
         if (!stream) {
           setStreamIsLive(false);
           showToast('Stream is offline');
-          setTimeout(() => navigate('/feed', { replace: true }), 2000);
           return;
         }
 
@@ -340,10 +339,9 @@ export default function SpectatorPage() {
       } catch {
         setStreamIsLive(false);
         showToast('Stream is offline');
-        setTimeout(() => navigate('/feed', { replace: true }), 2000);
       }
     })();
-  }, [effectiveStreamId, navigate]);
+  }, [effectiveStreamId, navigate, streamRetryKey]);
 
   // LiveKit: connect as viewer and attach host video to videoRef
   const liveKitRoomRef = useRef<Room | null>(null);
@@ -950,13 +948,24 @@ export default function SpectatorPage() {
               ? 'The host has ended the stream. Taking you back...'
               : 'This stream has ended or is not available right now.'}
           </p>
-          <button
-            type="button"
-            onClick={() => navigate('/feed', { replace: true })}
-            className="mt-2 px-6 py-2.5 rounded-lg bg-[#C9A96E] text-black font-semibold"
-          >
-            Go back
-          </button>
+          <div className="flex flex-col sm:flex-row gap-2 mt-2">
+            {!streamEndedReceived && (
+              <button
+                type="button"
+                onClick={() => { setStreamIsLive(null); setStreamRetryKey(k => k + 1); }}
+                className="px-6 py-2.5 rounded-lg bg-[#C9A96E]/20 border border-[#C9A96E]/50 text-[#C9A96E] font-semibold"
+              >
+                Retry connection
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => navigate('/feed', { replace: true })}
+              className="px-6 py-2.5 rounded-lg bg-[#C9A96E] text-black font-semibold"
+            >
+              Go back
+            </button>
+          </div>
         </div>
       </div>
     );

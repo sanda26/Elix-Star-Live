@@ -3889,11 +3889,9 @@ export default function LiveStream() {
                 type="button"
                 title="Type a message"
                 onClick={() => setShowSpectatorChatInput(true)}
-                className="rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform relative"
-                style={{ width: '40mm', height: '40mm' }}
+                className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform relative flex-shrink-0"
               >
-                <MessageCircle size={32} className="text-[#C9A96E] relative z-[2]" />
-                <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-125 translate-y-0.5" />
+                <MessageCircle size={20} className="text-[#C9A96E] relative z-[2]" />
               </button>
               <button type="button" title="Share" onClick={() => setShowSharePanel(true)} className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform relative">
                 <Share2 size={20} className="text-[#C9A96E] relative z-[2]" />

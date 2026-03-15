@@ -32,7 +32,6 @@ import {
 import {
   addVideo,
   getVideo,
-  addVideo,
   getAllVideos,
   getVideosByUser,
   deleteVideo,
@@ -296,11 +295,11 @@ app.post("/api/videos", async (req, res) => {
       thumbnail: body.thumbnailUrl || body.thumbnail_url || body.thumbnail || "",
       duration: body.duration || 0,
       userId: payload.sub,
-      username: body.username || payload.username || "user",
-      displayName: body.displayName || body.username || payload.username || "User",
+      username: body.username || (payload as { username?: string }).username || "user",
+      displayName: body.displayName || body.username || (payload as { username?: string }).username || "User",
       avatar:
         body.avatar ||
-        `https://ui-avatars.com/api/?name=${encodeURIComponent(body.username || payload.username || "User")}&background=random&size=400`,
+        `https://ui-avatars.com/api/?name=${encodeURIComponent(body.username || (payload as { username?: string }).username || "User")}&background=random&size=400`,
       description: body.description || "",
       hashtags: body.hashtags || [],
       music: body.music || null,

@@ -2395,9 +2395,11 @@ export default function LiveStream() {
     setActiveFaceARGift(next);
   };
 
+  const [giftKey, setGiftKey] = useState(0);
   useEffect(() => {
     if (!isPlayingGift && giftQueue.length > 0) {
       setCurrentGift(giftQueue[0]);
+      setGiftKey(k => k + 1);
       setIsPlayingGift(true);
       setGiftQueue(prev => prev.slice(1));
     }
@@ -5108,7 +5110,8 @@ export default function LiveStream() {
       <GiftAnimationOverlay streamId={effectiveStreamId} />
 
       {/* Full-screen Video Effect Overlay (Behind controls but above video) */}
-      <GiftOverlay 
+      <GiftOverlay
+        key={`gift-${giftKey}`}
         videoSrc={currentGift?.video ?? null}
         previewSrc={currentGift?.preview ?? null}
         onEnded={handleGiftEnded} 

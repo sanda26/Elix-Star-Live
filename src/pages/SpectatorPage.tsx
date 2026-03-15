@@ -783,9 +783,11 @@ export default function SpectatorPage() {
   }, [user?.id]);
 
   // Gift queue processor
+  const [giftKey, setGiftKey] = useState(0);
   useEffect(() => {
     if (giftQueue.length > 0 && !currentGift) {
       setCurrentGift(giftQueue[0]);
+      setGiftKey(k => k + 1);
       setGiftQueue(prev => prev.slice(1));
     }
   }, [giftQueue, currentGift]);
@@ -1365,7 +1367,7 @@ export default function SpectatorPage() {
         <GiftAnimationOverlay streamId={effectiveStreamId} />
 
         {/* GIFT VIDEO OVERLAY */}
-        <GiftOverlay videoSrc={currentGift?.video ?? null} previewSrc={currentGift?.preview ?? null} onEnded={handleGiftEnded} isBattleMode={!!spectatorBattle?.active} />
+        <GiftOverlay key={`gift-${giftKey}`} videoSrc={currentGift?.video ?? null} previewSrc={currentGift?.preview ?? null} onEnded={handleGiftEnded} isBattleMode={!!spectatorBattle?.active} />
 
         {/* Battle score/timer/winner are rendered inside the video area when spectatorBattle is set (same layout as creator). */}
 

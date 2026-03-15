@@ -33,6 +33,7 @@ export function GiftOverlay({ videoSrc, previewSrc, onEnded, isBattleMode: _isBa
   const safetyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onEndedRef = useRef(onEnded);
   onEndedRef.current = onEnded;
+  const instanceIdRef = useRef(0);
 
   const [phase, setPhase] = useState<'preview' | 'video' | 'image'>('preview');
   const [videoReady, setVideoReady] = useState(false);
@@ -40,11 +41,17 @@ export function GiftOverlay({ videoSrc, previewSrc, onEnded, isBattleMode: _isBa
   useEffect(() => {
     if (safetyTimerRef.current) clearTimeout(safetyTimerRef.current);
     if (!videoSrc) return;
+    const instId = ++instanceIdRef.current;
 
     setVideoReady(false);
     setPhase('preview');
 
-    safetyTimerRef.current = setTimeout(() => { onEndedRef.current(); }, 15000);
+    safetyTimerRef.current = setTimeout(() => {
+      // #region agent log
+      fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'gift-safety-timer-fired', data: { instId, videoSrc: videoSrc?.slice(0, 60) }, timestamp: Date.now() }) }).catch(() => {});
+      // #endregion
+      onEndedRef.current();
+    }, 8000);
 
     const path = videoSrc.split('?')[0].toLowerCase();
     const isVideo = path.endsWith('.mp4') || path.endsWith('.webm');
@@ -118,13 +125,25 @@ export function GiftOverlay({ videoSrc, previewSrc, onEnded, isBattleMode: _isBa
           muted
           preload="auto"
           onLoadedData={() => {
+            // #region agent log
+            fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'gift-video-loadeddata', data: { videoSrc: videoSrc?.slice(0, 60), duration: videoRef.current?.duration, paused: videoRef.current?.paused }, timestamp: Date.now() }) }).catch(() => {});
+            // #endregion
             if (videoRef.current && !muteAllSounds) videoRef.current.muted = false;
+            if (videoRef.current?.paused) {
+              videoRef.current.play().catch(() => {});
+            }
           }}
           onEnded={() => {
+            // #region agent log
+            fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'gift-video-ended', data: { videoSrc: videoSrc?.slice(0, 60) }, timestamp: Date.now() }) }).catch(() => {});
+            // #endregion
             if (safetyTimerRef.current) clearTimeout(safetyTimerRef.current);
             onEnded();
           }}
           onError={() => {
+            // #region agent log
+            fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'gift-video-error', data: { videoSrc: videoSrc?.slice(0, 60) }, timestamp: Date.now() }) }).catch(() => {});
+            // #endregion
             if (safetyTimerRef.current) clearTimeout(safetyTimerRef.current);
             onEnded();
           }}
@@ -137,10 +156,16 @@ export function GiftOverlay({ videoSrc, previewSrc, onEnded, isBattleMode: _isBa
           alt="Gift"
           className="absolute inset-0 w-full h-full object-cover opacity-90 drop-shadow-2xl animate-bounce-small"
           onLoad={() => {
+            // #region agent log
+            fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'gift-image-loaded', data: { videoSrc: videoSrc?.slice(0, 60) }, timestamp: Date.now() }) }).catch(() => {});
+            // #endregion
             if (safetyTimerRef.current) clearTimeout(safetyTimerRef.current);
             setTimeout(onEnded, 1500);
           }}
           onError={() => {
+            // #region agent log
+            fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'gift-image-error', data: { videoSrc: videoSrc?.slice(0, 60) }, timestamp: Date.now() }) }).catch(() => {});
+            // #endregion
             if (safetyTimerRef.current) clearTimeout(safetyTimerRef.current);
             onEnded();
           }}

@@ -669,6 +669,7 @@ export default function LiveStream() {
     _streamKey?: string;
   };
   const [coHosts, setCoHosts] = useState<CoHost[]>([]);
+  const [hostSearchQuery, setHostSearchQuery] = useState('');
   const [featuredHostId, setFeaturedHostId] = useState<string | null>(null);
   const coHostTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const coHostsRef = useRef<CoHost[]>([]);

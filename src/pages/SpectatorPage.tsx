@@ -1152,37 +1152,85 @@ export default function SpectatorPage() {
     <div className="fixed inset-0 bg-[#0A0B0E] flex justify-center">
       <div className="relative w-full max-w-[480px] h-full bg-[#13151A] overflow-hidden flex flex-col">
 
-        {/* Spectator: single full-screen video only. No live-stream panel, no battle panel — only creator feed + own bottom buttons. */}
+        {/* Spectator watches creator's live in real time: same layout (battle or co-host or single host). */}
         <div className="absolute inset-0 z-0 bg-[#13151A]">
+          {spectatorBattle ? (
+            /* Battle: same as creator — score bar + host vs opponent, synced in real time */
+            <div className="w-full h-full flex flex-col">
+              <div className="relative z-20 w-full flex-none overflow-hidden" style={{ height: '18px' }}>
+                <div className="absolute inset-0 flex pointer-events-none">
+                  <div
+                    className="h-full transition-all duration-500 ease-out"
+                    style={{
+                      width: `${(() => {
+                        const total = (spectatorBattle.hostScore ?? 0) + (spectatorBattle.opponentScore ?? 0);
+                        return total > 0 ? Math.max(3, Math.min(97, ((spectatorBattle.hostScore ?? 0) / total) * 100)) : 50;
+                      })()}%`,
+                      backgroundImage: 'linear-gradient(90deg, #DC143C, #FF1744, #C41E3A)',
+                    }}
+                  />
+                  <div className="h-full flex-1 transition-all duration-500 ease-out" style={{ backgroundImage: 'linear-gradient(90deg, #1E90FF, #4169E1, #0047AB)' }} />
+                </div>
+                <div className="absolute inset-0 z-10 flex items-center justify-between px-2 pointer-events-none">
+                  <span className="text-white font-black text-[14px] tabular-nums drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">{(spectatorBattle.hostScore ?? 0).toLocaleString()}</span>
+                  <span className="absolute left-1/2 -translate-x-1/2 text-white/90 text-[11px] font-black tabular-nums drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+                    {spectatorBattle.active && spectatorBattle.timeLeft > 0
+                      ? `${Math.floor(spectatorBattle.timeLeft / 60)}:${(spectatorBattle.timeLeft % 60).toString().padStart(2, '0')}`
+                      : spectatorBattle.winner
+                        ? (spectatorBattle.winner === 'host' ? 'Host wins!' : spectatorBattle.winner === 'draw' ? 'Draw!' : 'Opponent wins!')
+                        : ''}
+                  </span>
+                  <span className="text-white font-black text-[14px] tabular-nums drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">{(spectatorBattle.opponentScore ?? 0).toLocaleString()}</span>
+                </div>
+              </div>
+              <div className="flex flex-1 min-h-0">
+                <div className="w-1/2 h-full overflow-hidden relative bg-[#13151A] border-r border-white/5">
+                  <video ref={videoRef} className="w-full h-full object-cover" playsInline autoPlay style={{ opacity: hasStream ? 1 : 0, transition: 'opacity 0.4s ease' }} />
+                  {!hasStream && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-[#13151A]">
+                      {hostAvatar ? <img src={hostAvatar} alt="" className="w-16 h-16 rounded-full border-2 border-[#C9A96E]/40 object-cover" /> : <div className="w-16 h-16 rounded-full border-2 border-[#C9A96E]/40 bg-[#1C1E24] flex items-center justify-center"><span className="text-[#C9A96E] font-bold text-xl">{hostName.slice(0, 1).toUpperCase()}</span></div>}
+                      <span className="text-white text-[10px] font-bold truncate max-w-full px-1">{hostName}</span>
+                    </div>
+                  )}
+                  <div className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded-full bg-black/60 backdrop-blur-sm"><span className="text-white text-[9px] font-bold">{hostName}</span></div>
+                </div>
+                <div className="w-1/2 h-full overflow-hidden relative bg-[#13151A] flex flex-col items-center justify-center">
+                  <div className="w-16 h-16 rounded-full border-2 border-[#C9A96E]/40 bg-[#1C1E24] flex items-center justify-center overflow-hidden">
+                    {spectatorBattle.opponentName ? <span className="text-[#C9A96E] font-bold text-2xl">{(spectatorBattle.opponentName || '?').charAt(0).toUpperCase()}</span> : <span className="text-[#C9A96E]/60 font-bold text-2xl">?</span>}
+                  </div>
+                  <span className="text-white text-[10px] font-bold mt-1.5 truncate max-w-full px-1">{spectatorBattle.opponentName || 'Opponent'}</span>
+                  <div className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded-full bg-black/60 backdrop-blur-sm"><span className="text-white text-[9px] font-bold">{spectatorBattle.opponentName || 'Opponent'}</span></div>
+                </div>
+              </div>
+            </div>
+          ) : spectatorCoHosts.length > 0 ? (
+            /* Co-host: same as creator — host (1 big) + grid of slots, synced via cohost_layout_sync */
+            <div className="w-full h-full flex">
+              <div className="w-1/2 h-full flex-shrink-0 relative bg-[#13151A] overflow-hidden">
+                <video ref={videoRef} className="absolute inset-0 w-full h-full object-cover" playsInline autoPlay style={{ opacity: hasStream ? 1 : 0, transition: 'opacity 0.4s ease' }} />
+                {!hasStream && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-[#13151A]">
+                    {hostAvatar ? <img src={hostAvatar} alt="" className="w-16 h-16 rounded-full border-2 border-[#C9A96E]/40 object-cover" /> : <div className="w-16 h-16 rounded-full border-2 border-[#C9A96E]/40 bg-[#1C1E24] flex items-center justify-center"><span className="text-[#C9A96E] font-bold text-xl">{hostName.slice(0, 1).toUpperCase()}</span></div>}
+                    <span className="text-white text-[10px] font-bold truncate max-w-full px-1">{hostName}</span>
+                  </div>
+                )}
+                <div className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded-full bg-black/60 backdrop-blur-sm"><span className="text-white text-[9px] font-bold">{hostName}</span></div>
+              </div>
+              <SpectatorCoHostGrid spectatorCoHosts={spectatorCoHosts} coHostVideoRefs={coHostVideoRefs} hostName={hostName} />
+            </div>
+          ) : (
+            /* Normal live: single host video */
             <>
-              <video
-                ref={videoRef}
-                className="absolute inset-0 w-full h-full object-cover"
-                playsInline
-                autoPlay
-                style={{ opacity: hasStream ? 1 : 0, transition: 'opacity 0.4s ease' }}
-              />
+              <video ref={videoRef} className="absolute inset-0 w-full h-full object-cover" playsInline autoPlay style={{ opacity: hasStream ? 1 : 0, transition: 'opacity 0.4s ease' }} />
               {!hasStream && (
                 <div className="w-full h-full flex flex-col items-center justify-center gap-4">
                   <div className="w-24 h-24 rounded-full border-[3px] border-red-500/40 overflow-hidden">
-                    {hostAvatar ? (
-                      <img src={hostAvatar} alt="" className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full bg-[#C9A96E]/20 flex items-center justify-center">
-                        <span className="text-[#C9A96E] font-bold text-3xl">{hostName.slice(0, 1).toUpperCase()}</span>
-                      </div>
-                    )}
+                    {hostAvatar ? <img src={hostAvatar} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full bg-[#C9A96E]/20 flex items-center justify-center"><span className="text-[#C9A96E] font-bold text-3xl">{hostName.slice(0, 1).toUpperCase()}</span></div>}
                   </div>
                   {!user?.id ? (
                     <>
                       <span className="text-white/80 text-sm text-center">Log in to watch the live stream</span>
-                      <button
-                        type="button"
-                        onClick={() => navigate('/login', { state: { from: `/watch/${effectiveStreamId}` } })}
-                        className="mt-2 px-5 py-2.5 rounded-lg bg-[#C9A96E] text-black font-semibold text-sm"
-                      >
-                        Log in
-                      </button>
+                      <button type="button" onClick={() => navigate('/login', { state: { from: `/watch/${effectiveStreamId}` } })} className="mt-2 px-5 py-2.5 rounded-lg bg-[#C9A96E] text-black font-semibold text-sm">Log in</button>
                     </>
                   ) : (
                     <>
@@ -1191,19 +1239,14 @@ export default function SpectatorPage() {
                         <span className="text-white/60 text-sm">Connecting to stream...</span>
                       </div>
                       {showRetryButton && (
-                        <button
-                          type="button"
-                          onClick={() => { setShowRetryButton(false); retryJoinRoom(); setTimeout(() => { if (!hasStream) setShowRetryButton(true); }, 8000); }}
-                          className="mt-2 px-5 py-2 rounded-lg bg-[#C9A96E]/20 border border-[#C9A96E]/40 text-[#C9A96E] text-sm font-medium"
-                        >
-                          Tap to retry
-                        </button>
+                        <button type="button" onClick={() => { setShowRetryButton(false); retryJoinRoom(); setTimeout(() => { if (!hasStream) setShowRetryButton(true); }, 8000); }} className="mt-2 px-5 py-2 rounded-lg bg-[#C9A96E]/20 border border-[#C9A96E]/40 text-[#C9A96E] text-sm font-medium">Tap to retry</button>
                       )}
                     </>
                   )}
                 </div>
               )}
             </>
+          )}
         </div>
 
         {/* TOP BAR */}
@@ -1413,7 +1456,7 @@ export default function SpectatorPage() {
         {/* GIFT VIDEO OVERLAY */}
         <GiftOverlay key={`gift-${giftKey}`} videoSrc={currentGift?.video ?? null} onEnded={handleGiftEnded} isBattleMode={!!spectatorBattle?.active} />
 
-        {/* Spectator has no battle panel; single video only. spectatorBattle still used for gift overlay. */}
+        {/* Spectator sees same layout as creator (battle or co-host or single); spectatorBattle used for gift overlay. */}
 
         {/* ═══ SUPER FAN GOAL PANEL (Membership) — same as creator page */}
         {showFanClub && (

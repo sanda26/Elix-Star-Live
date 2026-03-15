@@ -1,14 +1,19 @@
 /**
- * Optional Postgres persistence for videos. When DATABASE_URL is set,
- * videos are loaded on startup and saved when added.
+ * Optional Postgres persistence for videos and live streams.
+ * When DATABASE_URL is set, data is loaded on startup and persisted.
  */
 
 import pg from "pg";
 import type { Video } from "./videoStore";
+import { logger } from "./logger";
 
 const { Pool } = pg;
 
 let pool: pg.Pool | null = null;
+
+export function getPool(): pg.Pool | null {
+  return pool;
+}
 
 export function isPostgresConfigured(): boolean {
   return Boolean((process.env.DATABASE_URL || "").trim());
@@ -41,8 +46,19 @@ export async function initPostgres(): Promise<void> {
         privacy TEXT DEFAULT 'public'
       )
     `);
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS live_streams (
+        stream_key TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        display_name TEXT,
+        started_at TIMESTAMPTZ DEFAULT NOW(),
+        ended_at TIMESTAMPTZ,
+        is_live BOOLEAN DEFAULT TRUE,
+        viewer_count INTEGER DEFAULT 0
+      )
+    `);
   } catch (err) {
-    console.error("[postgres] init failed:", err);
+    logger.error({ err }, "Postgres init failed");
     pool = null;
   }
 }
@@ -77,7 +93,7 @@ export async function loadVideosFromDb(): Promise<Video[]> {
       privacy: String(row.privacy ?? "public"),
     }));
   } catch (err) {
-    console.error("[postgres] load videos failed:", err);
+    logger.error({ err }, "Postgres load videos failed");
     return [];
   }
 }
@@ -111,6 +127,70 @@ export async function saveVideoToDb(video: Video): Promise<void> {
       ]
     );
   } catch (err) {
-    console.error("[postgres] save video failed:", err);
+    logger.error({ err }, "Postgres save video failed");
+  }
+}
+
+// ── Live stream persistence ─────────────────────────────────────────
+
+export async function dbInsertLiveStream(
+  streamKey: string,
+  userId: string,
+  displayName?: string,
+): Promise<void> {
+  if (!pool) return;
+  try {
+    await pool.query(
+      `INSERT INTO live_streams (stream_key, user_id, display_name, started_at, is_live, viewer_count)
+       VALUES ($1, $2, $3, NOW(), TRUE, 0)
+       ON CONFLICT (stream_key) DO UPDATE
+         SET user_id = $2, display_name = $3, started_at = NOW(), ended_at = NULL, is_live = TRUE, viewer_count = 0`,
+      [streamKey, userId, displayName ?? null],
+    );
+  } catch (err) {
+    logger.error({ err }, "Postgres insert live_stream failed");
+  }
+}
+
+export async function dbEndLiveStream(streamKey: string): Promise<void> {
+  if (!pool) return;
+  try {
+    await pool.query(
+      `UPDATE live_streams SET is_live = FALSE, ended_at = NOW() WHERE stream_key = $1`,
+      [streamKey],
+    );
+  } catch (err) {
+    logger.error({ err }, "Postgres end live_stream failed");
+  }
+}
+
+export async function dbUpdateViewerCount(
+  streamKey: string,
+  count: number,
+): Promise<void> {
+  if (!pool) return;
+  try {
+    await pool.query(
+      `UPDATE live_streams SET viewer_count = $2 WHERE stream_key = $1 AND is_live = TRUE`,
+      [streamKey, count],
+    );
+  } catch (err) {
+    logger.error({ err }, "Postgres update viewer_count failed");
+  }
+}
+
+export async function dbGetLiveStreams(): Promise<
+  { stream_key: string; user_id: string; display_name: string | null; started_at: string; viewer_count: number }[]
+> {
+  if (!pool) return [];
+  try {
+    const res = await pool.query(
+      `SELECT stream_key, user_id, display_name, started_at, viewer_count
+       FROM live_streams WHERE is_live = TRUE ORDER BY started_at DESC`,
+    );
+    return res.rows;
+  } catch (err) {
+    logger.error({ err }, "Postgres get live_streams failed");
+    return [];
   }
 }

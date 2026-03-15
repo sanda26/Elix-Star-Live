@@ -6,6 +6,7 @@
 import { Request, Response } from "express";
 import { getTokenFromRequest, verifyAuthToken } from "./auth";
 import { uploadToBunny, isBunnyConfigured, getBunnyConfigError } from "../services/bunny";
+import { logger } from "../lib/logger";
 
 function requireAuth(req: Request, res: Response): { userId: string } | null {
   const token = getTokenFromRequest(req);
@@ -56,6 +57,7 @@ export async function handleUploadVideo(req: Request, res: Response) {
   const result = await uploadToBunny(path, body, contentType);
 
   if (!result.success) {
+    logger.error({ path, error: result.error }, "Video upload to Bunny failed");
     return res.status(502).json({ error: result.error || "Upload failed." });
   }
 
@@ -107,6 +109,7 @@ export async function handleUploadAvatar(req: Request, res: Response) {
 
   const result = await uploadToBunny(path, body, contentType);
   if (!result.success) {
+    logger.error({ path, error: result.error }, "Avatar upload to Bunny failed");
     return res
       .status(502)
       .json({ error: result.error || "Avatar upload failed." });

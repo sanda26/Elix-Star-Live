@@ -8,6 +8,8 @@ import { Request, Response } from 'express';
 import { getTokenFromRequest, verifyAuthToken } from '../routes/auth';
 import { createLiveToken, isLiveKitConfigured, getLiveKitUrl, listActiveRoomsFromLiveKit } from '../services/livekit';
 import { broadcastToFeedSubscribers } from '../feedBroadcast';
+import { dbInsertLiveStream, dbEndLiveStream, dbGetLiveStreams } from '../lib/postgres';
+import { logger } from '../lib/logger';
 
 // In-memory active streams (key = roomName). Replace with DB when using Postgres.
 // Extended payload so viewers can see the creator's display name.
@@ -22,6 +24,7 @@ export function removeActiveStream(roomId: string, userId?: string) {
   if (!s) return;
   if (userId && s.userId !== userId) return;
   activeStreams.delete(roomId);
+  dbEndLiveStream(roomId).catch(() => {});
 }
 
 function requireAuth(req: Request, res: Response): { userId: string } | null {
@@ -60,23 +63,38 @@ export async function handleGetStreams(_req: Request, res: Response) {
         });
       return res.status(200).json({ streams });
     } catch (err) {
-      if (process.env.NODE_ENV !== 'production') {
-        console.error('[live] list streams from LiveKit failed, falling back to in-memory:', err);
-      }
+      logger.warn({ err }, "LiveKit list streams failed, falling back to in-memory");
       // fall through to in-memory
     }
   }
 
-  const streams = Array.from(activeStreams.entries()).map(([room, data]) => ({
+  // In-memory first, then fill from DB for any streams not in memory
+  const memStreams = Array.from(activeStreams.entries()).map(([room, data]) => ({
     room_id: room,
     stream_key: room,
     user_id: data.userId,
     started_at: data.startedAt,
-    status: 'live',
+    status: 'live' as const,
     title: data.displayName || undefined,
     display_name: data.displayName || undefined,
   }));
-  return res.status(200).json({ streams });
+
+  const memKeys = new Set(memStreams.map((s) => s.stream_key));
+  const dbRows = await dbGetLiveStreams();
+  for (const row of dbRows) {
+    if (memKeys.has(row.stream_key)) continue;
+    memStreams.push({
+      room_id: row.stream_key,
+      stream_key: row.stream_key,
+      user_id: row.user_id,
+      started_at: row.started_at,
+      status: 'live',
+      title: row.display_name || undefined,
+      display_name: row.display_name || undefined,
+    });
+  }
+
+  return res.status(200).json({ streams: memStreams });
 }
 
 /** POST /api/live/start — creator starts stream; returns LiveKit token with canPublish */
@@ -105,6 +123,7 @@ export async function handleLiveStart(req: Request, res: Response) {
     startedAt,
     displayName: safeDisplayName,
   });
+  dbInsertLiveStream(roomName, auth.userId, safeDisplayName).catch(() => {});
 
   broadcastToFeedSubscribers('stream_started', {
     room_id: roomName,
@@ -151,6 +170,7 @@ export async function handleLiveEnd(req: Request, res: Response) {
   }
 
   activeStreams.delete(roomName);
+  dbEndLiveStream(roomName).catch(() => {});
   broadcastToFeedSubscribers('stream_ended', { stream_key: roomName });
   return res.status(200).json({ ok: true, room: roomName });
 }
@@ -184,7 +204,7 @@ export async function handleGetLiveToken(req: Request, res: Response) {
     }
     const url = getLiveKitUrl();
     if (process.env.NODE_ENV !== 'production') {
-      console.log('[live] token issued for room:', roomName, 'url:', url ? 'set' : 'MISSING');
+      logger.debug({ room: roomName, urlSet: Boolean(url) }, "LiveKit token issued");
     }
     return res.status(200).json({ room: roomName, token, url });
   } catch (err) {

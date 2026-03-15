@@ -3,7 +3,9 @@
  * CDN serves files via pull zone (e.g. https://cdn.anberlive.co.uk/streams/video.mp4).
  */
 
-const STORAGE_HOST = process.env.BUNNY_STORAGE_HOST || 'storage.bunnycdn.com';
+import { logger } from "../lib/logger";
+
+const STORAGE_HOST = process.env.BUNNY_STORAGE_HOST || process.env.BUNNY_STORAGE_HOSTNAME || 'storage.bunnycdn.com';
 const STORAGE_REGION = process.env.BUNNY_STORAGE_REGION || 'de';
 const STORAGE_ZONE_RAW = process.env.BUNNY_STORAGE_ZONE || '';
 /** Storage zone name for API path (e.g. "elixlive" from "elixlive.b-cdn.net"). */
@@ -63,6 +65,7 @@ export async function uploadToBunny(
 
     if (!res.ok) {
       const text = await res.text();
+      logger.error({ path, status: res.status, body: text }, "Bunny Storage upload failed");
       return { success: false, path, error: `Bunny API ${res.status}: ${text}` };
     }
 
@@ -74,6 +77,7 @@ export async function uploadToBunny(
     return { success: true, path, cdnUrl };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
+    logger.error({ err, path }, "Bunny Storage upload exception");
     return { success: false, path, error: message };
   }
 }

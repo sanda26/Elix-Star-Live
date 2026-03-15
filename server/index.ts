@@ -38,7 +38,7 @@ import {
   replaceVideos,
   type Video,
 } from "./lib/videoStore";
-import { initPostgres, loadVideosFromDb, saveVideoToDb } from "./lib/postgres";
+import { initPostgres, loadVideosFromDb, saveVideoToDb, dbUpdateViewerCount } from "./lib/postgres";
 import {
   handleGetCreatorBalance,
   handleGetCreatorEarnings,
@@ -76,6 +76,7 @@ import { uploadToBunny, isBunnyConfigured } from "./services/bunny";
 import { getTokenFromRequest, verifyAuthToken } from "./routes/auth";
 import { handleSendGift } from "./routes/gifts";
 import { addFeedSubscriber, removeFeedSubscriber, broadcastToFeedSubscribers } from "./feedBroadcast";
+import { logger } from "./lib/logger";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -84,9 +85,29 @@ const app = express();
 const server = createServer(app);
 const PORT = Number(process.env.PORT) || 8080;
 
+// HSTS — enforce HTTPS in production via Strict-Transport-Security
+app.use((_req, res, next) => {
+  res.setHeader("Strict-Transport-Security", "max-age=63072000; includeSubDomains");
+  next();
+});
+
 // Middleware (credentials: true so auth cookie works when frontend is on another origin)
 app.use(cors({ credentials: true, origin: true }));
 app.use(compression());
+
+// Request logging
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on("finish", () => {
+    logger.info({
+      method: req.method,
+      url: req.originalUrl,
+      status: res.statusCode,
+      ms: Date.now() - start,
+    });
+  });
+  next();
+});
 
 // Webhooks need raw body for signature verification
 app.use(
@@ -194,6 +215,11 @@ app.get("/api/feed/score/:videoId", handleGetVideoScore);
 // ── Video CRUD (in-memory store; persists to Postgres when DATABASE_URL set) ───────────────────
 app.post("/api/videos", async (req, res) => {
   try {
+    const token = getTokenFromRequest(req);
+    if (!token) return res.status(401).json({ error: "Not authenticated." });
+    const payload = verifyAuthToken(token);
+    if (!payload) return res.status(401).json({ error: "Invalid or expired session." });
+
     const body = req.body;
     if (!body || !body.url) {
       return res.status(400).json({ error: "url is required" });
@@ -205,14 +231,14 @@ app.post("/api/videos", async (req, res) => {
     const video: Video = {
       id,
       url: body.url,
-      thumbnail: body.thumbnail || "",
+      thumbnail: body.thumbnailUrl || body.thumbnail_url || body.thumbnail || "",
       duration: body.duration || 0,
-      userId: body.userId || "anonymous",
-      username: body.username || "user",
-      displayName: body.displayName || body.username || "User",
+      userId: payload.sub,
+      username: body.username || payload.username || "user",
+      displayName: body.displayName || body.username || payload.username || "User",
       avatar:
         body.avatar ||
-        `https://ui-avatars.com/api/?name=${encodeURIComponent(body.username || "User")}&background=random&size=400`,
+        `https://ui-avatars.com/api/?name=${encodeURIComponent(body.username || payload.username || "User")}&background=random&size=400`,
       description: body.description || "",
       hashtags: body.hashtags || [],
       music: body.music || null,
@@ -227,13 +253,11 @@ app.post("/api/videos", async (req, res) => {
 
     addVideo(video);
     await saveVideoToDb(video);
-    console.log(
-      `[Videos] Added video ${id} (${getAllVideos().length} total in memory)`,
-    );
+    logger.info({ videoId: id, total: getAllVideos().length }, "Video created");
 
     return res.status(201).json(video);
   } catch (err: any) {
-    console.error("[Videos] POST error:", err?.message || err);
+    logger.error({ err: err?.message || err }, "POST /api/videos failed");
     return res.status(500).json({ error: "Failed to create video" });
   }
 });
@@ -459,6 +483,14 @@ app.use((req, res) => {
       .send(
         "<h1>App build not found</h1><p>dist/index.html is missing. Check build logs.</p>",
       );
+  }
+});
+
+// Centralized error handler (must be after all routes)
+app.use((err: Error, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  logger.error({ err, method: req.method, url: req.originalUrl }, "Unhandled error");
+  if (!res.headersSent) {
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
@@ -1561,8 +1593,11 @@ function broadcastToRoom(
   });
 }
 
-async function updateViewerCount(_roomId: string) {
-  // Feature disabled
+async function updateViewerCount(roomId: string) {
+  const room = rooms.get(roomId);
+  const count = room ? room.size : 0;
+  broadcastToRoom(roomId, "viewer_count", { count });
+  dbUpdateViewerCount(roomId, count).catch(() => {});
 }
 
 // WebSocket heartbeat: detect and clean up ghost connections every 30s
@@ -1605,10 +1640,7 @@ wss.on("close", () => {
 });
 
 // Start server
-console.log("Server build v3 — viewer count excludes host");
-console.log("Starting server...");
-console.log(`PORT: ${PORT}`);
-console.log(`NODE_ENV: ${process.env.NODE_ENV}`);
+logger.info({ port: PORT, nodeEnv: process.env.NODE_ENV }, "Starting server...");
 
 try {
   // Bind to 0.0.0.0 to work in all environments
@@ -1617,30 +1649,28 @@ try {
     const dbVideos = await loadVideosFromDb();
     if (dbVideos.length > 0) {
       replaceVideos(dbVideos);
-      console.log(`[Videos] Loaded ${dbVideos.length} videos from database`);
+      logger.info({ count: dbVideos.length }, "Videos loaded from database");
     }
-    console.log(`Server running successfully on port ${PORT}`);
-    console.log(`Health check available at: http://0.0.0.0:${PORT}/health`);
-    console.log("Server startup completed");
+    logger.info({ port: PORT }, "Server running successfully");
   });
 } catch (error) {
-  console.error("Failed to start server:", error);
+  logger.fatal({ err: error }, "Failed to start server");
   process.exit(1);
 }
 
 // Prevent server crash on unhandled errors
 process.on("unhandledRejection", (reason) => {
-  console.error("Unhandled Promise Rejection:", reason);
+  logger.error({ err: reason }, "Unhandled Promise Rejection");
 });
 process.on("uncaughtException", (error) => {
-  console.error("Uncaught Exception:", error);
+  logger.error({ err: error }, "Uncaught Exception");
 });
 
 // Graceful shutdown
 process.on("SIGTERM", () => {
-  console.log("Shutting down...");
+  logger.info("Shutting down...");
   server.close(() => {
-    console.log("Server closed");
+    logger.info("Server closed");
     process.exit(0);
   });
 });

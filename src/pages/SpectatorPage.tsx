@@ -1524,7 +1524,7 @@ export default function SpectatorPage() {
         <GiftAnimationOverlay streamId={effectiveStreamId} />
 
         {/* GIFT VIDEO OVERLAY */}
-        <GiftOverlay key={`gift-${giftKey}`} videoSrc={currentGift?.video ?? null} onEnded={handleGiftEnded} isBattleMode={!!spectatorBattle?.active} />
+        <GiftOverlay key={`gift-${giftKey}`} videoSrc={currentGift?.video ?? null} onEnded={handleGiftEnded} isBattleMode={!!spectatorBattle?.active} muted={false} />
 
         {/* Spectator: single video only; spectatorBattle still used for gift overlay. */}
 

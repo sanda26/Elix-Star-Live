@@ -24,9 +24,11 @@ interface GiftOverlayProps {
   previewSrc?: string | null;
   onEnded: () => void;
   isBattleMode?: boolean;
+  /** When false, spectators can hear the gift video sound. Default true (muted) for creator/autoplay. */
+  muted?: boolean;
 }
 
-export function GiftOverlay({ videoSrc, previewSrc: _previewSrc, onEnded, isBattleMode: _isBattleMode }: GiftOverlayProps) {
+export function GiftOverlay({ videoSrc, previewSrc: _previewSrc, onEnded, isBattleMode: _isBattleMode, muted = true }: GiftOverlayProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const safetyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onEndedRef = useRef(onEnded);
@@ -89,7 +91,7 @@ export function GiftOverlay({ videoSrc, previewSrc: _previewSrc, onEnded, isBatt
         className="absolute inset-0 w-full h-full object-cover drop-shadow-2xl"
         playsInline
         autoPlay
-        muted
+        muted={muted}
         preload="auto"
         onLoadedData={() => {
           if (videoRef.current?.paused) {

@@ -3748,24 +3748,18 @@ export default function LiveStream() {
           )}
         </AnimatePresence>
         <div className="flex flex-col items-end">
-          {/* When spectators have joined: hide creator bar; show same bottom bar as spectators (connected to live). When no spectators: creator sees own bar. */}
-          {((!isBroadcast || (isBroadcast && viewerCount > 0)) && !currentGift) && (
+          {/* Spectator bar only: chat, Co-Host, Gift, Share, More. Shown only when watching (not broadcasting). */}
+          {!isBroadcast && !currentGift && (
             <div className="flex items-center gap-2 w-full max-w-[480px] pointer-events-auto">
-              {!isBroadcast && (
-                <form className="flex-1 flex items-center gap-2 bg-black/40 backdrop-blur-sm rounded-full px-3 py-2 border border-white/10 h-10 min-w-0" onSubmit={(e) => { e.preventDefault(); handleSendMessage(e); }}>
-                  <input type="text" inputMode="text" enterKeyHint="send" autoComplete="off" placeholder="Say something..." className="bg-transparent text-white text-xs outline-none flex-1 placeholder:text-white/30 min-w-0" value={inputValue} onChange={(e) => setInputValue(e.target.value)} />
-                  {inputValue.trim() && <button type="submit" title="Send message" className="text-[#C9A96E] flex-shrink-0"><Send size={16} /></button>}
-                </form>
-              )}
+              <form className="flex-1 flex items-center gap-2 bg-black/40 backdrop-blur-sm rounded-full px-3 py-2 border border-white/10 h-10 min-w-0" onSubmit={(e) => { e.preventDefault(); handleSendMessage(e); }}>
+                <input type="text" inputMode="text" enterKeyHint="send" autoComplete="off" placeholder="Say something..." className="bg-transparent text-white text-xs outline-none flex-1 placeholder:text-white/30 min-w-0" value={inputValue} onChange={(e) => setInputValue(e.target.value)} />
+                {inputValue.trim() && <button type="submit" title="Send message" className="text-[#C9A96E] flex-shrink-0"><Send size={16} /></button>}
+              </form>
               <button
                 type="button"
-                title={isBroadcast ? 'Co-Host' : (spectatorCoHostRequestSent ? 'Request sent' : 'Co-Host')}
-                disabled={!isBroadcast && (spectatorCoHostRequestSent || !user?.id)}
+                title={spectatorCoHostRequestSent ? 'Request sent' : 'Co-Host'}
+                disabled={spectatorCoHostRequestSent || !user?.id}
                 onClick={async () => {
-                  if (isBroadcast) {
-                    setShowViewerList(true);
-                    return;
-                  }
                   if (!user?.id || !effectiveStreamId || spectatorCoHostRequestSent) return;
                   const requesterName = user?.username || user?.name || 'Someone';
                   websocket.send('cohost_request_send', {
@@ -3796,10 +3790,8 @@ export default function LiveStream() {
             </div>
           )}
 
-          {/* Battle invite cards removed — invite shows inside battle panel */}
-
-          {/* Creator-only bottom bar (Co-Host, Battle, Share, More): only when live and no spectators yet. No chat input — creator speaks. */}
-          {isBroadcast && viewerCount === 0 && !currentGift && (
+          {/* Creator-only bottom bar (Co-Host, Battle, Share, More). No chat, no Gift — creator speaks. Shown only when broadcasting. */}
+          {isBroadcast && !currentGift && (
             <div className="flex items-center gap-2 w-full max-w-[480px] pointer-events-auto">
               <div className="flex items-center justify-center gap-3 flex-shrink-0 flex-1">
               {isBattleMode && battleWinner && (
@@ -3867,8 +3859,8 @@ export default function LiveStream() {
         </div>
       </div>
 
-      {/* Gift panel when spectator or when creator has spectators (same bar connected to live) */}
-      {showGiftPanel && (!isBroadcast || viewerCount > 0) && (
+      {/* Gift panel: spectators open it from their bar; creator has no Gift button. */}
+      {showGiftPanel && !isBroadcast && (
         <>
           <div className="fixed inset-0 bg-black/50 pointer-events-auto" style={{ zIndex: 200 }} onClick={() => setShowGiftPanel(false)} />
           <div className="fixed bottom-0 left-0 right-0 pointer-events-auto max-w-[480px] mx-auto" style={{ zIndex: 201 }}>
@@ -4862,8 +4854,9 @@ export default function LiveStream() {
       <GiftOverlay
         key={`gift-${giftKey}`}
         videoSrc={currentGift?.video ?? null}
-        onEnded={handleGiftEnded} 
+        onEnded={handleGiftEnded}
         isBattleMode={isBattleMode}
+        muted={false}
       />
       
       {/* ═══ SHARE PANEL ═══ */}

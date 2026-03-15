@@ -136,12 +136,13 @@ export default function InlineLiveViewer({
 
   return (
     <div
-      className={`relative w-full h-full bg-[#13151A] ${className}`}
+      className={`relative w-full h-full bg-[#13151A] cursor-pointer ${className}`}
       style={{ background: "#13151A" }}
+      onClick={() => navigate(`/watch/${streamKey}`)}
     >
       <video
         ref={videoRef}
-        className="absolute inset-0 w-full h-full object-cover"
+        className="absolute inset-0 w-full h-full object-cover pointer-events-none"
         autoPlay
         playsInline
         muted
@@ -152,7 +153,7 @@ export default function InlineLiveViewer({
       />
 
       {!hasStream && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#13151A] gap-4">
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#13151A] gap-4 pointer-events-none">
           {creatorAvatar ? (
             <img
               src={creatorAvatar}
@@ -180,7 +181,7 @@ export default function InlineLiveViewer({
 
       {/* Top: LIVE badge + viewer count */}
       <div
-        className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between px-3 pt-2"
+        className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between px-3 pt-2 pointer-events-none"
         style={{ paddingTop: "calc(env(safe-area-inset-top, 8px) + 8px)" }}
       >
         <div className="flex items-center gap-2">
@@ -194,17 +195,13 @@ export default function InlineLiveViewer({
         </div>
       </div>
 
-      {/* Bottom: creator name + Tap to Watch full screen */}
-      <div className="absolute bottom-0 left-0 right-0 z-10 p-3 pb-safe bg-gradient-to-t from-black/80 to-transparent pt-12">
-        <p className="text-white font-bold text-sm truncate mb-2">{creatorName}</p>
-        <button
-          type="button"
-          onClick={() => navigate(`/watch/${streamKey}`)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-red-500 hover:bg-red-600 active:scale-[0.98] transition-all shadow-lg"
-        >
-          <Radio size={16} className="text-white" />
-          <span className="text-white text-sm font-bold">Watch full screen</span>
-        </button>
+      {/* Bottom: creator name + tap anywhere hint */}
+      <div className="absolute bottom-0 left-0 right-0 z-10 p-3 pb-safe bg-gradient-to-t from-black/80 to-transparent pt-12 pointer-events-none">
+        <p className="text-white font-bold text-sm truncate mb-1">{creatorName}</p>
+        <div className="flex items-center gap-2">
+          <Radio size={14} className="text-red-400" />
+          <span className="text-white/70 text-xs font-semibold">Tap to join live</span>
+        </div>
       </div>
     </div>
   );

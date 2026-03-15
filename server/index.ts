@@ -178,7 +178,7 @@ app.get("/api/debug-log", (_req, res) => {
 // #endregion
 
 // Health check endpoint (must be before static files)
-const BUILD_VERSION = "2026-03-15T05:05-frontend-diag";
+const BUILD_VERSION = "2026-03-15T05:55-tdz-fix-deployed";
 app.get("/health", (_req, res) => {
   // #region agent log
   fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/index.ts:health',message:'health-check',data:{version:BUILD_VERSION,uptime:process.uptime(),videoCount:getAllVideos().length},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
@@ -557,6 +557,10 @@ app.use((req, res) => {
 // Centralized error handler (must be after all routes)
 app.use((err: Error, req: express.Request, res: express.Response, _next: express.NextFunction) => {
   logger.error({ err, method: req.method, url: req.originalUrl }, "Unhandled error");
+  // #region agent log
+  debugLogBuffer.push({ ts: new Date().toISOString(), msg: 'server-unhandled-error', data: { method: req.method, url: req.originalUrl, error: err?.message || String(err), stack: err?.stack?.slice(0, 500), name: err?.name } });
+  if (debugLogBuffer.length > 200) debugLogBuffer.shift();
+  // #endregion
   if (!res.headersSent) {
     res.status(500).json({ error: "Internal server error" });
   }

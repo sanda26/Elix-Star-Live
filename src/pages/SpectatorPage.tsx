@@ -64,17 +64,19 @@ function SpectatorCoHostGrid({
   spectatorCoHosts,
   coHostVideoRefs,
   hostName,
+  onSelectSlot,
+  selectedSpectatorUserId,
 }: {
   spectatorCoHosts: SpectatorCoHostSlot[];
   coHostVideoRefs: React.MutableRefObject<Map<string, HTMLVideoElement>>;
   hostName: string;
+  onSelectSlot?: (userId: string | null) => void;
+  selectedSpectatorUserId?: string | null;
 }) {
   const live = spectatorCoHosts.filter((h) => h.status === 'live' || h.status === 'accepted');
   const invited = spectatorCoHosts.filter((h) => h.status === 'invited' || h.status === 'pending_accept');
-  const firstLive = live[0];
-  const restLive = live.slice(1);
   const smallSlots: { type: 'live' | 'invited' | 'empty'; host?: SpectatorCoHostSlot }[] = [
-    ...restLive.map((h) => ({ type: 'live' as const, host: h })),
+    ...live.map((h) => ({ type: 'live' as const, host: h })),
     ...invited.map((h) => ({ type: 'invited' as const, host: h })),
   ];
   while (smallSlots.length < 8) smallSlots.push({ type: 'empty' });
@@ -137,34 +139,25 @@ function SpectatorCoHostGrid({
     );
   };
 
-  if (firstLive) {
-    return (
-      <div className="w-1/2 h-full flex flex-col min-w-0">
-        <div className="flex-1 min-h-0 relative bg-[#13151A]">
-          <div className="absolute inset-0 flex flex-col items-center justify-center p-0.5">
-            {renderCell({ type: 'live', host: firstLive }, true)}
-          </div>
-        </div>
-        {(restLive.length > 0 || invited.length > 0) && (
-          <div className="flex-[0_0_auto] grid grid-cols-4 grid-rows-2 gap-[1px] bg-[#1a1c22]" style={{ maxHeight: '35%' }}>
-            {smallSlots.slice(0, 8).map((slot, i) => (
-              <div key={i} className="relative bg-[#13151A] flex flex-col items-center justify-center p-0.5">
-                {renderCell(slot, false)}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  }
-
   return (
-    <div className="w-1/2 h-full grid grid-cols-2 grid-rows-4 gap-[1px] bg-[#1a1c22]">
-      {smallSlots.slice(0, 8).map((slot, i) => (
-        <div key={i} className="relative bg-[#13151A] flex flex-col items-center justify-center p-1">
-          {renderCell(slot, false)}
-        </div>
-      ))}
+    <div className="w-1/2 h-full grid grid-cols-2 grid-rows-4 gap-[2px] bg-[#1a1c22] min-w-0">
+      {smallSlots.slice(0, 8).map((slot, i) => {
+        const isLive = slot.type === 'live' && slot.host;
+        const userId = slot.host?.userId ?? null;
+        const isSelected = selectedSpectatorUserId != null && userId === selectedSpectatorUserId;
+        return (
+          <div
+            key={i}
+            role="button"
+            tabIndex={0}
+            onClick={() => onSelectSlot?.(isLive ? (isSelected ? null : userId!) : undefined)}
+            onKeyDown={(e) => e.key === 'Enter' && onSelectSlot?.(isLive ? (isSelected ? null : userId!) : undefined)}
+            className={`relative bg-[#13151A] flex flex-col items-center justify-center p-1 aspect-square min-h-0 overflow-hidden ${isLive ? 'cursor-pointer active:scale-95 transition-transform ring-2 ' + (isSelected ? 'ring-[#C9A96E]' : 'ring-transparent') : ''}`}
+          >
+            {renderCell(slot, false)}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -272,6 +265,8 @@ export default function SpectatorPage() {
   type SpectatorCoHost = { id: string; userId: string; name: string; avatar: string; status: string };
   const [spectatorCoHosts, setSpectatorCoHosts] = useState<SpectatorCoHost[]>([]);
   const coHostVideoRefs = useRef<Map<string, HTMLVideoElement>>(new Map());
+  const [selectedSpectatorUserId, setSelectedSpectatorUserId] = useState<string | null>(null);
+  const currentMainTrackRef = useRef<import('livekit-client').Track | null>(null);
 
   const [isCoHosting, setIsCoHosting] = useState(false);
   const [coHostStream, setCoHostStream] = useState<MediaStream | null>(null);
@@ -555,10 +550,12 @@ export default function SpectatorPage() {
                 fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SpectatorPage.tsx:attach host video',message:'attaching host video',data:{identity,hostId,myIdentity},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
                 // #endregion
                 publication.track.attach(videoRef.current);
+                currentMainTrackRef.current = publication.track;
                 mainVideoAttached = true;
                 setHasStream(true);
               } else if (!mainVideoAttached) {
                 publication.track.attach(videoRef.current);
+                currentMainTrackRef.current = publication.track;
                 mainVideoAttached = true;
                 setHasStream(true);
               } else {
@@ -624,6 +621,29 @@ export default function SpectatorPage() {
       room.disconnect();
     };
   }, [streamIsLive, effectiveStreamId, user?.id, liveConnectRetryKey, isCoHostFromUrl]);
+
+  // When user selects a spectator slot, show that participant on the main (big) screen; otherwise show creator.
+  useEffect(() => {
+    const room = liveKitRoomRef.current;
+    const videoEl = videoRef.current;
+    if (!room || !videoEl || !hasStream) return;
+    const hostId = hostUserIdRef.current || effectiveStreamId;
+    const targetIdentity = selectedSpectatorUserId != null ? selectedSpectatorUserId : hostId;
+    const participant = targetIdentity === room.localParticipant?.identity
+      ? room.localParticipant
+      : room.remoteParticipants.get(targetIdentity);
+    if (!participant) return;
+    let videoTrack: import('livekit-client').Track | null = null;
+    participant.videoTrackPublications.forEach((pub) => {
+      if (pub.track && pub.isSubscribed) videoTrack = pub.track;
+    });
+    if (!videoTrack) return;
+    const current = currentMainTrackRef.current;
+    if (current === videoTrack) return;
+    if (current) current.detach(videoEl);
+    videoTrack.attach(videoEl);
+    currentMainTrackRef.current = videoTrack;
+  }, [selectedSpectatorUserId, hasStream, effectiveStreamId]);
 
   // If we're still "connecting" after 18s, hint that host may not be publishing
   useEffect(() => {
@@ -1213,12 +1233,13 @@ export default function SpectatorPage() {
     <div className="fixed inset-0 bg-[#0A0B0E] flex justify-center">
       <div className="relative w-full max-w-[480px] h-full bg-[#13151A] overflow-hidden flex flex-col">
 
-        {/* Video container: half-screen host + right panel (co-host slots or empty), between top/bottom bars; straight corners. Spectator sees same layout as "3 picture" in real time. */}
+        {/* Video container: half-screen height (50vh) + half width left (host) + right panel (slots); between top/bottom bars; straight corners. */}
         <div
           className="absolute left-0 right-0 z-0 bg-[#13151A] flex flex-row overflow-hidden rounded-none"
           style={{
             top: 'calc(env(safe-area-inset-top, 0px) + 78px)',
-            bottom: 'calc(18mm + 56px + env(safe-area-inset-bottom, 0px))',
+            height: '50vh',
+            maxHeight: '50vh',
           }}
         >
           <div className="overflow-hidden rounded-none w-1/2 min-w-0 relative flex-1">
@@ -1281,16 +1302,19 @@ export default function SpectatorPage() {
             spectatorCoHosts={spectatorCoHosts}
             coHostVideoRefs={coHostVideoRefs}
             hostName={hostName}
+            onSelectSlot={setSelectedSpectatorUserId}
+            selectedSpectatorUserId={selectedSpectatorUserId}
           />
         </div>
 
-        {/* Battle overlay: when creator is in battle, show timer + scores so spectator sees battle */}
+        {/* Battle overlay: when creator is in battle, show timer + scores; same half-screen height as video container */}
         {spectatorBattle?.active && (
           <div
             className="absolute left-0 right-0 z-[80] pointer-events-none flex flex-col"
             style={{
               top: 'calc(env(safe-area-inset-top, 0px) + 78px)',
-              bottom: 'calc(18mm + 56px + env(safe-area-inset-bottom, 0px))',
+              height: '50vh',
+              maxHeight: '50vh',
             }}
           >
             <div className="flex justify-center pt-2">

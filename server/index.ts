@@ -1254,6 +1254,10 @@ wss.on("connection", async (ws: WebSocket, req) => {
 
 // When a user disconnects, check if they were the stream host and notify all viewers
 async function checkAndBroadcastStreamEnd(roomId: string, userId: string) {
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/index.ts:checkAndBroadcastStreamEnd',message:'check-and-broadcast-stream-end',data:{roomId,userId},timestamp:Date.now(),runId:'pre-fix',hypothesisId:'H1'})}).catch(()=>{});
+  // #endregion
+
   // Remove from in-memory active streams so /api/live/streams no longer lists it
   removeActiveStream(roomId, userId);
   broadcastToRoom(roomId, "stream_ended", {

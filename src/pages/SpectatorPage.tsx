@@ -285,11 +285,26 @@ export default function SpectatorPage() {
 
   const isCoHostFromUrl = new URLSearchParams(location.search).get('cohost') === '1';
 
-  // If arrived via ?cohost=1, auto-start co-hosting
+  // Spectators should not create their own co-host layout; co-hosting is controlled by the creator's room.
+  // We intentionally do NOT auto-start co-hosting on ?cohost=1 for the spectator route.
   useEffect(() => {
-    if (!isCoHostFromUrl || !user?.id || isCoHosting) return;
-    startCoHosting();
-  }, [isCoHostFromUrl, user?.id]);
+    // #region agent log
+    if (isCoHostFromUrl) {
+      fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          location: 'SpectatorPage.tsx:cohostQueryIgnored',
+          message: 'spectator-cohost-query-param-ignored',
+          data: { pathname: location.pathname, streamId: effectiveStreamId?.slice(0, 20) },
+          timestamp: Date.now(),
+          runId: 'spectator-cohost-fix',
+          hypothesisId: 'H-cohost-dup',
+        }),
+      }).catch(() => {});
+    }
+    // #endregion
+  }, [isCoHostFromUrl, effectiveStreamId, location.pathname]);
 
   const startCoHosting = async () => {
     try {
@@ -781,7 +796,11 @@ export default function SpectatorPage() {
       }
     };
 
-    const handleStreamEnded = () => {
+    const handleStreamEnded = (data?: any) => {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SpectatorPage.tsx:handleStreamEnded',message:'stream-ended-event',data:{effectiveStreamId,reason:data?.reason||null,hostUserId:data?.host_user_id||null},timestamp:Date.now(),runId:'pre-fix',hypothesisId:'H1'})}).catch(()=>{});
+      // #endregion
+
       if (!mounted) return;
       setStreamEndedReceived(true);
       setStreamIsLive(false);
@@ -861,7 +880,7 @@ export default function SpectatorPage() {
       const hostName = data.hostName || 'Creator';
       const streamKey = data.streamKey || effectiveStreamId;
       showToast(`@${hostName} accepted your co-host request!`);
-      navigate(`/watch/${streamKey}?cohost=1`);
+      navigate(`/live/${streamKey}?cohost=1`);
     };
 
     websocket.on('room_state', handleRoomState);
@@ -1285,7 +1304,7 @@ export default function SpectatorPage() {
               </div>
             </div>
           ) : spectatorCoHosts.length > 0 ? (
-            /* CO-HOST LAYOUT (same as host): left = host video, right = co-host grid — read-only for spectators */
+            /* Spectator watches the same panel: host (1 big) + square slots (grid). Request to join = request to fill one of those square rooms. */
             <div className="w-full h-full flex">
               <div className="w-1/2 h-full flex-shrink-0 relative bg-[#13151A] overflow-hidden">
                 <video
@@ -1318,7 +1337,6 @@ export default function SpectatorPage() {
               />
             </div>
           ) : (
-            /* NORMAL FULL SCREEN: host video only (solo live) */
             <>
               <video
                 ref={videoRef}
@@ -1435,6 +1453,7 @@ export default function SpectatorPage() {
               </div>
             </div>
 
+            {/* Spectator: no co-host panel. When creator invites, show one-line accept so they join creator panel. */}
             {/* Weekly Ranking + Membership + Follow — same as creator page */}
             <div className="flex items-center gap-2 mt-1 ml-1 pointer-events-auto flex-wrap px-1">
               <div
@@ -1531,11 +1550,33 @@ export default function SpectatorPage() {
             </div>
           )}
 
-          {/* Co-Host — same button as live page; opens co-host panel */}
+          {/* Spectator is never the host. Creator is the host. This button only requests to join the creator's live as a guest. */}
           {!isCoHosting && (
-            <button type="button" title="Co-Host" onClick={() => setShowCoHostPanel(true)} className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg relative flex-shrink-0 active:scale-95 transition-transform">
-              <span className="flex items-center justify-center w-full h-full relative z-[2]"><UserPlus size={20} className="text-[#C9A96E] shrink-0" strokeWidth={2} /></span>
-              <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-125 translate-y-0.5" />
+            <button
+              type="button"
+              title={joinRequested ? 'Request sent' : 'Request to co-host'}
+              disabled={!hostUserId || !user?.id || joinRequested}
+              onClick={() => {
+                if (!user?.id || !hostUserId || joinRequested) return;
+                setJoinRequested(true);
+                const requesterName = user?.username || user?.name || 'User';
+                websocket.send('cohost_request_send', {
+                  hostUserId,
+                  requesterName,
+                  requesterAvatar: user?.avatar || '',
+                });
+                showToast('Co-host request sent!');
+              }}
+              className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg relative flex-shrink-0 active:scale-95 transition-transform disabled:opacity-60"
+            >
+              <span className="flex items-center justify-center w-full h-full relative z-[2]">
+                <UserPlus size={20} className="text-[#C9A96E] shrink-0" strokeWidth={2} />
+              </span>
+              <img
+                src="/Icons/Music Icon.png"
+                alt=""
+                className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-125 translate-y-0.5"
+              />
             </button>
           )}
 
@@ -2143,8 +2184,8 @@ export default function SpectatorPage() {
           />
         )}
 
-        {/* CO-HOST PANEL — same compact size as creator invite panel (40vh), not full screen */}
-        {showCoHostPanel && (
+        {/* CO-HOST PANEL (disabled for spectators) */}
+        {false && showCoHostPanel && (
           <div className="fixed inset-0 z-[99999] flex flex-col justify-end max-w-[480px] mx-auto pointer-events-none">
             <div
               className="absolute inset-0 bg-black/40 pointer-events-auto"
@@ -2211,12 +2252,8 @@ export default function SpectatorPage() {
                           const myUsername = user?.username || (user as any)?.name || 'User';
                           // In memory-only mode, just log the action
                           console.log(`[Co-host] Accepted invite from ${invite?.hostUserId}`);
-                          if (invite.streamKey === effectiveStreamId) {
-                            startCoHosting();
-                          } else {
-                            showToast(`Joining @${invite.hostName}'s stream...`);
-                            navigate(`/watch/${invite.streamKey}?cohost=1`);
-                          }
+                          showToast(`Joining @${invite.hostName}'s co-host...`);
+                          navigate(`/live/${invite.streamKey}?cohost=1`);
                         }}
                       >
                         <span className="text-black text-[9px] font-bold">Join</span>

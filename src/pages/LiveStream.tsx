@@ -712,14 +712,14 @@ export default function LiveStream() {
     isBroadcastRef.current = isBroadcast;
   }, [coHosts, isBroadcast]);
 
-  // Broadcast co-host layout to room so spectators see same layout
+  // Broadcast co-host layout to room so spectators see same layout (single source of truth; no duplicate userIds)
   useEffect(() => {
     if (!isBroadcast || !effectiveStreamId || !user?.id) return;
-    const payload = {
-      roomId: effectiveStreamId,
-      coHosts: coHosts.map((h) => ({ id: h.id, userId: h.userId, name: h.name, avatar: h.avatar, status: h.status })),
-      hostUserId: user.id,
-    };
+    const list = coHosts.map((h) => ({ id: h.id, userId: h.userId, name: h.name, avatar: h.avatar, status: h.status }));
+    const payload = { roomId: effectiveStreamId, coHosts: list, hostUserId: user.id };
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveStream.tsx:cohost_layout_sync',message:'host-cohost-layout-sent',data:{coHostCount:list.length,userIds:list.map(h=>h.userId?.slice(0,12)),hasDupe:list.length!==new Set(list.map(h=>h.userId)).size},timestamp:Date.now(),hypothesisId:'H-dup'})}).catch(()=>{});
+    // #endregion
     websocket.send('cohost_layout_sync', payload);
   }, [isBroadcast, effectiveStreamId, user?.id, coHosts]);
 
@@ -757,14 +757,12 @@ export default function LiveStream() {
   const [pendingCohostInvite, setPendingCohostInvite] = useState<PendingCohostInvite | null>(null);
 
   useEffect(() => {
-    if (pendingCohostInvite) {
-      setIsInviteHostOpen(true);
-      const inv = pendingCohostInvite;
-      setLiveCreators(prev => {
-        if (prev.some(c => c.id === inv.hostUserId)) return prev;
-        return [...prev, { id: inv.hostUserId, name: inv.hostName, avatar: inv.hostAvatar, streamKey: inv.streamKey }];
-      });
-    }
+    if (!pendingCohostInvite) return;
+    const inv = pendingCohostInvite;
+    setLiveCreators(prev => {
+      if (prev.some(c => c.id === inv.hostUserId)) return prev;
+      return [...prev, { id: inv.hostUserId, name: inv.hostName, avatar: inv.hostAvatar, streamKey: inv.streamKey }];
+    });
   }, [pendingCohostInvite]);
 
   const acceptCohostInvite = async () => {
@@ -804,14 +802,17 @@ export default function LiveStream() {
       hostAvatar: user.avatar || '',
       streamKey: effectiveStreamId,
     });
-    setCoHosts(prev => [...prev, {
-      id: `host-${Date.now()}`,
-      userId: req.requesterId,
-      name: req.requesterName,
-      avatar: req.requesterAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(req.requesterName)}&background=121212&color=C9A96E`,
-      status: 'invited',
-      isMuted: false,
-    }]);
+    setCoHosts(prev => {
+      if (prev.some(h => h.userId === req.requesterId)) return prev;
+      return [...prev, {
+        id: `host-${Date.now()}`,
+        userId: req.requesterId,
+        name: req.requesterName,
+        avatar: req.requesterAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(req.requesterName)}&background=121212&color=C9A96E`,
+        status: 'invited',
+        isMuted: false,
+      }];
+    });
     showToast(`Accepted @${req.requesterName}'s co-host request!`);
   };
 
@@ -2307,16 +2308,8 @@ export default function LiveStream() {
     const handleCohostRequestAccepted = (data: any) => {
       if (!user?.id) return;
       const hostName = data.hostName || 'Creator';
-      const hostAvatar = data.hostAvatar || '';
       showToast(`@${hostName} accepted your co-host request!`);
-      setCoHosts(prev => [...prev, {
-        id: `host-${Date.now()}`,
-        userId: data.hostUserId || '',
-        name: hostName,
-        avatar: hostAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(hostName)}&background=121212&color=C9A96E`,
-        status: 'invited',
-        isMuted: false,
-      }]);
+      /* Host already added this co-host in acceptJoinRequest; do not duplicate. This event is for spectator UX (toast/navigate). */
     };
 
     const handleCohostInvite = (data: any) => {
@@ -3131,7 +3124,11 @@ export default function LiveStream() {
                   </>
                 );
                 return (
-                  <button type="button" onClick={() => isBroadcast ? setIsInviteHostOpen(true) : setShowViewerList(true)} className="flex flex-col items-center justify-center w-full h-full active:scale-95">
+                  <button
+                    type="button"
+                    onClick={() => setShowViewerList(true)}
+                    className="flex flex-col items-center justify-center w-full h-full active:scale-95"
+                  >
                     <div className="w-12 h-12 rounded-full border-2 border-dashed border-white/20 flex items-center justify-center">
                       <span className="text-white/30 text-2xl font-light">+</span>
                     </div>
@@ -3993,7 +3990,11 @@ export default function LiveStream() {
                 </button>
               )}
               <div className="flex flex-col items-center gap-0.5">
-                <button type="button" onClick={() => setIsInviteHostOpen(true)} className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg relative">
+                <button
+                  type="button"
+                  onClick={() => setShowViewerList(true)}
+                  className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg relative"
+                >
                   <span className="flex items-center justify-center w-full h-full relative z-[2]"><UserPlus size={20} className="text-[#C9A96E] shrink-0" strokeWidth={2} /></span>
                   <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-125 translate-y-0.5" />
                 </button>
@@ -4604,7 +4605,7 @@ export default function LiveStream() {
         )}
       </AnimatePresence>
 
-      {/* ═══ VIEWER LIST PANEL (spectators only — no Join/Reject; use Invite Co-Host panel) ═══ */}
+      {/* ═══ VIEWER LIST + JOIN REQUESTS PANEL — host only: see join requests (Accept/Decline) and invite spectators as co-host ═══ */}
       {showViewerList && (
         <>
           <div
@@ -4613,44 +4614,90 @@ export default function LiveStream() {
             onClick={() => setShowViewerList(false)}
           />
           <div className="fixed bottom-0 left-0 right-0 z-[999999] pointer-events-auto max-w-[480px] mx-auto">
-            <div className="bg-[#1C1E24]/95 backdrop-blur-md rounded-t-2xl h-[40vh] flex flex-col shadow-2xl border-t border-[#C9A96E]/20 overflow-hidden">
+            <div className="bg-[#1C1E24]/95 backdrop-blur-md rounded-t-2xl h-[45vh] flex flex-col shadow-2xl border-t border-[#C9A96E]/20 overflow-hidden">
               <div className="flex justify-center pt-3 pb-1">
                 <div className="w-10 h-1 bg-white/20 rounded-full" />
               </div>
               <div className="flex items-center justify-between px-4 pb-2">
-                <h3 className="text-white font-bold text-sm">Spectators</h3>
+                <h3 className="text-white font-bold text-sm">Join requests & Spectators</h3>
                 <div className="flex items-center gap-1">
                   <Users size={12} className="text-white/50" />
                   <span className="text-white/60 text-xs font-semibold">{formatCountShort(viewerCount)}</span>
                 </div>
               </div>
-              <div className="flex-1 overflow-y-auto no-scrollbar px-4 pb-4">
-                {activeViewers.length > 0 ? (
-                  activeViewers.map((v, i) => (
-                    <button
-                      key={v.id}
-                      type="button"
-                      className="flex items-center gap-3 w-full py-2.5 active:bg-white/5 rounded-xl transition-colors"
-                      onClick={() => { openMiniProfile(v.displayName); setShowViewerList(false); }}
-                    >
-                      <span className="text-white/30 text-xs font-bold w-5 text-right">{i + 1}</span>
-                      <div className="w-10 h-10 rounded-full border-2 border-[#C9A96E]/30 overflow-hidden bg-[#13151A] flex-shrink-0">
-                        {v.avatar ? (
-                          <img src={v.avatar} alt="" className="w-full h-full object-cover" />
+              <div className="flex-1 overflow-y-auto no-scrollbar px-4 pb-4 min-h-0">
+                {/* Join request — host-only: Accept/Decline */}
+                {pendingJoinRequest && (
+                  <div className="mb-3 px-3 py-2.5 rounded-xl bg-[#C9A96E]/10 border border-[#C9A96E]/40 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      <div className="w-9 h-9 rounded-full border-2 border-[#C9A96E]/50 overflow-hidden bg-[#13151A] flex-shrink-0">
+                        {pendingJoinRequest.requesterAvatar ? (
+                          <img src={pendingJoinRequest.requesterAvatar} alt="" className="w-full h-full object-cover" />
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <span className="text-[#C9A96E] font-bold text-sm">{v.displayName.slice(0, 1).toUpperCase()}</span>
+                          <div className="w-full h-full flex items-center justify-center text-[#C9A96E] font-bold text-sm">
+                            {(pendingJoinRequest.requesterName || '?').slice(0, 1).toUpperCase()}
                           </div>
                         )}
                       </div>
-                      <div className="flex-1 min-w-0 text-left">
-                        <p className="text-white text-sm font-semibold truncate">{v.displayName}</p>
-                        <p className="text-white/40 text-[10px] font-medium">Level {v.level}</p>
+                      <div>
+                        <p className="text-white text-xs font-semibold truncate">{pendingJoinRequest.requesterName}</p>
+                        <p className="text-white/50 text-[10px]">Requested to co-host</p>
                       </div>
-                    </button>
-                  ))
+                    </div>
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      <button type="button" onClick={() => { declineJoinRequest(); setShowViewerList(false); }} className="px-2.5 py-1 rounded-full bg-white/10 text-white/80 text-[10px] font-bold">Decline</button>
+                      <button type="button" onClick={() => { acceptJoinRequest(); setShowViewerList(false); }} className="px-2.5 py-1 rounded-full bg-[#C9A96E] text-black text-[10px] font-bold">Accept</button>
+                    </div>
+                  </div>
+                )}
+                {/* Spectators — invite as co-host or open profile */}
+                <p className="text-white/50 text-[10px] font-bold uppercase tracking-wider mb-1.5">Spectators</p>
+                {activeViewers.length > 0 ? (
+                  activeViewers.map((v, i) => {
+                    const alreadyInvited = coHosts.some(h => h.userId === v.id);
+                    return (
+                      <div
+                        key={v.id}
+                        className="flex items-center gap-3 w-full py-2 rounded-lg hover:bg-white/[0.03]"
+                      >
+                        <span className="text-white/30 text-xs font-bold w-5 text-right flex-shrink-0">{i + 1}</span>
+                        <button
+                          type="button"
+                          className="flex items-center gap-3 flex-1 min-w-0 text-left"
+                          onClick={() => { openMiniProfile(v.displayName); setShowViewerList(false); }}
+                        >
+                          <div className="w-10 h-10 rounded-full border-2 border-[#C9A96E]/30 overflow-hidden bg-[#13151A] flex-shrink-0">
+                            {v.avatar ? (
+                              <img src={v.avatar} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center">
+                                <span className="text-[#C9A96E] font-bold text-sm">{v.displayName.slice(0, 1).toUpperCase()}</span>
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-white text-sm font-semibold truncate">{v.displayName}</p>
+                            <p className="text-white/40 text-[10px] font-medium">Level {v.level}</p>
+                          </div>
+                        </button>
+                        {isBroadcast && isMyStreamLive && (
+                          coHosts.length < MAX_CO_HOSTS && !alreadyInvited ? (
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); inviteCoHost({ id: v.id, name: v.displayName, avatar: v.avatar }); setShowViewerList(false); }}
+                              className="px-2.5 py-1 rounded-full bg-[#C9A96E] text-black text-[10px] font-bold flex-shrink-0"
+                            >
+                              Invite
+                            </button>
+                          ) : alreadyInvited ? (
+                            <span className="text-[#C9A96E] text-[10px] font-semibold flex-shrink-0">Invited</span>
+                          ) : null
+                        )}
+                      </div>
+                    );
+                  })
                 ) : (
-                  <div className="flex flex-col items-center justify-center h-full text-center">
+                  <div className="flex flex-col items-center justify-center py-8 text-center">
                     <Users className="w-7 h-7 text-white/10 mb-2" />
                     <p className="text-white/50 text-sm">No spectators yet</p>
                   </div>

@@ -21,6 +21,11 @@ const activeStreams = new Map<
 /** Internal helper so other modules (WebSocket server) can mark streams offline. */
 export function removeActiveStream(roomId: string, userId?: string) {
   const s = activeStreams.get(roomId);
+
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'livestream.ts:removeActiveStream',message:'remove-active-stream-invoked',data:{roomId,userId,hasEntry:Boolean(s),entryUserId:s?.userId},timestamp:Date.now(),runId:'pre-fix',hypothesisId:'H1'})}).catch(()=>{});
+  // #endregion
+
   if (!s) return;
   if (userId && s.userId !== userId) return;
   activeStreams.delete(roomId);

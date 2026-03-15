@@ -30,6 +30,10 @@ COPY --from=builder /app/server ./server
 COPY --from=builder /app/tsconfig.json ./
 COPY --from=builder /app/tsconfig.server.json ./
 
+# Fallback .env from .env.example so services work even without Coolify env vars.
+# dotenv loads with override:false — Coolify env vars always take precedence.
+COPY --from=builder /app/.env.example ./.env
+
 EXPOSE 8080
 
 CMD ["npx", "tsx", "server/index.ts"]

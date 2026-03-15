@@ -405,7 +405,7 @@ export default function VideoFeed() {
   return (
     <div
       ref={containerRef}
-      className="h-[100dvh] w-full overflow-y-scroll snap-y snap-mandatory relative bg-[#0A0B0E]"
+      className="h-full w-full overflow-y-scroll snap-y snap-mandatory relative bg-[#0A0B0E]"
       style={{ scrollSnapType: "y mandatory" }}
       onScroll={handleScroll}
     >
@@ -495,20 +495,19 @@ export default function VideoFeed() {
           return (
             <div
               key={`live-${item.stream.streamKey}`}
-              className="h-[100dvh] w-full snap-start relative flex justify-center bg-[#0A0B0E]"
+              className="h-full min-h-0 w-full flex-shrink-0 snap-start relative flex justify-center items-center bg-[#0A0B0E]"
               style={{ scrollSnapAlign: "start", scrollSnapStop: "always" }}
             >
-              <div
-                className="w-full max-w-[480px] relative overflow-hidden"
-                style={{ marginTop: "calc(env(safe-area-inset-top, 0px) + 48px)", marginBottom: "calc(env(safe-area-inset-bottom, 0px) + 68px)", height: "calc(100dvh - env(safe-area-inset-top, 0px) - 48px - env(safe-area-inset-bottom, 0px) - 68px)", borderRadius: "12px" }}
-              >
-                <InlineLiveViewer
-                  streamKey={item.stream.streamKey}
-                  isActive={activeIndex === index}
-                  creatorName={item.stream.name}
-                  creatorAvatar={item.stream.avatar}
-                  viewerCount={item.stream.viewers}
-                />
+              <div className="w-full h-full flex justify-center items-center max-w-[480px]">
+                <div className="aspect-square h-full max-w-full relative overflow-hidden rounded-xl">
+                  <InlineLiveViewer
+                    streamKey={item.stream.streamKey}
+                    isActive={activeIndex === index}
+                    creatorName={item.stream.name}
+                    creatorAvatar={item.stream.avatar}
+                    viewerCount={item.stream.viewers}
+                  />
+                </div>
               </div>
             </div>
           );
@@ -517,18 +516,17 @@ export default function VideoFeed() {
         return (
           <div
             key={`video-${item.videoId}-${index}`}
-            className="h-[100dvh] w-full snap-start relative flex justify-center bg-[#0A0B0E]"
+            className="h-full min-h-0 w-full flex-shrink-0 snap-start relative flex justify-center items-center bg-[#0A0B0E]"
             style={{ scrollSnapAlign: "start", scrollSnapStop: "always" }}
           >
-            <div
-              className="w-full max-w-[480px] relative overflow-hidden"
-              style={{ marginTop: "calc(env(safe-area-inset-top, 0px) + 48px)", marginBottom: "calc(env(safe-area-inset-bottom, 0px) + 68px)", height: "calc(100dvh - env(safe-area-inset-top, 0px) - 48px - env(safe-area-inset-bottom, 0px) - 68px)", borderRadius: "12px" }}
-            >
-              <EnhancedVideoPlayer
-                videoId={item.videoId}
-                isActive={activeIndex === index}
-                onVideoEnd={() => handleVideoEnd(index)}
-              />
+            <div className="w-full h-full flex justify-center items-center max-w-[480px]">
+              <div className="aspect-square h-full max-w-full relative overflow-hidden rounded-xl">
+                <EnhancedVideoPlayer
+                  videoId={item.videoId}
+                  isActive={activeIndex === index}
+                  onVideoEnd={() => handleVideoEnd(index)}
+                />
+              </div>
             </div>
           </div>
         );

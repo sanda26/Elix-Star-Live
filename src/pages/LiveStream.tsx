@@ -2155,10 +2155,23 @@ export default function LiveStream() {
     const handleCohostInviteAck = (data: any) => {
     };
 
+    const handleCohostInviteAccepted = (data: any) => {
+      if (!mounted) return;
+      const cohostUserId = typeof data.cohostUserId === 'string' ? data.cohostUserId : '';
+      if (!cohostUserId) return;
+      setCoHosts((prev) =>
+        prev.map((h) =>
+          h.userId === cohostUserId ? { ...h, status: 'live' as const } : h
+        )
+      );
+      showToast(`${data.cohostName || 'Co-host'} joined the live`);
+    };
+
     websocket.on('battle_invite', handleBattleInvite);
     websocket.on('battle_invite_accepted', handleBattleInviteAccepted);
     websocket.on('cohost_invite', handleCohostInvite);
     websocket.on('cohost_invite_ack', handleCohostInviteAck);
+    websocket.on('cohost_invite_accepted', handleCohostInviteAccepted);
     websocket.on('cohost_request', handleCohostRequest);
     websocket.on('cohost_request_accepted', handleCohostRequestAccepted);
 
@@ -2205,6 +2218,7 @@ export default function LiveStream() {
       websocket.off('battle_invite_accepted', handleBattleInviteAccepted);
       websocket.off('cohost_invite', handleCohostInvite);
       websocket.off('cohost_invite_ack', handleCohostInviteAck);
+      websocket.off('cohost_invite_accepted', handleCohostInviteAccepted);
       websocket.off('cohost_request', handleCohostRequest);
       websocket.off('cohost_request_accepted', handleCohostRequestAccepted);
       websocket.off('moderation_warning', handleModerationWarning);

@@ -44,7 +44,7 @@ import PromotePanel from '../components/PromotePanel';
 import { RankingPanel } from '../components/RankingPanel';
 import { websocket } from '../lib/websocket';
 import { IS_STORE_BUILD } from '../config/build';
-import { Room, RoomEvent } from 'livekit-client';
+import { Room, RoomEvent, LocalVideoTrack, LocalAudioTrack } from 'livekit-client';
 
 type LiveMessage = {
   id: string;
@@ -455,18 +455,21 @@ export default function SpectatorPage() {
     })();
   }, [effectiveStreamId, navigate, streamRetryKey]);
 
-  // LiveKit: connect as viewer and attach host video to videoRef
+  // LiveKit: connect as viewer (or as co-host with publish) and attach host video to videoRef
   const liveKitRoomRef = useRef<Room | null>(null);
+  const coHostPublishStreamRef = useRef<MediaStream | null>(null);
   useEffect(() => {
     if (!streamIsLive || !effectiveStreamId || !user?.id) return;
 
     let mounted = true;
     const room = new Room({ adaptiveStream: true });
     liveKitRoomRef.current = room;
+    const isCoHost = isCoHostFromUrl;
 
     (async () => {
       try {
-        const res = await fetch(apiUrl(`/api/live/token?room=${encodeURIComponent(effectiveStreamId)}`), { method: 'GET', credentials: 'include' });
+        const publishParam = isCoHost ? '&publish=1' : '';
+        const res = await fetch(apiUrl(`/api/live/token?room=${encodeURIComponent(effectiveStreamId)}${publishParam}`), { method: 'GET', credentials: 'include' });
         if (!res.ok || !mounted) {
           if (res.status === 401) showToast('Please log in to watch');
           else if (res.status === 503) showToast('Live video is not configured on server');
@@ -485,7 +488,10 @@ export default function SpectatorPage() {
         const onTrackSubscribed = (track: import('livekit-client').RemoteTrack, publication?: import('livekit-client').TrackPublication, participant?: import('livekit-client').RemoteParticipant) => {
           if (!mounted) return;
           if (track.kind === 'audio') {
-            track.attach();
+            // Spectator only hears the creator/host — do not play other participants' audio
+            const identity = participant?.identity || '';
+            const isHost = identity === hostId || identity === effectiveStreamId;
+            if (isHost) track.attach();
             return;
           }
           if (track.kind === 'video' && participant) {
@@ -526,7 +532,38 @@ export default function SpectatorPage() {
             }
           }
           for (const [, publication] of participant.audioTrackPublications) {
-            if (publication.track && publication.isSubscribed) publication.track.attach();
+            if (publication.track && publication.isSubscribed && isHost) publication.track.attach();
+          }
+        }
+
+        // Co-host: publish camera + microphone so the host sees and hears us
+        if (isCoHost && mounted) {
+          try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+              video: { facingMode: 'user' },
+              audio: { echoCancellation: true, noiseSuppression: true },
+            });
+            if (!mounted) {
+              stream.getTracks().forEach((t) => t.stop());
+              return;
+            }
+            coHostPublishStreamRef.current = stream;
+            const videoTrack = stream.getVideoTracks()[0];
+            if (videoTrack) {
+              const localVideo = new LocalVideoTrack(videoTrack);
+              await room.localParticipant.publishTrack(localVideo, { name: 'camera' });
+            }
+            const audioTrack = stream.getAudioTracks()[0];
+            if (audioTrack) {
+              const localAudio = new LocalAudioTrack(audioTrack);
+              await room.localParticipant.publishTrack(localAudio, { name: 'mic' });
+            }
+            setCoHostStream(stream);
+            setIsCoHosting(true);
+            showToast('Your camera and microphone are now live');
+          } catch (e) {
+            console.warn('[LiveKit] Co-host publish failed:', e);
+            showToast('Could not start camera. Host will not see your video.');
           }
         }
       } catch (err) {
@@ -541,9 +578,13 @@ export default function SpectatorPage() {
     return () => {
       mounted = false;
       liveKitRoomRef.current = null;
+      if (coHostPublishStreamRef.current) {
+        coHostPublishStreamRef.current.getTracks().forEach((t) => t.stop());
+        coHostPublishStreamRef.current = null;
+      }
       room.disconnect();
     };
-  }, [streamIsLive, effectiveStreamId, user?.id, liveConnectRetryKey]);
+  }, [streamIsLive, effectiveStreamId, user?.id, liveConnectRetryKey, isCoHostFromUrl]);
 
   // If we're still "connecting" after 18s, hint that host may not be publishing
   useEffect(() => {
@@ -839,8 +880,8 @@ export default function SpectatorPage() {
       if (!mounted || !user?.id) return;
       const hostName = data.hostName || 'Creator';
       const streamKey = data.streamKey || effectiveStreamId;
-      showToast(`@${hostName} accepted — you're watching as spectator`);
-      navigate(`/watch/${streamKey}`);
+      showToast(`@${hostName} accepted — you're joining as co-host`);
+      navigate(`/watch/${streamKey}?cohost=1`);
     };
 
     const handleCohostRequestDeclined = () => {
@@ -1422,8 +1463,8 @@ export default function SpectatorPage() {
                             setPendingCoHostInvite(null);
                             setShowCoHostPanel(false);
                             websocket.send('cohost_invite_accept', { hostUserId: inv.hostUserId, cohostName: user?.username || user?.name || 'User', cohostAvatar: user?.avatar || '', streamKey: inv.streamKey });
-                            showToast(`Joining @${inv.hostName}'s live as spectator`);
-                            if (inv.streamKey) navigate(`/watch/${inv.streamKey}`);
+                            showToast(`Joining @${inv.hostName}'s live as co-host`);
+                            if (inv.streamKey) navigate(`/watch/${inv.streamKey}?cohost=1`);
                           }}
                           className="px-2.5 py-1 rounded-full bg-green-500 flex items-center gap-0.5 active:scale-95 transition-transform cursor-pointer"
                         >

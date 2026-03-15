@@ -1003,9 +1003,9 @@ wss.on("connection", async (ws: WebSocket, req) => {
       viewers,
     });
 
-    // So spectator sees in real time what creator is doing: send current co-host layout if any
+    // Spectators only join/leave; layout is from the app (creator). Send current room layout to this joiner so they see the same layout as the creator — no spectator layout.
     const lastCohost = lastCohostLayoutByRoom.get(roomId);
-    if (lastCohost && lastCohost.coHosts.length > 0) {
+    if (lastCohost) {
       sendToClient(client, "cohost_layout_sync", {
         coHosts: lastCohost.coHosts,
         hostUserId: lastCohost.hostUserId,

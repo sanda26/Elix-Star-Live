@@ -460,7 +460,7 @@ export default function SpectatorPage() {
     })();
   }, [effectiveStreamId, navigate, streamRetryKey]);
 
-  // LiveKit: connect as viewer (or as co-host with publish) and attach host video to videoRef
+  // LiveKit: spectator sees creator's live video/audio in real time — same room, subscribe to host tracks and attach to videoRef/audio
   const liveKitRoomRef = useRef<Room | null>(null);
   const coHostPublishStreamRef = useRef<MediaStream | null>(null);
   useEffect(() => {
@@ -539,8 +539,9 @@ export default function SpectatorPage() {
           return;
         }
         myIdentity = room.localParticipant?.identity ?? '';
+        const remoteIdentities = Array.from(room.remoteParticipants.keys());
         // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SpectatorPage.tsx:after connect',message:'local identity',data:{myIdentity,hostId},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SpectatorPage.tsx:after connect',message:'spectator identity vs host',data:{myIdentity,hostId,effectiveStreamId,remoteIdentities},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
         // #endregion
         for (const [, participant] of room.remoteParticipants) {
           const identity = participant.identity || '';
@@ -550,6 +551,9 @@ export default function SpectatorPage() {
           for (const [, publication] of participant.videoTrackPublications) {
             if (publication.track && publication.isSubscribed && videoRef.current) {
               if (isHost) {
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SpectatorPage.tsx:attach host video',message:'attaching host video',data:{identity,hostId,myIdentity},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
+                // #endregion
                 publication.track.attach(videoRef.current);
                 mainVideoAttached = true;
                 setHasStream(true);
@@ -720,8 +724,7 @@ export default function SpectatorPage() {
     return () => {};
   }, [effectiveStreamId, navigate]);
 
-  // WebSocket: connect to room for real-time chat, gifts, join/leave
-  // Only connect after stream is verified live — avoids reconnect loop from racing with stream fetch
+  // WebSocket: spectators join the creator's live room (same room id = effectiveStreamId) for real-time chat, gifts, join/leave
   useEffect(() => {
     if (!effectiveStreamId || !user?.id || !streamIsLive) return;
 
@@ -895,6 +898,7 @@ export default function SpectatorPage() {
       setActiveLikes(prev => prev + 1);
     };
 
+    // Spectators only join and leave; they never send or bring their own layout. Layout is from the app (creator); server sends it on join, spectator only receives and displays it.
     const handleCohostLayoutSync = (data: any) => {
       if (!mounted) return;
       const list = Array.isArray(data.coHosts) ? data.coHosts : [];
@@ -1209,18 +1213,18 @@ export default function SpectatorPage() {
     <div className="fixed inset-0 bg-[#0A0B0E] flex justify-center">
       <div className="relative w-full max-w-[480px] h-full bg-[#13151A] overflow-hidden flex flex-col">
 
-        {/* Video container: between top bar and bottom bar. Co-host = host + grid (same as creator). Battle = host + battle overlay. */}
+        {/* Video container: half-screen host + right panel (co-host slots or empty), between top/bottom bars; straight corners. Spectator sees same layout as "3 picture" in real time. */}
         <div
-          className={`absolute left-0 right-0 z-0 bg-[#13151A] flex ${spectatorCoHosts.length > 0 ? 'flex-row' : ''}`}
+          className="absolute left-0 right-0 z-0 bg-[#13151A] flex flex-row overflow-hidden rounded-none"
           style={{
-            top: 'calc(env(safe-area-inset-top, 0px) + 66px)',
+            top: 'calc(env(safe-area-inset-top, 0px) + 78px)',
             bottom: 'calc(18mm + 56px + env(safe-area-inset-bottom, 0px))',
           }}
         >
-          <div className={spectatorCoHosts.length > 0 ? 'w-1/2 min-w-0 relative flex-1' : 'absolute inset-0'}>
+          <div className="overflow-hidden rounded-none w-1/2 min-w-0 relative flex-1">
             <video
               ref={videoRef}
-              className="absolute inset-0 w-full h-full object-cover"
+              className="absolute inset-0 w-full h-full object-cover rounded-none"
               playsInline
               autoPlay
               style={{ opacity: hasStream ? 1 : 0, transition: 'opacity 0.4s ease' }}
@@ -1273,13 +1277,11 @@ export default function SpectatorPage() {
               </div>
             )}
           </div>
-          {spectatorCoHosts.length > 0 && (
-            <SpectatorCoHostGrid
-              spectatorCoHosts={spectatorCoHosts}
-              coHostVideoRefs={coHostVideoRefs}
-              hostName={hostName}
-            />
-          )}
+          <SpectatorCoHostGrid
+            spectatorCoHosts={spectatorCoHosts}
+            coHostVideoRefs={coHostVideoRefs}
+            hostName={hostName}
+          />
         </div>
 
         {/* Battle overlay: when creator is in battle, show timer + scores so spectator sees battle */}
@@ -1287,7 +1289,7 @@ export default function SpectatorPage() {
           <div
             className="absolute left-0 right-0 z-[80] pointer-events-none flex flex-col"
             style={{
-              top: 'calc(env(safe-area-inset-top, 0px) + 66px)',
+              top: 'calc(env(safe-area-inset-top, 0px) + 78px)',
               bottom: 'calc(18mm + 56px + env(safe-area-inset-bottom, 0px))',
             }}
           >

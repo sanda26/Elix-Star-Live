@@ -720,6 +720,9 @@ export default function LiveStream() {
     setCoHosts(prev => [...prev, newHost]);
 
     if (!user?.id) return;
+    // #region agent log
+    fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'cohost-invite-sent', data: { targetUserId: creator.id?.slice(0, 12), hostName: myCreatorName }, timestamp: Date.now() }) }).catch(() => {});
+    // #endregion
     websocket.send('cohost_invite_send', {
       targetUserId: creator.id,
       hostName: myCreatorName,
@@ -743,6 +746,9 @@ export default function LiveStream() {
   }, [pendingCohostInvite]);
 
   const acceptCohostInvite = async () => {
+    // #region agent log
+    fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'cohost-accept-called', data: { hasPending: !!pendingCohostInvite, hasUserId: !!user?.id, streamKey: pendingCohostInvite?.streamKey?.slice(0, 20) }, timestamp: Date.now() }) }).catch(() => {});
+    // #endregion
     if (!pendingCohostInvite || !user?.id) return;
     const inv = pendingCohostInvite;
     setPendingCohostInvite(null);
@@ -802,6 +808,9 @@ export default function LiveStream() {
   useEffect(() => {
     if (!isCoHostJoiner || !user?.id || isBroadcast) return;
     let mounted = true;
+    // #region agent log
+    fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'cohost-joiner-effect', data: { isCoHostJoiner, effectiveStreamId: effectiveStreamId?.slice(0, 20), hasVideoRef: !!videoRef.current }, timestamp: Date.now() }) }).catch(() => {});
+    // #endregion
 
     (async () => {
       // Start camera
@@ -2289,6 +2298,9 @@ export default function LiveStream() {
     };
 
     const handleCohostInvite = (data: any) => {
+      // #region agent log
+      fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'cohost-invite-received', data: { hasUserId: !!user?.id, hostName: data.hostName, hostUserId: data.hostUserId, streamKey: data.streamKey?.slice(0, 20), rawKeys: Object.keys(data) }, timestamp: Date.now() }) }).catch(() => {});
+      // #endregion
       if (!user?.id) return;
       setPendingCohostInvite({
         hostName: data.hostName || 'Creator',

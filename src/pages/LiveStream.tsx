@@ -57,7 +57,7 @@ import { RankingPanel } from '../components/RankingPanel';
 import { websocket } from '../lib/websocket';
 import LiveAIFilters from '../components/LiveAIFilters';
 import { IS_STORE_BUILD } from '../config/build';
-import { Room, LocalVideoTrack, LocalAudioTrack } from 'livekit-client';
+import { Room, RoomEvent, LocalVideoTrack, LocalAudioTrack } from 'livekit-client';
 
 
 type LiveMessage = {
@@ -593,6 +593,7 @@ export default function LiveStream() {
       setIsBattleMode(true);
       setBattleState('INVITING');
       setOpponentCreatorName(invite.hostName);
+      if (invite.streamKey) setOpponentStreamKey(invite.streamKey);
       setBattleSlots(prev => {
         const next = [...prev];
         const emptyIdx = next.findIndex(s => s.status === 'empty');
@@ -843,6 +844,7 @@ export default function LiveStream() {
       const hAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(hostLabel)}&background=121212&color=C9A96E`;
       
       if (cancelled) return;
+      setOpponentStreamKey(effectiveStreamId);
       setBattleSlots(prev => {
         const next = [...prev];
         next[0] = { userId: effectiveStreamId, name: hName, status: 'accepted', avatar: hAvatar };
@@ -918,6 +920,8 @@ export default function LiveStream() {
   const [liveLikes, setLiveLikes] = useState(0);
   const [battleReadiness, setBattleReadiness] = useState(0);
   const [hasOpponentStream, setHasOpponentStream] = useState(false);
+  const [opponentStreamKey, setOpponentStreamKey] = useState<string | null>(null);
+  const opponentLkRoomRef = useRef<Room | null>(null);
   const [iAmReady, setIAmReady] = useState(false);
   const [hostIsReady, setHostIsReady] = useState(false);
   const [opponentIsReady, setOpponentIsReady] = useState(false);
@@ -979,6 +983,70 @@ export default function LiveStream() {
   }, [isBattleParticipant, battleParticipantStream]);
 
   const isRegularViewer = !isBroadcast && !isBattleParticipant && !isCoHostJoiner;
+
+  // Connect to opponent's LiveKit room to receive their video during battle
+  useEffect(() => {
+    if (!isBattleMode || !opponentStreamKey) return;
+    let mounted = true;
+    const room = new Room();
+    opponentLkRoomRef.current = room;
+    // #region agent log
+    fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'battle-opp-lk-start', data: { opponentStreamKey: opponentStreamKey?.slice(0, 20) }, timestamp: Date.now() }) }).catch(() => {});
+    // #endregion
+
+    (async () => {
+      try {
+        const res = await fetch(apiUrl(`/api/live/token?room=${encodeURIComponent(opponentStreamKey)}`), { method: 'GET', credentials: 'include' });
+        // #region agent log
+        fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'battle-opp-token-res', data: { status: res.status, ok: res.ok }, timestamp: Date.now() }) }).catch(() => {});
+        // #endregion
+        if (!res.ok || !mounted) return;
+        const payload = await res.json().catch(() => ({}));
+        const token = payload?.token;
+        const url = (payload?.url ?? '').trim() || getLiveKitUrl();
+        if (!token || !url || !mounted) return;
+
+        room.on(RoomEvent.TrackSubscribed, (track) => {
+          if (!mounted || track.kind !== 'video') return;
+          // #region agent log
+          fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'battle-opp-track-subscribed', data: { kind: track.kind }, timestamp: Date.now() }) }).catch(() => {});
+          // #endregion
+          const el = opponentVideoRef.current;
+          if (el) {
+            track.attach(el);
+            setHasOpponentStream(true);
+          }
+        });
+
+        await room.connect(url, token);
+        // #region agent log
+        fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'battle-opp-lk-connected', data: { remoteParts: room.remoteParticipants.size }, timestamp: Date.now() }) }).catch(() => {});
+        // #endregion
+        if (!mounted) { room.disconnect(); return; }
+
+        for (const [, participant] of room.remoteParticipants) {
+          for (const [, pub] of participant.videoTrackPublications) {
+            if (pub.track && pub.isSubscribed && opponentVideoRef.current) {
+              pub.track.attach(opponentVideoRef.current);
+              setHasOpponentStream(true);
+            }
+          }
+        }
+      } catch (e) {
+        // #region agent log
+        fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'battle-opp-lk-error', data: { error: String(e) }, timestamp: Date.now() }) }).catch(() => {});
+        // #endregion
+        console.error('[Battle] Failed to connect to opponent LiveKit room:', e);
+      }
+    })();
+
+    return () => {
+      mounted = false;
+      room.disconnect();
+      opponentLkRoomRef.current = null;
+      setHasOpponentStream(false);
+    };
+  }, [isBattleMode, opponentStreamKey]);
 
   // Speed Challenge State
   // SPEED CHALLENGE
@@ -1118,6 +1186,8 @@ export default function LiveStream() {
     setBattleWinner(null);
     setBattleCountdown(null);
     setHasOpponentStream(false);
+    setOpponentStreamKey(null);
+    if (opponentLkRoomRef.current) { opponentLkRoomRef.current.disconnect(); opponentLkRoomRef.current = null; }
     setIAmReady(false);
     setHostIsReady(false);
     setOpponentIsReady(false);
@@ -1185,6 +1255,8 @@ export default function LiveStream() {
     setPlayerGifters({});
     setBattleCountdown(null);
     setHasOpponentStream(false);
+    setOpponentStreamKey(null);
+    if (opponentLkRoomRef.current) { opponentLkRoomRef.current.disconnect(); opponentLkRoomRef.current = null; }
     setIAmReady(false);
     setHostIsReady(false);
     setOpponentIsReady(false);
@@ -2081,6 +2153,8 @@ export default function LiveStream() {
       setIsBattleMode(true);
       setBattleState('INVITING');
       setOpponentCreatorName(requesterName);
+      const oppStreamKey = (data.streamKey as string) || '';
+      if (oppStreamKey) setOpponentStreamKey(oppStreamKey);
       setBattleSlots(prev => {
         const next = [...prev];
         const emptyIdx = next.findIndex(s => s.status === 'empty');

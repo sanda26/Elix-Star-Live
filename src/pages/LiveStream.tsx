@@ -1983,11 +1983,25 @@ export default function LiveStream() {
       }, 2000);
     };
 
+    const handleHeartSent = (data: any) => {
+      if (!mounted) return;
+      if (data.user_id === user?.id) return;
+      addLiveLikes(1);
+      const stage = stageRef.current;
+      if (stage) {
+        const rect = stage.getBoundingClientRect();
+        const x = rect.width * (0.6 + Math.random() * 0.3);
+        const y = rect.height * (0.4 + Math.random() * 0.2);
+        spawnHeartAt(x, y, undefined, data.username, data.avatar);
+      }
+    };
+
     websocket.on('room_state', handleRoomState);
     websocket.on('user_joined', handleUserJoined);
     websocket.on('user_left', handleUserLeft);
     websocket.on('chat_message', handleChatMessage);
     websocket.on('gift_sent', handleGiftSent);
+    websocket.on('heart_sent', handleHeartSent);
     websocket.on('battle_state_sync', handleBattleStateSync);
     websocket.on('battle_tick', handleBattleTick);
     websocket.on('battle_score', handleBattleScore);
@@ -2092,6 +2106,7 @@ export default function LiveStream() {
       websocket.off('user_left', handleUserLeft);
       websocket.off('chat_message', handleChatMessage);
       websocket.off('gift_sent', handleGiftSent);
+      websocket.off('heart_sent', handleHeartSent);
       websocket.off('battle_state_sync', handleBattleStateSync);
       websocket.off('battle_tick', handleBattleTick);
       websocket.off('battle_score', handleBattleScore);

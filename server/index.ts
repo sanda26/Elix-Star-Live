@@ -1255,6 +1255,16 @@ async function handleMessage(client: Client, event: string, data: any) {
         });
         break;
 
+      case "heart_sent":
+        if (!wsRateCheck(client.userId, "heart", 30, 2_000)) break;
+        broadcastToRoom(client.roomId, "heart_sent", {
+          user_id: client.userId,
+          username: data?.username || client.username,
+          avatar: data?.avatar || "",
+          timestamp: new Date().toISOString(),
+        });
+        break;
+
       case "gift_sent": {
         if (!wsRateCheck(client.userId, "gift", 50, 5_000)) break; // max 50 gifts / 5s
         const { transactionId } = data;

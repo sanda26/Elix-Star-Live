@@ -701,11 +701,18 @@ export default function SpectatorPage() {
       setTimeout(() => setSpectatorBattle(null), 5000);
     };
 
+    const handleHeartSent = (data: any) => {
+      if (!mounted) return;
+      if (data.user_id === user?.id) return;
+      setActiveLikes(prev => prev + 1);
+    };
+
     websocket.on('room_state', handleRoomState);
     websocket.on('user_joined', handleUserJoined);
     websocket.on('user_left', handleUserLeft);
     websocket.on('chat_message', handleChatMessage);
     websocket.on('gift_sent', handleGiftSent);
+    websocket.on('heart_sent', handleHeartSent);
     websocket.on('stream_ended', handleStreamEnded);
     websocket.on('battle_state_sync', handleBattleStateSync);
     websocket.on('battle_tick', handleBattleTick);
@@ -758,6 +765,7 @@ export default function SpectatorPage() {
       websocket.off('user_left', handleUserLeft);
       websocket.off('chat_message', handleChatMessage);
       websocket.off('gift_sent', handleGiftSent);
+      websocket.off('heart_sent', handleHeartSent);
       websocket.off('stream_ended', handleStreamEnded);
       websocket.off('battle_state_sync', handleBattleStateSync);
       websocket.off('battle_tick', handleBattleTick);
@@ -906,9 +914,16 @@ export default function SpectatorPage() {
     handleSendGift(lastSentGift);
   };
 
-  // Heart tap handler
+  // Heart tap handler — send to creator via WebSocket
   const handleLikeTap = () => {
     setActiveLikes(prev => prev + 1);
+    const connected = websocket.isConnected();
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SpectatorPage.tsx:handleLikeTap',message:'spectator-heart-tap',data:{wsConnected:connected,username:viewerName},timestamp:Date.now(),hypothesisId:'H14'})}).catch(()=>{});
+    // #endregion
+    if (connected) {
+      websocket.send('heart_sent', { username: viewerName, avatar: viewerAvatar });
+    }
   };
 
   if (streamIsLive === null) {

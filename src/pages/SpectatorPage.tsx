@@ -589,12 +589,13 @@ export default function SpectatorPage() {
             }
             const audioTrack = stream.getAudioTracks()[0];
             if (audioTrack) {
+              audioTrack.enabled = false; // Co-host starts muted; unmute when they want to speak
               const localAudio = new LocalAudioTrack(audioTrack);
               await room.localParticipant.publishTrack(localAudio, { name: 'mic' });
             }
             setCoHostStream(stream);
             setIsCoHosting(true);
-            showToast('Your camera and microphone are now live');
+            showToast('You are co-hosting. Unmute to speak.');
           } catch (e) {
             console.warn('[LiveKit] Co-host publish failed:', e);
             showToast('Could not start camera. Host will not see your video.');

@@ -280,6 +280,9 @@ export default function VideoFeed() {
 
   /* ---- Bootstrap: polling + WebSocket monitor ---- */
   useEffect(() => {
+    // #region agent log
+    fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'VideoFeed-mount', data: { hasToken: Boolean(token), tokenLen: token?.length || 0, videoCount: videos.length, href: window.location.href, userAgent: navigator.userAgent.slice(0, 80) } }) }).catch(() => {});
+    // #endregion
     setLiveLoading(true);
     fetchLiveStreams();
     fetchVideos();
@@ -375,6 +378,14 @@ export default function VideoFeed() {
     ...liveStreams.map((stream): FeedItem => ({ kind: "live", stream })),
     ...videos.map((v): FeedItem => ({ kind: "video", videoId: v.id })),
   ];
+
+  // #region agent log
+  const feedLogRef = useRef(0);
+  if (feedItems.length !== feedLogRef.current) {
+    feedLogRef.current = feedItems.length;
+    fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'feed-items-changed', data: { total: feedItems.length, liveCount: liveStreams.length, videoCount: videos.length, liveLoading, videosLoading: loading, firstVideoId: videos[0]?.id || 'none', firstVideoUrl: videos[0]?.url?.slice(0, 60) || 'none' } }) }).catch(() => {});
+  }
+  // #endregion
 
   /* ---- Scroll handling ---- */
   const handleScroll = () => {

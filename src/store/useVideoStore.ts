@@ -148,6 +148,9 @@ export const useVideoStore = create<VideoStore>()(
         set({ loading: true });
         try {
           const { videos: apiVideos } = await fetchForYouFeed(1, 50);
+          // #region agent log
+          fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'fetchVideos-result', data: { count: apiVideos?.length ?? 0, firstId: apiVideos?.[0]?.id || 'none', firstUrl: apiVideos?.[0]?.url?.slice(0, 60) || 'none' } }) }).catch(() => {});
+          // #endregion
           if (!apiVideos || apiVideos.length === 0) {
             set({ videos: [], loading: false });
             return;

@@ -163,8 +163,22 @@ app.use(
 // Other routes use JSON
 app.use(express.json());
 
+// #region agent log
+// Debug log collector — frontend sends diagnostics here so we can read them from /api/debug-log
+const debugLogBuffer: Array<{ts: string; msg: string; data: any}> = [];
+app.post("/api/debug-log", (req, res) => {
+  const entry = { ts: new Date().toISOString(), msg: req.body?.message || "", data: req.body?.data || {} };
+  debugLogBuffer.push(entry);
+  if (debugLogBuffer.length > 100) debugLogBuffer.shift();
+  res.status(204).end();
+});
+app.get("/api/debug-log", (_req, res) => {
+  res.status(200).json({ logs: debugLogBuffer });
+});
+// #endregion
+
 // Health check endpoint (must be before static files)
-const BUILD_VERSION = "2026-03-15T04:20-full-scan";
+const BUILD_VERSION = "2026-03-15T05:05-frontend-diag";
 app.get("/health", (_req, res) => {
   // #region agent log
   fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/index.ts:health',message:'health-check',data:{version:BUILD_VERSION,uptime:process.uptime(),videoCount:getAllVideos().length},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});

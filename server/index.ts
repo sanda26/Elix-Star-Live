@@ -163,20 +163,29 @@ app.use(
 app.use(express.json());
 
 // Health check endpoint (must be before static files)
+const BUILD_VERSION = "2026-03-15T04:10-feed-fix";
 app.get("/health", (_req, res) => {
-  try {
-    if (process.env.NODE_ENV !== "production")
-      console.log("Health check requested");
-    res.status(200).json({
-      status: "ok",
-      uptime: process.uptime(),
-      timestamp: new Date().toISOString(),
-      port: PORT,
-    });
-  } catch (error) {
-    console.error("Health check error:", error);
-    res.status(500).json({ status: "error", message: "Health check failed" });
-  }
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/index.ts:health',message:'health-check',data:{version:BUILD_VERSION,uptime:process.uptime(),videoCount:getAllVideos().length,validVideoCount:getAllVideos().filter(v=>v.url&&v.url.trim()).length},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+  // #endregion
+  res.status(200).json({
+    status: "ok",
+    version: BUILD_VERSION,
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
+    port: PORT,
+    videoCount: getAllVideos().length,
+  });
+});
+app.get("/api/health", (_req, res) => {
+  res.status(200).json({
+    status: "ok",
+    version: BUILD_VERSION,
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
+    port: PORT,
+    videoCount: getAllVideos().length,
+  });
 });
 
 // Auth API (login, register, logout, me, resend-confirmation, apple/start, guest)
@@ -1744,7 +1753,11 @@ try {
       logger.info({ count: sampleVideos.length }, "Seed videos added (no DB videos found)");
     }
 
-    logger.info({ port: PORT }, "Server running successfully");
+    // #region agent log
+    console.log(`[DEPLOY-CHECK] version=${BUILD_VERSION} videoCount=${getAllVideos().length} validCount=${getAllVideos().filter(v=>v.url&&v.url.trim()).length}`);
+    fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/index.ts:startup',message:'server-ready',data:{version:BUILD_VERSION,videoCount:getAllVideos().length,validVideoCount:getAllVideos().filter(v=>v.url&&v.url.trim()).length,dbVideoCount:dbVideos.length},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+    // #endregion
+    logger.info({ port: PORT, version: BUILD_VERSION }, "Server running successfully");
   });
 } catch (error) {
   logger.fatal({ err: error }, "Failed to start server");

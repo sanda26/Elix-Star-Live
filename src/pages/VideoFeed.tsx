@@ -264,12 +264,19 @@ export default function VideoFeed() {
           } as LiveStreamCard;
         });
 
-      setLiveStreams(mapped);
-
-      // Sync the room monitor so we get real-time stream_ended for every active room
-      if (monitorRef.current) {
-        monitorRef.current.sync(mapped.map((s) => s.streamKey));
-      }
+      // Merge with current list so streams added by stream_started (realtime) don't disappear
+      // when the poll runs before LiveKit has the room (creator still connecting)
+      setLiveStreams((prev) => {
+        const fromApi = new Set(mapped.map((s) => s.streamKey));
+        const keptFromPrev = prev.filter(
+          (s) => !fromApi.has(s.streamKey) && !removed.has(s.streamKey)
+        );
+        const merged = [...mapped, ...keptFromPrev];
+        if (monitorRef.current) {
+          monitorRef.current.sync(merged.map((s) => s.streamKey));
+        }
+        return merged;
+      });
     } catch {
       setLiveStreams([]);
     }

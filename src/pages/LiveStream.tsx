@@ -2149,8 +2149,9 @@ export default function LiveStream() {
         const { data: session } = await apiStub.auth.getSession();
         const token = session.session?.access_token;
         if (!token) return;
-        const res = await fetch('/api/live/moderation/check', {
+        const res = await fetch(apiUrl('/api/live/moderation/check'), {
           method: 'POST',
+          credentials: 'include',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify({ stream_key: effectiveStreamId, image_base64: base64 }),
         });

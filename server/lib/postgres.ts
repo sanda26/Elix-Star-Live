@@ -46,6 +46,28 @@ export async function initPostgres(): Promise<void> {
         privacy TEXT DEFAULT 'public'
       )
     `);
+    const videoCols: [string, string][] = [
+      ['url', 'TEXT DEFAULT \'\''],
+      ['thumbnail', 'TEXT DEFAULT \'\''],
+      ['duration', 'NUMERIC DEFAULT 0'],
+      ['user_id', 'TEXT DEFAULT \'\''],
+      ['username', 'TEXT DEFAULT \'\''],
+      ['display_name', 'TEXT DEFAULT \'\''],
+      ['avatar', 'TEXT DEFAULT \'\''],
+      ['description', 'TEXT DEFAULT \'\''],
+      ['hashtags', 'JSONB DEFAULT \'[]\''],
+      ['music', 'JSONB DEFAULT NULL'],
+      ['views', 'INTEGER DEFAULT 0'],
+      ['likes', 'INTEGER DEFAULT 0'],
+      ['comments', 'INTEGER DEFAULT 0'],
+      ['shares', 'INTEGER DEFAULT 0'],
+      ['saves', 'INTEGER DEFAULT 0'],
+      ['created_at', 'TIMESTAMPTZ DEFAULT NOW()'],
+      ['privacy', 'TEXT DEFAULT \'public\''],
+    ];
+    for (const [col, def] of videoCols) {
+      await pool.query(`ALTER TABLE videos ADD COLUMN IF NOT EXISTS ${col} ${def}`).catch(() => {});
+    }
     await pool.query(`
       CREATE TABLE IF NOT EXISTS live_streams (
         stream_key TEXT PRIMARY KEY,

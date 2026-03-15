@@ -1675,14 +1675,15 @@ try {
     await initPostgres();
     const dbVideos = await loadVideosFromDb();
     // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/index.ts:postDbLoad',message:'DB load result',data:{dbVideoCount:dbVideos.length,postgresConnected:!!require('./lib/postgres').getPool()},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+    fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/index.ts:postDbLoad',message:'DB load result',data:{dbVideoCount:dbVideos.length},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
     // #endregion
     if (dbVideos.length > 0) {
       replaceVideos(dbVideos);
       logger.info({ count: dbVideos.length }, "Videos loaded from database");
     }
 
-    if (getAllVideos().length === 0) {
+    const validVideos = getAllVideos().filter(v => v.url && v.url.trim());
+    if (validVideos.length === 0) {
       const sampleVideos: Video[] = [
         {
           id: "seed_1",

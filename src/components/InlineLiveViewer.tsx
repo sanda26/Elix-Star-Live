@@ -29,6 +29,7 @@ export default function InlineLiveViewer({
   const navigate = useNavigate();
   const videoRef = useRef<HTMLVideoElement>(null);
   const roomRef = useRef<Room | null>(null);
+  const connectedKeyRef = useRef<string>("");
   const [hasStream, setHasStream] = useState(false);
   const [connecting, setConnecting] = useState(false);
 
@@ -41,6 +42,9 @@ export default function InlineLiveViewer({
 
   useEffect(() => {
     if (!isActive || !streamKey) return;
+    const connKey = `${streamKey}-${isActive}`;
+    if (connectedKeyRef.current === connKey && roomRef.current) return;
+    connectedKeyRef.current = connKey;
 
     let mounted = true;
     const room = new Room({ adaptiveStream: true });
@@ -115,6 +119,7 @@ export default function InlineLiveViewer({
 
     return () => {
       mounted = false;
+      connectedKeyRef.current = "";
       roomRef.current = null;
       room.disconnect();
       setHasStream(false);

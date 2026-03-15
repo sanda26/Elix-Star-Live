@@ -654,6 +654,32 @@ export default function LiveStream() {
   }, [isMyStreamLive]);
   const [hostSearchQuery, setHostSearchQuery] = useState('');
   const [featuredHostId, setFeaturedHostId] = useState<string | null>(null);
+  const [liveCreators, setLiveCreators] = useState<{id: string; name: string; avatar: string; streamKey: string}[]>([]);
+  useEffect(() => {
+    if (!isInviteHostOpen) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = useAuthStore.getState().session?.access_token;
+        const headers: Record<string,string> = {};
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+        const res = await fetch(apiUrl('/api/live/streams'), { method: 'GET', credentials: 'include', headers });
+        if (!res.ok || cancelled) return;
+        const json = await res.json();
+        const streams: any[] = Array.isArray(json.streams) ? json.streams : [];
+        const others = streams
+          .filter((s: any) => s.user_id !== user?.id && s.stream_key !== effectiveStreamId)
+          .map((s: any) => ({
+            id: s.user_id || s.stream_key,
+            name: s.username || s.display_name || `User ${(s.user_id || '').slice(0,8)}`,
+            avatar: s.avatar || '',
+            streamKey: s.stream_key || s.room_id || '',
+          }));
+        if (!cancelled) setLiveCreators(others);
+      } catch { /* ignore */ }
+    })();
+    return () => { cancelled = true; };
+  }, [isInviteHostOpen, user?.id, effectiveStreamId]);
   const coHostTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const MAX_CO_HOSTS = 12;
 
@@ -3864,7 +3890,7 @@ export default function LiveStream() {
                 <Search className="w-3.5 h-3.5 text-white/30" strokeWidth={1.8} />
                 <input
                   type="text"
-                  placeholder="Search spectators..."
+                  placeholder="Search creators & spectators..."
                   className="bg-transparent text-white text-xs outline-none flex-1 placeholder:text-white/25"
                   value={hostSearchQuery}
                   onChange={(e) => setHostSearchQuery(e.target.value)}
@@ -3872,8 +3898,55 @@ export default function LiveStream() {
               </div>
             </div>
 
-            {/* Spectator List — show viewers watching this stream so creator can invite them */}
+            {/* Live Creators + Spectator List */}
             <div className="flex-1 overflow-y-auto px-4 pb-3">
+              {/* Live Creators section */}
+              {(() => {
+                const q = hostSearchQuery.trim().toLowerCase();
+                const filteredLive = liveCreators.filter(c =>
+                  !coHosts.some(h => h.userId === c.id) &&
+                  (q === '' || c.name.toLowerCase().includes(q))
+                );
+                if (filteredLive.length === 0) return null;
+                return (
+                  <div className="mb-3">
+                    <p className="text-white/40 text-[10px] font-bold uppercase tracking-wider mb-1.5">Live Now</p>
+                    <div className="space-y-0.5">
+                      {filteredLive.map(creator => {
+                        const alreadyInvited = coHosts.some(h => h.userId === creator.id);
+                        return (
+                          <button
+                            key={creator.id}
+                            onClick={() => !alreadyInvited && coHosts.length < MAX_CO_HOSTS && inviteCoHost({ id: creator.id, name: creator.name, avatar: creator.avatar })}
+                            disabled={alreadyInvited || coHosts.length >= MAX_CO_HOSTS}
+                            className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-white/[0.03] transition-colors active:scale-[0.98]"
+                          >
+                            <div className="relative flex-shrink-0">
+                              <AvatarRing src={creator.avatar} alt={creator.name} size={30} />
+                              <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-red-500 rounded-full border border-[#1C1E24] animate-pulse" />
+                            </div>
+                            <div className="flex-1 min-w-0 text-left">
+                              <p className="text-white text-xs font-semibold truncate">{creator.name}</p>
+                              <p className="text-red-400/70 text-[10px] truncate flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-red-500 inline-block" /> Live streaming</p>
+                            </div>
+                            {alreadyInvited ? (
+                              <div className="px-2 py-1 rounded-full bg-white/5 border border-white/20 flex items-center gap-0.5 flex-shrink-0">
+                                <span className="text-white/50 text-[9px] font-bold">Invited</span>
+                              </div>
+                            ) : (
+                              <div className="px-2 py-1 rounded-full bg-[#C9A96E] flex items-center justify-center gap-0.5 flex-shrink-0">
+                                <UserPlus size={9} className="text-black shrink-0 flex-shrink-0" strokeWidth={2} />
+                                <span className="text-black text-[9px] font-bold">Invite</span>
+                              </div>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
+              {/* Spectators section */}
               {(() => {
                 const spectators = activeViewers.filter(v =>
                   v.id !== user?.id &&
@@ -3881,11 +3954,15 @@ export default function LiveStream() {
                   (hostSearchQuery.trim() === '' || v.displayName.toLowerCase().includes(hostSearchQuery.trim().toLowerCase()) || v.username.toLowerCase().includes(hostSearchQuery.trim().toLowerCase()))
                 );
                 const isJoinRequester = (vid: string) => pendingJoinRequest?.requesterId === vid;
+                if (spectators.length === 0 && liveCreators.length === 0) {
+                  return <div className="text-center text-white/30 text-sm py-8">No live creators or spectators found</div>;
+                }
                 if (spectators.length === 0) {
-                  return <div className="text-center text-white/30 text-sm py-8">{activeViewers.length <= 1 ? 'No spectators watching' : 'No spectators match your search'}</div>;
+                  return null;
                 }
                 return (
                   <div className="space-y-0.5">
+                    {liveCreators.length > 0 && <p className="text-white/40 text-[10px] font-bold uppercase tracking-wider mb-1.5 mt-1">Spectators</p>}
                     {spectators.map(viewer => {
                       const hostEntry = coHosts.find(h => h.userId === viewer.id);
                       const status = hostEntry?.status;

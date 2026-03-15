@@ -2925,9 +2925,13 @@ export default function LiveStream() {
               if (now - last <= 320) handleComboClick();
             }}
           >
-            {/* Left: Host camera (big) */}
+            {/* Left: Host camera — 50% when at least one live co-host (2 big screens), else full */}
             <div
-              className={coHosts.length > 0 ? 'flex-1 min-w-0 relative' : 'relative w-full h-full'}
+              className={(() => {
+                const liveList = isBroadcast ? coHosts.filter(h => (h.status === 'live' || h.status === 'accepted') && h.userId !== user?.id) : coHosts.filter(h => h.status === 'live' || h.status === 'accepted');
+                const twoBigScreens = liveList.length >= 1;
+                return twoBigScreens ? 'w-1/2 min-w-0 relative' : (coHosts.length > 0 ? 'flex-1 min-w-0 relative' : 'relative w-full h-full');
+              })()}
               onPointerDown={isBroadcast ? (e) => {
                 if (e.target instanceof Element && e.target.closest('button, a, input, textarea, select, [role="button"]')) return;
                 handleLikeTap(e);
@@ -3029,86 +3033,115 @@ export default function LiveStream() {
             )}
             </div>
 
-            {/* Right: co-host cells — only when at least one co-host invited or live */}
+            {/* Right: 2 big screens when 1+ live co-host; extra co-hosts in small containers; same mute/camera on all */}
             {coHosts.length > 0 && (() => {
-              const cellSlots: Array<{ type: 'live' | 'invited' | 'pending' | 'empty'; host?: (typeof coHosts)[0] }> = [];
               const list = isBroadcast ? coHosts.filter(h => h.userId !== user?.id) : coHosts;
-              list.forEach(h => {
-                if (h.status === 'live' || h.status === 'accepted') cellSlots.push({ type: 'live', host: h });
-                else if (h.status === 'invited') cellSlots.push({ type: 'invited', host: h });
-                else if (h.status === 'pending_accept') cellSlots.push({ type: 'pending', host: h });
-              });
-              while (cellSlots.length < 8) cellSlots.push({ type: 'empty' });
+              const liveList = list.filter(h => h.status === 'live' || h.status === 'accepted');
+              const firstLive = liveList[0];
+              const restLive = liveList.slice(1);
+              const invitedPending = list.filter(h => h.status === 'invited' || h.status === 'pending_accept');
+              const smallSlots: Array<{ type: 'live' | 'invited' | 'pending' | 'empty'; host?: (typeof coHosts)[0] }> = [];
+              restLive.forEach(h => smallSlots.push({ type: 'live', host: h }));
+              invitedPending.forEach(h => smallSlots.push({ type: h.status === 'invited' ? 'invited' : 'pending', host: h }));
+              while (smallSlots.length < 8) smallSlots.push({ type: 'empty' });
+
+              const renderCoHostCell = (slot: { type: 'live' | 'invited' | 'pending' | 'empty'; host?: (typeof coHosts)[0] }, isBig: boolean) => {
+                if (slot.type === 'live' && slot.host) {
+                  const host = slot.host;
+                  return (
+                    <>
+                      <video
+                        ref={(el) => { if (el) coHostVideoRefs.current.set(host.userId, el); else coHostVideoRefs.current.delete(host.userId); }}
+                        className="absolute inset-0 w-full h-full object-cover rounded-sm"
+                        autoPlay
+                        playsInline
+                        muted={host.isMuted}
+                        style={coHostCameraOff[host.id] ? { display: 'none' } : undefined}
+                      />
+                      {coHostCameraOff[host.id] && (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-[#13151A] z-[6] rounded-sm">
+                          {host.avatar ? <img src={host.avatar} alt="" className={`rounded-full border-2 border-[#C9A96E]/40 object-cover ${isBig ? 'w-16 h-16' : 'w-10 h-10'}`} /> : (
+                            <div className={`rounded-full border-2 border-[#C9A96E]/40 bg-[#1C1E24] flex items-center justify-center ${isBig ? 'w-16 h-16' : 'w-10 h-10'}`}><span className="text-[#C9A96E]/60 text-sm font-bold">{(host.name || '?').charAt(0)}</span></div>
+                          )}
+                          <span className="text-white/90 text-[8px] font-bold truncate max-w-full px-1">{host.name}</span>
+                        </div>
+                      )}
+                      {(() => {
+                        const el = coHostVideoRefs.current.get(host.userId);
+                        const hasTracks = el?.srcObject && (el.srcObject as MediaStream).getVideoTracks().some(t => t.enabled);
+                        if (!hasTracks && !coHostCameraOff[host.id]) return (
+                          <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#13151A] z-[5]">
+                            <CameraOff size={isBig ? 28 : 20} className="text-white/30" />
+                            <span className="text-white/40 text-[8px] mt-1">{host.name}</span>
+                          </div>
+                        );
+                        return null;
+                      })()}
+                      <div className={`absolute top-0.5 right-0.5 z-10 flex items-center gap-0.5 pointer-events-auto ${isBig ? 'top-2 right-2' : ''}`}>
+                        <button type="button" onClick={(e) => { e.stopPropagation(); toggleCoHostMute(host.id); }} className={`rounded bg-black/50 ${isBig ? 'p-1' : 'p-0.5'}`} title={host.isMuted ? 'Unmute' : 'Mute'}>
+                          {host.isMuted ? <MicOff className={`text-white ${isBig ? 'w-4 h-4' : 'w-3 h-3'}`} strokeWidth={2.5} /> : <Mic className={`text-white ${isBig ? 'w-4 h-4' : 'w-3 h-3'}`} strokeWidth={2.5} />}
+                        </button>
+                        <button type="button" onClick={(e) => { e.stopPropagation(); toggleCoHostCamera(host.id); }} className={isBig ? 'p-1 rounded' : 'p-0.5 rounded'} title={coHostCameraOff[host.id] ? 'Camera on' : 'Camera off'}>
+                          {coHostCameraOff[host.id] ? <CameraOff className={`text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] ${isBig ? 'w-4 h-4' : 'w-3 h-3'}`} strokeWidth={2.5} /> : <Camera className={`text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] ${isBig ? 'w-4 h-4' : 'w-3 h-3'}`} strokeWidth={2.5} />}
+                        </button>
+                      </div>
+                    </>
+                  );
+                }
+                if (slot.type === 'invited' && slot.host) return (
+                  <>
+                    <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-[#C9A96E]/40 bg-[#1C1E24]">
+                      {slot.host.avatar ? <img src={slot.host.avatar} alt="" className="w-full h-full object-cover opacity-60" /> : <div className="w-full h-full flex items-center justify-center text-[#C9A96E]/60 text-base font-bold">{(slot.host.name || '?').charAt(0)}</div>}
+                    </div>
+                    <p className="text-white/60 text-[9px] font-bold mt-0.5 truncate max-w-[95%] text-center">{slot.host.name}</p>
+                    <span className="text-[#C9A96E]/70 text-[8px] font-semibold">Invited</span>
+                  </>
+                );
+                if (slot.type === 'pending' && slot.host) return (
+                  <>
+                    <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-[#C9A96E] bg-[#1C1E24]">
+                      {slot.host.avatar ? <img src={slot.host.avatar} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[#C9A96E] text-sm font-bold">{(slot.host.name || '?').charAt(0)}</div>}
+                    </div>
+                    <p className="text-white text-[8px] font-bold mt-0.5 truncate max-w-[95%] text-center">{slot.host.name}</p>
+                    <span className="text-[#C9A96E]/70 text-[8px] font-semibold">Pending</span>
+                  </>
+                );
+                return (
+                  <button type="button" onClick={() => isBroadcast ? setIsInviteHostOpen(true) : setShowViewerList(true)} className="flex flex-col items-center justify-center w-full h-full active:scale-95">
+                    <div className="w-12 h-12 rounded-full border-2 border-dashed border-white/20 flex items-center justify-center">
+                      <span className="text-white/30 text-2xl font-light">+</span>
+                    </div>
+                    <p className="text-white/30 text-[9px] font-semibold mt-0.5">{isBroadcast ? 'Invite' : 'Request'}</p>
+                  </button>
+                );
+              };
+
+              if (firstLive) {
+                return (
+                  <div className="w-1/2 h-full flex flex-col min-w-0">
+                    {/* Big screen for first co-host */}
+                    <div className="flex-1 min-h-0 relative bg-[#13151A]">
+                      {renderCoHostCell({ type: 'live', host: firstLive }, true)}
+                    </div>
+                    {/* Small containers for rest + invited + empty */}
+                    {(restLive.length > 0 || invitedPending.length > 0) && (
+                      <div className="flex-[0_0_auto] grid grid-cols-4 grid-rows-2 gap-[1px] bg-[#1a1c22]" style={{ maxHeight: '35%' }}>
+                        {smallSlots.slice(0, 8).map((slot, i) => (
+                          <div key={i} className="relative bg-[#13151A] flex flex-col items-center justify-center p-0.5">
+                            {renderCoHostCell(slot, false)}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+
               return (
                 <div className="w-1/2 h-full grid grid-cols-2 grid-rows-4 gap-[1px] bg-[#1a1c22]">
-                  {cellSlots.slice(0, 8).map((slot, i) => (
+                  {smallSlots.slice(0, 8).map((slot, i) => (
                     <div key={i} className="relative bg-[#13151A] flex flex-col items-center justify-center p-1">
-                      {slot.type === 'live' && slot.host ? (
-                        <>
-                          <video
-                            ref={(el) => { if (el) coHostVideoRefs.current.set(slot.host!.userId, el); else coHostVideoRefs.current.delete(slot.host!.userId); }}
-                            className="absolute inset-0 w-full h-full object-cover rounded-sm"
-                            autoPlay
-                            playsInline
-                            muted={slot.host.isMuted}
-                            style={coHostCameraOff[slot.host.id] ? { display: 'none' } : undefined}
-                          />
-                          {coHostCameraOff[slot.host.id] && (
-                            <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-[#13151A] z-[6] rounded-sm">
-                              {slot.host.avatar ? (
-                                <img src={slot.host.avatar} alt="" className="w-10 h-10 rounded-full border-2 border-[#C9A96E]/40 object-cover" />
-                              ) : (
-                                <div className="w-10 h-10 rounded-full border-2 border-[#C9A96E]/40 bg-[#1C1E24] flex items-center justify-center">
-                                  <span className="text-[#C9A96E]/60 text-sm font-bold">{(slot.host.name || '?').charAt(0)}</span>
-                                </div>
-                              )}
-                              <span className="text-white/90 text-[8px] font-bold truncate max-w-full px-1">{slot.host.name}</span>
-                            </div>
-                          )}
-                          {(() => {
-                            const el = coHostVideoRefs.current.get(slot.host!.userId);
-                            const hasTracks = el?.srcObject && (el.srcObject as MediaStream).getVideoTracks().some(t => t.enabled);
-                            if (!hasTracks && !coHostCameraOff[slot.host!.id]) return (
-                              <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#13151A] z-[5]">
-                                <CameraOff size={20} className="text-white/30" />
-                                <span className="text-white/40 text-[8px] mt-1">{slot.host!.name}</span>
-                              </div>
-                            );
-                            return null;
-                          })()}
-                          <div className="absolute top-0.5 right-0.5 z-10 flex items-center gap-0.5 pointer-events-auto">
-                            <button type="button" onClick={(e) => { e.stopPropagation(); toggleCoHostMute(slot.host!.id); }} className="p-0.5 rounded bg-black/50" title={slot.host.isMuted ? 'Unmute' : 'Mute'}>
-                              {slot.host.isMuted ? <MicOff className="w-3 h-3 text-white" strokeWidth={2.5} /> : <Mic className="w-3 h-3 text-white" strokeWidth={2.5} />}
-                            </button>
-                            <button type="button" onClick={(e) => { e.stopPropagation(); toggleCoHostCamera(slot.host!.id); }} className="p-0.5 rounded" title={coHostCameraOff[slot.host.id] ? 'Camera on' : 'Camera off'}>
-                              {coHostCameraOff[slot.host.id] ? <CameraOff className="w-3 h-3 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={2.5} /> : <Camera className="w-3 h-3 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={2.5} />}
-                            </button>
-                          </div>
-                        </>
-                      ) : slot.type === 'invited' && slot.host ? (
-                        <>
-                          <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-[#C9A96E]/40 bg-[#1C1E24]">
-                            {slot.host.avatar ? <img src={slot.host.avatar} alt="" className="w-full h-full object-cover opacity-60" /> : <div className="w-full h-full flex items-center justify-center text-[#C9A96E]/60 text-base font-bold">{(slot.host.name || '?').charAt(0)}</div>}
-                          </div>
-                          <p className="text-white/60 text-[9px] font-bold mt-0.5 truncate max-w-[95%] text-center">{slot.host.name}</p>
-                          <span className="text-[#C9A96E]/70 text-[8px] font-semibold">Invited</span>
-                        </>
-                      ) : slot.type === 'pending' && slot.host ? (
-                        <>
-                          <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-[#C9A96E] bg-[#1C1E24]">
-                            {slot.host.avatar ? <img src={slot.host.avatar} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[#C9A96E] text-sm font-bold">{(slot.host.name || '?').charAt(0)}</div>}
-                          </div>
-                          <p className="text-white text-[8px] font-bold mt-0.5 truncate max-w-[95%] text-center">{slot.host.name}</p>
-                          <span className="text-[#C9A96E]/70 text-[8px] font-semibold">Pending — use Co-Host panel</span>
-                        </>
-                      ) : (
-                        <button type="button" onClick={() => isBroadcast ? setIsInviteHostOpen(true) : setShowViewerList(true)} className="flex flex-col items-center justify-center w-full h-full active:scale-95">
-                          <div className="w-12 h-12 rounded-full border-2 border-dashed border-white/20 flex items-center justify-center">
-                            <span className="text-white/30 text-2xl font-light">+</span>
-                          </div>
-                          <p className="text-white/30 text-[9px] font-semibold mt-0.5">{isBroadcast ? 'Invite' : 'Request'}</p>
-                        </button>
-                      )}
+                      {renderCoHostCell(slot, false)}
                     </div>
                   ))}
                 </div>
@@ -3939,11 +3972,6 @@ export default function LiveStream() {
                 <button type="button" onClick={() => setIsInviteHostOpen(true)} className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg relative">
                   <span className="flex items-center justify-center w-full h-full relative z-[2]"><UserPlus size={20} className="text-[#C9A96E] shrink-0" strokeWidth={2} /></span>
                   <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-125 translate-y-0.5" />
-                  {coHosts.length > 0 && (
-                    <div className="absolute -top-1 -right-1 w-5 h-5 bg-[#C9A96E] rounded-full flex items-center justify-center">
-                      <span className="text-black text-[10px] font-black">{coHosts.length}</span>
-                    </div>
-                  )}
                 </button>
                 <span className="text-white/60 text-[8px] font-medium">Co-Host</span>
               </div>

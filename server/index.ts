@@ -6,6 +6,7 @@ import { createServer } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
+import { appendFile } from "fs";
 import {
   createCheckoutSession,
   createPaymentIntent,
@@ -92,6 +93,22 @@ import { logger } from "./lib/logger";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+const DEBUG_LOG_PATH = join(__dirname, ".cursor", "debug.log");
+
+// #region agent log
+function writeDebugLog(entry: any) {
+  try {
+    const line =
+      JSON.stringify({
+        ...entry,
+        id: `log_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      }) + "\n";
+    appendFile(DEBUG_LOG_PATH, line, () => {});
+  } catch {
+    // ignore debug log errors
+  }
+}
+// #endregion
 
 const app = express();
 const server = createServer(app);
@@ -111,11 +128,12 @@ app.use(compression());
 app.use((req, res, next) => {
   const start = Date.now();
   res.on("finish", () => {
+    const ms = Date.now() - start;
     logger.info({
       method: req.method,
       url: req.originalUrl,
       status: res.statusCode,
-      ms: Date.now() - start,
+      ms,
     });
   });
   next();
@@ -232,7 +250,21 @@ app.get("/api/profile", handleMe);
 app.get("/api/live/streams", handleGetStreams);
 app.post("/api/live/start", handleLiveStart);
 app.post("/api/live/end", handleLiveEnd);
-app.get("/api/live/token", handleGetLiveToken);
+app.get("/api/live/token", async (req, res) => {
+  const start = Date.now();
+  await handleGetLiveToken(req, res);
+  const ms = Date.now() - start;
+  // #region agent log
+  writeDebugLog({
+    location: "server/index.ts:/api/live/token",
+    message: "live-token-duration",
+    data: { ms, method: req.method, url: req.originalUrl },
+    timestamp: Date.now(),
+    runId: "pre-fix",
+    hypothesisId: "H2",
+  });
+  // #endregion
+});
 
 // Upload video to Bunny Storage
 // (route mounted above with express.raw)
@@ -268,7 +300,21 @@ app.post("/api/verify-purchase", handleVerifyPurchase);
 app.post("/api/promote-iap-complete", handlePromoteIAPComplete);
 
 // Feed & Recommendation API
-app.get("/api/feed/foryou", handleForYouFeed);
+app.get("/api/feed/foryou", async (req, res) => {
+  const start = Date.now();
+  await handleForYouFeed(req, res);
+  const ms = Date.now() - start;
+  // #region agent log
+  writeDebugLog({
+    location: "server/index.ts:/api/feed/foryou",
+    message: "feed-foryou-duration",
+    data: { ms, method: req.method, url: req.originalUrl },
+    timestamp: Date.now(),
+    runId: "pre-fix",
+    hypothesisId: "H1",
+  });
+  // #endregion
+});
 app.post("/api/feed/track-view", handleTrackView);
 app.post("/api/feed/track-interaction", handleTrackInteraction);
 app.get("/api/feed/score/:videoId", handleGetVideoScore);

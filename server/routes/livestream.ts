@@ -223,6 +223,7 @@ export async function handleGetLiveToken(req: Request, res: Response) {
   const room = req.query.room as string | undefined;
   const raw = typeof room === 'string' ? room.trim() : '';
   const roomName = raw.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 128) || null;
+  const publish = req.query.publish === '1' || req.query.publish === 'true';
 
   if (!roomName) {
     return res.status(400).json({ error: 'Query parameter "room" is required and must be alphanumeric.' });
@@ -232,7 +233,7 @@ export async function handleGetLiveToken(req: Request, res: Response) {
     const token = await createLiveToken({
       userId: auth.userId,
       roomName,
-      canPublish: false,
+      canPublish: publish,
       name: auth.userId,
     });
     if (!token || token.length < 50) {

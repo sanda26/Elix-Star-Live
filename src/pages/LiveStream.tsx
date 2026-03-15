@@ -403,6 +403,18 @@ export default function LiveStream() {
     const room = new Room({ adaptiveStream: true });
     liveKitRoomRef.current = room;
 
+    const attachRemoteVideoToCoHostSlot = (track: import('livekit-client').Track, participant: import('livekit-client').RemoteParticipant) => {
+      if (track.kind !== 'video') return;
+      const identity = participant.identity;
+      if (identity === user?.id) return;
+      const el = coHostVideoRefs.current.get(identity);
+      if (el) track.attach(el);
+    };
+
+    room.on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
+      attachRemoteVideoToCoHostSlot(track, participant);
+    });
+
     (async () => {
       try {
         // #region agent log
@@ -412,6 +424,11 @@ export default function LiveStream() {
         // #region agent log
         fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'host-livekit-connected', data: { roomName: room.name }, timestamp: Date.now(), hypothesisId: 'H1' }) }).catch(() => {});
         // #endregion
+        for (const [, participant] of room.remoteParticipants) {
+          for (const [, pub] of participant.videoTrackPublications) {
+            if (pub.track && pub.isSubscribed) attachRemoteVideoToCoHostSlot(pub.track, participant);
+          }
+        }
         if (videoTrack) {
           const localVideo = new LocalVideoTrack(videoTrack);
           await room.localParticipant.publishTrack(localVideo, { name: 'camera' });
@@ -788,7 +805,9 @@ export default function LiveStream() {
 
   const declineJoinRequest = async () => {
     if (!pendingJoinRequest) return;
+    const requesterId = pendingJoinRequest.requesterId;
     setPendingJoinRequest(null);
+    if (requesterId) websocket.send('cohost_request_decline', { requesterUserId: requesterId });
     showToast('Request declined');
   };
 
@@ -823,9 +842,9 @@ export default function LiveStream() {
         showToast('Camera access needed to co-host');
       }
 
-      // Connect to host's LiveKit room to see their video
+      // Connect to host's LiveKit room and publish so creator sees us in a co-host slot (token needs canPublish)
       try {
-        const res = await fetch(apiUrl(`/api/live/token?room=${encodeURIComponent(effectiveStreamId)}`), { method: 'GET', credentials: 'include' });
+        const res = await fetch(apiUrl(`/api/live/token?room=${encodeURIComponent(effectiveStreamId)}&publish=1`), { method: 'GET', credentials: 'include' });
         if (!res.ok || !mounted) return;
         const payload = await res.json().catch(() => ({}));
         const token = payload?.token;
@@ -3931,7 +3950,11 @@ export default function LiveStream() {
           {/* Battle invite cards removed — invite shows inside battle panel */}
 
           {isBroadcast && !currentGift && (
-            <div className="flex items-center justify-center gap-3 pointer-events-auto">
+            <div className="flex items-center gap-2 w-full max-w-[480px] pointer-events-auto">
+              <form className="flex-1 flex items-center gap-2 bg-black/40 backdrop-blur-sm rounded-full px-3 py-2 border border-white/10 h-10 min-w-0" onSubmit={(e) => { e.preventDefault(); handleSendMessage(e); }}>
+                <input type="text" inputMode="text" enterKeyHint="send" autoComplete="off" placeholder="Say something..." className="bg-transparent text-white text-xs outline-none flex-1 placeholder:text-white/30 min-w-0" value={inputValue} onChange={(e) => setInputValue(e.target.value)} />
+                {inputValue.trim() && <button type="submit" title="Send message" className="text-[#C9A96E] flex-shrink-0"><Send size={16} /></button>}
+              </form>
               <div className="flex items-center justify-center gap-3 flex-shrink-0">
               {isBattleMode && battleWinner && (
                 <button 
@@ -4057,8 +4080,7 @@ export default function LiveStream() {
             }}
           />
           <div
-            className="bg-[#1C1E24]/95 backdrop-blur-md rounded-t-2xl flex flex-col shadow-2xl border-t border-[#C9A96E]/20 pointer-events-auto w-full relative z-10 overflow-hidden pb-safe"
-            style={{ height: 'calc(40vh - 2cm)' }}
+            className="bg-[#1C1E24]/95 backdrop-blur-md rounded-t-2xl h-[40vh] flex flex-col shadow-2xl border-t border-[#C9A96E]/20 pointer-events-auto w-full relative z-10 overflow-hidden pb-safe"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Drag handle */}
@@ -4352,7 +4374,7 @@ export default function LiveStream() {
             onClick={() => setShowViewerList(false)}
           />
           <div className="fixed bottom-0 left-0 right-0 z-[999999] pointer-events-auto max-w-[480px] mx-auto">
-            <div className="bg-[#1C1E24]/95 backdrop-blur-md rounded-t-2xl h-[45vh] flex flex-col shadow-2xl border-t border-[#C9A96E]/20 overflow-hidden">
+            <div className="bg-[#1C1E24]/95 backdrop-blur-md rounded-t-2xl h-[40vh] flex flex-col shadow-2xl border-t border-[#C9A96E]/20 overflow-hidden">
               <div className="flex justify-center pt-3 pb-1">
                 <div className="w-10 h-1 bg-white/20 rounded-full" />
               </div>
@@ -4397,9 +4419,13 @@ export default function LiveStream() {
                         </button>
                         {isBroadcast && isMyStreamLive && (
                           isJoinRequester ? (
-                            <div className="flex items-center gap-1.5 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-                              <button type="button" onClick={() => { declineJoinRequest(); setShowViewerList(false); }} className="px-2.5 py-1 rounded-full bg-white/10 text-white/80 text-[10px] font-bold">Decline</button>
-                              <button type="button" onClick={() => { acceptJoinRequest(); setShowViewerList(false); }} className="px-2.5 py-1 rounded-full bg-[#C9A96E] text-black text-[10px] font-bold">Accept</button>
+                            <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                              <button type="button" onClick={() => { declineJoinRequest(); setShowViewerList(false); }} className="px-2 py-1 rounded-full bg-red-500/20 border border-red-500/30 flex items-center gap-0.5 active:scale-95 transition-transform cursor-pointer">
+                                <span className="text-red-400 text-[9px] font-bold">Reject</span>
+                              </button>
+                              <button type="button" onClick={() => { acceptJoinRequest(); setShowViewerList(false); }} className="px-2.5 py-1 rounded-full bg-green-500 flex items-center gap-0.5 active:scale-95 transition-transform cursor-pointer">
+                                <span className="text-black text-[9px] font-bold">Join</span>
+                              </button>
                             </div>
                           ) : coHosts.length < MAX_CO_HOSTS && !alreadyInvited ? (
                             <button

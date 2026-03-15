@@ -272,6 +272,7 @@ export default function SpectatorPage() {
   const [coHostStream, setCoHostStream] = useState<MediaStream | null>(null);
   const coHostChanRef = useRef<ReturnType<typeof apiStub.channel> | null>(null);
   const [pendingCoHostInvite, setPendingCoHostInvite] = useState<{ notifId: string; hostName: string; hostAvatar: string; streamKey: string; hostUserId: string } | null>(null);
+  const [showCoHostPanel, setShowCoHostPanel] = useState(false);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -809,14 +810,16 @@ export default function SpectatorPage() {
 
     const handleBattleStateSync = (data: any) => {
       if (!mounted) return;
-      if (data.status === 'active' || data.status === 'IN_BATTLE') {
+      if (data.status === 'ACTIVE' || data.status === 'active' || data.status === 'IN_BATTLE') {
         setSpectatorBattle(prev => ({
           active: true,
-          hostScore: prev?.hostScore || 0,
-          opponentScore: prev?.opponentScore || 0,
-          timeLeft: prev?.timeLeft || 300,
+          hostScore: data.hostScore ?? prev?.hostScore ?? 0,
+          opponentScore: data.opponentScore ?? prev?.opponentScore ?? 0,
+          timeLeft: data.timeLeft ?? prev?.timeLeft ?? 300,
           opponentName: data.opponentName || data.opponent_name || prev?.opponentName,
         }));
+      } else if (data.status === 'ENDED' || data.status === 'WAITING') {
+        setSpectatorBattle(null);
       }
     };
 
@@ -882,6 +885,24 @@ export default function SpectatorPage() {
       navigate(`/live/${streamKey}?cohost=1`);
     };
 
+    const handleCohostRequestDeclined = () => {
+      if (!mounted) return;
+      setJoinRequested(false);
+      showToast('Creator declined your co-host request');
+    };
+
+    const handleCohostInvite = (data: any) => {
+      if (!mounted) return;
+      setPendingCoHostInvite({
+        notifId: '',
+        hostName: data.hostName || 'Creator',
+        hostAvatar: data.hostAvatar || '',
+        streamKey: data.streamKey || '',
+        hostUserId: data.hostUserId || '',
+      });
+      setShowCoHostPanel(true);
+    };
+
     websocket.on('room_state', handleRoomState);
     websocket.on('user_joined', handleUserJoined);
     websocket.on('user_left', handleUserLeft);
@@ -895,6 +916,8 @@ export default function SpectatorPage() {
     websocket.on('battle_ended', handleBattleEnded);
     websocket.on('cohost_layout_sync', handleCohostLayoutSync);
     websocket.on('cohost_request_accepted', handleCohostRequestAccepted);
+    websocket.on('cohost_request_declined', handleCohostRequestDeclined);
+    websocket.on('cohost_invite', handleCohostInvite);
 
     connect();
 
@@ -950,6 +973,8 @@ export default function SpectatorPage() {
       websocket.off('battle_ended', handleBattleEnded);
       websocket.off('cohost_layout_sync', handleCohostLayoutSync);
       websocket.off('cohost_request_accepted', handleCohostRequestAccepted);
+      websocket.off('cohost_request_declined', handleCohostRequestDeclined);
+      websocket.off('cohost_invite', handleCohostInvite);
       websocket.disconnect();
     };
   }, [effectiveStreamId, user?.id, streamIsLive]);
@@ -975,7 +1000,7 @@ export default function SpectatorPage() {
     setCurrentGift(null);
   }, []);
 
-  // Send chat message
+  // Spectator keyboard → creator: send chat to creator's room (broadcast so creator and all viewers see it)
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputValue.trim()) return;
@@ -996,7 +1021,7 @@ export default function SpectatorPage() {
     setInputValue('');
   };
 
-  // Send gift — only when stream is live and WebSocket connected; update points immediately
+  // Spectator gift → creator: send to creator's room (broadcast so creator sees it and gets credit)
   const handleSendGift = async (gift: typeof GIFTS[0]) => {
     if (!gift) return;
     if (coinBalance < gift.coins) {
@@ -1072,6 +1097,7 @@ export default function SpectatorPage() {
       video: gift.video || null,
       transactionId: `${user?.id || 'anon'}-${Date.now()}`,
       creator_name: hostName || 'Creator',
+      host_user_id: hostUserId || effectiveStreamId,
     });
 
     setLastSentGift(gift);
@@ -1152,108 +1178,69 @@ export default function SpectatorPage() {
     <div className="fixed inset-0 bg-[#0A0B0E] flex justify-center">
       <div className="relative w-full max-w-[480px] h-full bg-[#13151A] overflow-hidden flex flex-col">
 
-        {/* Spectator watches creator's live in real time: same layout (battle or co-host or single host). */}
+        {/* Spectator only watches: single creator video. No battle, no co-host layout. */}
         <div className="absolute inset-0 z-0 bg-[#13151A]">
-          {spectatorBattle ? (
-            /* Battle: same as creator — score bar + host vs opponent, synced in real time */
-            <div className="w-full h-full flex flex-col">
-              <div className="relative z-20 w-full flex-none overflow-hidden" style={{ height: '18px' }}>
-                <div className="absolute inset-0 flex pointer-events-none">
-                  <div
-                    className="h-full transition-all duration-500 ease-out"
-                    style={{
-                      width: `${(() => {
-                        const total = (spectatorBattle.hostScore ?? 0) + (spectatorBattle.opponentScore ?? 0);
-                        return total > 0 ? Math.max(3, Math.min(97, ((spectatorBattle.hostScore ?? 0) / total) * 100)) : 50;
-                      })()}%`,
-                      backgroundImage: 'linear-gradient(90deg, #DC143C, #FF1744, #C41E3A)',
-                    }}
-                  />
-                  <div className="h-full flex-1 transition-all duration-500 ease-out" style={{ backgroundImage: 'linear-gradient(90deg, #1E90FF, #4169E1, #0047AB)' }} />
-                </div>
-                <div className="absolute inset-0 z-10 flex items-center justify-between px-2 pointer-events-none">
-                  <span className="text-white font-black text-[14px] tabular-nums drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">{(spectatorBattle.hostScore ?? 0).toLocaleString()}</span>
-                  <span className="absolute left-1/2 -translate-x-1/2 text-white/90 text-[11px] font-black tabular-nums drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
-                    {spectatorBattle.active && spectatorBattle.timeLeft > 0
-                      ? `${Math.floor(spectatorBattle.timeLeft / 60)}:${(spectatorBattle.timeLeft % 60).toString().padStart(2, '0')}`
-                      : spectatorBattle.winner
-                        ? (spectatorBattle.winner === 'host' ? 'Host wins!' : spectatorBattle.winner === 'draw' ? 'Draw!' : 'Opponent wins!')
-                        : ''}
-                  </span>
-                  <span className="text-white font-black text-[14px] tabular-nums drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">{(spectatorBattle.opponentScore ?? 0).toLocaleString()}</span>
-                </div>
-              </div>
-              <div className="flex flex-1 min-h-0">
-                <div className="w-1/2 h-full overflow-hidden relative bg-[#13151A] border-r border-white/5">
-                  <video ref={videoRef} className="w-full h-full object-cover" playsInline autoPlay style={{ opacity: hasStream ? 1 : 0, transition: 'opacity 0.4s ease' }} />
-                  {!hasStream && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-[#13151A]">
-                      {hostAvatar ? <img src={hostAvatar} alt="" className="w-16 h-16 rounded-full border-2 border-[#C9A96E]/40 object-cover" /> : <div className="w-16 h-16 rounded-full border-2 border-[#C9A96E]/40 bg-[#1C1E24] flex items-center justify-center"><span className="text-[#C9A96E] font-bold text-xl">{hostName.slice(0, 1).toUpperCase()}</span></div>}
-                      <span className="text-white text-[10px] font-bold truncate max-w-full px-1">{hostName}</span>
-                    </div>
-                  )}
-                  <div className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded-full bg-black/60 backdrop-blur-sm"><span className="text-white text-[9px] font-bold">{hostName}</span></div>
-                </div>
-                <div className="w-1/2 h-full overflow-hidden relative bg-[#13151A] flex flex-col items-center justify-center">
-                  <div className="w-16 h-16 rounded-full border-2 border-[#C9A96E]/40 bg-[#1C1E24] flex items-center justify-center overflow-hidden">
-                    {spectatorBattle.opponentName ? <span className="text-[#C9A96E] font-bold text-2xl">{(spectatorBattle.opponentName || '?').charAt(0).toUpperCase()}</span> : <span className="text-[#C9A96E]/60 font-bold text-2xl">?</span>}
-                  </div>
-                  <span className="text-white text-[10px] font-bold mt-1.5 truncate max-w-full px-1">{spectatorBattle.opponentName || 'Opponent'}</span>
-                  <div className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded-full bg-black/60 backdrop-blur-sm"><span className="text-white text-[9px] font-bold">{spectatorBattle.opponentName || 'Opponent'}</span></div>
-                </div>
-              </div>
-            </div>
-          ) : spectatorCoHosts.length > 0 ? (
-            /* Co-host: same as creator — host (1 big) + grid of slots, synced via cohost_layout_sync */
-            <div className="w-full h-full flex">
-              <div className="w-1/2 h-full flex-shrink-0 relative bg-[#13151A] overflow-hidden">
-                <video ref={videoRef} className="absolute inset-0 w-full h-full object-cover" playsInline autoPlay style={{ opacity: hasStream ? 1 : 0, transition: 'opacity 0.4s ease' }} />
-                {!hasStream && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-[#13151A]">
-                    {hostAvatar ? <img src={hostAvatar} alt="" className="w-16 h-16 rounded-full border-2 border-[#C9A96E]/40 object-cover" /> : <div className="w-16 h-16 rounded-full border-2 border-[#C9A96E]/40 bg-[#1C1E24] flex items-center justify-center"><span className="text-[#C9A96E] font-bold text-xl">{hostName.slice(0, 1).toUpperCase()}</span></div>}
-                    <span className="text-white text-[10px] font-bold truncate max-w-full px-1">{hostName}</span>
+          <video
+            ref={videoRef}
+            className="absolute inset-0 w-full h-full object-cover"
+            playsInline
+            autoPlay
+            style={{ opacity: hasStream ? 1 : 0, transition: 'opacity 0.4s ease' }}
+          />
+          {!hasStream && (
+            <div className="w-full h-full flex flex-col items-center justify-center gap-4">
+              <div className="w-24 h-24 rounded-full border-[3px] border-red-500/40 overflow-hidden">
+                {hostAvatar ? (
+                  <img src={hostAvatar} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full bg-[#C9A96E]/20 flex items-center justify-center">
+                    <span className="text-[#C9A96E] font-bold text-3xl">{hostName.slice(0, 1).toUpperCase()}</span>
                   </div>
                 )}
-                <div className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded-full bg-black/60 backdrop-blur-sm"><span className="text-white text-[9px] font-bold">{hostName}</span></div>
               </div>
-              <SpectatorCoHostGrid spectatorCoHosts={spectatorCoHosts} coHostVideoRefs={coHostVideoRefs} hostName={hostName} />
-            </div>
-          ) : (
-            /* Normal live: single host video */
-            <>
-              <video ref={videoRef} className="absolute inset-0 w-full h-full object-cover" playsInline autoPlay style={{ opacity: hasStream ? 1 : 0, transition: 'opacity 0.4s ease' }} />
-              {!hasStream && (
-                <div className="w-full h-full flex flex-col items-center justify-center gap-4">
-                  <div className="w-24 h-24 rounded-full border-[3px] border-red-500/40 overflow-hidden">
-                    {hostAvatar ? <img src={hostAvatar} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full bg-[#C9A96E]/20 flex items-center justify-center"><span className="text-[#C9A96E] font-bold text-3xl">{hostName.slice(0, 1).toUpperCase()}</span></div>}
+              {!user?.id ? (
+                <>
+                  <span className="text-white/80 text-sm text-center">Log in to watch the live stream</span>
+                  <button
+                    type="button"
+                    onClick={() => navigate('/login', { state: { from: `/watch/${effectiveStreamId}` } })}
+                    className="mt-2 px-5 py-2.5 rounded-lg bg-[#C9A96E] text-black font-semibold text-sm"
+                  >
+                    Log in
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-[#C9A96E] border-t-transparent rounded-full animate-spin" />
+                    <span className="text-white/60 text-sm">Connecting to stream...</span>
                   </div>
-                  {!user?.id ? (
-                    <>
-                      <span className="text-white/80 text-sm text-center">Log in to watch the live stream</span>
-                      <button type="button" onClick={() => navigate('/login', { state: { from: `/watch/${effectiveStreamId}` } })} className="mt-2 px-5 py-2.5 rounded-lg bg-[#C9A96E] text-black font-semibold text-sm">Log in</button>
-                    </>
-                  ) : (
-                    <>
-                      <div className="flex items-center gap-2">
-                        <div className="w-4 h-4 border-2 border-[#C9A96E] border-t-transparent rounded-full animate-spin" />
-                        <span className="text-white/60 text-sm">Connecting to stream...</span>
-                      </div>
-                      {showRetryButton && (
-                        <button type="button" onClick={() => { setShowRetryButton(false); retryJoinRoom(); setTimeout(() => { if (!hasStream) setShowRetryButton(true); }, 8000); }} className="mt-2 px-5 py-2 rounded-lg bg-[#C9A96E]/20 border border-[#C9A96E]/40 text-[#C9A96E] text-sm font-medium">Tap to retry</button>
-                      )}
-                    </>
+                  {showRetryButton && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowRetryButton(false);
+                        retryJoinRoom();
+                        setTimeout(() => {
+                          if (!hasStream) setShowRetryButton(true);
+                        }, 8000);
+                      }}
+                      className="mt-2 px-5 py-2 rounded-lg bg-[#C9A96E]/20 border border-[#C9A96E]/40 text-[#C9A96E] text-sm font-medium"
+                    >
+                      Tap to retry
+                    </button>
                   )}
-                </div>
+                </>
               )}
-            </>
+            </div>
           )}
         </div>
 
-        {/* TOP BAR */}
+        {/* CREATOR TOP BAR — only connection to creator page: spectator has access to full creator top bar (avatar, name, likes, Follow, Weekly Ranking, Membership, viewer count, close). Rest is single video + spectator's own bottom bar. */}
         <div className="absolute top-0 left-0 right-0 z-[110] pointer-events-none">
           <div className="px-3" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 6px)' }}>
             <div className="flex items-center justify-between gap-2">
-              {/* Left: Creator info */}
+              {/* Left: Creator info — full creator top bar */}
               <div className="pointer-events-auto flex items-center gap-0 -ml-1 flex-shrink min-w-0">
                 <div
                   className="relative z-10 flex-shrink-0 cursor-pointer active:scale-95 transition-transform"
@@ -1262,7 +1249,7 @@ export default function SpectatorPage() {
                   <AvatarRing src={hostAvatar} alt={hostName} size={44} />
                 </div>
                 <div
-                  className="flex flex-col justify-center -ml-3 pl-5 pr-3 h-8 rounded-full border border-[#C9A96E]/60 bg-[#13151A]/80 min-w-0"
+                  className="flex flex-col justify-center -ml-3 pl-5 pr-16 h-8 rounded-full border border-[#C9A96E]/60 bg-[#13151A]/80 min-w-0 relative"
                   style={{ borderTopLeftRadius: 0, borderBottomLeftRadius: 0, boxShadow: '0 0 8px rgba(201,169,110,0.25)' }}
                 >
                   <span className="text-white text-[11px] font-bold truncate max-w-[100px] leading-tight">{hostName}</span>
@@ -1270,6 +1257,17 @@ export default function SpectatorPage() {
                     <Heart className="w-2.5 h-2.5 text-[#FF2D55]" strokeWidth={2.5} fill="#FF2D55" />
                     <span className="text-white/70 text-[8px] font-bold tabular-nums">{(typeof activeLikes === 'number' && Number.isFinite(activeLikes) ? activeLikes : 0).toLocaleString()}</span>
                   </div>
+                  {/* Follow — spectator sees creator top bar; only creator bottom bar is hidden */}
+                  {!isFollowing && (
+                    <button
+                      type="button"
+                      className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center justify-center gap-0.5 bg-[#FF2D55] rounded-full px-1.5 py-0.5 shadow-sm border border-white/20 w-[58px] h-5 z-20"
+                      onClick={(e) => { e.stopPropagation(); setIsFollowing(true); }}
+                    >
+                      <Plus size={10} className="text-white" strokeWidth={3} />
+                      <span className="text-white text-[9px] font-bold">Follow</span>
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -1312,39 +1310,23 @@ export default function SpectatorPage() {
               </div>
             </div>
 
-            {/* Spectator: no co-host panel. When creator invites, show one-line accept so they join creator panel. */}
-            {/* Weekly Ranking + Membership + Follow — same as creator page */}
-            <div className="flex items-center gap-2 mt-1 ml-1 pointer-events-auto flex-wrap px-1">
+            {/* Second row: Weekly Ranking + Membership — spectator sees same creator top bar */}
+            <div className="flex items-center gap-2 mt-0.5 ml-9 pointer-events-auto relative z-20 flex-wrap">
               <div
                 className="flex items-center gap-1 bg-[#13151A] rounded-full px-2 py-0.5 border border-[#C9A96E]/40 shadow-sm cursor-pointer active:scale-95 transition-transform"
-                onClick={() => setShowRankingPanel(true)}
+                onClick={() => { setShowGiftPanel(false); setShowRankingPanel(true); }}
               >
-                <Trophy className="w-2.5 h-2.5 text-[#C9A96E]" />
-                <span className="text-[#C9A96E] text-[9px] font-bold whitespace-nowrap">Weekly Ranking &gt;</span>
+                <Trophy className="w-3 h-3 text-[#C9A96E]" strokeWidth={2} />
+                <span className="text-[#C9A96E] text-[10px] font-bold">Weekly Ranking</span>
+                <span className="text-[#C9A96E]/70 text-[10px]">&gt;</span>
               </div>
               <div
                 className="flex items-center gap-1 bg-[#13151A] rounded-full px-2 py-0.5 border border-[#C9A96E]/40 shadow-sm cursor-pointer active:scale-95 transition-transform"
-                onClick={() => setShowFanClub(true)}
+                onClick={() => { setShowGiftPanel(false); setShowFanClub(true); }}
               >
-                <Heart className="w-2.5 h-2.5 text-[#C9A96E] fill-[#C9A96E]" />
-                <span className="text-[#C9A96E] text-[9px] font-bold whitespace-nowrap">Membership</span>
+                <Heart className="w-3 h-3 text-[#C9A96E]" strokeWidth={2} fill="#C9A96E" />
+                <span className="text-[#C9A96E] text-[10px] font-bold">Membership</span>
               </div>
-              {!isFollowing && (
-                <button
-                  type="button"
-                  className="flex items-center gap-1 bg-[#FF2D55] rounded-full px-2 py-0.5 shadow-sm border border-white/20 active:scale-95 transition-transform"
-                  onClick={async () => {
-                    setIsFollowing(true);
-                    if (user?.id && hostUserId) {
-                      // In memory-only mode, just update local state
-                      console.log(`[Follow] User ${user.id} followed ${hostUserId}`);
-                    }
-                  }}
-                >
-                  <UserPlus size={10} className="text-white" strokeWidth={3} />
-                  <span className="text-white text-[9px] font-bold">Follow</span>
-                </button>
-              )}
             </div>
           </div>
         </div>
@@ -1404,20 +1386,9 @@ export default function SpectatorPage() {
 
           <button
               type="button"
-              title={joinRequested ? 'Request sent' : 'Co-Host'}
-              disabled={!hostUserId || !user?.id || joinRequested}
-              onClick={() => {
-                if (!user?.id || !hostUserId || joinRequested) return;
-                setJoinRequested(true);
-                const requesterName = user?.username || user?.name || 'User';
-                websocket.send('cohost_request_send', {
-                  hostUserId,
-                  requesterName,
-                  requesterAvatar: user?.avatar || '',
-                });
-                showToast('Co-host request sent!');
-              }}
-              className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg relative flex-shrink-0 active:scale-95 transition-transform disabled:opacity-60"
+              title="Co-Host"
+              onClick={() => setShowCoHostPanel(true)}
+              className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg relative flex-shrink-0 active:scale-95 transition-transform"
             >
               <span className="flex items-center justify-center w-full h-full relative z-[2]">
                 <UserPlus size={20} className="text-[#C9A96E] shrink-0" strokeWidth={2} />
@@ -1456,7 +1427,81 @@ export default function SpectatorPage() {
         {/* GIFT VIDEO OVERLAY */}
         <GiftOverlay key={`gift-${giftKey}`} videoSrc={currentGift?.video ?? null} onEnded={handleGiftEnded} isBattleMode={!!spectatorBattle?.active} />
 
-        {/* Spectator sees same layout as creator (battle or co-host or single); spectatorBattle used for gift overlay. */}
+        {/* Spectator: single video only; spectatorBattle still used for gift overlay. */}
+
+        {/* ═══ CO-HOST PANEL — same as creator's "invite" panel: spectator Accept/Reject when creator invited, or Request to co-host. No 8+1 top panel. */}
+        {showCoHostPanel && (
+          <>
+            <div className="fixed inset-0 z-[99998] bg-black/40 pointer-events-auto" onClick={() => { setShowCoHostPanel(false); }} />
+            <div className="fixed bottom-0 left-0 right-0 z-[99999] pointer-events-auto max-w-[480px] mx-auto">
+              <div className="bg-[#1C1E24]/95 backdrop-blur-md rounded-t-2xl h-[40vh] flex flex-col shadow-2xl border-t border-[#C9A96E]/20 overflow-hidden pb-safe" onClick={(e) => e.stopPropagation()}>
+                <div className="flex justify-center pt-2 pb-1"><div className="w-10 h-1 bg-white/20 rounded-full" /></div>
+                <div className="flex items-center justify-between px-4 py-2">
+                  <div className="flex items-center gap-1.5">
+                    <Crown size={14} className="text-[#C9A96E]" strokeWidth={1.8} />
+                    <span className="text-white font-bold text-[13px]">Co-Host</span>
+                  </div>
+                  <button type="button" title="Close" onClick={() => setShowCoHostPanel(false)} className="p-1 rounded-full active:bg-white/10">
+                    <X size={18} className="text-white/70" />
+                  </button>
+                </div>
+                <div className="flex-1 overflow-y-auto px-4 pb-4 min-h-0 flex flex-col gap-4">
+                  {pendingCoHostInvite ? (
+                    <div className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg bg-white/[0.03] flex-shrink-0">
+                      <div className="w-10 h-10 rounded-full border-2 border-[#C9A96E]/50 overflow-hidden bg-[#13151A] flex-shrink-0">
+                        {pendingCoHostInvite.hostAvatar ? <img src={pendingCoHostInvite.hostAvatar} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[#C9A96E] font-bold">{pendingCoHostInvite.hostName.slice(0, 1).toUpperCase()}</div>}
+                      </div>
+                      <div className="flex-1 min-w-0 text-left">
+                        <p className="text-white text-xs font-semibold truncate">@{pendingCoHostInvite.hostName}</p>
+                        <p className="text-white/40 text-[10px]">wants you to co-host</p>
+                      </div>
+                      <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                        <button type="button" onClick={() => { setPendingCoHostInvite(null); setShowCoHostPanel(false); }} className="px-2 py-1 rounded-full bg-red-500/20 border border-red-500/30 flex items-center gap-0.5 active:scale-95 transition-transform cursor-pointer">
+                          <span className="text-red-400 text-[9px] font-bold">Reject</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!pendingCoHostInvite || !user?.id) return;
+                            const inv = pendingCoHostInvite;
+                            setPendingCoHostInvite(null);
+                            setShowCoHostPanel(false);
+                            websocket.send('cohost_invite_accept', { hostUserId: inv.hostUserId, cohostName: user?.username || user?.name || 'User', cohostAvatar: user?.avatar || '', streamKey: inv.streamKey });
+                            showToast(`Joining @${inv.hostName}'s co-host...`);
+                            if (inv.streamKey) navigate(`/live/${inv.streamKey}?cohost=1`);
+                          }}
+                          className="px-2.5 py-1 rounded-full bg-green-500 flex items-center gap-0.5 active:scale-95 transition-transform cursor-pointer"
+                        >
+                          <span className="text-black text-[9px] font-bold">Join</span>
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center gap-3">
+                      <p className="text-white/70 text-sm text-center">
+                        {joinRequested ? 'Your request has been sent to the creator. Wait for them to accept.' : 'Request the creator to let you co-host their live.'}
+                      </p>
+                      <button
+                        type="button"
+                        disabled={joinRequested || !user?.id || !hostUserId}
+                        onClick={() => {
+                          if (!user?.id || !hostUserId || joinRequested) return;
+                          setJoinRequested(true);
+                          // Wire to creator live: hostUserId = creator from stream; server delivers cohost_request to creator
+                          websocket.send('cohost_request_send', { hostUserId, requesterName: user?.username || user?.name || 'User', requesterAvatar: user?.avatar || '' });
+                          showToast('Co-host request sent!');
+                        }}
+                        className={`w-full py-3 rounded-xl font-bold text-sm ${joinRequested ? 'bg-white/10 text-white/40 cursor-not-allowed' : 'bg-[#C9A96E] text-black active:scale-95'}`}
+                      >
+                        {joinRequested ? 'Request sent' : 'Request to co-host'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </>
+        )}
 
         {/* ═══ SUPER FAN GOAL PANEL (Membership) — same as creator page */}
         {showFanClub && (
@@ -1468,7 +1513,7 @@ export default function SpectatorPage() {
             />
             <div className="fixed bottom-0 left-0 right-0 z-[99999] pointer-events-auto max-w-[480px] mx-auto">
               <div
-                className="bg-[#1C1E24]/95 rounded-t-2xl p-3 pb-safe max-h-[40vh] overflow-y-auto no-scrollbar shadow-2xl w-full border-t border-[#C9A96E]/20"
+                className="bg-[#1C1E24]/95 rounded-t-2xl p-3 pb-safe h-[40vh] overflow-y-auto no-scrollbar shadow-2xl w-full border-t border-[#C9A96E]/20"
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="flex flex-col items-center justify-center pt-3 pb-1 gap-1.5">
@@ -1687,7 +1732,7 @@ export default function SpectatorPage() {
               onClick={() => setShowSharePanel(false)}
             />
             <div className="fixed bottom-0 left-0 right-0 z-[99999] pointer-events-auto max-w-[480px] mx-auto">
-              <div className="bg-[#1C1E24]/95 rounded-t-2xl p-4 pb-safe flex flex-col gap-1 shadow-2xl w-full max-h-[40vh] overflow-y-auto overflow-x-hidden">
+              <div className="bg-[#1C1E24]/95 rounded-t-2xl p-4 pb-safe flex flex-col gap-1 shadow-2xl w-full h-[40vh] overflow-y-auto overflow-x-hidden border-t border-[#C9A96E]/20">
                 <div className="flex justify-center mb-2">
                   <div className="w-10 h-1 bg-white/20 rounded-full" />
                 </div>
@@ -1726,11 +1771,12 @@ export default function SpectatorPage() {
                   </div>
                 </div>
                 <div className="flex-1 overflow-y-scroll overflow-x-hidden min-h-0 px-4 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-white/5 [&::-webkit-scrollbar-thumb]:bg-[#C9A96E]/60 [&::-webkit-scrollbar-thumb]:rounded-full">
+                  {/* Share creator's live: all links use /watch/{creatorStreamId} */}
                   <div className="grid grid-cols-5 gap-y-3 gap-x-1.5 pt-1">
                     {[
                       { name: 'WhatsApp', icon: <MessageCircle size={22} className="text-white" />, action: () => { window.open(`https://wa.me/?text=${encodeURIComponent('Watch this on Elix! ' + `${window.location.origin}/watch/${effectiveStreamId}`)}`); setShowSharePanel(false); } },
                       { name: 'Facebook', icon: <Share2 size={22} className="text-white" />, action: () => { window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(`${window.location.origin}/watch/${effectiveStreamId}`)}`); setShowSharePanel(false); } },
-                      { name: 'Copy Link', icon: <Copy size={22} className="text-white" />, action: () => { navigator.clipboard.writeText(`https://www.elixlive.co.uk/watch/${effectiveStreamId}`); showToast('Link copied!'); setShowSharePanel(false); } },
+                      { name: 'Copy Link', icon: <Copy size={22} className="text-white" />, action: () => { navigator.clipboard.writeText(`${window.location.origin}/watch/${effectiveStreamId}`); showToast('Link copied!'); setShowSharePanel(false); } },
                       { name: 'Promote', icon: <TrendingUp size={22} className="text-white" />, action: () => { setShowSharePanel(false); setShowPromotePanel(true); } },
                       { name: 'Report', icon: <Flag size={22} className="text-red-400" />, isRed: true, action: () => { setIsReportModalOpen(true); setShowSharePanel(false); } },
                     ].map((item) => (

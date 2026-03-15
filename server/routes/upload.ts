@@ -6,6 +6,7 @@
 import { Request, Response } from "express";
 import { getTokenFromRequest, verifyAuthToken } from "./auth";
 import { uploadToBunny, isBunnyConfigured, getBunnyConfigError } from "../services/bunny";
+import { publishVideoUploaded } from "../lib/uploadEvents";
 
 function requireAuth(req: Request, res: Response): { userId: string } | null {
   const token = getTokenFromRequest(req);
@@ -58,6 +59,15 @@ export async function handleUploadVideo(req: Request, res: Response) {
   if (!result.success) {
     return res.status(502).json({ error: result.error || "Upload failed." });
   }
+
+  publishVideoUploaded({
+    path: result.path ?? path,
+    cdnUrl: result.cdnUrl ?? "",
+    userId: auth.userId,
+    contentType,
+    uploadedAt: new Date().toISOString(),
+    sizeBytes: body.length,
+  });
 
   return res.status(201).json({
     path: result.path,

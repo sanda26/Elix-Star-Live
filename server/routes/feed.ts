@@ -23,9 +23,25 @@ const TEST_GROUP_ENGAGEMENT_THRESHOLD = 0.15;
 const EXPANSION_MULTIPLIER = 5;
 
 const feedCache = new Map<string, { data: any[]; ts: number }>();
-const CACHE_TTL = 15_000;
+const CACHE_TTL = 60_000; // 30–120 s feed cache (architecture target); use REDIS_URL for shared cache
 const trendingCache: { data: any[] | null; ts: number } = { data: null, ts: 0 };
 const TRENDING_CACHE_TTL = 30_000;
+
+/** Cursor for infinite-scroll feed: opaque token encoding last item position */
+function encodeCursor(id: string, createdAt: string): string {
+  return Buffer.from(JSON.stringify({ id, createdAt }), "utf8").toString("base64url");
+}
+function decodeCursor(cursor: string): { id: string; createdAt: string } | null {
+  try {
+    const raw = Buffer.from(cursor, "base64url").toString("utf8");
+    const parsed = JSON.parse(raw);
+    if (typeof parsed?.id === "string" && typeof parsed?.createdAt === "string")
+      return { id: parsed.id, createdAt: parsed.createdAt };
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
 
 const viewRateLimit = new Map<string, { count: number; windowStart: number }>();
 const RATE_LIMIT_WINDOW = 60_000;
@@ -300,23 +316,29 @@ function formatVideoForClient(
 
 export async function handleForYouFeed(req: Request, res: Response) {
   try {
-    const page = Math.max(1, parseInt(req.query.page as string) || 1);
     const limit = Math.min(
       50,
       Math.max(1, parseInt(req.query.limit as string) || 20),
     );
+    const cursorRaw = (req.query.cursor as string)?.trim();
+    const useCursor = Boolean(cursorRaw && cursorRaw.length > 0);
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
     const offset = (page - 1) * limit;
 
     // If DB is available, try the full personalized pipeline
     if (db) {
       const userId = await getUserId(req);
 
-      const cacheKey = userId
-        ? `${userId}:${page}:${limit}`
-        : `anon:${page}:${limit}`;
+      const cacheKey = useCursor
+        ? `${userId ?? "anon"}:cursor:${cursorRaw}:${limit}`
+        : `${userId ?? "anon"}:${page}:${limit}`;
       const cached = feedCache.get(cacheKey);
       if (cached && Date.now() - cached.ts < CACHE_TTL) {
-        return res.json({ videos: cached.data, page, limit, source: "cache" });
+        const payload: any = { videos: cached.data, limit, source: "cache" };
+        if (!useCursor) payload.page = page;
+        const meta = (cached as any).next_cursor;
+        if (meta != null) payload.next_cursor = meta;
+        return res.json(payload);
       }
 
       const allDbVideos = await getTrendingVideos(100);
@@ -383,12 +405,36 @@ export async function handleForYouFeed(req: Request, res: Response) {
         ranked.sort((a: any, b: any) => b._feedScore - a._feedScore);
       }
 
-      const paginated = ranked.slice(offset, offset + limit);
+      const createdAt = (v: any) => v.created_at ?? v.createdAt ?? "";
+      let paginated: any[];
+      let next_cursor: string | null = null;
+
+      if (useCursor) {
+        const decoded = decodeCursor(cursorRaw!);
+        const startIndex = decoded
+          ? ranked.findIndex((v: any) => v.id === decoded.id)
+          : -1;
+        const from = startIndex < 0 ? 0 : startIndex + 1;
+        paginated = ranked.slice(from, from + limit);
+        if (paginated.length === limit && from + limit < ranked.length) {
+          const last = paginated[paginated.length - 1];
+          next_cursor = encodeCursor(last.id, createdAt(last));
+        }
+      } else {
+        paginated = ranked.slice(offset, offset + limit);
+        if (paginated.length === limit && offset + limit < ranked.length) {
+          const last = paginated[paginated.length - 1];
+          next_cursor = encodeCursor(last.id, createdAt(last));
+        }
+      }
+
       const formatted = paginated.map((v) =>
         formatVideoForClient(v, likedSet, followingSet),
       );
 
-      feedCache.set(cacheKey, { data: formatted, ts: Date.now() });
+      const cacheEntry: any = { data: formatted, ts: Date.now() };
+      if (next_cursor != null) cacheEntry.next_cursor = next_cursor;
+      feedCache.set(cacheKey, cacheEntry);
 
       if (feedCache.size > 1000) {
         const oldest = [...feedCache.entries()].sort(
@@ -397,22 +443,45 @@ export async function handleForYouFeed(req: Request, res: Response) {
         oldest.slice(0, 500).forEach(([k]) => feedCache.delete(k));
       }
 
-      return res.json({
+      const resPayload: any = {
         videos: formatted,
-        page,
         limit,
-        hasMore: ranked.length > offset + limit,
+        hasMore: !!next_cursor,
         total: ranked.length,
         source: "live",
-      });
+      };
+      if (next_cursor) resPayload.next_cursor = next_cursor;
+      if (!useCursor) resPayload.page = page;
+      return res.json(resPayload);
     }
 
     // ── No DB: serve from in-memory videoStore ──
     const memVideos = getAllVideos(); // already sorted newest-first
     const total = memVideos.length;
-    const paginated = memVideos.slice(offset, offset + limit);
 
-    const formatted = paginated.map((v) => ({
+    let memPaginated: typeof memVideos;
+    let next_cursor: string | null = null;
+
+    if (useCursor) {
+      const decoded = decodeCursor(cursorRaw!);
+      const startIndex = decoded
+        ? memVideos.findIndex((v) => v.id === decoded.id)
+        : -1;
+      const from = startIndex < 0 ? 0 : startIndex + 1;
+      memPaginated = memVideos.slice(from, from + limit);
+      if (memPaginated.length === limit && from + limit < total) {
+        const last = memPaginated[memPaginated.length - 1];
+        next_cursor = encodeCursor(last.id, last.createdAt);
+      }
+    } else {
+      memPaginated = memVideos.slice(offset, offset + limit);
+      if (memPaginated.length === limit && offset + limit < total) {
+        const last = memPaginated[memPaginated.length - 1];
+        next_cursor = encodeCursor(last.id, last.createdAt);
+      }
+    }
+
+    const formatted = memPaginated.map((v) => ({
       id: v.id,
       url: v.url,
       thumbnail: v.thumbnail,
@@ -436,14 +505,16 @@ export async function handleForYouFeed(req: Request, res: Response) {
       createdAt: v.createdAt,
     }));
 
-    res.json({
+    const resPayload: any = {
       videos: formatted,
-      page,
       limit,
-      hasMore: total > offset + limit,
+      hasMore: !!next_cursor,
       total,
       source: "memory",
-    });
+    };
+    if (next_cursor) resPayload.next_cursor = next_cursor;
+    if (!useCursor) resPayload.page = page;
+    res.json(resPayload);
   } catch (err: any) {
     console.error("[ForYouFeed] Error:", err?.message || err);
     res.status(500).json({ error: "Failed to generate feed" });

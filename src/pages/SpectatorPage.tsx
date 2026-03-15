@@ -387,11 +387,15 @@ export default function SpectatorPage() {
           // #region agent log
           fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'spectator-track-subscribed', data: { kind: track.kind }, timestamp: Date.now(), hypothesisId: 'H1' }) }).catch(() => {});
           // #endregion
-          if (!mounted || track.kind !== 'video') return;
-          const el = videoRef.current;
-          if (el) {
-            track.attach(el);
-            setHasStream(true);
+          if (!mounted) return;
+          if (track.kind === 'video') {
+            const el = videoRef.current;
+            if (el) {
+              track.attach(el);
+              setHasStream(true);
+            }
+          } else if (track.kind === 'audio') {
+            track.attach();
           }
         };
 
@@ -409,7 +413,11 @@ export default function SpectatorPage() {
             if (publication.track && publication.isSubscribed) {
               publication.track.attach(videoRef.current!);
               setHasStream(true);
-              return;
+            }
+          }
+          for (const [, publication] of participant.audioTrackPublications) {
+            if (publication.track && publication.isSubscribed) {
+              publication.track.attach();
             }
           }
         }

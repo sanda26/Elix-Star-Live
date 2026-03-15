@@ -504,7 +504,10 @@ export default function VideoFeed() {
               className="h-[100dvh] w-full snap-start relative flex justify-center bg-[#0A0B0E]"
               style={{ scrollSnapAlign: "start", scrollSnapStop: "always" }}
             >
-              <div className="w-full max-w-[480px] h-full relative">
+              <div
+                className="w-full max-w-[480px] relative overflow-hidden"
+                style={{ marginTop: "calc(env(safe-area-inset-top, 0px) + 48px)", marginBottom: "calc(env(safe-area-inset-bottom, 0px) + 68px)", height: "calc(100dvh - env(safe-area-inset-top, 0px) - 48px - env(safe-area-inset-bottom, 0px) - 68px)", borderRadius: "12px" }}
+              >
                 <InlineLiveViewer
                   streamKey={item.stream.streamKey}
                   isActive={activeIndex === index}
@@ -523,7 +526,10 @@ export default function VideoFeed() {
             className="h-[100dvh] w-full snap-start relative flex justify-center bg-[#0A0B0E]"
             style={{ scrollSnapAlign: "start", scrollSnapStop: "always" }}
           >
-            <div className="w-full max-w-[480px] h-full relative">
+            <div
+              className="w-full max-w-[480px] relative overflow-hidden"
+              style={{ marginTop: "calc(env(safe-area-inset-top, 0px) + 48px)", marginBottom: "calc(env(safe-area-inset-bottom, 0px) + 68px)", height: "calc(100dvh - env(safe-area-inset-top, 0px) - 48px - env(safe-area-inset-bottom, 0px) - 68px)", borderRadius: "12px" }}
+            >
               <EnhancedVideoPlayer
                 videoId={item.videoId}
                 isActive={activeIndex === index}

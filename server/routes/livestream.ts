@@ -7,6 +7,7 @@
 import { Request, Response } from 'express';
 import { getTokenFromRequest, verifyAuthToken } from '../routes/auth';
 import { createLiveToken, isLiveKitConfigured, getLiveKitUrl, listActiveRoomsFromLiveKit } from '../services/livekit';
+import { broadcastToFeedSubscribers } from '../feedBroadcast';
 
 // In-memory active streams (key = roomName). Replace with DB when using Postgres.
 // Extended payload so viewers can see the creator's display name.
@@ -98,10 +99,21 @@ export async function handleLiveStart(req: Request, res: Response) {
       ? displayName.toString().slice(0, 80)
       : undefined;
 
+  const startedAt = new Date().toISOString();
   activeStreams.set(roomName, {
     userId: auth.userId,
-    startedAt: new Date().toISOString(),
+    startedAt,
     displayName: safeDisplayName,
+  });
+
+  broadcastToFeedSubscribers('stream_started', {
+    room_id: roomName,
+    stream_key: roomName,
+    user_id: auth.userId,
+    title: safeDisplayName,
+    display_name: safeDisplayName,
+    started_at: startedAt,
+    status: 'live',
   });
 
   try {
@@ -119,6 +131,7 @@ export async function handleLiveStart(req: Request, res: Response) {
     });
   } catch (err) {
     activeStreams.delete(roomName);
+    broadcastToFeedSubscribers('stream_ended', { stream_key: roomName });
     const message = err instanceof Error ? err.message : 'Failed to create token';
     return res.status(500).json({ error: message });
   }
@@ -138,6 +151,7 @@ export async function handleLiveEnd(req: Request, res: Response) {
   }
 
   activeStreams.delete(roomName);
+  broadcastToFeedSubscribers('stream_ended', { stream_key: roomName });
   return res.status(200).json({ ok: true, room: roomName });
 }
 

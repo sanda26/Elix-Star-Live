@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Eye, Radio, RefreshCw } from 'lucide-react';
-import { apiUrl } from '../lib/api';
+import { apiUrl, getWsUrl } from '../lib/api';
+import { useAuthStore } from '../store/useAuthStore';
 
 type LiveCreator = {
   id: string;
@@ -35,19 +36,20 @@ export default function LiveDiscover() {
 
       const mapped: LiveCreator[] = streams
         .filter((s: any) => {
-          const key = s.stream_key || s.room_id || s.id;
+          const key = s.stream_key ?? s.streamKey ?? s.room_id ?? s.roomId ?? s.id;
           return key && !removed.has(key);
         })
         .map((s: any) => {
-          const id = s.stream_key || s.room_id || s.id;
-          const userId = s.user_id || '';
+          const id = s.stream_key ?? s.streamKey ?? s.room_id ?? s.roomId ?? s.id;
+          const userId = s.user_id ?? s.userId ?? s.hostUserId ?? '';
           const label = userId ? String(userId).slice(0, 8) : 'Creator';
+          const name = s.title ?? s.display_name ?? s.displayName ?? label;
           return {
             id,
-            name: s.title || label,
-            viewers: Number(s.viewer_count ?? 0),
+            name,
+            viewers: Number(s.viewer_count ?? s.viewerCount ?? 0),
             thumbnail: userId ? `https://ui-avatars.com/api/?name=${encodeURIComponent(label)}&background=121212&color=C9A96E` : undefined,
-            title: s.title || undefined,
+            title: s.title ?? s.display_name ?? s.displayName ?? undefined,
           };
         });
 
@@ -65,12 +67,76 @@ export default function LiveDiscover() {
     setTimeout(() => removedKeysRef.current.delete(key), 10000);
   }, []);
 
+  const token = useAuthStore((s) => s.session?.access_token) ?? '';
+
   useEffect(() => {
     fetchLiveStreams();
+    const poll = setInterval(fetchLiveStreams, 3_000);
+    return () => clearInterval(poll);
+  }, [fetchLiveStreams]);
 
-    // Realtime updates via polling / WebSocket.
-    return () => {};
-  }, [fetchLiveStreams, removeLiveStream]);
+  // When a creator starts live, show them on this page immediately (same as For You feed); reconnect on close
+  useEffect(() => {
+    if (!token) return;
+    const url = `${getWsUrl()}/live/__feed__?token=${encodeURIComponent(token)}`;
+    let ws: WebSocket | null = null;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    let cancelled = false;
+
+    function connect() {
+      if (cancelled) return;
+      try {
+        ws = new WebSocket(url);
+      } catch {
+        reconnectTimer = setTimeout(connect, 3000);
+        return;
+      }
+      ws.onmessage = (evt) => {
+        try {
+          const msg = JSON.parse(evt.data);
+          const event = msg?.event;
+          const data = msg?.data || {};
+          if (event === 'stream_started') {
+            const key = (data.stream_key ?? data.room_id) as string;
+            if (!key || removedKeysRef.current.has(key)) return;
+            setCreators((prev) => {
+              if (prev.some((c) => c.id === key)) return prev;
+              const userId = (data.user_id ?? '') as string;
+              const label = userId ? String(userId).slice(0, 8) : 'Creator';
+              const name = (data.title ?? data.display_name ?? label) as string;
+              return [
+                {
+                  id: key,
+                  name,
+                  viewers: 0,
+                  thumbnail: userId ? `https://ui-avatars.com/api/?name=${encodeURIComponent(label)}&background=121212&color=C9A96E` : undefined,
+                  title: name,
+                },
+                ...prev,
+              ];
+            });
+          } else if (event === 'stream_ended') {
+            const key = (data.stream_key ?? data.room_id) as string;
+            if (key) removeLiveStream(key);
+          }
+        } catch {
+          /* ignore */
+        }
+      };
+      ws.onclose = () => {
+        ws = null;
+        if (!cancelled) reconnectTimer = setTimeout(connect, 3000);
+      };
+    }
+    connect();
+    return () => {
+      cancelled = true;
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      try {
+        if (ws) ws.close();
+      } catch {}
+    };
+  }, [token, removeLiveStream]);
 
   const formatViewers = (n: number) => {
     if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';

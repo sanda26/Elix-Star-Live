@@ -147,106 +147,61 @@ export const useVideoStore = create<VideoStore>()(
       fetchVideos: async () => {
         set({ loading: true });
         try {
-          const { data, error } = await apiStub
-            .from('videos')
-            .select('*')
-            .eq('is_public', true)
-            .order('created_at', { ascending: false })
-            .limit(50);
-
-          if (error || !data || data.length === 0) {
-            set({ videos: [], likedVideos: [], loading: false });
+          const { videos: apiVideos } = await fetchForYouFeed(1, 50);
+          if (!apiVideos || apiVideos.length === 0) {
+            set({ videos: [], loading: false });
             return;
           }
 
-          const userIds = [...new Set(data.map((v: any) => v.user_id).filter(Boolean))];
-          const profilesMap: Record<string, any> = {};
-          if (userIds.length > 0) {
-            const { data: profiles } = await apiStub
-              .from('profiles')
-              .select('user_id, username, display_name, avatar_url, is_creator, followers_count, following_count')
-              .in('user_id', userIds);
-            if (profiles) {
-              profiles.forEach((p: any) => { profilesMap[p.user_id] = p; });
-            }
-          }
-
-          let likedIds: string[] = [];
-          let followedUserIds: string[] = [];
-          let savedIds: string[] = [];
-          let blockedUserIds: string[] = [];
-          try {
-            const { data: { user } } = await apiStub.auth.getUser();
-            if (user) {
-              const [{ data: likes }, { data: follows }, { data: saves }, { data: blocks }] = await Promise.all([
-                apiStub.from('likes').select('video_id').eq('user_id', user.id),
-                apiStub.from('followers').select('following_id').eq('follower_id', user.id),
-                apiStub.from('saved_videos').select('video_id').eq('user_id', user.id),
-                apiStub.from('blocked_users').select('blocked_id').eq('blocker_id', user.id),
-              ]);
-              likedIds = likes?.map((r: { video_id: string }) => r.video_id) ?? [];
-              followedUserIds = follows?.map((r: { following_id: string }) => r.following_id) ?? [];
-              savedIds = saves?.map((r: { video_id: string }) => r.video_id) ?? [];
-              blockedUserIds = blocks?.map((r: { blocked_id: string }) => r.blocked_id) ?? [];
-            }
-          } catch {}
-          const likedSet = new Set(likedIds);
-          const followedSet = new Set(followedUserIds);
-          const savedSet = new Set(savedIds);
-          const blockedSet = new Set(blockedUserIds);
-
-          const mappedVideos: Video[] = data
-            .filter((v: any) => !blockedSet.has(v.user_id))
-            .map((v: any) => {
-            const p = profilesMap[v.user_id] || {};
-            const displayName = p.display_name || p.username || 'Creator';
-            const uname = p.username || p.display_name || 'creator';
-            
+          const mappedVideos: Video[] = apiVideos.map((v: any) => {
+            const u = v.user || {};
+            const stats = v.stats || {};
+            const music = v.music || { id: 'original', title: 'Original Sound', artist: u.name || 'Creator', duration: '0:15' };
+            const durationStr = typeof v.duration === 'number' ? `0:${String(v.duration).padStart(2, '0')}` : (v.duration || '0:15');
             return {
               id: v.id,
-              url: v.url, 
-              thumbnail: v.thumbnail_url || getVideoPosterUrl(v.url || ''),
-              duration: '0:15',
+              url: v.url,
+              thumbnail: v.thumbnail || getVideoPosterUrl(v.url || ''),
+              duration: durationStr,
               user: {
-                id: v.user_id || 'unknown',
-                username: uname,
-                name: displayName,
-                avatar: p.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}`,
+                id: u.id || 'unknown',
+                username: u.username || u.name || 'creator',
+                name: u.name || u.username || 'Creator',
+                avatar: u.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent((u.name || u.username || 'C').slice(0, 1))}`,
                 level: 1,
-                isVerified: !!p.is_creator,
-                followers: p.followers_count || 0,
-                following: p.following_count || 0
+                isVerified: !!u.isVerified,
+                followers: u.followers ?? 0,
+                following: u.following ?? 0,
+                isFollowing: !!u.isFollowing,
               },
-              description: v.description || v.caption || '',
-              hashtags: (() => {
-                if (v.hashtags && Array.isArray(v.hashtags) && v.hashtags.length > 0) return v.hashtags;
-                const text = v.description || v.caption || '';
-                const matches = text.match(/#[\w\u00C0-\u024F]+/g);
-                return matches ? matches.map((t: string) => t.slice(1)) : [];
-              })(),
-              music: { id: 'original', title: 'Original Sound', artist: displayName, duration: '0:15' },
-              stats: { 
-                views: v.views || 0, 
-                likes: v.likes || 0, 
-                comments: v.comments || 0, 
-                shares: v.shares || 0, 
-                saves: 0 
+              description: v.description || '',
+              hashtags: Array.isArray(v.hashtags) ? v.hashtags : [],
+              music: {
+                id: music.id || 'original',
+                title: music.title || 'Original Sound',
+                artist: music.artist || 'Creator',
+                duration: typeof music.duration === 'string' ? music.duration : '0:15',
               },
-              createdAt: v.created_at,
-              location: v.location || undefined,
-              isLiked: likedSet.has(v.id),
-              isSaved: savedSet.has(v.id),
-              isFollowing: followedSet.has(v.user_id),
+              stats: {
+                views: stats.views ?? 0,
+                likes: stats.likes ?? 0,
+                comments: stats.comments ?? 0,
+                shares: stats.shares ?? 0,
+                saves: stats.saves ?? 0,
+              },
+              createdAt: v.createdAt || v.created_at || new Date().toISOString(),
+              isLiked: !!v.isLiked,
+              isSaved: !!v.isSaved,
+              isFollowing: !!u.isFollowing,
               comments: [],
               quality: 'auto',
-              privacy: v.is_public ? 'public' : 'private',
-              duetWithVideoId: v.duet_with_video_id || undefined
+              privacy: 'public',
             };
           });
 
-          set({ videos: mappedVideos, likedVideos: likedIds, followingUsers: followedUserIds, savedVideos: savedIds, loading: false });
+          set({ videos: mappedVideos, loading: false });
         } catch (err) {
-          set({ loading: false });
+          set({ videos: [], loading: false });
         }
       },
 

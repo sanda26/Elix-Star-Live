@@ -73,6 +73,7 @@ import { handleUploadVideo, handleUploadAvatar } from "./routes/upload";
 import { uploadToBunny, isBunnyConfigured } from "./services/bunny";
 import { getTokenFromRequest, verifyAuthToken } from "./routes/auth";
 import { handleSendGift } from "./routes/gifts";
+import { addFeedSubscriber, removeFeedSubscriber, broadcastToFeedSubscribers } from "./feedBroadcast";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -833,6 +834,29 @@ wss.on("connection", async (ws: WebSocket, req) => {
       return;
     }
 
+    // For You feed subscribers: realtime stream_started / stream_ended only
+    if (roomId === "__feed__" || roomId === "feed") {
+      client = {
+        ws,
+        userId,
+        roomId: "__feed__",
+        username: "Anonymous",
+        displayName: "",
+        avatarUrl: "",
+        level: 1,
+        country: "",
+        connectedAt: new Date(),
+      };
+      clients.set(ws, client);
+      addFeedSubscriber(ws);
+      try {
+        ws.send(JSON.stringify({ event: "connected", data: { feed: true }, timestamp: new Date().toISOString() }));
+      } catch {
+        /* ignore */
+      }
+      return;
+    }
+
     const username = "Anonymous";
     const displayName = "";
     const avatarUrl = "";
@@ -1027,6 +1051,12 @@ wss.on("connection", async (ws: WebSocket, req) => {
     if (!client) return;
 
     try {
+      if (client.roomId === "__feed__") {
+        removeFeedSubscriber(ws);
+        clients.delete(ws);
+        return;
+      }
+
       const room = rooms.get(client.roomId);
       if (room) {
         room.delete(client);
@@ -1079,6 +1109,8 @@ async function checkAndBroadcastStreamEnd(roomId: string, userId: string) {
     host_user_id: userId,
     reason: "host_disconnected",
   });
+  // So For You feed updates in realtime when a creator goes offline
+  broadcastToFeedSubscribers("stream_ended", { stream_key: roomId });
 }
 
  

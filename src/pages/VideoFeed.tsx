@@ -158,6 +158,25 @@ class RoomMonitor {
   }
 }
 
+/** Map stream_started payload from server to LiveStreamCard */
+function streamStartedToCard(data: Record<string, unknown>): LiveStreamCard {
+  const key = (data.stream_key ?? data.room_id ?? "") as string;
+  const userId = (data.user_id ?? "") as string;
+  const title = (data.title ?? data.display_name ?? "") as string;
+  const label = userId ? String(userId).slice(0, 8) : "Creator";
+  return {
+    streamKey: key,
+    name: title || label,
+    avatar: userId
+      ? `https://ui-avatars.com/api/?name=${encodeURIComponent(label)}&background=121212&color=C9A96E`
+      : "",
+    viewers: 0,
+    title: title || undefined,
+    thumbnail: "",
+    userId,
+  };
+}
+
 /* ------------------------------------------------------------------ */
 /*  Component                                                          */
 /* ------------------------------------------------------------------ */
@@ -280,6 +299,63 @@ export default function VideoFeed() {
       monitorRef.current = null;
     };
   }, [fetchLiveStreams, fetchVideos, removeLiveStream, token]);
+
+  /* ---- Feed channel: when a creator starts live, they appear on For You immediately; reconnect on close ---- */
+  useEffect(() => {
+    if (!token) return;
+    const wsUrl = getWsUrl();
+    const url = `${wsUrl}/live/__feed__?token=${encodeURIComponent(token)}`;
+    let ws: WebSocket | null = null;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    let cancelled = false;
+
+    function connect() {
+      if (cancelled) return;
+      try {
+        ws = new WebSocket(url);
+      } catch {
+        reconnectTimer = setTimeout(connect, 3000);
+        return;
+      }
+      ws.onmessage = (evt) => {
+        try {
+          const msg = JSON.parse(evt.data);
+          const event = msg?.event;
+          const data = msg?.data || {};
+          if (event === "stream_started") {
+            const key = (data.stream_key ?? data.room_id) as string;
+            if (!key) return;
+            if (removedKeysRef.current.has(key)) return;
+            setLiveStreams((prev) => {
+              if (prev.some((s) => s.streamKey === key)) return prev;
+              const next = [streamStartedToCard(data), ...prev];
+              const keys = next.map((s) => s.streamKey);
+              queueMicrotask(() => monitorRef.current?.sync(keys));
+              return next;
+            });
+          } else if (event === "stream_ended") {
+            const key = (data.stream_key ?? data.room_id) as string;
+            if (key) removeLiveStream(key);
+          }
+        } catch {
+          /* ignore */
+        }
+      };
+      ws.onerror = () => {};
+      ws.onclose = () => {
+        ws = null;
+        if (!cancelled) reconnectTimer = setTimeout(connect, 3000);
+      };
+    }
+    connect();
+    return () => {
+      cancelled = true;
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      try {
+        if (ws) ws.close();
+      } catch {}
+    };
+  }, [token, removeLiveStream]);
 
   /* ---- Re-fetch when navigating back to /feed ---- */
   useEffect(() => {
@@ -480,23 +556,36 @@ export default function VideoFeed() {
 
       {/* ---- Empty state ---- */}
       {!loading && feedItems.length === 0 && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-          <div className="w-20 h-20 rounded-full bg-[#13151A] border border-white/10 flex items-center justify-center mb-4">
+        <div className="absolute inset-0 flex flex-col items-center justify-center px-6">
+          <div className="w-20 h-20 rounded-full bg-[#13151A] border border-white/10 flex items-center justify-center mb-4 pointer-events-none">
             <span className="text-3xl">📡</span>
           </div>
-          <p className="text-white/60 font-semibold text-base mb-1">
+          <p className="text-white/60 font-semibold text-base mb-1 text-center">
             Nothing here yet
           </p>
-          <p className="text-white/30 text-sm mb-4">Check back soon!</p>
-          <button
-            onClick={() => {
-              fetchLiveStreams();
-              fetchVideos();
-            }}
-            className="px-5 py-2 bg-[#C9A96E]/20 border border-[#C9A96E]/40 rounded-full text-[#C9A96E] text-sm font-bold pointer-events-auto active:scale-95 transition-transform"
-          >
-            Refresh
-          </button>
+          <p className="text-white/30 text-sm mb-4 text-center">
+            Go live or upload a video to get started. Check back soon!
+          </p>
+          <div className="flex flex-wrap gap-2 justify-center">
+            <button
+              type="button"
+              onClick={() => navigate("/live", { replace: true })}
+              className="px-4 py-2 bg-[#C9A96E]/20 border border-[#C9A96E]/40 rounded-full text-[#C9A96E] text-sm font-bold active:scale-95 transition-transform"
+            >
+              Go live
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setLiveLoading(true);
+                fetchLiveStreams();
+                fetchVideos();
+              }}
+              className="px-4 py-2 bg-white/10 border border-white/20 rounded-full text-white/80 text-sm font-bold active:scale-95 transition-transform"
+            >
+              Refresh
+            </button>
+          </div>
         </div>
       )}
     </div>

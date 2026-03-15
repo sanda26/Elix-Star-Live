@@ -269,6 +269,9 @@ export default function SpectatorPage() {
 
   // Fetch host / stream state from backend
   useEffect(() => {
+    // #region agent log
+    fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'spectator-mount', data: { effectiveStreamId, hasUser: Boolean(user?.id), userId: user?.id?.slice(0, 8), pathname: location.pathname }, timestamp: Date.now(), hypothesisId: 'H8' }) }).catch(() => {});
+    // #endregion
     if (!effectiveStreamId) return;
     (async () => {
       try {
@@ -294,6 +297,9 @@ export default function SpectatorPage() {
         }
 
         setStreamIsLive(true);
+        // #region agent log
+        fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'spectator-stream-found', data: { streamKey: stream.stream_key, userId: stream.user_id, viewerCount: stream.viewer_count, totalStreams: streams.length }, timestamp: Date.now(), hypothesisId: 'H9' }) }).catch(() => {});
+        // #endregion
         if (stream.user_id) {
           const uid = String(stream.user_id);
           setHostUserId(uid);
@@ -342,6 +348,9 @@ export default function SpectatorPage() {
   // LiveKit: connect as viewer and attach host video to videoRef
   const liveKitRoomRef = useRef<Room | null>(null);
   useEffect(() => {
+    // #region agent log
+    fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'spectator-livekit-guard', data: { streamIsLive, effectiveStreamId: effectiveStreamId?.slice(0, 12), hasUserId: Boolean(user?.id), retryKey: liveConnectRetryKey }, timestamp: Date.now(), hypothesisId: 'H8' }) }).catch(() => {});
+    // #endregion
     if (!streamIsLive || !effectiveStreamId || !user?.id) return;
 
     let mounted = true;

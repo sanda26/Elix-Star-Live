@@ -178,7 +178,7 @@ app.get("/api/debug-log", (_req, res) => {
 // #endregion
 
 // Health check endpoint (must be before static files)
-const BUILD_VERSION = "2026-03-15T05:55-tdz-fix-deployed";
+const BUILD_VERSION = "2026-03-15T06:05-spectator-diag";
 app.get("/health", (_req, res) => {
   // #region agent log
   fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/index.ts:health',message:'health-check',data:{version:BUILD_VERSION,uptime:process.uptime(),videoCount:getAllVideos().length},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});

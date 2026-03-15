@@ -727,6 +727,40 @@ export default function LiveStream() {
     });
   };
 
+  // ─── INCOMING CO-HOST INVITE (from another creator) ───
+  type PendingCohostInvite = { hostName: string; hostAvatar: string; streamKey: string; hostUserId: string };
+  const [pendingCohostInvite, setPendingCohostInvite] = useState<PendingCohostInvite | null>(null);
+
+  useEffect(() => {
+    if (pendingCohostInvite) {
+      setIsInviteHostOpen(true);
+      const inv = pendingCohostInvite;
+      setLiveCreators(prev => {
+        if (prev.some(c => c.id === inv.hostUserId)) return prev;
+        return [...prev, { id: inv.hostUserId, name: inv.hostName, avatar: inv.hostAvatar, streamKey: inv.streamKey }];
+      });
+    }
+  }, [pendingCohostInvite]);
+
+  const acceptCohostInvite = async () => {
+    if (!pendingCohostInvite || !user?.id) return;
+    const inv = pendingCohostInvite;
+    setPendingCohostInvite(null);
+    const myName = user?.username || user?.name || 'Creator';
+    websocket.send('cohost_invite_accept', {
+      hostUserId: inv.hostUserId,
+      cohostName: myName,
+      cohostAvatar: user?.avatar || '',
+      streamKey: inv.streamKey,
+    });
+    showToast(`Joining @${inv.hostName}'s live as co-host...`);
+    if (inv.streamKey) navigate(`/live/${inv.streamKey}?cohost=1`);
+  };
+
+  const declineCohostInvite = () => {
+    setPendingCohostInvite(null);
+  };
+
   // ─── JOIN REQUEST: creator receives when someone asked to join (from viewer) ───
   type PendingJoinRequest = { requesterName: string; requesterAvatar: string; requesterId: string; type: 'cohost' | 'battle' };
   const [pendingJoinRequest, setPendingJoinRequest] = useState<PendingJoinRequest | null>(null);
@@ -2195,8 +2229,19 @@ export default function LiveStream() {
       }]);
     };
 
+    const handleCohostInvite = (data: any) => {
+      if (!user?.id) return;
+      setPendingCohostInvite({
+        hostName: data.hostName || 'Creator',
+        hostAvatar: data.hostAvatar || '',
+        streamKey: data.streamKey || '',
+        hostUserId: data.hostUserId || '',
+      });
+    };
+
     websocket.on('battle_invite', handleBattleInvite);
     websocket.on('battle_invite_accepted', handleBattleInviteAccepted);
+    websocket.on('cohost_invite', handleCohostInvite);
     websocket.on('cohost_request', handleCohostRequest);
     websocket.on('cohost_request_accepted', handleCohostRequestAccepted);
 
@@ -2241,6 +2286,7 @@ export default function LiveStream() {
       websocket.off('battle_ready_state', handleBattleReadyState);
       websocket.off('battle_invite', handleBattleInvite);
       websocket.off('battle_invite_accepted', handleBattleInviteAccepted);
+      websocket.off('cohost_invite', handleCohostInvite);
       websocket.off('cohost_request', handleCohostRequest);
       websocket.off('cohost_request_accepted', handleCohostRequestAccepted);
       websocket.off('moderation_warning', handleModerationWarning);
@@ -3417,22 +3463,22 @@ export default function LiveStream() {
 
               {/* MVP Circles - outside below battle frame, 3 left + 3 right */}
             <div className="w-full px-3 py-2 flex items-center justify-between flex-none pointer-events-none mt-1 relative z-30">
-              {/* Left side - top gifters for P1, fallback to spectator avatars */}
-              <div className="flex items-center -space-x-1.5 pointer-events-auto" onClick={() => setShowViewerList(true)}>
+              {/* Left side - MVP 1,2,3 for P1 */}
+              <div className="flex items-center gap-1 pointer-events-auto" onClick={() => setShowViewerList(true)}>
                 {[0, 1, 2].map((i) => {
                   const g = getTopGifters('me')[i];
                   const fallbackViewer = activeViewers[i];
                   const src = g?.avatar || fallbackViewer?.avatar || '';
                   const alt = g?.name || fallbackViewer?.displayName || '';
-                  const isMvp = i === 0 && battleWinner && g;
                   return (
-                    <div key={i} style={{ zIndex: 3 - i }} className="relative">
-                      <AvatarRing src={src} alt={alt} size={36} />
-                      {isMvp && (
-                        <div className="absolute -top-2 -right-1 bg-[#C9A96E] rounded-full w-5 h-5 flex items-center justify-center border border-black shadow-lg z-10">
-                          <Crown size={10} className="text-black" />
+                    <div key={i} className="relative flex flex-col items-center">
+                      <div className="relative">
+                        <AvatarRing src={src} alt={alt} size={34} />
+                        <div className={`absolute -top-1.5 -right-1 rounded-full w-4 h-4 flex items-center justify-center border border-black shadow-lg z-10 text-[7px] font-black ${i === 0 ? 'bg-[#C9A96E] text-black' : i === 1 ? 'bg-white/80 text-black' : 'bg-[#CD7F32] text-black'}`}>
+                          {i + 1}
                         </div>
-                      )}
+                      </div>
+                      <span className={`text-[7px] font-bold mt-0.5 ${i === 0 ? 'text-[#C9A96E]' : 'text-white/50'}`}>MVP</span>
                     </div>
                   );
                 })}
@@ -3449,22 +3495,22 @@ export default function LiveStream() {
                 </div>
               )}
 
-              {/* Right side - top gifters for P2, fallback to spectator avatars */}
-              <div className="flex items-center -space-x-1.5 pointer-events-auto" onClick={() => setShowViewerList(true)}>
+              {/* Right side - MVP 1,2,3 for P2 */}
+              <div className="flex items-center gap-1 pointer-events-auto" onClick={() => setShowViewerList(true)}>
                 {[0, 1, 2].map((i) => {
                   const g = getTopGifters('opponent')[i];
                   const fallbackViewer = activeViewers[3 + i];
                   const src = g?.avatar || fallbackViewer?.avatar || '';
                   const alt = g?.name || fallbackViewer?.displayName || '';
-                  const isMvp = i === 0 && battleWinner && g;
                   return (
-                    <div key={i} style={{ zIndex: 3 - i }} className="relative">
-                      <AvatarRing src={src} alt={alt} size={36} />
-                      {isMvp && (
-                        <div className="absolute -top-2 -right-1 bg-[#C9A96E] rounded-full w-5 h-5 flex items-center justify-center border border-black shadow-lg z-10">
-                          <Crown size={10} className="text-black" />
+                    <div key={i} className="relative flex flex-col items-center">
+                      <div className="relative">
+                        <AvatarRing src={src} alt={alt} size={34} />
+                        <div className={`absolute -top-1.5 -right-1 rounded-full w-4 h-4 flex items-center justify-center border border-black shadow-lg z-10 text-[7px] font-black ${i === 0 ? 'bg-[#C9A96E] text-black' : i === 1 ? 'bg-white/80 text-black' : 'bg-[#CD7F32] text-black'}`}>
+                          {i + 1}
                         </div>
-                      )}
+                      </div>
+                      <span className={`text-[7px] font-bold mt-0.5 ${i === 0 ? 'text-[#C9A96E]' : 'text-white/50'}`}>MVP</span>
                     </div>
                   );
                 })}
@@ -3952,12 +3998,12 @@ export default function LiveStream() {
                     <div className="space-y-0.5">
                       {filteredLive.map(creator => {
                         const alreadyInvited = coHosts.some(h => h.userId === creator.id);
+                        const isIncomingCohostInvite = !!(pendingCohostInvite && pendingCohostInvite.hostUserId === creator.id);
                         return (
-                          <button
+                          <div
                             key={creator.id}
-                            onClick={() => !alreadyInvited && coHosts.length < MAX_CO_HOSTS && inviteCoHost({ id: creator.id, name: creator.name, avatar: creator.avatar })}
-                            disabled={alreadyInvited || coHosts.length >= MAX_CO_HOSTS}
-                            className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-white/[0.03] transition-colors active:scale-[0.98]"
+                            onClick={() => !isIncomingCohostInvite && !alreadyInvited && coHosts.length < MAX_CO_HOSTS && inviteCoHost({ id: creator.id, name: creator.name, avatar: creator.avatar })}
+                            className={`w-full flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-white/[0.03] transition-colors active:scale-[0.98] cursor-pointer ${alreadyInvited || coHosts.length >= MAX_CO_HOSTS ? 'opacity-70' : ''}`}
                           >
                             <div className="relative flex-shrink-0">
                               <AvatarRing src={creator.avatar} alt={creator.name} size={30} />
@@ -3967,7 +4013,24 @@ export default function LiveStream() {
                               <p className="text-white text-xs font-semibold truncate">{creator.name}</p>
                               <p className="text-red-400/70 text-[10px] truncate flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-red-500 inline-block" /> Live streaming</p>
                             </div>
-                            {alreadyInvited ? (
+                            {isIncomingCohostInvite ? (
+                              <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                                <button
+                                  type="button"
+                                  className="px-2 py-1 rounded-full bg-red-500/20 border border-red-500/30 flex items-center gap-0.5 active:scale-95 transition-transform cursor-pointer"
+                                  onClick={() => declineCohostInvite()}
+                                >
+                                  <span className="text-red-400 text-[9px] font-bold">Reject</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  className="px-2.5 py-1 rounded-full bg-green-500 flex items-center gap-0.5 active:scale-95 transition-transform cursor-pointer"
+                                  onClick={() => acceptCohostInvite()}
+                                >
+                                  <span className="text-black text-[9px] font-bold">Join</span>
+                                </button>
+                              </div>
+                            ) : alreadyInvited ? (
                               <div className="px-2 py-1 rounded-full bg-white/5 border border-white/20 flex items-center gap-0.5 flex-shrink-0">
                                 <span className="text-white/50 text-[9px] font-bold">Invited</span>
                               </div>
@@ -3977,7 +4040,7 @@ export default function LiveStream() {
                                 <span className="text-black text-[9px] font-bold">Invite</span>
                               </div>
                             )}
-                          </button>
+                          </div>
                         );
                       })}
                     </div>

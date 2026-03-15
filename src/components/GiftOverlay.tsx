@@ -1,30 +1,81 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useSettingsStore } from '../store/useSettingsStore';
+
+const videoCache = new Map<string, string>();
+
+function preloadVideo(src: string): Promise<string> {
+  if (videoCache.has(src)) return Promise.resolve(videoCache.get(src)!);
+  return new Promise((resolve, reject) => {
+    const vid = document.createElement('video');
+    vid.preload = 'auto';
+    vid.muted = true;
+    vid.playsInline = true;
+    vid.oncanplaythrough = () => {
+      videoCache.set(src, src);
+      resolve(src);
+    };
+    vid.onerror = () => reject(new Error('preload failed'));
+    vid.src = src;
+    vid.load();
+  });
+}
 
 interface GiftOverlayProps {
   videoSrc: string | null;
+  previewSrc?: string | null;
   onEnded: () => void;
   isBattleMode?: boolean;
 }
 
-export function GiftOverlay({ videoSrc, onEnded, isBattleMode: _isBattleMode }: GiftOverlayProps) {
+export function GiftOverlay({ videoSrc, previewSrc, onEnded, isBattleMode: _isBattleMode }: GiftOverlayProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const { muteAllSounds } = useSettingsStore();
   const safetyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onEndedRef = useRef(onEnded);
   onEndedRef.current = onEnded;
 
+  const [phase, setPhase] = useState<'preview' | 'video' | 'image'>('preview');
+  const [videoReady, setVideoReady] = useState(false);
+
   useEffect(() => {
     if (safetyTimerRef.current) clearTimeout(safetyTimerRef.current);
     if (!videoSrc) return;
+
+    setVideoReady(false);
+    setPhase('preview');
+
     safetyTimerRef.current = setTimeout(() => { onEndedRef.current(); }, 15000);
+
+    const path = videoSrc.split('?')[0].toLowerCase();
+    const isVideo = path.endsWith('.mp4') || path.endsWith('.webm');
+
+    if (isVideo) {
+      if (videoCache.has(videoSrc)) {
+        setVideoReady(true);
+        setPhase('video');
+      } else {
+        preloadVideo(videoSrc)
+          .then(() => { setVideoReady(true); setPhase('video'); })
+          .catch(() => {
+            if (previewSrc) {
+              setTimeout(() => onEndedRef.current(), 2000);
+            } else {
+              onEndedRef.current();
+            }
+          });
+      }
+    } else {
+      setPhase('image');
+    }
+
     return () => { if (safetyTimerRef.current) clearTimeout(safetyTimerRef.current); };
-  }, [videoSrc]);
+  }, [videoSrc, previewSrc]);
 
   if (!videoSrc) return null;
-  const path = videoSrc.split('?')[0].toLowerCase();
-  const isImage = /\.(png|jpe?g|gif|webp|svg)(\s|$)/.test(path);
-  const isVideo = !isImage && (path.includes('.webm') || path.includes('.mp4'));
+
+  const showPreview = phase === 'preview' && previewSrc && !videoReady;
+  const showVideo = phase === 'video' && videoReady;
+  const showImage = phase === 'image';
 
   return (
     <div
@@ -36,7 +87,15 @@ export function GiftOverlay({ videoSrc, onEnded, isBattleMode: _isBattleMode }: 
         maskImage: 'linear-gradient(to top, black 0%, black 60%, transparent 100%)',
       }}
     >
-      {isVideo ? (
+      {showPreview && (
+        <img
+          src={previewSrc!}
+          alt="Gift preview"
+          className="absolute inset-0 w-full h-full object-cover opacity-90 drop-shadow-2xl animate-pulse"
+        />
+      )}
+
+      {showVideo && (
         <video
           ref={videoRef}
           key={videoSrc}
@@ -47,7 +106,6 @@ export function GiftOverlay({ videoSrc, onEnded, isBattleMode: _isBattleMode }: 
           muted
           preload="auto"
           onLoadedData={() => {
-            // Unmute if global sounds are enabled
             if (videoRef.current && !muteAllSounds) videoRef.current.muted = false;
           }}
           onEnded={() => {
@@ -59,7 +117,9 @@ export function GiftOverlay({ videoSrc, onEnded, isBattleMode: _isBattleMode }: 
             onEnded();
           }}
         />
-      ) : (
+      )}
+
+      {showImage && (
         <img
           src={videoSrc}
           alt="Gift"

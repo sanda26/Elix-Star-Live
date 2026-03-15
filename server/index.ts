@@ -32,6 +32,7 @@ import {
 import {
   addVideo,
   getVideo,
+  addVideo,
   getAllVideos,
   getVideosByUser,
   deleteVideo,
@@ -1674,6 +1675,74 @@ try {
       replaceVideos(dbVideos);
       logger.info({ count: dbVideos.length }, "Videos loaded from database");
     }
+
+    if (getAllVideos().length === 0) {
+      const sampleVideos: Video[] = [
+        {
+          id: "seed_1",
+          url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+          thumbnail: "https://storage.googleapis.com/gtv-videos-bucket/sample/images/ForBiggerBlazes.jpg",
+          duration: 15,
+          userId: "system",
+          username: "Elix",
+          displayName: "Elix Star",
+          avatar: "",
+          description: "Welcome to Elix Star Live! Go live and your stream will appear here.",
+          hashtags: ["welcome", "elixstar"],
+          music: null,
+          views: 120,
+          likes: 45,
+          comments: 3,
+          shares: 2,
+          saves: 1,
+          createdAt: new Date().toISOString(),
+          privacy: "public",
+        },
+        {
+          id: "seed_2",
+          url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
+          thumbnail: "https://storage.googleapis.com/gtv-videos-bucket/sample/images/ForBiggerEscapes.jpg",
+          duration: 15,
+          userId: "system",
+          username: "Elix",
+          displayName: "Elix Star",
+          avatar: "",
+          description: "Upload your first video or tap Go Live to start streaming!",
+          hashtags: ["getstarted", "live"],
+          music: null,
+          views: 85,
+          likes: 32,
+          comments: 1,
+          shares: 0,
+          saves: 0,
+          createdAt: new Date(Date.now() - 60000).toISOString(),
+          privacy: "public",
+        },
+        {
+          id: "seed_3",
+          url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4",
+          thumbnail: "https://storage.googleapis.com/gtv-videos-bucket/sample/images/ForBiggerFun.jpg",
+          duration: 60,
+          userId: "system",
+          username: "Elix",
+          displayName: "Elix Star",
+          avatar: "",
+          description: "Send gifts, go live, connect with creators around the world",
+          hashtags: ["gifts", "creators", "live"],
+          music: null,
+          views: 200,
+          likes: 78,
+          comments: 5,
+          shares: 3,
+          saves: 2,
+          createdAt: new Date(Date.now() - 120000).toISOString(),
+          privacy: "public",
+        },
+      ];
+      for (const v of sampleVideos) addVideo(v);
+      logger.info({ count: sampleVideos.length }, "Seed videos added (no DB videos found)");
+    }
+
     logger.info({ port: PORT }, "Server running successfully");
   });
 } catch (error) {

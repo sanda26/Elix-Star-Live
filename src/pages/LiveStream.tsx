@@ -122,7 +122,7 @@ export default function LiveStream() {
   
   const [showRankingPanel, setShowRankingPanel] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
-  const [currentGift, setCurrentGift] = useState<string | null>(null);
+  const [currentGift, setCurrentGift] = useState<{ video: string; preview: string } | null>(null);
   const [messages, setMessages] = useState<LiveMessage[]>(() => []);
   const [coinBalance, setCoinBalance] = useState(0);
   const [inputValue, setInputValue] = useState('');
@@ -1844,7 +1844,12 @@ export default function LiveStream() {
           const videoUrl = (rawVideo.startsWith('http://') || rawVideo.startsWith('https://'))
             ? rawVideo
             : resolveGiftAssetUrl(rawVideo.startsWith('/') ? rawVideo : `/${rawVideo}`);
-          setGiftQueue(prev => [...prev, videoUrl]);
+          const previewUrl = giftDef.preview
+            ? ((giftDef.preview.startsWith('http://') || giftDef.preview.startsWith('https://'))
+                ? giftDef.preview
+                : resolveGiftAssetUrl(giftDef.preview.startsWith('/') ? giftDef.preview : `/${giftDef.preview}`))
+            : videoUrl;
+          setGiftQueue(prev => [...prev, { video: videoUrl, preview: previewUrl }]);
         }
       }
     };
@@ -2152,7 +2157,7 @@ export default function LiveStream() {
     };
   }, [isBroadcast, user?.id, effectiveStreamId, navigate]);
 
-  const [giftQueue, setGiftQueue] = useState<string[]>([]);
+  const [giftQueue, setGiftQueue] = useState<{ video: string; preview: string }[]>([]);
   const [giftBanner, setGiftBanner] = useState<{ username: string; giftName: string; icon: string } | null>(null);
   const giftBannerTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isPlayingGift, setIsPlayingGift] = useState(false);
@@ -2184,20 +2189,17 @@ export default function LiveStream() {
     setActiveFaceARGift(next);
   };
 
-  // Queue Processing
   useEffect(() => {
     if (!isPlayingGift && giftQueue.length > 0) {
-        const nextGift = giftQueue[0];
-        setCurrentGift(nextGift);
-        setIsPlayingGift(true);
-        setGiftQueue(prev => prev.slice(1));
+      setCurrentGift(giftQueue[0]);
+      setIsPlayingGift(true);
+      setGiftQueue(prev => prev.slice(1));
     }
   }, [giftQueue, isPlayingGift]);
 
-  // Handle gift animation end
   const handleGiftEnded = () => {
-      setCurrentGift(null);
-      setIsPlayingGift(false);
+    setCurrentGift(null);
+    setIsPlayingGift(false);
   };
 
   const handleSendGift = async (gift: typeof GIFTS[0]) => {
@@ -2210,7 +2212,12 @@ export default function LiveStream() {
         const videoUrl = (gift.video.startsWith('http://') || gift.video.startsWith('https://'))
           ? gift.video
           : resolveGiftAssetUrl(gift.video.startsWith('/') ? gift.video : `/${gift.video}`);
-        if (videoUrl) setGiftQueue(prev => [...prev, videoUrl]);
+        const previewUrl = gift.preview
+          ? ((gift.preview.startsWith('http://') || gift.preview.startsWith('https://'))
+              ? gift.preview
+              : resolveGiftAssetUrl(gift.preview.startsWith('/') ? gift.preview : `/${gift.preview}`))
+          : videoUrl;
+        if (videoUrl) setGiftQueue(prev => [...prev, { video: videoUrl, preview: previewUrl }]);
       }
       
       let newLevel = userLevel;
@@ -2416,12 +2423,16 @@ export default function LiveStream() {
         maybeTriggerFaceARGift(lastSentGift);
       }
       
-      // Always queue the video animation for the sender/viewer to see immediate feedback (remote only)
       if (lastSentGift.video && lastSentGift.video.trim()) {
         const videoUrl = (lastSentGift.video.startsWith('http://') || lastSentGift.video.startsWith('https://'))
           ? lastSentGift.video
           : resolveGiftAssetUrl(lastSentGift.video.startsWith('/') ? lastSentGift.video : `/${lastSentGift.video}`);
-        if (videoUrl) setGiftQueue(prev => [...prev, videoUrl]);
+        const previewUrl = lastSentGift.preview
+          ? ((lastSentGift.preview.startsWith('http://') || lastSentGift.preview.startsWith('https://'))
+              ? lastSentGift.preview
+              : resolveGiftAssetUrl(lastSentGift.preview.startsWith('/') ? lastSentGift.preview : `/${lastSentGift.preview}`))
+          : videoUrl;
+        if (videoUrl) setGiftQueue(prev => [...prev, { video: videoUrl, preview: previewUrl }]);
       }
       
       // Add to chat
@@ -4816,7 +4827,8 @@ export default function LiveStream() {
 
       {/* Full-screen Video Effect Overlay (Behind controls but above video) */}
       <GiftOverlay 
-        videoSrc={currentGift} 
+        videoSrc={currentGift?.video ?? null}
+        previewSrc={currentGift?.preview ?? null}
         onEnded={handleGiftEnded} 
         isBattleMode={isBattleMode}
       />

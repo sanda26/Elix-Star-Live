@@ -227,8 +227,12 @@ export default function VideoFeed() {
         ? (body.streams as RawStream[])
         : [];
 
-      // When API returns [], still merge with prev so streams added by stream_started
-      // don't disappear when the poll runs before LiveKit has the room
+      if (streams.length === 0) {
+        setLiveStreams([]);
+        setLiveLoading(false);
+        return;
+      }
+
       const removed = removedKeysRef.current;
       const mapped: LiveStreamCard[] = streams
         .filter((s: RawStream) => {

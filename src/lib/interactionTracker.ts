@@ -148,33 +148,18 @@ export async function trackFollow(targetUserId: string, videoId?: string): Promi
   }
 }
 
-export async function fetchForYouFeed(
-  pageOrCursor: number | string = 1,
-  limit: number = 20
-): Promise<{
+export async function fetchForYouFeed(page: number = 1, limit: number = 20): Promise<{
   videos: any[];
-  page?: number;
+  page: number;
   limit: number;
   hasMore: boolean;
   total: number;
   source: string;
-  next_cursor?: string | null;
 }> {
   try {
-    const isCursor = typeof pageOrCursor === 'string' && pageOrCursor.length > 0;
-    const params = new URLSearchParams({ limit: String(limit) });
-    if (isCursor) params.set('cursor', pageOrCursor as string);
-    else params.set('page', String(pageOrCursor));
-    return await apiGet(`/api/feed/foryou?${params.toString()}`);
+    return await apiGet(`/api/feed/foryou?page=${page}&limit=${limit}`);
   } catch {
-    return {
-      videos: [],
-      page: typeof pageOrCursor === 'number' ? pageOrCursor : undefined,
-      limit,
-      hasMore: false,
-      total: 0,
-      source: 'error',
-    };
+    return { videos: [], page, limit, hasMore: false, total: 0, source: 'error' };
   }
 }
 

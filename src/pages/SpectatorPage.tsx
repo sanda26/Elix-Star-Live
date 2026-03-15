@@ -260,6 +260,11 @@ export default function SpectatorPage() {
   // BATTLE STATE (spectator sees host's battle status)
   // ═══════════════════════════════════════════════════
   const [spectatorBattle, setSpectatorBattle] = useState<{ active: boolean; hostScore: number; opponentScore: number; timeLeft: number; opponentName?: string; winner?: string } | null>(null);
+  const formatTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  };
 
   // ═══════════════════════════════════════════════════
   // CO-HOST STATE (synced from host so spectators see same layout)
@@ -465,10 +470,14 @@ export default function SpectatorPage() {
     const room = new Room({ adaptiveStream: true });
     liveKitRoomRef.current = room;
     const isCoHost = isCoHostFromUrl;
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SpectatorPage.tsx:LiveKit effect',message:'spectator LiveKit connect',data:{isCoHost,effectiveStreamId},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+    // #endregion
 
     (async () => {
       try {
-        const publishParam = isCoHost ? '&publish=1' : '';
+        // When watching (no ?cohost=1): subscribe-only token, never request or use microphone — listen only.
+        const publishParam = isCoHost ? '&publish=1' : '&publish=0';
         const res = await fetch(apiUrl(`/api/live/token?room=${encodeURIComponent(effectiveStreamId)}${publishParam}`), { method: 'GET', credentials: 'include' });
         if (!res.ok || !mounted) {
           if (res.status === 401) showToast('Please log in to watch');
@@ -485,25 +494,38 @@ export default function SpectatorPage() {
         }
 
         const hostId = hostUserIdRef.current || effectiveStreamId;
+        let mainVideoAttached = false;
+        let myIdentity = '';
         const onTrackSubscribed = (track: import('livekit-client').RemoteTrack, publication?: import('livekit-client').TrackPublication, participant?: import('livekit-client').RemoteParticipant) => {
           if (!mounted) return;
+          const identity = participant?.identity || '';
+          const isSelf = identity === myIdentity;
           if (track.kind === 'audio') {
-            // Spectator only hears the creator/host — do not play other participants' audio
-            const identity = participant?.identity || '';
             const isHost = identity === hostId || identity === effectiveStreamId;
+            // Never attach/play remote audio if it's our own track (e.g. host watching own stream in another tab)
+            if (isSelf) {
+              // #region agent log
+              fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SpectatorPage.tsx:onTrackSubscribed audio',message:'skip attach self audio',data:{identity,myIdentity},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+              // #endregion
+              return;
+            }
             if (isHost) track.attach();
             return;
           }
-          if (track.kind === 'video' && participant) {
-            const identity = participant.identity || '';
+          if (track.kind === 'video' && participant && videoRef.current) {
             const isHost = identity === hostId || identity === effectiveStreamId;
-            if (isHost && videoRef.current) {
+            if (isSelf) return;
+            if (isHost) {
               track.attach(videoRef.current);
+              mainVideoAttached = true;
+              setHasStream(true);
+            } else if (!mainVideoAttached) {
+              track.attach(videoRef.current);
+              mainVideoAttached = true;
               setHasStream(true);
             } else {
               const el = coHostVideoRefs.current.get(identity);
               if (el) track.attach(el);
-              else setHasStream(true);
             }
           }
         };
@@ -516,18 +538,28 @@ export default function SpectatorPage() {
           room.disconnect();
           return;
         }
+        myIdentity = room.localParticipant?.identity ?? '';
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SpectatorPage.tsx:after connect',message:'local identity',data:{myIdentity,hostId},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+        // #endregion
         for (const [, participant] of room.remoteParticipants) {
           const identity = participant.identity || '';
           const isHost = identity === hostId || identity === effectiveStreamId;
+          const isSelf = identity === myIdentity;
+          if (isSelf) continue;
           for (const [, publication] of participant.videoTrackPublications) {
-            if (publication.track && publication.isSubscribed) {
-              if (isHost && videoRef.current) {
+            if (publication.track && publication.isSubscribed && videoRef.current) {
+              if (isHost) {
                 publication.track.attach(videoRef.current);
+                mainVideoAttached = true;
+                setHasStream(true);
+              } else if (!mainVideoAttached) {
+                publication.track.attach(videoRef.current);
+                mainVideoAttached = true;
                 setHasStream(true);
               } else {
                 const el = coHostVideoRefs.current.get(identity);
                 if (el) publication.track.attach(el);
-                else setHasStream(true);
               }
             }
           }
@@ -536,8 +568,10 @@ export default function SpectatorPage() {
           }
         }
 
-        // Co-host: publish camera + microphone so the host sees and hears us
-        if (isCoHost && mounted) {
+        // Co-host only: publish camera + microphone. When only watching we never request mic — listen only.
+        if (!isCoHost) {
+          // Watch-only: no getUserMedia, no publish — spectator only listens to host audio.
+        } else if (mounted) {
           try {
             const stream = await navigator.mediaDevices.getUserMedia({
               video: { facingMode: 'user' },
@@ -1174,63 +1208,104 @@ export default function SpectatorPage() {
     <div className="fixed inset-0 bg-[#0A0B0E] flex justify-center">
       <div className="relative w-full max-w-[480px] h-full bg-[#13151A] overflow-hidden flex flex-col">
 
-        {/* Spectator only watches: single creator video. No battle, no co-host layout. */}
-        <div className="absolute inset-0 z-0 bg-[#13151A]">
-          <video
-            ref={videoRef}
-            className="absolute inset-0 w-full h-full object-cover"
-            playsInline
-            autoPlay
-            style={{ opacity: hasStream ? 1 : 0, transition: 'opacity 0.4s ease' }}
-          />
-          {!hasStream && (
-            <div className="w-full h-full flex flex-col items-center justify-center gap-4">
-              <div className="w-24 h-24 rounded-full border-[3px] border-red-500/40 overflow-hidden">
-                {hostAvatar ? (
-                  <img src={hostAvatar} alt="" className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full bg-[#C9A96E]/20 flex items-center justify-center">
-                    <span className="text-[#C9A96E] font-bold text-3xl">{hostName.slice(0, 1).toUpperCase()}</span>
-                  </div>
-                )}
-              </div>
-              {!user?.id ? (
-                <>
-                  <span className="text-white/80 text-sm text-center">Log in to watch the live stream</span>
-                  <button
-                    type="button"
-                    onClick={() => navigate('/login', { state: { from: `/watch/${effectiveStreamId}` } })}
-                    className="mt-2 px-5 py-2.5 rounded-lg bg-[#C9A96E] text-black font-semibold text-sm"
-                  >
-                    Log in
-                  </button>
-                </>
-              ) : (
-                <>
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 border-2 border-[#C9A96E] border-t-transparent rounded-full animate-spin" />
-                    <span className="text-white/60 text-sm">Connecting to stream...</span>
-                  </div>
-                  {showRetryButton && (
+        {/* Video container: between top bar and bottom bar. Co-host = host + grid (same as creator). Battle = host + battle overlay. */}
+        <div
+          className={`absolute left-0 right-0 z-0 bg-[#13151A] flex ${spectatorCoHosts.length > 0 ? 'flex-row' : ''}`}
+          style={{
+            top: 'calc(env(safe-area-inset-top, 0px) + 66px)',
+            bottom: 'calc(18mm + 56px + env(safe-area-inset-bottom, 0px))',
+          }}
+        >
+          <div className={spectatorCoHosts.length > 0 ? 'w-1/2 min-w-0 relative flex-1' : 'absolute inset-0'}>
+            <video
+              ref={videoRef}
+              className="absolute inset-0 w-full h-full object-cover"
+              playsInline
+              autoPlay
+              style={{ opacity: hasStream ? 1 : 0, transition: 'opacity 0.4s ease' }}
+            />
+            {!hasStream && (
+              <div className="w-full h-full flex flex-col items-center justify-center gap-4">
+                <div className="w-24 h-24 rounded-full border-[3px] border-red-500/40 overflow-hidden">
+                  {hostAvatar ? (
+                    <img src={hostAvatar} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full bg-[#C9A96E]/20 flex items-center justify-center">
+                      <span className="text-[#C9A96E] font-bold text-3xl">{hostName.slice(0, 1).toUpperCase()}</span>
+                    </div>
+                  )}
+                </div>
+                {!user?.id ? (
+                  <>
+                    <span className="text-white/80 text-sm text-center">Log in to watch the live stream</span>
                     <button
                       type="button"
-                      onClick={() => {
-                        setShowRetryButton(false);
-                        retryJoinRoom();
-                        setTimeout(() => {
-                          if (!hasStream) setShowRetryButton(true);
-                        }, 8000);
-                      }}
-                      className="mt-2 px-5 py-2 rounded-lg bg-[#C9A96E]/20 border border-[#C9A96E]/40 text-[#C9A96E] text-sm font-medium"
+                      onClick={() => navigate('/login', { state: { from: `/watch/${effectiveStreamId}` } })}
+                      className="mt-2 px-5 py-2.5 rounded-lg bg-[#C9A96E] text-black font-semibold text-sm"
                     >
-                      Tap to retry
+                      Log in
                     </button>
-                  )}
-                </>
-              )}
-            </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 border-2 border-[#C9A96E] border-t-transparent rounded-full animate-spin" />
+                      <span className="text-white/60 text-sm">Connecting to stream...</span>
+                    </div>
+                    {showRetryButton && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowRetryButton(false);
+                          retryJoinRoom();
+                          setTimeout(() => {
+                            if (!hasStream) setShowRetryButton(true);
+                          }, 8000);
+                        }}
+                        className="mt-2 px-5 py-2 rounded-lg bg-[#C9A96E]/20 border border-[#C9A96E]/40 text-[#C9A96E] text-sm font-medium"
+                      >
+                        Tap to retry
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+          {spectatorCoHosts.length > 0 && (
+            <SpectatorCoHostGrid
+              spectatorCoHosts={spectatorCoHosts}
+              coHostVideoRefs={coHostVideoRefs}
+              hostName={hostName}
+            />
           )}
         </div>
+
+        {/* Battle overlay: when creator is in battle, show timer + scores so spectator sees battle */}
+        {spectatorBattle?.active && (
+          <div
+            className="absolute left-0 right-0 z-[80] pointer-events-none flex flex-col"
+            style={{
+              top: 'calc(env(safe-area-inset-top, 0px) + 66px)',
+              bottom: 'calc(18mm + 56px + env(safe-area-inset-bottom, 0px))',
+            }}
+          >
+            <div className="flex justify-center pt-2">
+              <div className="flex items-center gap-2 bg-black/50 backdrop-blur-md rounded-full px-3 py-1.5 border border-white/10">
+                <span className="text-white/90 text-[10px] font-black tabular-nums">{formatTime(spectatorBattle.timeLeft)}</span>
+                <span className="text-white/50 text-[8px]">VS</span>
+                <span className="text-white/90 text-[10px] font-bold truncate max-w-[80px]">{spectatorBattle.opponentName || 'Opponent'}</span>
+              </div>
+            </div>
+            <div className="flex-1 min-h-0 flex items-end justify-center pb-2">
+              <div className="flex items-center gap-4 bg-black/50 backdrop-blur-md rounded-lg px-4 py-2 border border-white/10">
+                <span className="text-[#DC143C] text-sm font-black tabular-nums">{spectatorBattle.hostScore}</span>
+                <span className="text-white/50 text-xs">–</span>
+                <span className="text-[#1E90FF] text-sm font-black tabular-nums">{spectatorBattle.opponentScore}</span>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* CREATOR TOP BAR — only connection to creator page: spectator has access to full creator top bar (avatar, name, likes, Follow, Weekly Ranking, Membership, viewer count, close). Rest is single video + spectator's own bottom bar. */}
         <div className="absolute top-0 left-0 right-0 z-[110] pointer-events-none">
@@ -1355,8 +1430,8 @@ export default function SpectatorPage() {
           </div>
         )}
 
-        {/* BOTTOM BAR — buttons in front of video, lifted 18mm up from bottom — hidden during gift animation */}
-        <div className={`fixed left-0 right-0 z-[120] pointer-events-auto flex justify-center ${currentGift ? 'hidden' : ''}`} style={{ bottom: '18mm' }}>
+        {/* BOTTOM BAR — buttons in front of video and gift overlay, lifted 18mm up from bottom */}
+        <div className="fixed left-0 right-0 z-[120] pointer-events-auto flex justify-center" style={{ bottom: '18mm' }}>
           <div className="w-full max-w-[480px] px-3 pb-[max(8px,env(safe-area-inset-bottom))] pt-2 bg-transparent">
           <div className="flex items-center gap-2">
           <form
@@ -1382,7 +1457,8 @@ export default function SpectatorPage() {
 
           <button
               type="button"
-              title="Co-Host"
+              title="Request to co-host"
+              aria-label="Request to co-host"
               onClick={() => setShowCoHostPanel(true)}
               className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg relative flex-shrink-0 active:scale-95 transition-transform"
             >

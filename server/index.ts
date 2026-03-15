@@ -688,6 +688,7 @@ interface BattleSession {
 
 const battles = new Map<string, BattleSession>(); // roomId -> BattleSession
 const userBattleRoom = new Map<string, string>(); // userId -> roomId (which battle they're in)
+const lastCohostLayoutByRoom = new Map<string, { coHosts: unknown[]; hostUserId: string }>();
 
 function createBattle(
   hostRoomId: string,
@@ -1001,6 +1002,15 @@ wss.on("connection", async (ws: WebSocket, req) => {
     sendToClient(client, "room_state", {
       viewers,
     });
+
+    // So spectator sees in real time what creator is doing: send current co-host layout if any
+    const lastCohost = lastCohostLayoutByRoom.get(roomId);
+    if (lastCohost && lastCohost.coHosts.length > 0) {
+      sendToClient(client, "cohost_layout_sync", {
+        coHosts: lastCohost.coHosts,
+        hostUserId: lastCohost.hostUserId,
+      });
+    }
 
     // Broadcast user joined
     broadcastToRoom(
@@ -1532,6 +1542,7 @@ async function handleMessage(client: Client, event: string, data: any) {
         const coHosts = Array.isArray(data.coHosts) ? data.coHosts : [];
         const hostUserId = typeof data.hostUserId === "string" ? data.hostUserId : client.userId;
         if (roomId) {
+          lastCohostLayoutByRoom.set(roomId, { coHosts, hostUserId });
           broadcastToRoom(roomId, "cohost_layout_sync", {
             coHosts,
             hostUserId,

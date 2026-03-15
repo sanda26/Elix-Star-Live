@@ -37,6 +37,7 @@ export type WebSocketEvent =
   | "cohost_request"
   | "cohost_request_accepted"
   | "cohost_request_declined"
+  | "cohost_layout_sync"
   // Moderation events (AI safety: warning → pause → suspend)
   | "user_muted"
   | "user_kicked"

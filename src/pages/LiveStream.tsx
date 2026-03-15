@@ -702,7 +702,26 @@ export default function LiveStream() {
     return () => { cancelled = true; };
   }, [isInviteHostOpen, user?.id, effectiveStreamId]);
   const coHostTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const coHostsRef = useRef<CoHost[]>([]);
+  const isBroadcastRef = useRef(false);
   const MAX_CO_HOSTS = 12;
+
+  // Keep refs in sync for use inside WebSocket handlers (avoid stale closure)
+  useEffect(() => {
+    coHostsRef.current = coHosts;
+    isBroadcastRef.current = isBroadcast;
+  }, [coHosts, isBroadcast]);
+
+  // Broadcast co-host layout to room so spectators see same layout
+  useEffect(() => {
+    if (!isBroadcast || !effectiveStreamId || !user?.id) return;
+    const payload = {
+      roomId: effectiveStreamId,
+      coHosts: coHosts.map((h) => ({ id: h.id, userId: h.userId, name: h.name, avatar: h.avatar, status: h.status })),
+      hostUserId: user.id,
+    };
+    websocket.send('cohost_layout_sync', payload);
+  }, [isBroadcast, effectiveStreamId, user?.id, coHosts]);
 
   const inviteCoHost = async (creator: { id: string; name: string; avatar?: string }) => {
     if (!isBroadcast || !isMyStreamLive) {
@@ -2039,6 +2058,11 @@ export default function LiveStream() {
         avatar: typeof data.avatar_url === 'string' ? data.avatar_url : '',
       }]);
       setViewerCount(prev => prev + 1);
+      // So new spectators get current co-host layout
+      if (isBroadcastRef.current && effectiveStreamId && user?.id) {
+        const list = coHostsRef.current.map((h) => ({ id: h.id, userId: h.userId, name: h.name, avatar: h.avatar, status: h.status }));
+        websocket.send('cohost_layout_sync', { roomId: effectiveStreamId, coHosts: list, hostUserId: user.id });
+      }
     };
 
     const handleUserLeft = (data: any) => {

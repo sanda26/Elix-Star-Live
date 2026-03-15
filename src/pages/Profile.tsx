@@ -123,8 +123,8 @@ export default function Profile() {
   };
   
   const displayName = isOwnProfile
-    ? (profileData?.display_name || profileData?.username || user?.name || user?.email?.split('@')[0] || 'User')
-    : (profileData?.display_name || profileData?.username || 'User');
+    ? (user?.name || profileData?.display_name || profileData?.username || user?.email?.split('@')[0] || 'User')
+    : (profileData?.display_name || profileData?.username || displayUserId || 'User');
   const rawUsername = isOwnProfile
     ? (profileData?.username || user?.email?.split('@')[0] || 'user')
     : (profileData?.username || 'user');

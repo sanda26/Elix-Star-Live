@@ -58,6 +58,117 @@ type LiveMessage = {
   isMod?: boolean;
 };
 
+type SpectatorCoHostSlot = { id: string; userId: string; name: string; avatar: string; status: string };
+
+function SpectatorCoHostGrid({
+  spectatorCoHosts,
+  coHostVideoRefs,
+  hostName,
+}: {
+  spectatorCoHosts: SpectatorCoHostSlot[];
+  coHostVideoRefs: React.MutableRefObject<Map<string, HTMLVideoElement>>;
+  hostName: string;
+}) {
+  const live = spectatorCoHosts.filter((h) => h.status === 'live' || h.status === 'accepted');
+  const invited = spectatorCoHosts.filter((h) => h.status === 'invited' || h.status === 'pending_accept');
+  const firstLive = live[0];
+  const restLive = live.slice(1);
+  const smallSlots: { type: 'live' | 'invited' | 'empty'; host?: SpectatorCoHostSlot }[] = [
+    ...restLive.map((h) => ({ type: 'live' as const, host: h })),
+    ...invited.map((h) => ({ type: 'invited' as const, host: h })),
+  ];
+  while (smallSlots.length < 8) smallSlots.push({ type: 'empty' });
+
+  const setRef = (userId: string, el: HTMLVideoElement | null) => {
+    if (el) coHostVideoRefs.current.set(userId, el);
+  };
+
+  const renderCell = (slot: { type: string; host?: SpectatorCoHostSlot }, isBig: boolean) => {
+    if (slot.type === 'live' && slot.host) {
+      const host = slot.host;
+      return (
+        <>
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-[#13151A] z-0 rounded-sm pointer-events-none">
+            {host.avatar ? (
+              <img src={host.avatar} alt="" className={`rounded-full border-2 border-[#C9A96E]/40 object-cover opacity-80 ${isBig ? 'w-16 h-16' : 'w-10 h-10'}`} />
+            ) : (
+              <div className={`rounded-full border-2 border-[#C9A96E]/40 bg-[#1C1E24] flex items-center justify-center ${isBig ? 'w-16 h-16' : 'w-10 h-10'}`}>
+                <span className="text-[#C9A96E]/60 text-sm font-bold">{(host.name || '?').charAt(0)}</span>
+              </div>
+            )}
+            <span className="text-white/70 text-[8px] font-bold truncate max-w-full px-1">{host.name}</span>
+          </div>
+          <video
+            ref={(el) => setRef(host.userId, el)}
+            className="absolute inset-0 w-full h-full object-cover rounded-sm z-[1]"
+            autoPlay
+            playsInline
+            muted
+          />
+          <div className="absolute bottom-0 left-0 right-0 z-10 px-1.5 py-0.5 rounded-b-sm bg-black/60 backdrop-blur-sm pointer-events-none">
+            <span className="text-white text-[9px] font-bold truncate">{host.name}</span>
+          </div>
+        </>
+      );
+    }
+    if (slot.type === 'invited' && slot.host) {
+      const host = slot.host;
+      return (
+        <>
+          <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-[#C9A96E]/40 bg-[#1C1E24]">
+            {host.avatar ? (
+              <img src={host.avatar} alt="" className="w-full h-full object-cover opacity-60" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-[#C9A96E]/60 text-base font-bold">{(host.name || '?').charAt(0)}</div>
+            )}
+          </div>
+          <p className="text-white/60 text-[9px] font-bold mt-0.5 truncate max-w-[95%] text-center">{host.name}</p>
+          <span className="text-[#C9A96E]/70 text-[8px] font-semibold">Invited</span>
+        </>
+      );
+    }
+    return (
+      <div className="flex flex-col items-center justify-center w-full h-full">
+        <div className="w-12 h-12 rounded-full border-2 border-dashed border-white/20 flex items-center justify-center">
+          <span className="text-white/30 text-2xl font-light">+</span>
+        </div>
+        <p className="text-white/30 text-[9px] font-semibold mt-0.5">Slot</p>
+      </div>
+    );
+  };
+
+  if (firstLive) {
+    return (
+      <div className="w-1/2 h-full flex flex-col min-w-0">
+        <div className="flex-1 min-h-0 relative bg-[#13151A]">
+          <div className="absolute inset-0 flex flex-col items-center justify-center p-0.5">
+            {renderCell({ type: 'live', host: firstLive }, true)}
+          </div>
+        </div>
+        {(restLive.length > 0 || invited.length > 0) && (
+          <div className="flex-[0_0_auto] grid grid-cols-4 grid-rows-2 gap-[1px] bg-[#1a1c22]" style={{ maxHeight: '35%' }}>
+            {smallSlots.slice(0, 8).map((slot, i) => (
+              <div key={i} className="relative bg-[#13151A] flex flex-col items-center justify-center p-0.5">
+                {renderCell(slot, false)}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-1/2 h-full grid grid-cols-2 grid-rows-4 gap-[1px] bg-[#1a1c22]">
+      {smallSlots.slice(0, 8).map((slot, i) => (
+        <div key={i} className="relative bg-[#13151A] flex flex-col items-center justify-center p-1">
+          {renderCell(slot, false)}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function SpectatorPage() {
   const { streamId } = useParams<{ streamId: string }>();
   const navigate = useNavigate();
@@ -152,8 +263,12 @@ export default function SpectatorPage() {
   const [spectatorBattle, setSpectatorBattle] = useState<{ active: boolean; hostScore: number; opponentScore: number; timeLeft: number; opponentName?: string; winner?: string } | null>(null);
 
   // ═══════════════════════════════════════════════════
-  // CO-HOST STATE
+  // CO-HOST STATE (synced from host so spectators see same layout)
   // ═══════════════════════════════════════════════════
+  type SpectatorCoHost = { id: string; userId: string; name: string; avatar: string; status: string };
+  const [spectatorCoHosts, setSpectatorCoHosts] = useState<SpectatorCoHost[]>([]);
+  const coHostVideoRefs = useRef<Map<string, HTMLVideoElement>>(new Map());
+
   const [isCoHosting, setIsCoHosting] = useState(false);
   const [coHostStream, setCoHostStream] = useState<MediaStream | null>(null);
   const coHostChanRef = useRef<ReturnType<typeof apiStub.channel> | null>(null);
@@ -381,23 +496,33 @@ export default function SpectatorPage() {
           return;
         }
 
-        const onTrackSubscribed = (track: import('livekit-client').RemoteTrack) => {
+        const hostId = hostUserIdRef.current || effectiveStreamId;
+        const onTrackSubscribed = (track: import('livekit-client').RemoteTrack, publication?: import('livekit-client').TrackPublication, participant?: import('livekit-client').RemoteParticipant) => {
           // #region agent log
           fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'spectator-track-subscribed', data: { kind: track.kind }, timestamp: Date.now(), hypothesisId: 'H1' }) }).catch(() => {});
           // #endregion
           if (!mounted) return;
-          if (track.kind === 'video') {
-            const el = videoRef.current;
-            if (el) {
-              track.attach(el);
-              setHasStream(true);
-            }
-          } else if (track.kind === 'audio') {
+          if (track.kind === 'audio') {
             track.attach();
+            return;
+          }
+          if (track.kind === 'video' && participant) {
+            const identity = participant.identity || '';
+            const isHost = identity === hostId || identity === effectiveStreamId;
+            if (isHost && videoRef.current) {
+              track.attach(videoRef.current);
+              setHasStream(true);
+            } else {
+              const el = coHostVideoRefs.current.get(identity);
+              if (el) track.attach(el);
+              else setHasStream(true);
+            }
           }
         };
 
-        room.on(RoomEvent.TrackSubscribed, onTrackSubscribed);
+        room.on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
+          onTrackSubscribed(track, publication, participant);
+        });
         await room.connect(url, token);
         // #region agent log
         fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'spectator-room-connected', data: { remoteParticipants: room.remoteParticipants.size }, timestamp: Date.now(), hypothesisId: 'H1' }) }).catch(() => {});
@@ -407,16 +532,22 @@ export default function SpectatorPage() {
           return;
         }
         for (const [, participant] of room.remoteParticipants) {
+          const identity = participant.identity || '';
+          const isHost = identity === hostId || identity === effectiveStreamId;
           for (const [, publication] of participant.videoTrackPublications) {
             if (publication.track && publication.isSubscribed) {
-              publication.track.attach(videoRef.current!);
-              setHasStream(true);
+              if (isHost && videoRef.current) {
+                publication.track.attach(videoRef.current);
+                setHasStream(true);
+              } else {
+                const el = coHostVideoRefs.current.get(identity);
+                if (el) publication.track.attach(el);
+                else setHasStream(true);
+              }
             }
           }
           for (const [, publication] of participant.audioTrackPublications) {
-            if (publication.track && publication.isSubscribed) {
-              publication.track.attach();
-            }
+            if (publication.track && publication.isSubscribed) publication.track.attach();
           }
         }
       } catch (err) {
@@ -709,6 +840,30 @@ export default function SpectatorPage() {
       setActiveLikes(prev => prev + 1);
     };
 
+    const handleCohostLayoutSync = (data: any) => {
+      if (!mounted) return;
+      const list = Array.isArray(data.coHosts) ? data.coHosts : [];
+      setSpectatorCoHosts(list.map((h: any) => ({
+        id: String(h.id ?? h.userId ?? ''),
+        userId: String(h.userId ?? ''),
+        name: String(h.name ?? 'User'),
+        avatar: String(h.avatar ?? ''),
+        status: String(h.status ?? 'invited'),
+      })));
+      if (typeof data.hostUserId === 'string' && data.hostUserId) {
+        setHostUserId(data.hostUserId);
+        hostUserIdRef.current = data.hostUserId;
+      }
+    };
+
+    const handleCohostRequestAccepted = (data: any) => {
+      if (!mounted || !user?.id) return;
+      const hostName = data.hostName || 'Creator';
+      const streamKey = data.streamKey || effectiveStreamId;
+      showToast(`@${hostName} accepted your co-host request!`);
+      navigate(`/watch/${streamKey}?cohost=1`);
+    };
+
     websocket.on('room_state', handleRoomState);
     websocket.on('user_joined', handleUserJoined);
     websocket.on('user_left', handleUserLeft);
@@ -720,6 +875,8 @@ export default function SpectatorPage() {
     websocket.on('battle_tick', handleBattleTick);
     websocket.on('battle_score', handleBattleScore);
     websocket.on('battle_ended', handleBattleEnded);
+    websocket.on('cohost_layout_sync', handleCohostLayoutSync);
+    websocket.on('cohost_request_accepted', handleCohostRequestAccepted);
 
     connect();
 
@@ -773,6 +930,8 @@ export default function SpectatorPage() {
       websocket.off('battle_tick', handleBattleTick);
       websocket.off('battle_score', handleBattleScore);
       websocket.off('battle_ended', handleBattleEnded);
+      websocket.off('cohost_layout_sync', handleCohostLayoutSync);
+      websocket.off('cohost_request_accepted', handleCohostRequestAccepted);
       websocket.disconnect();
     };
   }, [effectiveStreamId, user?.id, streamIsLive]);
@@ -1124,6 +1283,39 @@ export default function SpectatorPage() {
                   </div>
                 </div>
               </div>
+            </div>
+          ) : spectatorCoHosts.length > 0 ? (
+            /* CO-HOST LAYOUT (same as host): left = host video, right = co-host grid — read-only for spectators */
+            <div className="w-full h-full flex">
+              <div className="w-1/2 h-full flex-shrink-0 relative bg-[#13151A] overflow-hidden">
+                <video
+                  ref={videoRef}
+                  className="absolute inset-0 w-full h-full object-cover"
+                  playsInline
+                  autoPlay
+                  style={{ opacity: hasStream ? 1 : 0, transition: 'opacity 0.4s ease' }}
+                />
+                {!hasStream && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-[#13151A]">
+                    {hostAvatar ? (
+                      <img src={hostAvatar} alt="" className="w-16 h-16 rounded-full border-2 border-[#C9A96E]/40 object-cover" />
+                    ) : (
+                      <div className="w-16 h-16 rounded-full border-2 border-[#C9A96E]/40 bg-[#1C1E24] flex items-center justify-center">
+                        <span className="text-[#C9A96E] font-bold text-xl">{hostName.slice(0, 1).toUpperCase()}</span>
+                      </div>
+                    )}
+                    <span className="text-white text-[10px] font-bold truncate max-w-full px-1">{hostName}</span>
+                  </div>
+                )}
+                <div className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded-full bg-black/60 backdrop-blur-sm">
+                  <span className="text-white text-[9px] font-bold">{hostName}</span>
+                </div>
+              </div>
+              <SpectatorCoHostGrid
+                spectatorCoHosts={spectatorCoHosts}
+                coHostVideoRefs={coHostVideoRefs}
+                hostName={hostName}
+              />
             </div>
           ) : (
             /* NORMAL FULL SCREEN: host video only (solo live) */
@@ -2034,9 +2226,6 @@ export default function SpectatorPage() {
                 )}
                 {/* Request form — always visible in panel, everything in one place */}
                 <div className="flex flex-col items-center gap-3 flex-1 min-h-0">
-                  <div className="w-16 h-16 rounded-full bg-[#C9A96E]/10 border border-[#C9A96E]/30 flex items-center justify-center">
-                    <Crown size={28} className="text-[#C9A96E]" />
-                  </div>
                   <p className="text-white/70 text-sm text-center">
                     {joinRequested
                       ? 'Your request has been sent to the creator. Wait for them to accept.'
@@ -2047,10 +2236,27 @@ export default function SpectatorPage() {
                     disabled={joinRequested || !user?.id}
                     onClick={async () => {
                       if (!user?.id || !hostUserId || joinRequested) return;
+                      // #region agent log
+                      fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          location: 'SpectatorPage.tsx:cohost-request-button',
+                          message: 'spectator-cohost-request-pressed',
+                          data: { hostUserId: hostUserId.slice(0, 12), viewerId: user.id.slice(0, 12) },
+                          timestamp: Date.now(),
+                          hypothesisId: 'H-cohost-btn',
+                        }),
+                      }).catch(() => {});
+                      // #endregion
                       setJoinRequested(true);
                       try {
-                        // In memory-only mode, just log the action
-                        console.log(`[Co-host] Request sent to ${hostUserId}`);
+                        const requesterName = user?.username || user?.name || 'User';
+                        websocket.send('cohost_request_send', {
+                          hostUserId,
+                          requesterName,
+                          requesterAvatar: user?.avatar || '',
+                        });
                         showToast('Co-host request sent!');
                       } catch {
                         setJoinRequested(false);

@@ -1560,6 +1560,19 @@ async function handleMessage(client: Client, event: string, data: any) {
         const hostUserId =
           typeof data.hostUserId === "string" ? data.hostUserId : "";
         if (!hostUserId) break;
+        // #region agent log
+        fetch("http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            location: "server/index.ts:cohost_request_send",
+            message: "server-cohost-request-send",
+            data: { hostUserId: hostUserId.slice(0, 12), requesterId: (client.userId || "").slice(0, 12) },
+            timestamp: Date.now(),
+            hypothesisId: "H-cohost-server",
+          }),
+        }).catch(() => {});
+        // #endregion
         sendToUserGlobal(hostUserId, "cohost_request", {
           requesterUserId: client.userId,
           requesterName: data.requesterName || client.displayName,
@@ -1593,6 +1606,19 @@ async function handleMessage(client: Client, event: string, data: any) {
           hostUserId: client.userId,
           hostName: data.hostName || client.displayName,
         });
+        break;
+      }
+
+      case "cohost_layout_sync": {
+        const roomId = typeof data.roomId === "string" ? data.roomId : client.roomId;
+        const coHosts = Array.isArray(data.coHosts) ? data.coHosts : [];
+        const hostUserId = typeof data.hostUserId === "string" ? data.hostUserId : client.userId;
+        if (roomId) {
+          broadcastToRoom(roomId, "cohost_layout_sync", {
+            coHosts,
+            hostUserId,
+          });
+        }
         break;
       }
 

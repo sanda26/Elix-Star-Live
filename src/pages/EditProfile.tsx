@@ -129,16 +129,19 @@ export default function EditProfile() {
       <div className="w-full max-w-[480px] rounded-3xl overflow-hidden bg-[#13151A] flex flex-col">
       {/* Header */}
       <div className="sticky top-0 z-10 px-4 py-4 flex items-center justify-between bg-[#13151A]">
-        <button onClick={() => navigate(-1)} className="p-2 hover:brightness-125 rounded-full transition">
-          <img src="/Icons/Gold power buton.png" alt="Back" className="w-5 h-5" />
-        </button>
-        <h1 className="text-lg font-bold">Edit Profile</h1>
+        {/* Left: smaller Save button */}
         <button
           onClick={handleSave}
           disabled={loading}
-          className="px-4 py-2 bg-[#C9A96E] text-black rounded-full font-semibold disabled:opacity-50"
+          className="px-3 py-1 rounded-full bg-[#C9A96E] text-black text-sm font-semibold disabled:opacity-50 hover:brightness-110 transition"
         >
           {loading ? 'Saving...' : 'Save'}
+        </button>
+        {/* Center title */}
+        <h1 className="text-lg font-bold text-center flex-1">Edit Profile</h1>
+        {/* Right: Close/back power button */}
+        <button onClick={() => navigate(-1)} className="p-2 hover:brightness-125 rounded-full transition">
+          <img src="/Icons/Gold power buton.png" alt="Back" className="w-5 h-5" />
         </button>
       </div>
 

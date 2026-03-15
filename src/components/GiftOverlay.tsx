@@ -48,7 +48,7 @@ export function GiftOverlay({ videoSrc, previewSrc, onEnded, isBattleMode: _isBa
 
     safetyTimerRef.current = setTimeout(() => {
       // #region agent log
-      fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'gift-safety-timer-fired', data: { instId, videoSrc: videoSrc?.slice(0, 60) }, timestamp: Date.now() }) }).catch(() => {});
+      fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'gift-safety-timer-fired', data: { instId, videoSrc: videoSrc?.slice(0, 60) }, timestamp: Date.now() }) }).catch(() => {});
       // #endregion
       onEndedRef.current();
     }, 8000);
@@ -126,23 +126,26 @@ export function GiftOverlay({ videoSrc, previewSrc, onEnded, isBattleMode: _isBa
           preload="auto"
           onLoadedData={() => {
             // #region agent log
-            fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'gift-video-loadeddata', data: { videoSrc: videoSrc?.slice(0, 60), duration: videoRef.current?.duration, paused: videoRef.current?.paused }, timestamp: Date.now() }) }).catch(() => {});
+            fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'gift-video-loadeddata', data: { videoSrc: videoSrc?.slice(0, 60), duration: videoRef.current?.duration, paused: videoRef.current?.paused, muteAll: muteAllSounds }, timestamp: Date.now(), hypothesisId: 'H17' }) }).catch(() => {});
             // #endregion
             if (videoRef.current && !muteAllSounds) videoRef.current.muted = false;
             if (videoRef.current?.paused) {
               videoRef.current.play().catch(() => {});
             }
+            // #region agent log
+            setTimeout(() => { fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:'gift-video-post-unmute',data:{paused:videoRef.current?.paused,muted:videoRef.current?.muted,currentTime:videoRef.current?.currentTime,readyState:videoRef.current?.readyState},timestamp:Date.now(),hypothesisId:'H17'})}).catch(()=>{}); }, 200);
+            // #endregion
           }}
           onEnded={() => {
             // #region agent log
-            fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'gift-video-ended', data: { videoSrc: videoSrc?.slice(0, 60) }, timestamp: Date.now() }) }).catch(() => {});
+            fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'gift-video-ended', data: { videoSrc: videoSrc?.slice(0, 60) }, timestamp: Date.now() }) }).catch(() => {});
             // #endregion
             if (safetyTimerRef.current) clearTimeout(safetyTimerRef.current);
             onEnded();
           }}
           onError={() => {
             // #region agent log
-            fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'gift-video-error', data: { videoSrc: videoSrc?.slice(0, 60) }, timestamp: Date.now() }) }).catch(() => {});
+            fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'gift-video-error', data: { videoSrc: videoSrc?.slice(0, 60) }, timestamp: Date.now() }) }).catch(() => {});
             // #endregion
             if (safetyTimerRef.current) clearTimeout(safetyTimerRef.current);
             onEnded();
@@ -157,14 +160,14 @@ export function GiftOverlay({ videoSrc, previewSrc, onEnded, isBattleMode: _isBa
           className="absolute inset-0 w-full h-full object-cover opacity-90 drop-shadow-2xl animate-bounce-small"
           onLoad={() => {
             // #region agent log
-            fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'gift-image-loaded', data: { videoSrc: videoSrc?.slice(0, 60) }, timestamp: Date.now() }) }).catch(() => {});
+            fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'gift-image-loaded', data: { videoSrc: videoSrc?.slice(0, 60) }, timestamp: Date.now() }) }).catch(() => {});
             // #endregion
             if (safetyTimerRef.current) clearTimeout(safetyTimerRef.current);
             setTimeout(onEnded, 1500);
           }}
           onError={() => {
             // #region agent log
-            fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'gift-image-error', data: { videoSrc: videoSrc?.slice(0, 60) }, timestamp: Date.now() }) }).catch(() => {});
+            fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'gift-image-error', data: { videoSrc: videoSrc?.slice(0, 60) }, timestamp: Date.now() }) }).catch(() => {});
             // #endregion
             if (safetyTimerRef.current) clearTimeout(safetyTimerRef.current);
             onEnded();

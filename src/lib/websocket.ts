@@ -16,6 +16,8 @@ export type WebSocketEvent =
   | "gift_sent"
   | "big_gift_queue_update"
   | "leaderboard_update"
+  // Heart events
+  | "heart_sent"
   // Battle events (server-controlled)
   | "battle_invite"
   | "battle_invite_accepted"
@@ -29,8 +31,12 @@ export type WebSocketEvent =
   | "battle_ready"
   | "battle_ready_state"
   // Co-host events
+  | "cohost_invite"
+  | "cohost_invite_ack"
+  | "cohost_invite_accepted"
   | "cohost_request"
   | "cohost_request_accepted"
+  | "cohost_request_declined"
   // Moderation events (AI safety: warning → pause → suspend)
   | "user_muted"
   | "user_kicked"

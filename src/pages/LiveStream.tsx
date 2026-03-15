@@ -348,7 +348,7 @@ export default function LiveStream() {
           }),
         });
         // #region agent log
-        fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'host-live-start-response', data: { status: res.status, ok: res.ok }, timestamp: Date.now(), hypothesisId: 'H2' }) }).catch(() => {});
+        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'host-live-start-response', data: { status: res.status, ok: res.ok }, timestamp: Date.now(), hypothesisId: 'H2' }) }).catch(() => {});
         // #endregion
         if (res.ok) {
           liveRegisteredRef.current = true;
@@ -356,7 +356,7 @@ export default function LiveStream() {
           let url = (data?.url ?? '').trim();
           if (!url) url = getLiveKitUrl();
           // #region agent log
-          fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'host-live-start-data', data: { hasToken: Boolean(data?.token), tokenLen: data?.token?.length, url: url?.slice(0, 40), room: data?.room }, timestamp: Date.now(), hypothesisId: 'H2' }) }).catch(() => {});
+          fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'host-live-start-data', data: { hasToken: Boolean(data?.token), tokenLen: data?.token?.length, url: url?.slice(0, 40), room: data?.room }, timestamp: Date.now(), hypothesisId: 'H2' }) }).catch(() => {});
           // #endregion
           if (data?.token && url) {
             setLiveKitCreds({ token: data.token, url });
@@ -366,7 +366,7 @@ export default function LiveStream() {
         }
       } catch (startErr) {
         // #region agent log
-        fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'host-live-start-error', data: { error: String(startErr) }, timestamp: Date.now(), hypothesisId: 'H2' }) }).catch(() => {});
+        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'host-live-start-error', data: { error: String(startErr) }, timestamp: Date.now(), hypothesisId: 'H2' }) }).catch(() => {});
         // #endregion
       }
     })();
@@ -406,11 +406,11 @@ export default function LiveStream() {
     (async () => {
       try {
         // #region agent log
-        fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'host-livekit-connecting', data: { url: liveKitCreds.url?.slice(0, 40), tokenLen: liveKitCreds.token?.length, hasVideo: Boolean(videoTrack), hasAudio: Boolean(audioTrack) }, timestamp: Date.now(), hypothesisId: 'H1' }) }).catch(() => {});
+        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'host-livekit-connecting', data: { url: liveKitCreds.url?.slice(0, 40), tokenLen: liveKitCreds.token?.length, hasVideo: Boolean(videoTrack), hasAudio: Boolean(audioTrack) }, timestamp: Date.now(), hypothesisId: 'H1' }) }).catch(() => {});
         // #endregion
         await room.connect(liveKitCreds.url, liveKitCreds.token);
         // #region agent log
-        fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'host-livekit-connected', data: { roomName: room.name }, timestamp: Date.now(), hypothesisId: 'H1' }) }).catch(() => {});
+        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'host-livekit-connected', data: { roomName: room.name }, timestamp: Date.now(), hypothesisId: 'H1' }) }).catch(() => {});
         // #endregion
         if (videoTrack) {
           const localVideo = new LocalVideoTrack(videoTrack);
@@ -421,11 +421,11 @@ export default function LiveStream() {
           await room.localParticipant.publishTrack(localAudio, { name: 'mic' });
         }
         // #region agent log
-        fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'host-livekit-published', data: { publishedTracks: room.localParticipant.trackPublications.size }, timestamp: Date.now(), hypothesisId: 'H1' }) }).catch(() => {});
+        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'host-livekit-published', data: { publishedTracks: room.localParticipant.trackPublications.size }, timestamp: Date.now(), hypothesisId: 'H1' }) }).catch(() => {});
         // #endregion
       } catch (e) {
         // #region agent log
-        fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'host-livekit-error', data: { error: String(e), stack: (e as Error)?.stack?.slice(0, 300) }, timestamp: Date.now(), hypothesisId: 'H1' }) }).catch(() => {});
+        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'host-livekit-error', data: { error: String(e), stack: (e as Error)?.stack?.slice(0, 300) }, timestamp: Date.now(), hypothesisId: 'H1' }) }).catch(() => {});
         // #endregion
         console.error('[LiveKit] Host connect/publish failed:', e);
         showToast('Live video could not start. Check LIVEKIT_URL and keys on server.');
@@ -721,7 +721,7 @@ export default function LiveStream() {
 
     if (!user?.id) return;
     // #region agent log
-    fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'cohost-invite-sent', data: { targetUserId: creator.id?.slice(0, 12), hostName: myCreatorName }, timestamp: Date.now() }) }).catch(() => {});
+    fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'cohost-invite-sent', data: { targetUserId: creator.id?.slice(0, 12), hostName: myCreatorName }, timestamp: Date.now() }) }).catch(() => {});
     // #endregion
     websocket.send('cohost_invite_send', {
       targetUserId: creator.id,
@@ -747,7 +747,7 @@ export default function LiveStream() {
 
   const acceptCohostInvite = async () => {
     // #region agent log
-    fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'cohost-accept-called', data: { hasPending: !!pendingCohostInvite, hasUserId: !!user?.id, streamKey: pendingCohostInvite?.streamKey?.slice(0, 20) }, timestamp: Date.now() }) }).catch(() => {});
+    fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'cohost-accept-called', data: { hasPending: !!pendingCohostInvite, hasUserId: !!user?.id, streamKey: pendingCohostInvite?.streamKey?.slice(0, 20) }, timestamp: Date.now() }) }).catch(() => {});
     // #endregion
     if (!pendingCohostInvite || !user?.id) return;
     const inv = pendingCohostInvite;
@@ -809,7 +809,7 @@ export default function LiveStream() {
     if (!isCoHostJoiner || !user?.id || isBroadcast) return;
     let mounted = true;
     // #region agent log
-    fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'cohost-joiner-effect', data: { isCoHostJoiner, effectiveStreamId: effectiveStreamId?.slice(0, 20), hasVideoRef: !!videoRef.current }, timestamp: Date.now() }) }).catch(() => {});
+    fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'cohost-joiner-effect', data: { isCoHostJoiner, effectiveStreamId: effectiveStreamId?.slice(0, 20), hasVideoRef: !!videoRef.current }, timestamp: Date.now() }) }).catch(() => {});
     // #endregion
 
     (async () => {
@@ -1093,14 +1093,14 @@ export default function LiveStream() {
     const room = new Room();
     opponentLkRoomRef.current = room;
     // #region agent log
-    fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'battle-opp-lk-start', data: { opponentStreamKey: opponentStreamKey?.slice(0, 20) }, timestamp: Date.now() }) }).catch(() => {});
+    fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'battle-opp-lk-start', data: { opponentStreamKey: opponentStreamKey?.slice(0, 20) }, timestamp: Date.now() }) }).catch(() => {});
     // #endregion
 
     (async () => {
       try {
         const res = await fetch(apiUrl(`/api/live/token?room=${encodeURIComponent(opponentStreamKey)}`), { method: 'GET', credentials: 'include' });
         // #region agent log
-        fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'battle-opp-token-res', data: { status: res.status, ok: res.ok }, timestamp: Date.now() }) }).catch(() => {});
+        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'battle-opp-token-res', data: { status: res.status, ok: res.ok }, timestamp: Date.now() }) }).catch(() => {});
         // #endregion
         if (!res.ok || !mounted) return;
         const payload = await res.json().catch(() => ({}));
@@ -1111,7 +1111,7 @@ export default function LiveStream() {
         room.on(RoomEvent.TrackSubscribed, (track) => {
           if (!mounted || track.kind !== 'video') return;
           // #region agent log
-          fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'battle-opp-track-subscribed', data: { kind: track.kind }, timestamp: Date.now() }) }).catch(() => {});
+          fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'battle-opp-track-subscribed', data: { kind: track.kind }, timestamp: Date.now() }) }).catch(() => {});
           // #endregion
           const el = opponentVideoRef.current;
           if (el) {
@@ -1122,7 +1122,7 @@ export default function LiveStream() {
 
         await room.connect(url, token);
         // #region agent log
-        fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'battle-opp-lk-connected', data: { remoteParts: room.remoteParticipants.size }, timestamp: Date.now() }) }).catch(() => {});
+        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'battle-opp-lk-connected', data: { remoteParts: room.remoteParticipants.size }, timestamp: Date.now() }) }).catch(() => {});
         // #endregion
         if (!mounted) { room.disconnect(); return; }
 
@@ -1136,7 +1136,7 @@ export default function LiveStream() {
         }
       } catch (e) {
         // #region agent log
-        fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'battle-opp-lk-error', data: { error: String(e) }, timestamp: Date.now() }) }).catch(() => {});
+        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'battle-opp-lk-error', data: { error: String(e) }, timestamp: Date.now() }) }).catch(() => {});
         // #endregion
         console.error('[Battle] Failed to connect to opponent LiveKit room:', e);
       }
@@ -2299,7 +2299,7 @@ export default function LiveStream() {
 
     const handleCohostInvite = (data: any) => {
       // #region agent log
-      fetch('/api/debug-log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'cohost-invite-received', data: { hasUserId: !!user?.id, hostName: data.hostName, hostUserId: data.hostUserId, streamKey: data.streamKey?.slice(0, 20), rawKeys: Object.keys(data) }, timestamp: Date.now() }) }).catch(() => {});
+      fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'cohost-invite-received', data: { hasUserId: !!user?.id, hostName: data.hostName, hostUserId: data.hostUserId, streamKey: data.streamKey?.slice(0, 20), rawKeys: Object.keys(data) }, timestamp: Date.now() }) }).catch(() => {});
       // #endregion
       if (!user?.id) return;
       setPendingCohostInvite({
@@ -2310,9 +2310,16 @@ export default function LiveStream() {
       });
     };
 
+    // #region agent log
+    const handleCohostInviteAck = (data: any) => {
+      fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveStream.tsx:cohostInviteAck',message:'cohost-invite-ack',data:{targetUserId:data.targetUserId,delivered:data.delivered},timestamp:Date.now(),hypothesisId:'H16'})}).catch(()=>{});
+    };
+    // #endregion
+
     websocket.on('battle_invite', handleBattleInvite);
     websocket.on('battle_invite_accepted', handleBattleInviteAccepted);
     websocket.on('cohost_invite', handleCohostInvite);
+    websocket.on('cohost_invite_ack', handleCohostInviteAck);
     websocket.on('cohost_request', handleCohostRequest);
     websocket.on('cohost_request_accepted', handleCohostRequestAccepted);
 
@@ -2358,6 +2365,7 @@ export default function LiveStream() {
       websocket.off('battle_invite', handleBattleInvite);
       websocket.off('battle_invite_accepted', handleBattleInviteAccepted);
       websocket.off('cohost_invite', handleCohostInvite);
+      websocket.off('cohost_invite_ack', handleCohostInviteAck);
       websocket.off('cohost_request', handleCohostRequest);
       websocket.off('cohost_request_accepted', handleCohostRequestAccepted);
       websocket.off('moderation_warning', handleModerationWarning);
@@ -4074,6 +4082,9 @@ export default function LiveStream() {
                   !coHosts.some(h => h.userId === c.id) &&
                   (q === '' || c.name.toLowerCase().includes(q))
                 );
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveStream.tsx:cohostPanelRender',message:'cohost-panel-live-creators',data:{totalLive:liveCreators.length,filtered:filteredLive.length,ids:filteredLive.map(c=>c.id?.slice(0,12)),hasPending:!!pendingCohostInvite},timestamp:Date.now(),hypothesisId:'H15'})}).catch(()=>{});
+                // #endregion
                 if (filteredLive.length === 0) return null;
                 return (
                   <div className="mb-3">
@@ -4085,7 +4096,7 @@ export default function LiveStream() {
                         return (
                           <div
                             key={creator.id}
-                            onClick={() => !isIncomingCohostInvite && !alreadyInvited && coHosts.length < MAX_CO_HOSTS && inviteCoHost({ id: creator.id, name: creator.name, avatar: creator.avatar })}
+                            onClick={() => { fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveStream.tsx:inviteClick',message:'cohost-panel-invite-clicked',data:{creatorId:creator.id?.slice(0,12),isIncoming:isIncomingCohostInvite,alreadyInvited,cohostCount:coHosts.length},timestamp:Date.now(),hypothesisId:'H15'})}).catch(()=>{}); if (!isIncomingCohostInvite && !alreadyInvited && coHosts.length < MAX_CO_HOSTS) inviteCoHost({ id: creator.id, name: creator.name, avatar: creator.avatar }); }}
                             className={`w-full flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-white/[0.03] transition-colors active:scale-[0.98] cursor-pointer ${alreadyInvited || coHosts.length >= MAX_CO_HOSTS ? 'opacity-70' : ''}`}
                           >
                             <div className="relative flex-shrink-0">

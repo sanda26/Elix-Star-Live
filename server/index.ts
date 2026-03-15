@@ -1481,12 +1481,16 @@ async function handleMessage(client: Client, event: string, data: any) {
         const targetUserId =
           typeof data.targetUserId === "string" ? data.targetUserId : "";
         if (!targetUserId) break;
-        sendToUserGlobal(targetUserId, "cohost_invite", {
+        const cohostSent = sendToUserGlobal(targetUserId, "cohost_invite", {
           hostUserId: client.userId,
           hostName: data.hostName || client.displayName,
           hostAvatar: data.hostAvatar || client.avatarUrl || "",
           streamKey: client.roomId,
         });
+        // #region agent log
+        console.log("[cohost_invite] sent to userId:", targetUserId, "from:", client.userId, "delivered:", cohostSent);
+        // #endregion
+        sendToClient(client, "cohost_invite_ack", { targetUserId, delivered: cohostSent });
         break;
       }
 
@@ -1609,7 +1613,7 @@ function sendToUser(roomId: string, userId: string, event: string, data: any) {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function sendToUserGlobal(userId: string, event: string, data: any) {
+function sendToUserGlobal(userId: string, event: string, data: any): number {
   let message: string;
   try {
     message = JSON.stringify({
@@ -1619,7 +1623,7 @@ function sendToUserGlobal(userId: string, event: string, data: any) {
     });
   } catch (error) {
     console.error("Failed to serialize message:", error);
-    return;
+    return 0;
   }
 
   let sent = 0;
@@ -1633,13 +1637,14 @@ function sendToUserGlobal(userId: string, event: string, data: any) {
       }
     }
   });
-  if (event === "battle_invite" && sent === 0) {
+  if (sent === 0) {
     console.warn(
-      "[battle_invite] no connected client for userId:",
+      `[${event}] no connected client for userId:`,
       userId,
       "(invitee may be offline or on another page)",
     );
   }
+  return sent;
 }
 
  

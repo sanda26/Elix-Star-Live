@@ -43,6 +43,9 @@ function requireAuth(req: Request, res: Response): { userId: string } | null {
 
 /** GET /api/live/streams — list active streams (from LiveKit when configured, so all instances see the same list) */
 export async function handleGetStreams(_req: Request, res: Response) {
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/routes/livestream.ts:handleGetStreams',message:'Streams request',data:{livekitConfigured:isLiveKitConfigured(),activeStreamsCount:activeStreams.size,activeStreamKeys:Array.from(activeStreams.keys())},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
+  // #endregion
   if (isLiveKitConfigured()) {
     try {
       const liveRooms = await listActiveRoomsFromLiveKit();
@@ -100,6 +103,9 @@ export async function handleGetStreams(_req: Request, res: Response) {
 
 /** POST /api/live/start — creator starts stream; returns LiveKit token with canPublish */
 export async function handleLiveStart(req: Request, res: Response) {
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/routes/livestream.ts:handleLiveStart',message:'Live start attempt',data:{hasAuth:!!getTokenFromRequest(req),livekitConfigured:isLiveKitConfigured(),body:req.body},timestamp:Date.now(),hypothesisId:'H3_H5'})}).catch(()=>{});
+  // #endregion
   const auth = requireAuth(req, res);
   if (!auth) return;
 

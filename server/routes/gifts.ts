@@ -23,12 +23,15 @@ function requireAuth(req: Request, res: Response): { userId: string } | null {
 
 /** POST /api/gifts/send — send gift (server validates; broadcast still via WS in live room) */
 export async function handleSendGift(req: Request, res: Response) {
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/routes/gifts.ts:handleSendGift',message:'Gift send raw body',data:{rawBody:req.body,hasAuth:!!getTokenFromRequest(req)},timestamp:Date.now(),hypothesisId:'H_GIFT'})}).catch(()=>{});
+  // #endregion
   const auth = requireAuth(req, res);
   if (!auth) return;
 
-  const { room_id, gift_id, transaction_id } = req.body ?? {};
-  const roomId = typeof room_id === "string" ? room_id.trim() : "";
-  const giftId = typeof gift_id === "string" ? gift_id.trim() : "";
+  const { room_id, gift_id, transaction_id, streamKey, giftId: giftIdAlt } = req.body ?? {};
+  const roomId = typeof room_id === "string" ? room_id.trim() : (typeof streamKey === "string" ? streamKey.trim() : "");
+  const giftId = typeof gift_id === "string" ? gift_id.trim() : (typeof giftIdAlt === "string" ? giftIdAlt.trim() : "");
 
   if (!roomId || !giftId) {
     return res.status(400).json({ error: "room_id and gift_id are required." });

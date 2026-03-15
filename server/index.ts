@@ -1669,8 +1669,14 @@ logger.info({ port: PORT, nodeEnv: process.env.NODE_ENV }, "Starting server...")
 try {
   // Bind to 0.0.0.0 to work in all environments
   server.listen(PORT, "0.0.0.0", async () => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/index.ts:startup',message:'Server startup env check',data:{DATABASE_URL:!!process.env.DATABASE_URL,LIVEKIT_API_KEY:!!process.env.LIVEKIT_API_KEY,LIVEKIT_API_SECRET:!!process.env.LIVEKIT_API_SECRET,LIVEKIT_URL:!!process.env.LIVEKIT_URL,BUNNY_STORAGE_API_KEY:!!process.env.BUNNY_STORAGE_API_KEY,BUNNY_STORAGE_ZONE:!!process.env.BUNNY_STORAGE_ZONE,VITE_BUNNY_CDN_HOSTNAME:process.env.VITE_BUNNY_CDN_HOSTNAME||'NOT_SET',VITE_CDN_URL:process.env.VITE_CDN_URL||'NOT_SET',JWT_SECRET:!!process.env.JWT_SECRET,NODE_ENV:process.env.NODE_ENV,PORT:process.env.PORT},timestamp:Date.now(),hypothesisId:'H1_H3_H4'})}).catch(()=>{});
+    // #endregion
     await initPostgres();
     const dbVideos = await loadVideosFromDb();
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/index.ts:postDbLoad',message:'DB load result',data:{dbVideoCount:dbVideos.length,postgresConnected:!!require('./lib/postgres').getPool()},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+    // #endregion
     if (dbVideos.length > 0) {
       replaceVideos(dbVideos);
       logger.info({ count: dbVideos.length }, "Videos loaded from database");
@@ -1743,6 +1749,9 @@ try {
       logger.info({ count: sampleVideos.length }, "Seed videos added (no DB videos found)");
     }
 
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/index.ts:ready',message:'Server ready - video store state',data:{totalVideosInMemory:getAllVideos().length,videoIds:getAllVideos().map(v=>v.id).slice(0,10)},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
+    // #endregion
     logger.info({ port: PORT }, "Server running successfully");
   });
 } catch (error) {

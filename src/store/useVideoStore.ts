@@ -148,6 +148,9 @@ export const useVideoStore = create<VideoStore>()(
         set({ loading: true });
         try {
           const { videos: apiVideos } = await fetchForYouFeed(1, 50);
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useVideoStore.ts:fetchVideos',message:'ForYou feed response',data:{videoCount:apiVideos?.length??0,firstVideoId:apiVideos?.[0]?.id||null,firstVideoUrl:apiVideos?.[0]?.url||null},timestamp:Date.now(),hypothesisId:'H1_H2'})}).catch(()=>{});
+          // #endregion
           if (!apiVideos || apiVideos.length === 0) {
             set({ videos: [], loading: false });
             return;

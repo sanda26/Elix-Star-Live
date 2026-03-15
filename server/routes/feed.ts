@@ -408,7 +408,10 @@ export async function handleForYouFeed(req: Request, res: Response) {
     }
 
     // ── No DB: serve from in-memory videoStore ──
-    const memVideos = getAllVideos(); // already sorted newest-first
+    const memVideos = getAllVideos();
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/routes/feed.ts:handleForYouFeed',message:'Feed query - in-memory path',data:{dbIsNull:db===null,memVideoCount:memVideos.length,page,limit,offset,videoIds:memVideos.map(v=>v.id).slice(0,5)},timestamp:Date.now(),hypothesisId:'H1_H2'})}).catch(()=>{});
+    // #endregion
     const total = memVideos.length;
     const paginated = memVideos.slice(offset, offset + limit);
 

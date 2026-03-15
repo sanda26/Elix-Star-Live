@@ -26,6 +26,12 @@ export interface Video {
 
 const videos = new Map<string, Video>();
 
+/** Replace in-memory store with list (e.g. after loading from Postgres). */
+export function replaceVideos(list: Video[]): void {
+  videos.clear();
+  for (const v of list) videos.set(v.id, v);
+}
+
 export function addVideo(video: Video): void {
   videos.set(video.id, video);
 }

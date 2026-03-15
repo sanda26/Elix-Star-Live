@@ -35,8 +35,10 @@ import {
   getAllVideos,
   getVideosByUser,
   deleteVideo,
+  replaceVideos,
   type Video,
 } from "./lib/videoStore";
+import { initPostgres, loadVideosFromDb, saveVideoToDb } from "./lib/postgres";
 import {
   handleGetCreatorBalance,
   handleGetCreatorEarnings,
@@ -189,8 +191,8 @@ app.post("/api/feed/track-view", handleTrackView);
 app.post("/api/feed/track-interaction", handleTrackInteraction);
 app.get("/api/feed/score/:videoId", handleGetVideoScore);
 
-// ── Video CRUD (in-memory store, no DB required) ───────────────────
-app.post("/api/videos", (req, res) => {
+// ── Video CRUD (in-memory store; persists to Postgres when DATABASE_URL set) ───────────────────
+app.post("/api/videos", async (req, res) => {
   try {
     const body = req.body;
     if (!body || !body.url) {
@@ -224,6 +226,7 @@ app.post("/api/videos", (req, res) => {
     };
 
     addVideo(video);
+    await saveVideoToDb(video);
     console.log(
       `[Videos] Added video ${id} (${getAllVideos().length} total in memory)`,
     );
@@ -1609,13 +1612,19 @@ console.log(`NODE_ENV: ${process.env.NODE_ENV}`);
 
 try {
   // Bind to 0.0.0.0 to work in all environments
-  server.listen(PORT, "0.0.0.0", () => {
-    console.log(`âœ… Server running successfully on port ${PORT}`);
-    console.log(`âœ… Health check available at: http://0.0.0.0:${PORT}/health`);
-    console.log("âœ… Server startup completed");
+  server.listen(PORT, "0.0.0.0", async () => {
+    await initPostgres();
+    const dbVideos = await loadVideosFromDb();
+    if (dbVideos.length > 0) {
+      replaceVideos(dbVideos);
+      console.log(`[Videos] Loaded ${dbVideos.length} videos from database`);
+    }
+    console.log(`Server running successfully on port ${PORT}`);
+    console.log(`Health check available at: http://0.0.0.0:${PORT}/health`);
+    console.log("Server startup completed");
   });
 } catch (error) {
-  console.error("âŒ Failed to start server:", error);
+  console.error("Failed to start server:", error);
   process.exit(1);
 }
 

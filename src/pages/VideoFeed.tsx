@@ -227,12 +227,7 @@ export default function VideoFeed() {
         ? (body.streams as RawStream[])
         : [];
 
-      if (streams.length === 0) {
-        setLiveStreams([]);
-        setLiveLoading(false);
-        return;
-      }
-
+      // When API returns [], still merge with prev so streams from stream_started stay visible
       const removed = removedKeysRef.current;
       const mapped: LiveStreamCard[] = streams
         .filter((s: RawStream) => {

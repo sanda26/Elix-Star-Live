@@ -1,17 +1,8 @@
 # Deploy Elix Star Live (Coolify + Hetzner + Bunny + LiveKit)
 
-This app is wired for **Coolify** on **Hetzner**, with **Bunny** storage and **LiveKit** for live streaming.
+This app is wired for **Coolify** on a **Hetzner** server, with **Bunny** storage and **LiveKit** for streaming.
 
-**Quick reference**
-
-| Service   | Role |
-|-----------|------|
-| **Coolify** | Deploy and run the app (build, env, domain, HTTPS). |
-| **Hetzner** | VPS where Coolify runs; host the app and proxy. |
-| **Bunny**   | Storage (avatars, images, video files) + CDN delivery. |
-| **LiveKit** | Real-time live streaming (tokens, rooms, WebRTC). |
-
-Use **[.env.example](.env.example)** as the env checklist. **Coolify:** if the build fails with `npm ci` / "Missing: … from lock file", see **[COOLIFY.md](COOLIFY.md)** — use build pack **Dockerfile** and redeploy.
+**Coolify users:** If the build fails with `npm ci` / "Missing: … from lock file", see **[COOLIFY.md](COOLIFY.md)** — switch the build pack to **Dockerfile** and redeploy.
 
 ## Stack
 
@@ -48,9 +39,7 @@ Set these in Coolify (or your host) for the app service. Use `.env.example` as a
 | `BUNNY_STORAGE_REGION` | Bunny region | `de`, `ny`, `la`, `sg`, etc. |
 | `VITE_BUNNY_CDN_HOSTNAME` | Bunny CDN hostname (for public media URLs) | `your-zone.b-cdn.net` |
 | `JWT_SECRET` | Secret for auth (use a strong random value) | Long random string |
-| `NODE_ENV` | Set to `production` so the app runs in production mode | `production` | so the app runs in production mode (recommended even if Coolify only has “Developer” environment) | `production` |
-
-Also set (see [.env.example](.env.example)): **`CLIENT_URL`** (same as `VITE_API_URL`); **`VITE_LIVEKIT_URL`** (same as `LIVEKIT_URL`); **`VITE_CDN_URL`** (Bunny CDN); for **Bunny Video** uploads: **`BUNNY_LIBRARY_ID`**, **`BUNNY_LIBRARY_API_KEY`**, **`VITE_BUNNY_CDN_HOSTNAME`**, **`VITE_BUNNY_STORAGE_ZONE`**; **`BUNNY_STORAGE_HOSTNAME`**.
+| `NODE_ENV` | Set to `production` so the app runs in production mode (recommended even if Coolify only has “Developer” environment) | `production` |
 
 ### Optional
 

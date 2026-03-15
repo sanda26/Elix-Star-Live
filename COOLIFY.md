@@ -31,4 +31,4 @@ The app listens on **8080**. In Coolify → your app → **Network**, set the po
 
 ## Env
 
-See **[DEPLOY.md](DEPLOY.md)** for the full setup: **Coolify** (on Hetzner), **Bunny** storage + CDN, **LiveKit** for live streaming, and all required env vars (including `VITE_*`, `BUNNY_*`, `LIVEKIT_*`, `JWT_SECRET`). Use **.env.example** as a checklist.
+See **DEPLOY.md** for required environment variables (LiveKit, Bunny, JWT_SECRET, etc.).

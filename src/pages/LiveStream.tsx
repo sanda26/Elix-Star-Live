@@ -550,6 +550,17 @@ export default function LiveStream() {
   };
   const [pendingInvite, setPendingInvite] = useState<PendingInvite | null>(null);
 
+  useEffect(() => {
+    if (pendingInvite) {
+      setIsFindCreatorsOpen(true);
+      const inviter = pendingInvite;
+      setCreators(prev => {
+        if (prev.some(c => c.id === inviter.hostUserId)) return prev;
+        return [...prev, { id: inviter.hostUserId, name: inviter.hostName, username: inviter.hostName, followers: '0', avatar: inviter.hostAvatar, isLive: true }];
+      });
+    }
+  }, [pendingInvite]);
+
   const acceptBattleInvite = async () => {
     // #region agent log
     fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveStream.tsx:acceptBattleInvite',message:'battle-accept-called',data:{hasPendingInvite:!!pendingInvite,hasUserId:!!user?.id,isBroadcast,streamKey:pendingInvite?.streamKey?.slice(0,20),hostUserId:pendingInvite?.hostUserId?.slice(0,12)},timestamp:Date.now(),hypothesisId:'H15'})}).catch(()=>{});
@@ -3637,36 +3648,6 @@ export default function LiveStream() {
           )}
         </AnimatePresence>
         <div className="flex flex-col items-end">
-          {/* Battle invite card for spectators — inside bottom panel */}
-          {!isBroadcast && pendingInvite && !currentGift && (
-            <div className="w-full max-w-[480px] mx-auto px-3 mb-2 pointer-events-auto">
-              <div className="bg-[#1C1E24]/95 backdrop-blur-md border border-[#C9A96E]/40 rounded-xl p-3 shadow-xl">
-                <div className="flex items-center gap-3 mb-2">
-                  <AvatarRing src={pendingInvite.hostAvatar} alt={pendingInvite.hostName} size={36} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-white/60 text-[10px] font-medium">Battle invite</p>
-                    <p className="text-white font-semibold text-sm truncate">{pendingInvite.hostName}</p>
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => { declineBattleInvite(); }}
-                    className="flex-1 py-2 rounded-lg bg-red-500/20 border border-red-500/40 text-red-400 font-semibold text-xs active:scale-[0.98]"
-                  >
-                    Reject
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { acceptBattleInvite(); }}
-                    className="flex-1 py-2 rounded-lg bg-[#C9A96E] text-black font-semibold text-xs active:scale-[0.98]"
-                  >
-                    Join
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
           {/* Spectator bottom bar: Co-Host (request only), keyboard, share, more — hidden during gift animation */}
           {!isBroadcast && !currentGift && (
             <div className="flex items-center justify-center gap-3 pointer-events-auto">
@@ -3714,36 +3695,7 @@ export default function LiveStream() {
             </div>
           )}
 
-          {/* Battle invite card — inside bottom panel */}
-          {pendingInvite && !currentGift && (
-            <div className="w-full max-w-[480px] mx-auto px-3 mb-2 pointer-events-auto">
-              <div className="bg-[#1C1E24]/95 backdrop-blur-md border border-[#C9A96E]/40 rounded-xl p-3 shadow-xl">
-                <div className="flex items-center gap-3 mb-2">
-                  <AvatarRing src={pendingInvite.hostAvatar} alt={pendingInvite.hostName} size={36} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-white/60 text-[10px] font-medium">Battle invite</p>
-                    <p className="text-white font-semibold text-sm truncate">{pendingInvite.hostName}</p>
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => { declineBattleInvite(); }}
-                    className="flex-1 py-2 rounded-lg bg-red-500/20 border border-red-500/40 text-red-400 font-semibold text-xs active:scale-[0.98]"
-                  >
-                    Reject
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { acceptBattleInvite(); }}
-                    className="flex-1 py-2 rounded-lg bg-[#C9A96E] text-black font-semibold text-xs active:scale-[0.98]"
-                  >
-                    Join
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
+          {/* Battle invite cards removed — invite shows inside battle panel */}
 
           {isBroadcast && !currentGift && (
             <div className="flex items-center justify-center gap-3 pointer-events-auto">

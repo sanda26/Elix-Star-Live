@@ -122,7 +122,7 @@ export default function LiveStream() {
   
   const [showRankingPanel, setShowRankingPanel] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
-  const [currentGift, setCurrentGift] = useState<{ video: string; preview: string } | null>(null);
+  const [currentGift, setCurrentGift] = useState<{ video: string } | null>(null);
   const [messages, setMessages] = useState<LiveMessage[]>(() => []);
   const [coinBalance, setCoinBalance] = useState(0);
   const [inputValue, setInputValue] = useState('');
@@ -428,7 +428,10 @@ export default function LiveStream() {
         fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'host-livekit-error', data: { error: String(e), stack: (e as Error)?.stack?.slice(0, 300) }, timestamp: Date.now(), hypothesisId: 'H1' }) }).catch(() => {});
         // #endregion
         console.error('[LiveKit] Host connect/publish failed:', e);
-        showToast('Live video could not start. Check LIVEKIT_URL and keys on server.');
+        const errMsg = String(e).includes('401') ? 'LiveKit auth failed — check API keys'
+          : String(e).includes('timeout') ? 'LiveKit connection timed out — retrying...'
+          : `Live video could not start (${String(e).slice(0, 80)})`;
+        showToast(errMsg);
       }
     })();
 
@@ -2083,12 +2086,7 @@ export default function LiveStream() {
           const videoUrl = (rawVideo.startsWith('http://') || rawVideo.startsWith('https://'))
             ? rawVideo
             : resolveGiftAssetUrl(rawVideo.startsWith('/') ? rawVideo : `/${rawVideo}`);
-          const previewUrl = giftDef.preview
-            ? ((giftDef.preview.startsWith('http://') || giftDef.preview.startsWith('https://'))
-                ? giftDef.preview
-                : resolveGiftAssetUrl(giftDef.preview.startsWith('/') ? giftDef.preview : `/${giftDef.preview}`))
-            : videoUrl;
-          setGiftQueue(prev => [...prev, { video: videoUrl, preview: previewUrl }]);
+          setGiftQueue(prev => [...prev, { video: videoUrl }]);
         }
       }
     };
@@ -2442,7 +2440,7 @@ export default function LiveStream() {
     };
   }, [isBroadcast, user?.id, effectiveStreamId, navigate]);
 
-  const [giftQueue, setGiftQueue] = useState<{ video: string; preview: string }[]>([]);
+  const [giftQueue, setGiftQueue] = useState<{ video: string }[]>([]);
   const [giftBanner, setGiftBanner] = useState<{ username: string; giftName: string; icon: string } | null>(null);
   const giftBannerTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isPlayingGift, setIsPlayingGift] = useState(false);
@@ -2499,12 +2497,7 @@ export default function LiveStream() {
         const videoUrl = (gift.video.startsWith('http://') || gift.video.startsWith('https://'))
           ? gift.video
           : resolveGiftAssetUrl(gift.video.startsWith('/') ? gift.video : `/${gift.video}`);
-        const previewUrl = gift.preview
-          ? ((gift.preview.startsWith('http://') || gift.preview.startsWith('https://'))
-              ? gift.preview
-              : resolveGiftAssetUrl(gift.preview.startsWith('/') ? gift.preview : `/${gift.preview}`))
-          : videoUrl;
-        if (videoUrl) setGiftQueue(prev => [...prev, { video: videoUrl, preview: previewUrl }]);
+        if (videoUrl) setGiftQueue(prev => [...prev, { video: videoUrl }]);
       }
       
       let newLevel = userLevel;
@@ -2714,12 +2707,7 @@ export default function LiveStream() {
         const videoUrl = (lastSentGift.video.startsWith('http://') || lastSentGift.video.startsWith('https://'))
           ? lastSentGift.video
           : resolveGiftAssetUrl(lastSentGift.video.startsWith('/') ? lastSentGift.video : `/${lastSentGift.video}`);
-        const previewUrl = lastSentGift.preview
-          ? ((lastSentGift.preview.startsWith('http://') || lastSentGift.preview.startsWith('https://'))
-              ? lastSentGift.preview
-              : resolveGiftAssetUrl(lastSentGift.preview.startsWith('/') ? lastSentGift.preview : `/${lastSentGift.preview}`))
-          : videoUrl;
-        if (videoUrl) setGiftQueue(prev => [...prev, { video: videoUrl, preview: previewUrl }]);
+        if (videoUrl) setGiftQueue(prev => [...prev, { video: videoUrl }]);
       }
       
       // Add to chat
@@ -5205,7 +5193,6 @@ export default function LiveStream() {
       <GiftOverlay
         key={`gift-${giftKey}`}
         videoSrc={currentGift?.video ?? null}
-        previewSrc={currentGift?.preview ?? null}
         onEnded={handleGiftEnded} 
         isBattleMode={isBattleMode}
       />

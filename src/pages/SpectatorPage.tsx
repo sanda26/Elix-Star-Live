@@ -112,8 +112,8 @@ export default function SpectatorPage() {
   const [testCoinsSavePwd, setTestCoinsSavePwd] = useState(!!(typeof localStorage !== 'undefined' && localStorage.getItem(TEST_COINS_PWD_KEY)));
   const testCoinsPwdRef = useRef<HTMLInputElement>(null);
   const TEST_COINS_HASH = '169a9bfc269089e14090ad2e393b17e945d798598c33993bcab5feef93e68508';
-  const [currentGift, setCurrentGift] = useState<{video: string; preview: string} | null>(null);
-  const [giftQueue, setGiftQueue] = useState<{video: string; preview: string}[]>([]);
+  const [currentGift, setCurrentGift] = useState<{video: string} | null>(null);
+  const [giftQueue, setGiftQueue] = useState<{video: string}[]>([]);
   const [shareQuery, setShareQuery] = useState('');
   const [shareContacts, setShareContacts] = useState<{ id: string; name: string; avatar: string }[]>([]);
   const [lastSentGift, setLastSentGift] = useState<typeof GIFTS[0] | null>(null);
@@ -647,11 +647,7 @@ export default function SpectatorPage() {
             raw.startsWith('http://') || raw.startsWith('https://')
               ? raw
               : resolveGiftAssetUrl(raw.startsWith('/') ? raw : `/${raw}`);
-          const rawPreview = giftDef.preview || '';
-          const previewUrl = rawPreview
-            ? (rawPreview.startsWith('http://') || rawPreview.startsWith('https://') ? rawPreview : resolveGiftAssetUrl(rawPreview.startsWith('/') ? rawPreview : `/${rawPreview}`))
-            : '';
-          setGiftQueue(prev => [...prev, { video: videoUrl, preview: previewUrl }]);
+          setGiftQueue(prev => [...prev, { video: videoUrl }]);
         }
       }
     };
@@ -841,11 +837,7 @@ export default function SpectatorPage() {
           raw.startsWith('http://') || raw.startsWith('https://')
             ? raw
             : resolveGiftAssetUrl(raw.startsWith('/') ? raw : `/${raw}`);
-        const rawPreview = gift.preview || '';
-        const previewUrl = rawPreview
-          ? (rawPreview.startsWith('http://') || rawPreview.startsWith('https://') ? rawPreview : resolveGiftAssetUrl(rawPreview.startsWith('/') ? rawPreview : `/${rawPreview}`))
-          : '';
-        setGiftQueue(prev => [...prev, { video: videoUrl, preview: previewUrl }]);
+        setGiftQueue(prev => [...prev, { video: videoUrl }]);
       }
       return;
     }
@@ -882,11 +874,7 @@ export default function SpectatorPage() {
         raw.startsWith('http://') || raw.startsWith('https://')
           ? raw
           : resolveGiftAssetUrl(raw.startsWith('/') ? raw : `/${raw}`);
-      const rawPreview = gift.preview || '';
-      const previewUrl = rawPreview
-        ? (rawPreview.startsWith('http://') || rawPreview.startsWith('https://') ? rawPreview : resolveGiftAssetUrl(rawPreview.startsWith('/') ? rawPreview : `/${rawPreview}`))
-        : '';
-      setGiftQueue(prev => [...prev, { video: videoUrl, preview: previewUrl }]);
+      setGiftQueue(prev => [...prev, { video: videoUrl }]);
     }
 
     const giftMsg: LiveMessage = {
@@ -1375,7 +1363,7 @@ export default function SpectatorPage() {
         <GiftAnimationOverlay streamId={effectiveStreamId} />
 
         {/* GIFT VIDEO OVERLAY */}
-        <GiftOverlay key={`gift-${giftKey}`} videoSrc={currentGift?.video ?? null} previewSrc={currentGift?.preview ?? null} onEnded={handleGiftEnded} isBattleMode={!!spectatorBattle?.active} />
+        <GiftOverlay key={`gift-${giftKey}`} videoSrc={currentGift?.video ?? null} onEnded={handleGiftEnded} isBattleMode={!!spectatorBattle?.active} />
 
         {/* Battle score/timer/winner are rendered inside the video area when spectatorBattle is set (same layout as creator). */}
 

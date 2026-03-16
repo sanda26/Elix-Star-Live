@@ -272,7 +272,6 @@ export default function SpectatorPage() {
   const [coHostStream, setCoHostStream] = useState<MediaStream | null>(null);
   const coHostChanRef = useRef<ReturnType<typeof apiStub.channel> | null>(null);
   const [pendingCoHostInvite, setPendingCoHostInvite] = useState<{ notifId: string; hostName: string; hostAvatar: string; streamKey: string; hostUserId: string } | null>(null);
-  const [showCoHostPanel, setShowCoHostPanel] = useState(false);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -283,7 +282,11 @@ export default function SpectatorPage() {
   const [isMicMuted, setIsMicMuted] = useState(true);
   const [isCamOff, setIsCamOff] = useState(false);
 
-  const isCoHostFromUrl = new URLSearchParams(location.search).get('cohost') === '1';
+  // Co-host publish is invite/accept only — URL alone is not enough.
+  const cohostState = (location.state as any) || {};
+  const isCoHostFromUrl =
+    new URLSearchParams(location.search).get('cohost') === '1' &&
+    cohostState.fromCohostInvite === true;
 
   // Spectators should not create their own co-host layout; co-hosting is controlled by the creator's room.
   // We intentionally do NOT auto-start co-hosting on ?cohost=1 for the spectator route.
@@ -940,7 +943,10 @@ export default function SpectatorPage() {
       const hostName = data.hostName || 'Creator';
       const streamKey = data.streamKey || effectiveStreamId;
       showToast(`@${hostName} accepted — you're joining as co-host`);
-      navigate(`/watch/${streamKey}?cohost=1`);
+      navigate(`/watch/${streamKey}?cohost=1`, {
+        replace: true,
+        state: { fromCohostInvite: true },
+      });
     };
 
     const handleCohostRequestDeclined = () => {
@@ -1298,13 +1304,7 @@ export default function SpectatorPage() {
               </div>
             )}
           </div>
-          <SpectatorCoHostGrid
-            spectatorCoHosts={spectatorCoHosts}
-            coHostVideoRefs={coHostVideoRefs}
-            hostName={hostName}
-            onSelectSlot={setSelectedSpectatorUserId}
-            selectedSpectatorUserId={selectedSpectatorUserId}
-          />
+          {/* Co-host layout is only for the host view. Spectators see a single full-width video with no co-host slots. */}
         </div>
 
         {/* Battle overlay: when creator is in battle, show timer + scores; same half-screen height as video container */}
@@ -1482,23 +1482,6 @@ export default function SpectatorPage() {
             )}
           </form>
 
-          <button
-              type="button"
-              title="Request to co-host"
-              aria-label="Request to co-host"
-              onClick={() => setShowCoHostPanel(true)}
-              className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg relative flex-shrink-0 active:scale-95 transition-transform"
-            >
-              <span className="flex items-center justify-center w-full h-full relative z-[2]">
-                <UserPlus size={20} className="text-[#C9A96E] shrink-0" strokeWidth={2} />
-              </span>
-              <img
-                src="/Icons/Music Icon.png"
-                alt=""
-                className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-125 translate-y-0.5"
-              />
-            </button>
-
           {/* Gift */}
           <button type="button" title="Send gift" onClick={() => setShowGiftPanel(true)} className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform relative flex-shrink-0">
             <Gift size={20} className="text-[#C9A96E] relative z-[2]" />
@@ -1528,79 +1511,7 @@ export default function SpectatorPage() {
 
         {/* Spectator: single video only; spectatorBattle still used for gift overlay. */}
 
-        {/* ═══ CO-HOST PANEL — same as creator's "invite" panel: spectator Accept/Reject when creator invited, or Request to co-host. No 8+1 top panel. */}
-        {showCoHostPanel && (
-          <>
-            <div className="fixed inset-0 z-[99998] bg-black/40 pointer-events-auto" onClick={() => { setShowCoHostPanel(false); }} />
-            <div className="fixed bottom-0 left-0 right-0 z-[99999] pointer-events-auto max-w-[480px] mx-auto">
-              <div className="bg-[#1C1E24]/95 backdrop-blur-md rounded-t-2xl h-[40vh] flex flex-col shadow-2xl border-t border-[#C9A96E]/20 overflow-hidden pb-safe" onClick={(e) => e.stopPropagation()}>
-                <div className="flex justify-center pt-2 pb-1"><div className="w-10 h-1 bg-white/20 rounded-full" /></div>
-                <div className="flex items-center justify-between px-4 py-2">
-                  <div className="flex items-center gap-1.5">
-                    <Crown size={14} className="text-[#C9A96E]" strokeWidth={1.8} />
-                    <span className="text-white font-bold text-[13px]">Co-Host</span>
-                  </div>
-                  <button type="button" title="Close" onClick={() => setShowCoHostPanel(false)} className="p-1 rounded-full active:bg-white/10">
-                    <X size={18} className="text-white/70" />
-                  </button>
-                </div>
-                <div className="flex-1 overflow-y-auto px-4 pb-4 min-h-0 flex flex-col gap-4">
-                  {pendingCoHostInvite ? (
-                    <div className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg bg-white/[0.03] flex-shrink-0">
-                      <div className="w-10 h-10 rounded-full border-2 border-[#C9A96E]/50 overflow-hidden bg-[#13151A] flex-shrink-0">
-                        {pendingCoHostInvite.hostAvatar ? <img src={pendingCoHostInvite.hostAvatar} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[#C9A96E] font-bold">{pendingCoHostInvite.hostName.slice(0, 1).toUpperCase()}</div>}
-                      </div>
-                      <div className="flex-1 min-w-0 text-left">
-                        <p className="text-white text-xs font-semibold truncate">@{pendingCoHostInvite.hostName}</p>
-                        <p className="text-white/40 text-[10px]">wants you to co-host</p>
-                      </div>
-                      <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-                        <button type="button" onClick={() => { setPendingCoHostInvite(null); setShowCoHostPanel(false); }} className="px-2 py-1 rounded-full bg-red-500/20 border border-red-500/30 flex items-center gap-0.5 active:scale-95 transition-transform cursor-pointer">
-                          <span className="text-red-400 text-[9px] font-bold">Reject</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (!pendingCoHostInvite || !user?.id) return;
-                            const inv = pendingCoHostInvite;
-                            setPendingCoHostInvite(null);
-                            setShowCoHostPanel(false);
-                            websocket.send('cohost_invite_accept', { hostUserId: inv.hostUserId, cohostName: user?.username || user?.name || 'User', cohostAvatar: user?.avatar || '', streamKey: inv.streamKey });
-                            showToast(`Joining @${inv.hostName}'s live as co-host`);
-                            if (inv.streamKey) navigate(`/watch/${inv.streamKey}?cohost=1`);
-                          }}
-                          className="px-2.5 py-1 rounded-full bg-green-500 flex items-center gap-0.5 active:scale-95 transition-transform cursor-pointer"
-                        >
-                          <span className="text-black text-[9px] font-bold">Join</span>
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center gap-3">
-                      <p className="text-white/70 text-sm text-center">
-                        {joinRequested ? 'Your request has been sent to the creator. Wait for them to accept.' : 'Request the creator to let you co-host their live.'}
-                      </p>
-                      <button
-                        type="button"
-                        disabled={joinRequested || !user?.id || !hostUserId}
-                        onClick={() => {
-                          if (!user?.id || !hostUserId || joinRequested) return;
-                          setJoinRequested(true);
-                          // Wire to creator live: hostUserId = creator from stream; server delivers cohost_request to creator
-                          websocket.send('cohost_request_send', { hostUserId, requesterName: user?.username || user?.name || 'User', requesterAvatar: user?.avatar || '' });
-                          showToast('Co-host request sent!');
-                        }}
-                        className={`w-full py-3 rounded-xl font-bold text-sm ${joinRequested ? 'bg-white/10 text-white/40 cursor-not-allowed' : 'bg-[#C9A96E] text-black active:scale-95'}`}
-                      >
-                        {joinRequested ? 'Request sent' : 'Request to co-host'}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </>
-        )}
+        {/* Co-host panel removed on spectator page */}
 
         {/* ═══ SUPER FAN GOAL PANEL (Membership) — same as creator page */}
         {showFanClub && (

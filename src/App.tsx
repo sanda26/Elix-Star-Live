@@ -81,14 +81,18 @@ function LiveStreamKeyed() {
 
 function LiveStreamGuard() {
   const loc = useLocation();
+  const { user } = useAuthStore();
   const params = (loc.pathname.match(/^\/live\/(.+)/) || [])[1];
   const isBattleJoin = loc.search.includes("battle=1");
-  // Send viewers and co-host joiners to spectator (watch) page; only battle participants stay on LiveStream.
+  // If the current user is the owner of this live (their own user id or /live/broadcast),
+  // keep them on the LiveStream page. Everyone else is redirected to Spectator (watch),
+  // except explicit battle joiners.
   if (
     params &&
     params !== "broadcast" &&
     params !== "start" &&
     params !== "watch" &&
+    params !== user?.id &&
     !isBattleJoin
   ) {
     return <Navigate to={`/watch/${params}`} replace />;
@@ -308,10 +312,10 @@ function App() {
                   element={<Navigate to="/live" replace />}
                 />
                 <Route path="/live/broadcast" element={<LiveStreamKeyed />} />
-                {/* Low-use: no in-app link; used by direct/bookmark URLs. Check 404 logs before removing. */}
+                {/* Legacy direct URL: route any /live/watch/:streamId deep links to the viewer-only watch route */}
                 <Route
                   path="/live/watch/:streamId"
-                  element={<LiveStreamKeyed />}
+                  element={<Navigate to="/watch/:streamId" replace />}
                 />
                 <Route path="/watch/:streamId" element={<SpectatorPage />} />
                 <Route path="/profile" element={<Profile />} />

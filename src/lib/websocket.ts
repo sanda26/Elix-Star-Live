@@ -77,6 +77,10 @@ class WebSocketService {
 
     this.roomId = roomId;
     this.token = token;
+
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'websocket.ts:connect',message:'ws connect requested',data:{roomId,hasToken:!!token},timestamp:Date.now(),hypothesisId:'WS1'})}).catch(()=>{});
+    // #endregion
     const wsUrl = getWsUrl();
     this.ws = new WebSocket(
       `${wsUrl}/live/${roomId}?token=${encodeURIComponent(token)}`,
@@ -98,6 +102,10 @@ class WebSocketService {
           this.ws.send("ping");
         }
       }, 25000);
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'websocket.ts:onopen',message:'ws open',data:{roomId:this.roomId},timestamp:Date.now(),hypothesisId:'WS1'})}).catch(()=>{});
+      // #endregion
+
       this.handleMessage({
         event: "connected",
         data: {},
@@ -117,6 +125,9 @@ class WebSocketService {
     this.ws.onerror = () => {};
 
     this.ws.onclose = (event) => {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'websocket.ts:onclose',message:'ws closed',data:{code:event.code,reason:event.reason,roomId:this.roomId},timestamp:Date.now(),hypothesisId:'WS2'})}).catch(()=>{});
+      // #endregion
       this.attemptReconnect(event.code);
     };
   }
@@ -191,10 +202,16 @@ class WebSocketService {
   private attemptReconnect(code?: number) {
     // Don't reconnect on auth/policy failures — these won't succeed on retry
     if (code === 1008 || code === 1003 || code === 4001 || code === 4003) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'websocket.ts:attemptReconnect',message:'no reconnect due to policy code',data:{code,roomId:this.roomId},timestamp:Date.now(),hypothesisId:'WS2'})}).catch(()=>{});
+      // #endregion
       return;
     }
 
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'websocket.ts:attemptReconnect',message:'max reconnect reached',data:{roomId:this.roomId,attempts:this.reconnectAttempts},timestamp:Date.now(),hypothesisId:'WS2'})}).catch(()=>{});
+      // #endregion
       return;
     }
 
@@ -208,6 +225,9 @@ class WebSocketService {
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null;
       if (this.roomId && this.token) {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'websocket.ts:attemptReconnect',message:'reconnect firing',data:{roomId:this.roomId,tokenPresent:!!this.token},timestamp:Date.now(),hypothesisId:'WS2'})}).catch(()=>{});
+        // #endregion
         this.connect(this.roomId, this.token);
       }
     }, delay);

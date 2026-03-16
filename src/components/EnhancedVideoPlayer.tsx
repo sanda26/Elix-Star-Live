@@ -584,7 +584,7 @@ export default function EnhancedVideoPlayer({
         className="absolute z-[10] flex flex-col items-center gap-2 pointer-events-auto"
         style={{
           right: '12px',
-          bottom: 'max(12px, calc(var(--safe-bottom) + 12px + 2cm + 4mm))'
+          bottom: 'max(12px, calc(var(--safe-bottom) + 12px + 4mm))'
         }}
       >
         
@@ -669,19 +669,38 @@ export default function EnhancedVideoPlayer({
         </button>
         <span className="text-white text-[10px] font-semibold -mt-1">{formatNumber(video.stats.shares)}</span>
 
-        {/* Music Button - Spinning Gold Disc */}
+        {/* Delete Button — only for your own videos */}
+        {isOwnVideo && (
+          <>
+            <button 
+              onClick={handleDeleteVideo}
+              className="hover:scale-105 active:scale-95 transition-transform relative"
+              style={{width:'48px',height:'48px'}}
+              title="Delete video"
+            >
+              <img src="/Icons/3 Dots Buton.png" alt="Delete" className="absolute inset-0 w-full h-full object-contain opacity-70" />
+              <Trash2 className="absolute inset-0 m-auto w-5 h-5 text-red-400 z-[2]" />
+            </button>
+            <span className="text-white text-[10px] font-semibold -mt-1">Delete</span>
+          </>
+        )}
+
+        {/* Music Button - same gold circle + size as others */}
         <button 
           onClick={handleMusicClick}
           className="hover:scale-105 active:scale-95 transition-transform relative flex flex-col items-center"
           title={video.music?.title || 'Original Sound'}
         >
-          <div 
-            className="w-12 h-12 rounded-full bg-gradient-to-br from-[#1a1a1a] via-[#333] to-[#1a1a1a] border-2 border-[#FFD700]/60 flex items-center justify-center animate-spin-slow shadow-lg"
-            style={{animationDuration:'4s'}}
+          <div
+            className="relative flex items-center justify-center"
+            style={{ width: '48px', height: '48px' }}
           >
-            <div className="w-5 h-5 rounded-full bg-[#FFD700] flex items-center justify-center shadow-inner">
-              <Music size={10} className="text-black" />
-            </div>
+            <img
+              src="/Icons/Music Icon.png"
+              alt="Music"
+              className="absolute inset-0 w-full h-full object-contain pointer-events-none"
+            />
+            <Music size={16} className="relative z-[2] text-black" />
           </div>
           <span className="text-white text-[8px] font-medium mt-1 max-w-[50px] truncate text-center drop-shadow-md">
             {video.music?.title?.split(' ').slice(0, 2).join(' ') || 'Original'}
@@ -700,7 +719,7 @@ export default function EnhancedVideoPlayer({
       </div>
 
       {/* Bottom Info Area - Same Layout with Subtle Luxury */}
-      <div className="absolute z-[10] left-4 bottom-[120px] md:bottom-[150px] w-[70%] pb-4 pointer-events-none">
+      <div className="absolute z-[10] left-4 bottom-[80px] md:bottom-[110px] w-[70%] pb-4 pointer-events-none">
         <div className="flex items-center gap-2 mb-2">
           <LevelBadge level={video.user.level ?? 1} size={10} layout="fixed" avatar={video.user.avatar} />
           <h3 className="text-white font-bold text-shadow-md">{video.user.name || video.user.username}</h3>

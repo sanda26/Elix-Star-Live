@@ -324,8 +324,11 @@ export default function ElixCameraLayout({
       {/* ══════════════════════════════════════════ */}
       {/* TOP BAR */}
       {/* ══════════════════════════════════════════ */}
-      <div className="absolute top-0 left-0 right-0 z-50 px-3 flex items-center justify-between pointer-events-auto" style={{ paddingTop: 'max(3rem, env(safe-area-inset-top))' }}>
-        <div className="w-8 h-8"></div>
+      <div
+        className="absolute top-0 left-0 right-0 z-50 px-3 flex items-center justify-between pointer-events-auto"
+        style={{ paddingTop: 'max(3rem, env(safe-area-inset-top))' }}
+      >
+        <div className="w-8 h-8" />
 
         {/* Add Sound Button */}
         <button
@@ -334,17 +337,25 @@ export default function ElixCameraLayout({
           title="Add sound"
         >
           <div className="w-7 h-7 rounded-full flex items-center justify-center z-[2]">
-            <Music size={18} className="text-[#FFD700] drop-shadow-[0_0_8px_rgba(255,215,0,1)] drop-shadow-[0_0_16px_rgba(255,215,0,0.6)]" strokeWidth={2} />
+            <Music
+              size={18}
+              className="text-[#FFD700] drop-shadow-[0_0_8px_rgba(255,215,0,1)] drop-shadow-[0_0_16px_rgba(255,215,0,0.6)]"
+              strokeWidth={2}
+            />
           </div>
         </button>
 
-        {/* Close Button */}
+        {/* Close Button (no circular container) */}
         <button
           onClick={onClose}
-          className="w-9 h-9 flex-shrink-0 aspect-square rounded-full overflow-hidden flex items-center justify-center hover:scale-110 transition-transform active:scale-90 z-[60] relative translate-x-[1.5mm]"
+          className="flex-shrink-0 flex items-center justify-center hover:scale-110 transition-transform active:scale-95 z-[60] relative translate-x-[1.5mm]"
           title="Close"
         >
-          <img src="/Icons/Gold power buton.png" alt="Close" className="w-5 h-5 object-contain drop-shadow-[0_0_8px_rgba(255,215,0,1)]" />
+          <img
+            src="/Icons/Gold power buton.png"
+            alt="Close"
+            className="w-5 h-5 object-contain drop-shadow-[0_0_8px_rgba(255,215,0,1)]"
+          />
         </button>
       </div>
 

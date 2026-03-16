@@ -409,88 +409,9 @@ export default function VideoFeed() {
       style={{ scrollSnapType: "y mandatory" }}
       onScroll={handleScroll}
     >
-      {/* ---- Top Navigation Bar ---- */}
-      <div
-        className="fixed left-0 right-0 z-[9999] flex justify-center pointer-events-none"
-        style={{ top: "calc(var(--safe-top) + 2px)" }}
-      >
-        <div
-          className="w-full max-w-[480px] relative px-1"
-          style={{ width: "calc(100% + 2mm)", marginInline: "-1mm" }}
-        >
-          <div
-            className="absolute inset-x-4 top-1/2 -translate-y-1/2 h-[200%] rounded-full pointer-events-none"
-            style={{
-              background:
-                "radial-gradient(ellipse at center, rgba(201,169,110,0.15) 0%, rgba(201,169,110,0.05) 40%, transparent 70%)",
-            }}
-          />
-          <div className="relative w-full">
-            <img
-              src="/Icons/topbar.png"
-              alt="Navigation"
-              className="w-full h-[64px] object-contain pointer-events-none"
-              style={{
-                transform: "scaleX(1.025)",
-                transformOrigin: "center",
-                filter:
-                  "drop-shadow(0 0 20px rgba(201,169,110,0.4)) drop-shadow(0 4px 30px rgba(201,169,110,0.2)) drop-shadow(0 2px 8px rgba(0,0,0,0.6))",
-              }}
-            />
-            <div className="absolute inset-0 flex items-center pointer-events-auto z-10">
-              <button
-                type="button"
-                onClick={() => navigate("/live", { replace: true })}
-                className="h-full w-full bg-transparent border-0 p-0 m-0 cursor-pointer"
-                style={{ width: "13%", minWidth: 0 }}
-                title="Live"
-              />
-              <button
-                type="button"
-                onClick={() => navigate("/stem")}
-                className="h-full w-full bg-transparent border-0 p-0 m-0 cursor-pointer"
-                style={{ width: "12%", minWidth: 0 }}
-                title="STEM"
-              />
-              <button
-                type="button"
-                onClick={() => navigate("/discover")}
-                className="h-full w-full bg-transparent border-0 p-0 m-0 cursor-pointer"
-                style={{ width: "15%", minWidth: 0 }}
-                title="Explore"
-              />
-              <button
-                type="button"
-                onClick={() => navigate("/following")}
-                className="h-full w-full bg-transparent border-0 p-0 m-0 cursor-pointer"
-                style={{ width: "18%", minWidth: 0 }}
-                title="Following"
-              />
-              <button
-                type="button"
-                onClick={() => navigate("/shop")}
-                className="h-full w-full bg-transparent border-0 p-0 m-0 cursor-pointer"
-                style={{ width: "12%", minWidth: 0 }}
-                title="Shop"
-              />
-              <button
-                type="button"
-                onClick={() => navigate("/feed", { replace: true })}
-                className="h-full w-full bg-transparent border-0 p-0 m-0 cursor-pointer"
-                style={{ width: "15%", minWidth: 0 }}
-                title="For You"
-              />
-              <button
-                type="button"
-                onClick={() => navigate("/search")}
-                className="h-full w-full bg-transparent border-0 p-0 m-0 cursor-pointer"
-                style={{ width: "15%", minWidth: 0 }}
-                title="Search"
-              />
-            </div>
-          </div>
-        </div>
-      </div>
+
+      {/* Spacer so content starts same distance below bar as Explore */}
+      <div className="h-[120px]" />
 
       {/* ============================================================ */}
       {/*  Feed items: live streams first, then videos                  */}
@@ -505,7 +426,10 @@ export default function VideoFeed() {
             >
               <div
                 className="w-full max-w-[480px] relative"
-                style={{ height: "calc(100dvh - 1.6cm)" }}
+                style={{
+                  height: "calc(100vh - 3.6cm)",
+                  marginTop: "1.1cm",
+                }}
               >
                 <InlineLiveViewer
                   streamKey={item.stream.streamKey}
@@ -528,8 +452,8 @@ export default function VideoFeed() {
             <div
               className="w-full max-w-[480px] relative"
               style={{
-                height: "calc(100dvh - 4cm + 0.5mm)",
-                marginTop: "15mm",
+                height: "calc(100vh - 3.6cm)",
+                marginTop: "1.1cm",
               }}
             >
               <EnhancedVideoPlayer

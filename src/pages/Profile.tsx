@@ -472,20 +472,27 @@ export default function Profile() {
 
   return (
     <div className="fixed inset-0 bg-[#13151A] text-white flex justify-center">
-      <div className="w-full max-w-[480px] flex flex-col bg-[#13151A] rounded-3xl overflow-hidden h-full">
-
-        {/* ═══ TOP BAR ═══ */}
-        <header className="flex items-center justify-between pl-4 pr-4 pt-2 pb-2 relative z-20">
-          <div className="flex items-center gap-4">
-            <button type="button" onClick={openSharePanel} title="Share profile" className="p-1 relative z-50">
-              <img src="/Icons/Share Icon.png" alt="Share" className="w-6 h-6 object-contain" />
-            </button>
-            <button type="button" onClick={() => setShowAccountMenu(true)} title="Menu" className="p-1">
-              <Menu size={22} className="text-white" />
-            </button>
-          </div>
+      <div
+        className="w-full max-w-[480px] flex flex-col bg-[#13151A] rounded-3xl overflow-hidden"
+        style={{ height: 'calc(100vh - 3.6cm)', marginTop: 0 }}
+      >
+        {/* Small top header with Share + Exit buttons */}
+        <header className="flex items-center justify-between px-4 pt-2 pb-2 relative z-10">
+          <button
+            type="button"
+            onClick={openSharePanel}
+            title="Share profile"
+            className="p-1"
+          >
+            <img src="/Icons/Share Icon.png" alt="Share" className="w-5 h-5 object-contain" />
+          </button>
           <div className="flex-1" />
-          <button onClick={() => navigate(-1)} className="p-1" title="Back">
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            title="Back"
+            className="p-1"
+          >
             <img src="/Icons/Gold power buton.png" alt="Back" className="w-5 h-5" />
           </button>
         </header>
@@ -701,28 +708,28 @@ export default function Profile() {
           </div>
         )}
 
-        {/* ═══ ACTION BAR (scrollable) — matches TikTok ═══ */}
-        <div className="mt-4 border-b border-white/5">
+        {/* ═══ ACTION BAR (scrollable) — compact so Edit Profile is visible ═══ */}
+        <div className="mt-2 border-b border-white/5">
           <div className="flex overflow-x-auto no-scrollbar">
-            <button onClick={() => navigate('/ai-studio')} className="flex items-center gap-2 px-4 py-3 whitespace-nowrap">
-              <Sparkles size={16} className="text-[#C9A96E]" />
-              <span className="text-[13px] font-bold text-white">AI Studio</span>
+            <button onClick={() => navigate('/ai-studio')} className="flex items-center gap-1.5 px-3 py-2 whitespace-nowrap">
+              <Sparkles size={14} className="text-[#C9A96E]" />
+              <span className="text-[11px] font-bold text-white">AI Studio</span>
             </button>
-            <button onClick={() => navigate('/creator/login-details')} className="flex items-center gap-2 px-4 py-3 whitespace-nowrap">
-              <Sparkles size={16} className="text-[#ff2d55]" />
-              <span className="text-[13px] font-bold text-white">Elix Studio</span>
+            <button onClick={() => navigate('/creator/login-details')} className="flex items-center gap-1.5 px-3 py-2 whitespace-nowrap">
+              <Sparkles size={14} className="text-[#ff2d55]" />
+              <span className="text-[11px] font-bold text-white">Elix Studio</span>
             </button>
-            <button onClick={() => navigate('/shop')} className="flex items-center gap-2 px-4 py-3 whitespace-nowrap">
-              <ShoppingBag size={16} className="text-[#C9A96E]" />
-              <span className="text-[13px] font-bold text-white">Shop</span>
+            <button onClick={() => navigate('/shop')} className="flex items-center gap-1.5 px-3 py-2 whitespace-nowrap">
+              <ShoppingBag size={14} className="text-[#C9A96E]" />
+              <span className="text-[11px] font-bold text-white">Shop</span>
             </button>
-            <button onClick={() => setActiveTab('shop')} className="flex items-center gap-2 px-4 py-3 whitespace-nowrap">
-              <ShoppingBag size={16} className="text-[#ff2d55]" />
-              <span className="text-[13px] font-bold text-white">Showcase</span>
+            <button onClick={() => setActiveTab('shop')} className="flex items-center gap-1.5 px-3 py-2 whitespace-nowrap">
+              <ShoppingBag size={14} className="text-[#ff2d55]" />
+              <span className="text-[11px] font-bold text-white">Showcase</span>
             </button>
-            <button onClick={() => navigate('/edit-profile')} className="flex items-center gap-2 px-4 py-3 whitespace-nowrap">
-              <AvatarRing src={displayAvatar} alt="" size={16} />
-              <span className="text-[13px] font-bold text-white">{displayName.length > 10 ? displayName.slice(0, 10) + '...' : displayName}</span>
+            <button onClick={() => navigate('/edit-profile')} className="flex items-center gap-1.5 px-3 py-2 whitespace-nowrap">
+              <AvatarRing src={displayAvatar} alt="" size={14} />
+              <span className="text-[11px] font-bold text-white">Edit profile</span>
             </button>
           </div>
         </div>
@@ -796,7 +803,7 @@ export default function Profile() {
 
         {/* ═══ VIDEO GRID ═══ */}
         {activeTab !== 'shop' && (
-          <div className="grid grid-cols-3 gap-[1px] flex-1">
+          <div className="grid grid-cols-3 gap-[2px] px-3 pt-3 pb-2 flex-1">
             {videosLoading && videos.length === 0 ? (
               <div className="col-span-3 flex items-center justify-center py-16">
                 <div className="w-8 h-8 border-2 border-[#C9A96E] border-t-transparent rounded-full animate-spin" />
@@ -806,7 +813,7 @@ export default function Profile() {
                 <button
                   key={video.id}
                   onClick={() => navigate(`/video/${video.id}`)}
-                  className="aspect-[3/4] bg-[#1C1E24] relative group text-left"
+                  className="aspect-[3/4] bg-[#1C1E24] relative group text-left rounded-xl overflow-hidden"
                 >
                   <img 
                     src={video.thumbnail_url || `https://ui-avatars.com/api/?name=Video&background=1C1E24&color=C9A96E&size=200`} 

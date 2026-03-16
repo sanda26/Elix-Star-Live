@@ -234,7 +234,10 @@ export default function Inbox() {
 
   return (
     <div className="fixed inset-0 bg-[#13151A] flex justify-center">
-      <div className="w-full max-w-[480px] flex flex-col h-full overflow-hidden">
+      <div
+        className="w-full max-w-[480px] flex flex-col overflow-hidden"
+        style={{ height: 'calc(100vh - 3.6cm)', marginTop: 0 }}
+      >
 
         {/* Header + Circles with gold frame — same as Friends */}
         <div className="mx-2 mt-2 bg-[#13151A] z-10">

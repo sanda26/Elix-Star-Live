@@ -8,19 +8,8 @@ export const TopNav = () => {
     null,
   );
 
-  if (
-    location.pathname === "/" ||
-    location.pathname === "/feed" ||
-    location.pathname.startsWith("/video/") ||
-    location.pathname === "/live" ||
-    location.pathname.startsWith("/live/") ||
-    location.pathname.startsWith("/watch/") ||
-    location.pathname === "/create" ||
-    location.pathname.startsWith("/create/") ||
-    location.pathname === "/upload" ||
-    location.pathname === "/login" ||
-    location.pathname === "/register"
-  ) {
+  // Show golden top bar **only** on For You page
+  if (location.pathname !== "/feed") {
     return null;
   }
 
@@ -40,7 +29,7 @@ export const TopNav = () => {
       className="fixed left-0 right-0 z-[9999] flex justify-center pointer-events-none"
       style={{ top: "calc(var(--safe-top) + 0.5mm)" }}
     >
-      <div className="w-full max-w-[480px] relative px-2">
+      <div className="w-full max-w-[480px] relative">
         <div
           className="relative w-full"
           style={{ transform: "scaleY(0.80)", transformOrigin: "top" }}

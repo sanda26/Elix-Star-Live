@@ -143,15 +143,18 @@ export default function SearchPage() {
         className="absolute inset-0 flex justify-center transition-transform duration-250 ease-out"
         style={{ transform: visible ? 'translateY(0)' : 'translateY(100%)' }}
       >
-        <div className="w-full max-w-[480px] bg-[#13151A] border border-white/10 min-h-full flex flex-col overflow-hidden pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)]" style={{ boxShadow: '0 -8px 30px rgba(0,0,0,0.5)' }}>
+        <div
+          className="w-full max-w-[480px] bg-[#13151A] border border-white/10 flex flex-col overflow-hidden pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)]"
+          style={{ boxShadow: '0 -8px 30px rgba(0,0,0,0.5)', height: 'calc(100vh - 2.6cm)', marginTop: 0 }}
+        >
           {/* Top: drag handle + power (back) — swipe down here to close */}
           <div
-            className="flex items-center justify-between px-2 pt-2 pb-1"
+            className="flex items-center justify-between px-2 pt-0 pb-0"
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
           >
             <div className="flex-1 flex justify-center">
-              <div className="w-10 h-1 rounded-full bg-[#C9A96E]/30" />
+              <div className="w-8 h-[2px] rounded-full bg-[#C9A96E]/30" />
             </div>
             <button type="button" onClick={closePanel} className="p-1 -mr-1" title="Back">
               <img src="/Icons/Gold power buton.png" alt="Back" className="w-5 h-5" />
@@ -159,13 +162,13 @@ export default function SearchPage() {
           </div>
 
           {/* Search bar */}
-          <div className="px-4 pb-3">
+          <div className="px-4 pb-0.5">
             <div className="flex items-center gap-2">
               <form onSubmit={handleSearch} className="flex-1 relative">
                 <input 
                   type="text" 
                   placeholder="Search" 
-                  className="w-full bg-[#1C1E24] text-gold-metallic placeholder-[#C9A96E]/40 rounded-full py-2 pl-9 pr-9 text-sm focus:outline-none border border-white/15 focus:border-white/40"
+                  className="w-full bg-[#1C1E24] text-gold-metallic placeholder-[#C9A96E]/40 rounded-full py-0.5 pl-9 pr-9 text-sm focus:outline-none border border-white/15 focus:border-white/40"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   autoFocus

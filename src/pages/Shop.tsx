@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiStub } from '../lib/apiStub';
 import { useAuthStore } from '../store/useAuthStore';
-import { Plus, X, Camera, Tag, MessageCircle } from 'lucide-react';
+import { Plus, X, Camera, Tag, MessageCircle, Search } from 'lucide-react';
 import { AvatarRing } from '../components/AvatarRing';
 import { showToast } from '../lib/toast';
 
@@ -158,13 +158,21 @@ export default function Shop() {
 
   return (
     <div className="fixed inset-0 bg-[#13151A] text-white flex justify-center">
-      <div className="w-full max-w-[480px] flex flex-col h-full overflow-hidden pb-24">
+      <div
+        className="w-full max-w-[480px] flex flex-col overflow-hidden pb-24"
+        style={{ height: 'calc(100vh - 3.6cm)', marginTop: 0 }}
+      >
         <div className="sticky top-0 bg-[#13151A] z-10 px-4 py-3 flex items-center justify-between border-b border-white/5">
-          <button onClick={() => setShowCreate(true)} className="p-1" title="Sell item">
-            <Plus size={22} className="text-[#C9A96E]" />
-          </button>
+          <div className="flex items-center gap-3">
+            <button onClick={() => setShowCreate(true)} className="p-1" title="Sell item">
+              <Plus size={22} className="text-[#C9A96E]" />
+            </button>
+            <button onClick={() => navigate('/search')} className="p-1" title="Search">
+              <Search size={18} className="text-[#C9A96E]" />
+            </button>
+          </div>
           <h1 className="text-lg font-bold text-gold-metallic">Shop</h1>
-          <button onClick={() => navigate(-1)} className="p-1">
+          <button onClick={() => navigate(-1)} className="p-1" title="Back">
             <img src="/Icons/Gold power buton.png" alt="Back" className="w-5 h-5" />
           </button>
         </div>

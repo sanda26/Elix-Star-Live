@@ -183,9 +183,12 @@ export default function Discover() {
 
   return (
     <div className="fixed inset-0 bg-[#13151A] text-white flex justify-center">
-      <div className="w-full max-w-[480px] flex flex-col h-full overflow-hidden">
+      <div
+        className="w-full max-w-[480px] flex flex-col overflow-hidden"
+        style={{ height: 'calc(100vh - 3.6cm)', marginTop: 0 }}
+      >
 
-        {/* ═══ HEADER (no golden frame) ═══ */}
+        {/* ═══ HEADER (like before) ═══ */}
         <div className="mx-2 mt-2 rounded-t-2xl bg-[#13151A] z-10 shrink-0">
           <div className="px-3 pt-[calc(env(safe-area-inset-top,8px)+4px)] pb-1 flex items-center justify-between relative">
             <button onClick={() => document.getElementById('discover-search')?.focus()} className="p-1 z-10" title="Search">
@@ -232,7 +235,7 @@ export default function Discover() {
           )}
         </div>
 
-        {/* ═══ CONTENT (no golden frame) ═══ */}
+        {/* ═══ CONTENT (unchanged) ═══ */}
         <div className="flex-1 overflow-y-auto mx-2 rounded-b-2xl bg-[#13151A] pb-24">
 
           {/* Loading */}

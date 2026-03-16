@@ -144,19 +144,24 @@ export default function FollowingFeed() {
 
   return (
     <div className="fixed inset-0 bg-[#13151A] flex justify-center">
-      <div className="w-full max-w-[480px] flex flex-col h-full overflow-hidden">
+      <div
+        className="w-full max-w-[480px] flex flex-col overflow-hidden"
+        style={{ height: 'calc(100vh - 3.6cm)', marginTop: 0 }}
+      >
 
         {/* Header + Circles (no golden frame) */}
-        <div className="mx-2 mt-2 rounded-t-2xl bg-[#13151A] z-10">
+        <div className="mx-2 mt-2 rounded-t-2xl bg-[#13151A] z-10 relative">
           <div className="px-3 pt-[calc(env(safe-area-inset-top,8px)+6px)] pb-1 flex items-center justify-between relative">
             <button onClick={() => navigate('/search')} className="p-1 z-10" aria-label="Search"><Search size={18} className="text-white" /></button>
             <h1 className="text-sm font-bold text-white absolute left-1/2 transform -translate-x-1/2">Following</h1>
-            <div className="flex items-center gap-3 z-10">
-              <button onClick={() => navigate(-1)} title="Back">
-                <img src="/Icons/Gold power buton.png" alt="Back" className="w-5 h-5" />
-              </button>
-            </div>
           </div>
+          <button
+            onClick={() => navigate(-1)}
+            title="Back"
+            className="absolute top-1 right-1 p-1 z-20"
+          >
+            <img src="/Icons/Gold power buton.png" alt="Back" className="w-5 h-5" />
+          </button>
 
           {/* Circles — Create, then followers who are live, then all other users who are live; scroll left */}
           <div className="px-3 py-2">

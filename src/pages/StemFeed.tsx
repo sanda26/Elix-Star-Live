@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { Search } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import EnhancedVideoPlayer from "../components/EnhancedVideoPlayer";
 import { useVideoStore } from "../store/useVideoStore";
@@ -59,98 +60,48 @@ export default function StemFeed() {
   return (
     <div
       ref={containerRef}
-      className="h-[100dvh] w-full overflow-y-scroll snap-y snap-mandatory relative bg-[#0A0B0E]"
+      className="h-[100dvh] w-full overflow-y-scroll snap-y snap-mandatory relative bg-[#13151A]"
       style={{ scrollSnapType: "y mandatory" }}
       onScroll={handleScroll}
     >
-      {/* Top Navigation Bar */}
-      <div
-        className="fixed left-0 right-0 z-[9999] flex justify-center pointer-events-none"
-        style={{ top: "calc(var(--safe-top) + 2px)" }}
-      >
-        <div className="w-full max-w-[480px] relative px-2">
-          <div
-            className="absolute inset-x-4 top-1/2 -translate-y-1/2 h-[200%] rounded-full pointer-events-none"
-            style={{
-              background:
-                "radial-gradient(ellipse at center, rgba(201,169,110,0.15) 0%, rgba(201,169,110,0.05) 40%, transparent 70%)",
-            }}
-          />
-          <div className="relative w-full">
+      {/* Header with search + exit (same buttons as Friends) */}
+      <div className="fixed left-0 right-0 z-[9999] flex justify-center pointer-events-none">
+        <div className="w-full max-w-[480px] px-3 pt-[calc(env(safe-area-inset-top,8px)+6px)] pb-1 flex items-center justify-between pointer-events-auto">
+          <button
+            onClick={() => navigate("/search")}
+            className="p-1"
+            aria-label="Search"
+          >
+            <Search size={18} className="text-white" />
+          </button>
+          <h1 className="text-sm font-bold text-white">STEM</h1>
+          <button
+            onClick={() => navigate(-1)}
+            title="Back"
+            className="p-1"
+          >
             <img
-              src="/Icons/topbar.png"
-              alt="Navigation"
-              className="w-full h-auto pointer-events-none"
-              style={{
-                filter:
-                  "drop-shadow(0 0 20px rgba(201,169,110,0.4)) drop-shadow(0 4px 30px rgba(201,169,110,0.2)) drop-shadow(0 2px 8px rgba(0,0,0,0.6))",
-              }}
+              src="/Icons/Gold power buton.png"
+              alt="Back"
+              className="w-5 h-5"
             />
-            <div className="absolute inset-0 flex items-center pointer-events-auto z-10">
-              <button
-                type="button"
-                onClick={() => navigate("/live", { replace: true })}
-                className="h-full w-full bg-transparent border-0 p-0 m-0 cursor-pointer"
-                style={{ width: "13%", minWidth: 0 }}
-                title="Live"
-              />
-              <button
-                type="button"
-                onClick={() => navigate("/stem")}
-                className="h-full w-full bg-transparent border-0 p-0 m-0 cursor-pointer"
-                style={{ width: "12%", minWidth: 0 }}
-                title="STEM"
-              />
-              <button
-                type="button"
-                onClick={() => navigate("/discover")}
-                className="h-full w-full bg-transparent border-0 p-0 m-0 cursor-pointer"
-                style={{ width: "15%", minWidth: 0 }}
-                title="Explore"
-              />
-              <button
-                type="button"
-                onClick={() => navigate("/following")}
-                className="h-full w-full bg-transparent border-0 p-0 m-0 cursor-pointer"
-                style={{ width: "18%", minWidth: 0 }}
-                title="Following"
-              />
-              <button
-                type="button"
-                onClick={() => navigate("/shop")}
-                className="h-full w-full bg-transparent border-0 p-0 m-0 cursor-pointer"
-                style={{ width: "12%", minWidth: 0 }}
-                title="Shop"
-              />
-              <button
-                type="button"
-                onClick={() => navigate("/feed", { replace: true })}
-                className="h-full w-full bg-transparent border-0 p-0 m-0 cursor-pointer"
-                style={{ width: "15%", minWidth: 0 }}
-                title="For You"
-              />
-              <button
-                type="button"
-                onClick={() => navigate("/search")}
-                className="h-full w-full bg-transparent border-0 p-0 m-0 cursor-pointer"
-                style={{ width: "15%", minWidth: 0 }}
-                title="Search"
-              />
-            </div>
-          </div>
+          </button>
         </div>
       </div>
+
+      {/* Spacer at top so feed content isn't hidden under system UI */}
+      <div className="h-[24px]" />
 
       {/* Full-screen video feed — most viewed first */}
       {stemVideos.map((video, index) => (
         <div
           key={`stem-${video.id}-${index}`}
-          className="h-[100dvh] w-full snap-start relative flex justify-center bg-[#0A0B0E]"
+          className="h-[100dvh] w-full snap-start relative flex justify-center bg-[#13151A]"
           style={{ scrollSnapAlign: "start", scrollSnapStop: "always" }}
         >
           <div
             className="w-full max-w-[480px] relative"
-            style={{ height: "calc(100dvh - 7cm + 0.5mm)", marginTop: "15mm" }}
+            style={{ height: "calc(100vh - 3.6cm)", marginTop: "1.1cm" }}
           >
             <EnhancedVideoPlayer
               videoId={video.id}

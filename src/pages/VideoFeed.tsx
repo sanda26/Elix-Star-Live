@@ -495,11 +495,17 @@ export default function VideoFeed() {
           return (
             <div
               key={`live-${item.stream.streamKey}`}
-              className="h-full min-h-0 w-full flex-shrink-0 snap-start relative flex justify-center items-center bg-[#0A0B0E] pt-[60px] pb-[68px]"
-              style={{ scrollSnapAlign: "start", scrollSnapStop: "always" }}
+              className="w-full flex-shrink-0 snap-start relative flex justify-center items-center bg-[#0A0B0E]"
+              style={{
+                scrollSnapAlign: "start",
+                scrollSnapStop: "always",
+                // Fit between top home bar and bottom nav, respecting safe areas
+                height:
+                  "calc(100dvh - var(--topbar-height) - var(--nav-height) - var(--safe-top) - var(--safe-bottom))",
+              }}
             >
-              <div className="w-full flex justify-center items-center max-w-[480px]">
-                <div className="w-full max-w-full aspect-square relative overflow-hidden">
+              <div className="w-full h-full flex justify-center items-center max-w-[480px]">
+                <div className="w-full h-full max-w-full max-h-full relative overflow-hidden">
                   <InlineLiveViewer
                     streamKey={item.stream.streamKey}
                     isActive={activeIndex === index}
@@ -516,11 +522,16 @@ export default function VideoFeed() {
         return (
           <div
             key={`video-${item.videoId}-${index}`}
-            className="h-full min-h-0 w-full flex-shrink-0 snap-start relative flex justify-center items-center bg-[#0A0B0E] pt-[60px] pb-[68px]"
-            style={{ scrollSnapAlign: "start", scrollSnapStop: "always" }}
+            className="w-full flex-shrink-0 snap-start relative flex justify-center items-center bg-[#0A0B0E]"
+            style={{
+              scrollSnapAlign: "start",
+              scrollSnapStop: "always",
+              height:
+                "calc(100dvh - var(--topbar-height) - var(--nav-height) - var(--safe-top) - var(--safe-bottom))",
+            }}
           >
-            <div className="w-full flex justify-center items-center max-w-[480px]">
-              <div className="w-full max-w-full aspect-square relative overflow-hidden">
+            <div className="w-full h-full flex justify-center items-center max-w-[480px]">
+              <div className="w-full h-full max-w-full max-h-full relative overflow-hidden">
                 <EnhancedVideoPlayer
                   videoId={item.videoId}
                   isActive={activeIndex === index}

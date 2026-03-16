@@ -499,11 +499,9 @@ export default function VideoFeed() {
               style={{
                 scrollSnapAlign: "start",
                 scrollSnapStop: "always",
-                // Fit between top home bar and bottom nav, respecting safe areas,
-                // and shift content slightly downward
+                // Fit between top home bar and bottom nav, respecting safe areas
                 height:
-                  "calc(100dvh - var(--topbar-height) - var(--nav-height) - var(--safe-top) - var(--safe-bottom) - 1.5cm)",
-                marginTop: "1.5cm",
+                  "calc(100dvh - var(--topbar-height) - var(--nav-height) - var(--safe-top) - var(--safe-bottom))",
               }}
             >
               <div className="w-full h-full flex justify-center items-center max-w-[480px]">
@@ -528,9 +526,12 @@ export default function VideoFeed() {
             style={{
               scrollSnapAlign: "start",
               scrollSnapStop: "always",
+              // Align video card so its bottom sits right above the bottom bar
+              // while staying between the top and bottom home bars. We match
+              // the main layout's top padding (46px) instead of var(--topbar-height)
+              // so there is no extra gap at the bottom.
               height:
-                "calc(100dvh - var(--topbar-height) - var(--nav-height) - var(--safe-top) - var(--safe-bottom) - 1.5cm)",
-              marginTop: "1.5cm",
+                "calc(100dvh - (var(--nav-height) + var(--safe-top) + var(--safe-bottom) + 46px))",
             }}
           >
             <div className="w-full h-full flex justify-center items-center max-w-[480px]">

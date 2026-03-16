@@ -495,11 +495,11 @@ export default function VideoFeed() {
           return (
             <div
               key={`live-${item.stream.streamKey}`}
-              className="h-full min-h-0 w-full flex-shrink-0 snap-start relative flex justify-center items-center bg-[#0A0B0E] py-10"
+              className="h-full min-h-0 w-full flex-shrink-0 snap-start relative flex justify-center items-center bg-[#0A0B0E] pt-[80px] pb-[88px]"
               style={{ scrollSnapAlign: "start", scrollSnapStop: "always" }}
             >
-              <div className="w-full flex justify-center items-center max-w-[420px] px-3">
-                <div className="w-full max-w-full aspect-square max-h-[420px] relative overflow-hidden rounded-xl">
+              <div className="w-full flex justify-center items-center max-w-[480px]">
+                <div className="w-full max-w-full aspect-square relative overflow-hidden">
                   <InlineLiveViewer
                     streamKey={item.stream.streamKey}
                     isActive={activeIndex === index}
@@ -516,11 +516,11 @@ export default function VideoFeed() {
         return (
           <div
             key={`video-${item.videoId}-${index}`}
-            className="h-full min-h-0 w-full flex-shrink-0 snap-start relative flex justify-center items-center bg-[#0A0B0E] py-10"
+            className="h-full min-h-0 w-full flex-shrink-0 snap-start relative flex justify-center items-center bg-[#0A0B0E] pt-[80px] pb-[88px]"
             style={{ scrollSnapAlign: "start", scrollSnapStop: "always" }}
           >
-            <div className="w-full flex justify-center items-center max-w-[420px] px-3">
-              <div className="w-full max-w-full aspect-square max-h-[420px] relative overflow-hidden rounded-xl">
+            <div className="w-full flex justify-center items-center max-w-[480px]">
+              <div className="w-full max-w-full aspect-square relative overflow-hidden">
                 <EnhancedVideoPlayer
                   videoId={item.videoId}
                   isActive={activeIndex === index}

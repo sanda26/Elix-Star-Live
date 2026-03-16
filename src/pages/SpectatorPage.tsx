@@ -1225,7 +1225,7 @@ export default function SpectatorPage() {
     <div className="fixed inset-0 bg-[#0A0B0E] flex justify-center">
       <div className="relative w-full max-w-[480px] h-full bg-[#13151A] overflow-hidden flex flex-col">
 
-        {/* Video container: half-screen height (50vh) + half width left (host) + right panel (slots); between top/bottom bars; straight corners. */}
+        {/* Video container: half-screen height (50vh) + optional co-host layout on the right when this viewer is co-host. */}
         <div
           className="absolute left-0 right-0 z-0 bg-[#13151A] flex flex-row overflow-hidden rounded-none"
           style={{
@@ -1290,14 +1290,16 @@ export default function SpectatorPage() {
               </div>
             )}
           </div>
-          {/* Spectator sees same layout as creator in real time: host (left) + co-host slots (right) from cohost_layout_sync */}
-          <SpectatorCoHostGrid
-            spectatorCoHosts={spectatorCoHosts}
-            coHostVideoRefs={coHostVideoRefs}
-            hostName={hostName}
-            onSelectSlot={setSelectedSpectatorUserId}
-            selectedSpectatorUserId={selectedSpectatorUserId}
-          />
+          {/* Only show co-host layout on spectator page when this viewer is actually connected as a co-host. */}
+          {(isCoHostFromUrl || isCoHosting) && (
+            <SpectatorCoHostGrid
+              spectatorCoHosts={spectatorCoHosts}
+              coHostVideoRefs={coHostVideoRefs}
+              hostName={hostName}
+              onSelectSlot={setSelectedSpectatorUserId}
+              selectedSpectatorUserId={selectedSpectatorUserId}
+            />
+          )}
         </div>
 
         {/* Battle overlay: when creator is in battle, show timer + scores; same half-screen height as video container */}

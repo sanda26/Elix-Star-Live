@@ -1290,7 +1290,14 @@ export default function SpectatorPage() {
               </div>
             )}
           </div>
-          {/* Co-host layout is only for the host view. Spectators see a single full-width video with no co-host slots. */}
+          {/* Spectator sees same layout as creator in real time: host (left) + co-host slots (right) from cohost_layout_sync */}
+          <SpectatorCoHostGrid
+            spectatorCoHosts={spectatorCoHosts}
+            coHostVideoRefs={coHostVideoRefs}
+            hostName={hostName}
+            onSelectSlot={setSelectedSpectatorUserId}
+            selectedSpectatorUserId={selectedSpectatorUserId}
+          />
         </div>
 
         {/* Battle overlay: when creator is in battle, show timer + scores; same half-screen height as video container */}
@@ -1468,18 +1475,12 @@ export default function SpectatorPage() {
             )}
           </form>
 
-          {/* Co-host invite panel toggle (no request send; invite-only) */}
+          {/* Request co-host (spectator-initiated) */}
           <button
               type="button"
-              title="Co-host invite"
-              aria-label="Co-host invite"
-              onClick={() => {
-                if (pendingCoHostInvite) {
-                  setShowCoHostPanel(true);
-                } else {
-                  showToast('Waiting for the creator to invite you as co-host');
-                }
-              }}
+              title="Request to co-host"
+              aria-label="Request to co-host"
+              onClick={() => setShowCoHostPanel(true)}
               className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg relative flex-shrink-0 active:scale-95 transition-transform"
             >
               <span className="flex items-center justify-center w-full h-full relative z-[2]">
@@ -1576,8 +1577,22 @@ export default function SpectatorPage() {
                   ) : (
                     <div className="flex flex-col items-center gap-3">
                       <p className="text-white/70 text-sm text-center">
-                        The creator can invite you to co-host. When they do, it will appear here.
+                        {joinRequested ? 'Your request has been sent to the creator. Wait for them to accept.' : 'Request the creator to let you co-host their live.'}
                       </p>
+                      <button
+                        type="button"
+                        disabled={joinRequested || !user?.id || !hostUserId}
+                        onClick={() => {
+                          if (!user?.id || !hostUserId || joinRequested) return;
+                          setJoinRequested(true);
+                          // Spectator-initiated co-host request; creator must still Accept before co-hosting starts
+                          websocket.send('cohost_request_send', { hostUserId, requesterName: user?.username || user?.name || 'User', requesterAvatar: user?.avatar || '' });
+                          showToast('Co-host request sent!');
+                        }}
+                        className={`w-full py-3 rounded-xl font-bold text-sm ${joinRequested ? 'bg-white/10 text-white/40 cursor-not-allowed' : 'bg-[#C9A96E] text-black active:scale-95'}`}
+                      >
+                        {joinRequested ? 'Request sent' : 'Request to co-host'}
+                      </button>
                     </div>
                   )}
                 </div>

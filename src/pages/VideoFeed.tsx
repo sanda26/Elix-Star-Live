@@ -499,9 +499,11 @@ export default function VideoFeed() {
               style={{
                 scrollSnapAlign: "start",
                 scrollSnapStop: "always",
-                // Fit between top home bar and bottom nav, respecting safe areas
+                // Fit between top home bar and bottom nav, respecting safe areas,
+                // and shift content slightly downward
                 height:
-                  "calc(100dvh - var(--topbar-height) - var(--nav-height) - var(--safe-top) - var(--safe-bottom))",
+                  "calc(100dvh - var(--topbar-height) - var(--nav-height) - var(--safe-top) - var(--safe-bottom) - 1.5cm)",
+                marginTop: "1.5cm",
               }}
             >
               <div className="w-full h-full flex justify-center items-center max-w-[480px]">
@@ -527,7 +529,8 @@ export default function VideoFeed() {
               scrollSnapAlign: "start",
               scrollSnapStop: "always",
               height:
-                "calc(100dvh - var(--topbar-height) - var(--nav-height) - var(--safe-top) - var(--safe-bottom))",
+                "calc(100dvh - var(--topbar-height) - var(--nav-height) - var(--safe-top) - var(--safe-bottom) - 1.5cm)",
+              marginTop: "1.5cm",
             }}
           >
             <div className="w-full h-full flex justify-center items-center max-w-[480px]">

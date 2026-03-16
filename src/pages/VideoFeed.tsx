@@ -405,7 +405,7 @@ export default function VideoFeed() {
   return (
     <div
       ref={containerRef}
-      className="h-full w-full overflow-y-scroll snap-y snap-mandatory relative bg-[#0A0B0E]"
+      className="h-[100dvh] w-full overflow-y-scroll snap-y snap-mandatory relative bg-[#0A0B0E]"
       style={{ scrollSnapType: "y mandatory" }}
       onScroll={handleScroll}
     >
@@ -495,25 +495,17 @@ export default function VideoFeed() {
           return (
             <div
               key={`live-${item.stream.streamKey}`}
-              className="w-full flex-shrink-0 snap-start relative flex justify-center items-center bg-[#0A0B0E]"
-              style={{
-                scrollSnapAlign: "start",
-                scrollSnapStop: "always",
-                // Fit between top home bar and bottom nav, respecting safe areas
-                height:
-                  "calc(100dvh - var(--topbar-height) - var(--nav-height) - var(--safe-top) - var(--safe-bottom))",
-              }}
+              className="h-[100dvh] w-full snap-start relative flex justify-center bg-[#0A0B0E]"
+              style={{ scrollSnapAlign: "start", scrollSnapStop: "always" }}
             >
-              <div className="w-full h-full flex justify-center items-center max-w-[480px]">
-                <div className="w-full h-full max-w-full max-h-full relative overflow-hidden">
-                  <InlineLiveViewer
-                    streamKey={item.stream.streamKey}
-                    isActive={activeIndex === index}
-                    creatorName={item.stream.name}
-                    creatorAvatar={item.stream.avatar}
-                    viewerCount={item.stream.viewers}
-                  />
-                </div>
+              <div className="w-full max-w-[480px] h-full relative">
+                <InlineLiveViewer
+                  streamKey={item.stream.streamKey}
+                  isActive={activeIndex === index}
+                  creatorName={item.stream.name}
+                  creatorAvatar={item.stream.avatar}
+                  viewerCount={item.stream.viewers}
+                />
               </div>
             </div>
           );
@@ -522,25 +514,15 @@ export default function VideoFeed() {
         return (
           <div
             key={`video-${item.videoId}-${index}`}
-            className="w-full flex-shrink-0 snap-start relative flex justify-center items-center bg-[#0A0B0E]"
-            style={{
-              scrollSnapAlign: "start",
-              scrollSnapStop: "always",
-              // Fit between top home bar and bottom nav, respecting safe areas,
-              // but shift the video container down a bit more for For You
-              height:
-                "calc(100dvh - var(--topbar-height) - var(--nav-height) - var(--safe-top) - var(--safe-bottom) - 2cm)",
-              marginTop: "2cm",
-            }}
+            className="h-[100dvh] w-full snap-start relative flex justify-center bg-[#0A0B0E]"
+            style={{ scrollSnapAlign: "start", scrollSnapStop: "always" }}
           >
-            <div className="w-full h-full flex justify-center items-center max-w-[480px]">
-              <div className="w-full h-full max-w-full max-h-full relative overflow-hidden">
-                <EnhancedVideoPlayer
-                  videoId={item.videoId}
-                  isActive={activeIndex === index}
-                  onVideoEnd={() => handleVideoEnd(index)}
-                />
-              </div>
+            <div className="w-full max-w-[480px] h-full relative">
+              <EnhancedVideoPlayer
+                videoId={item.videoId}
+                isActive={activeIndex === index}
+                onVideoEnd={() => handleVideoEnd(index)}
+              />
             </div>
           </div>
         );

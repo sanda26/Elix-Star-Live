@@ -493,13 +493,13 @@ export default function VideoFeed() {
       {feedItems.map((item, index) => {
         if (item.kind === "live") {
           return (
-            <div
-              key={`live-${item.stream.streamKey}`}
-              className="h-full min-h-0 w-full flex-shrink-0 snap-start relative flex justify-center items-center bg-[#0A0B0E]"
-              style={{ scrollSnapAlign: "start", scrollSnapStop: "always" }}
-            >
-              <div className="w-full h-full flex justify-center items-center max-w-[480px]">
-                <div className="aspect-square h-full max-w-full relative overflow-hidden rounded-xl">
+          <div
+            key={`live-${item.stream.streamKey}`}
+            className="h-full min-h-0 w-full flex-shrink-0 snap-start relative flex justify-center items-center bg-[#0A0B0E] py-10"
+            style={{ scrollSnapAlign: "start", scrollSnapStop: "always" }}
+          >
+            <div className="w-full h-full flex justify-center items-center max-w-[480px]">
+              <div className="aspect-square h-full max-w-full relative overflow-hidden rounded-xl">
                   <InlineLiveViewer
                     streamKey={item.stream.streamKey}
                     isActive={activeIndex === index}
@@ -516,7 +516,7 @@ export default function VideoFeed() {
         return (
           <div
             key={`video-${item.videoId}-${index}`}
-            className="h-full min-h-0 w-full flex-shrink-0 snap-start relative flex justify-center items-center bg-[#0A0B0E]"
+            className="h-full min-h-0 w-full flex-shrink-0 snap-start relative flex justify-center items-center bg-[#0A0B0E] py-10"
             style={{ scrollSnapAlign: "start", scrollSnapStop: "always" }}
           >
             <div className="w-full h-full flex justify-center items-center max-w-[480px]">

@@ -26,6 +26,7 @@ export const BottomNav = () => {
         position: "fixed",
         left: 0,
         right: 0,
+        // Anchor home bar at the very bottom so there is no gap underneath
         bottom: 0,
         top: "auto",
         zIndex: 9998,

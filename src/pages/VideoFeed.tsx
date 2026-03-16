@@ -414,7 +414,10 @@ export default function VideoFeed() {
         className="fixed left-0 right-0 z-[9999] flex justify-center pointer-events-none"
         style={{ top: "calc(var(--safe-top) + 2px)" }}
       >
-        <div className="w-full max-w-[480px] relative px-2">
+        <div
+          className="w-full max-w-[480px] relative px-1"
+          style={{ width: "calc(100% + 2mm)", marginInline: "-1mm" }}
+        >
           <div
             className="absolute inset-x-4 top-1/2 -translate-y-1/2 h-[200%] rounded-full pointer-events-none"
             style={{
@@ -428,6 +431,8 @@ export default function VideoFeed() {
               alt="Navigation"
               className="w-full h-[64px] object-contain pointer-events-none"
               style={{
+                transform: "scaleX(1.025)",
+                transformOrigin: "center",
                 filter:
                   "drop-shadow(0 0 20px rgba(201,169,110,0.4)) drop-shadow(0 4px 30px rgba(201,169,110,0.2)) drop-shadow(0 2px 8px rgba(0,0,0,0.6))",
               }}
@@ -498,7 +503,10 @@ export default function VideoFeed() {
               className="h-[100dvh] w-full snap-start relative flex justify-center bg-[#0A0B0E]"
               style={{ scrollSnapAlign: "start", scrollSnapStop: "always" }}
             >
-              <div className="w-full max-w-[480px] h-full relative">
+              <div
+                className="w-full max-w-[480px] relative"
+                style={{ height: "calc(100dvh - 1.6cm)" }}
+              >
                 <InlineLiveViewer
                   streamKey={item.stream.streamKey}
                   isActive={activeIndex === index}
@@ -517,7 +525,13 @@ export default function VideoFeed() {
             className="h-[100dvh] w-full snap-start relative flex justify-center bg-[#0A0B0E]"
             style={{ scrollSnapAlign: "start", scrollSnapStop: "always" }}
           >
-            <div className="w-full max-w-[480px] h-full relative">
+            <div
+              className="w-full max-w-[480px] relative"
+              style={{
+                height: "calc(100dvh - 4cm + 0.5mm)",
+                marginTop: "15mm",
+              }}
+            >
               <EnhancedVideoPlayer
                 videoId={item.videoId}
                 isActive={activeIndex === index}

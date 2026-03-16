@@ -148,12 +148,43 @@ export const useVideoStore = create<VideoStore>()(
         set({ loading: true });
         try {
           const { videos: apiVideos } = await fetchForYouFeed(1, 50);
-          if (!apiVideos || apiVideos.length === 0) {
-            set({ videos: [], loading: false });
-            return;
-          }
 
-          const mappedVideos: Video[] = apiVideos.map((v: any) => {
+          // If backend has no videos yet, seed feed with a local demo clip
+          const sourceVideos = (!apiVideos || apiVideos.length === 0)
+            ? [{
+                id: 'demo-big-buck-bunny',
+                url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+                thumbnail: '',
+                description: 'Big Buck Bunny • demo video',
+                user: {
+                  id: 'demo-user',
+                  username: 'elixstar',
+                  name: 'Elix Star',
+                  avatar: '',
+                  followers: 120,
+                  following: 0,
+                  isVerified: true,
+                  level: 1,
+                },
+                hashtags: ['welcome', 'elixstar'],
+                music: {
+                  id: 'original',
+                  title: 'Original Sound',
+                  artist: 'Elix Star',
+                  duration: '0:30',
+                },
+                stats: {
+                  views: 120,
+                  likes: 10,
+                  comments: 0,
+                  shares: 0,
+                  saves: 0,
+                },
+                createdAt: new Date().toISOString(),
+              }]
+            : apiVideos;
+
+          const mappedVideos: Video[] = sourceVideos.map((v: any) => {
             const u = v.user || {};
             const stats = v.stats || {};
             const music = v.music || { id: 'original', title: 'Original Sound', artist: u.name || 'Creator', duration: '0:15' };

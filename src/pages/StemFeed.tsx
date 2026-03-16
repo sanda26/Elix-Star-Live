@@ -148,7 +148,10 @@ export default function StemFeed() {
           className="h-[100dvh] w-full snap-start relative flex justify-center bg-[#0A0B0E]"
           style={{ scrollSnapAlign: "start", scrollSnapStop: "always" }}
         >
-          <div className="w-full max-w-[480px] h-full relative">
+          <div
+            className="w-full max-w-[480px] relative"
+            style={{ height: "calc(100dvh - 7cm + 0.5mm)", marginTop: "15mm" }}
+          >
             <EnhancedVideoPlayer
               videoId={video.id}
               isActive={activeIndex === index}

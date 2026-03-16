@@ -272,6 +272,7 @@ export default function SpectatorPage() {
   const [coHostStream, setCoHostStream] = useState<MediaStream | null>(null);
   const coHostChanRef = useRef<ReturnType<typeof apiStub.channel> | null>(null);
   const [pendingCoHostInvite, setPendingCoHostInvite] = useState<{ notifId: string; hostName: string; hostAvatar: string; streamKey: string; hostUserId: string } | null>(null);
+  const [showCoHostPanel, setShowCoHostPanel] = useState(false);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -468,9 +469,6 @@ export default function SpectatorPage() {
     const room = new Room({ adaptiveStream: true });
     liveKitRoomRef.current = room;
     const isCoHost = isCoHostFromUrl;
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SpectatorPage.tsx:LiveKit effect',message:'spectator LiveKit connect',data:{isCoHost,effectiveStreamId},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
-    // #endregion
 
     (async () => {
       try {
@@ -501,12 +499,7 @@ export default function SpectatorPage() {
           if (track.kind === 'audio') {
             const isHost = identity === hostId || identity === effectiveStreamId;
             // Never attach/play remote audio if it's our own track (e.g. host watching own stream in another tab)
-            if (isSelf) {
-              // #region agent log
-              fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SpectatorPage.tsx:onTrackSubscribed audio',message:'skip attach self audio',data:{identity,myIdentity},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
-              // #endregion
-              return;
-            }
+            if (isSelf) return;
             if (isHost) track.attach();
             return;
           }
@@ -537,10 +530,6 @@ export default function SpectatorPage() {
           return;
         }
         myIdentity = room.localParticipant?.identity ?? '';
-        const remoteIdentities = Array.from(room.remoteParticipants.keys());
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SpectatorPage.tsx:after connect',message:'spectator identity vs host',data:{myIdentity,hostId,effectiveStreamId,remoteIdentities},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
-        // #endregion
         for (const [, participant] of room.remoteParticipants) {
           const identity = participant.identity || '';
           const isHost = identity === hostId || identity === effectiveStreamId;
@@ -549,9 +538,6 @@ export default function SpectatorPage() {
           for (const [, publication] of participant.videoTrackPublications) {
             if (publication.track && publication.isSubscribed && videoRef.current) {
               if (isHost) {
-                // #region agent log
-                fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SpectatorPage.tsx:attach host video',message:'attaching host video',data:{identity,hostId,myIdentity},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
-                // #endregion
                 publication.track.attach(videoRef.current);
                 currentMainTrackRef.current = publication.track;
                 mainVideoAttached = true;
@@ -1482,6 +1468,24 @@ export default function SpectatorPage() {
             )}
           </form>
 
+          {/* Request co-host */}
+          <button
+              type="button"
+              title="Request to co-host"
+              aria-label="Request to co-host"
+              onClick={() => setShowCoHostPanel(true)}
+              className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg relative flex-shrink-0 active:scale-95 transition-transform"
+            >
+              <span className="flex items-center justify-center w-full h-full relative z-[2]">
+                <UserPlus size={20} className="text-[#C9A96E] shrink-0" strokeWidth={2} />
+              </span>
+              <img
+                src="/Icons/Music Icon.png"
+                alt=""
+                className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-125 translate-y-0.5"
+              />
+            </button>
+
           {/* Gift */}
           <button type="button" title="Send gift" onClick={() => setShowGiftPanel(true)} className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform relative flex-shrink-0">
             <Gift size={20} className="text-[#C9A96E] relative z-[2]" />
@@ -1511,7 +1515,84 @@ export default function SpectatorPage() {
 
         {/* Spectator: single video only; spectatorBattle still used for gift overlay. */}
 
-        {/* Co-host panel removed on spectator page */}
+        {/* ═══ CO-HOST PANEL — spectator Accept/Reject when creator invited, or Request to co-host. No layout control. */}
+        {showCoHostPanel && (
+          <>
+            <div className="fixed inset-0 z-[99998] bg-black/40 pointer-events-auto" onClick={() => { setShowCoHostPanel(false); }} />
+            <div className="fixed bottom-0 left-0 right-0 z-[99999] pointer-events-auto max-w-[480px] mx-auto">
+              <div className="bg-[#1C1E24]/95 backdrop-blur-md rounded-t-2xl h-[40vh] flex flex-col shadow-2xl border-t border-[#C9A96E]/20 overflow-hidden pb-safe" onClick={(e) => e.stopPropagation()}>
+                <div className="flex justify-center pt-2 pb-1"><div className="w-10 h-1 bg-white/20 rounded-full" /></div>
+                <div className="flex items-center justify-between px-4 py-2">
+                  <div className="flex items-center gap-1.5">
+                    <Crown size={14} className="text-[#C9A96E]" strokeWidth={1.8} />
+                    <span className="text-white font-bold text-[13px]">Co-Host</span>
+                  </div>
+                  <button type="button" title="Close" onClick={() => setShowCoHostPanel(false)} className="p-1 rounded-full active:bg-white/10">
+                    <X size={18} className="text-white/70" />
+                  </button>
+                </div>
+                <div className="flex-1 overflow-y-auto px-4 pb-4 min-h-0 flex flex-col gap-4">
+                  {pendingCoHostInvite ? (
+                    <div className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg bg-white/[0.03] flex-shrink-0">
+                      <div className="w-10 h-10 rounded-full border-2 border-[#C9A96E]/50 overflow-hidden bg-[#13151A] flex-shrink-0">
+                        {pendingCoHostInvite.hostAvatar ? <img src={pendingCoHostInvite.hostAvatar} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[#C9A96E] font-bold">{pendingCoHostInvite.hostName.slice(0, 1).toUpperCase()}</div>}
+                      </div>
+                      <div className="flex-1 min-w-0 text-left">
+                        <p className="text-white text-xs font-semibold truncate">@{pendingCoHostInvite.hostName}</p>
+                        <p className="text-white/40 text-[10px]">wants you to co-host</p>
+                      </div>
+                      <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                        <button type="button" onClick={() => { setPendingCoHostInvite(null); setShowCoHostPanel(false); }} className="px-2 py-1 rounded-full bg-red-500/20 border border-red-500/30 flex items-center gap-0.5 active:scale-95 transition-transform cursor-pointer">
+                          <span className="text-red-400 text-[9px] font-bold">Reject</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!pendingCoHostInvite || !user?.id) return;
+                            const inv = pendingCoHostInvite;
+                            setPendingCoHostInvite(null);
+                            setShowCoHostPanel(false);
+                            websocket.send('cohost_invite_accept', { hostUserId: inv.hostUserId, cohostName: user?.username || user?.name || 'User', cohostAvatar: user?.avatar || '', streamKey: inv.streamKey });
+                            showToast(`Joining @${inv.hostName}'s live as co-host`);
+                            if (inv.streamKey) {
+                              navigate(`/watch/${inv.streamKey}?cohost=1`, {
+                                replace: true,
+                                state: { fromCohostInvite: true },
+                              });
+                            }
+                          }}
+                          className="px-2.5 py-1 rounded-full bg-green-500 flex items-center gap-0.5 active:scale-95 transition-transform cursor-pointer"
+                        >
+                          <span className="text-black text-[9px] font-bold">Join</span>
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center gap-3">
+                      <p className="text-white/70 text-sm text-center">
+                        {joinRequested ? 'Your request has been sent to the creator. Wait for them to accept.' : 'Request the creator to let you co-host their live.'}
+                      </p>
+                      <button
+                        type="button"
+                        disabled={joinRequested || !user?.id || !hostUserId}
+                        onClick={() => {
+                          if (!user?.id || !hostUserId || joinRequested) return;
+                          setJoinRequested(true);
+                          // Wire to creator live: hostUserId = creator from stream; server delivers cohost_request to creator
+                          websocket.send('cohost_request_send', { hostUserId, requesterName: user?.username || user?.name || 'User', requesterAvatar: user?.avatar || '' });
+                          showToast('Co-host request sent!');
+                        }}
+                        className={`w-full py-3 rounded-xl font-bold text-sm ${joinRequested ? 'bg-white/10 text-white/40 cursor-not-allowed' : 'bg-[#C9A96E] text-black active:scale-95'}`}
+                      >
+                        {joinRequested ? 'Request sent' : 'Request to co-host'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </>
+        )}
 
         {/* ═══ SUPER FAN GOAL PANEL (Membership) — same as creator page */}
         {showFanClub && (

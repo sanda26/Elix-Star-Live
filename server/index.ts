@@ -921,10 +921,6 @@ wss.on("connection", async (ws: WebSocket, req) => {
       return;
     }
 
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/index.ts:wss connection',message:'ws client connected',data:{roomId,userId,isFeed:roomId==='__feed__'||roomId==='feed'},timestamp:Date.now(),hypothesisId:'SV1'})}).catch(()=>{});
-    // #endregion
-
     // For You feed subscribers: realtime stream_started / stream_ended only
     if (roomId === "__feed__" || roomId === "feed") {
       client = {
@@ -1176,10 +1172,6 @@ wss.on("connection", async (ws: WebSocket, req) => {
           rooms.delete(client.roomId);
         }
       }
-
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/index.ts:wss close',message:'ws client disconnected',data:{roomId:client.roomId,userId:client.userId,roomSizeAfter:rooms.get(client.roomId)?.size ?? 0},timestamp:Date.now(),hypothesisId:'SV1'})}).catch(()=>{});
-      // #endregion
 
       // End battle if host or opponent disconnects
       const battleRoomId = userBattleRoom.get(client.userId);

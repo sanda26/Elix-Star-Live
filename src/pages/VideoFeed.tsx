@@ -426,7 +426,7 @@ export default function VideoFeed() {
             <img
               src="/Icons/topbar.png"
               alt="Navigation"
-              className="w-full h-auto pointer-events-none"
+              className="w-full h-[64px] object-contain pointer-events-none"
               style={{
                 filter:
                   "drop-shadow(0 0 20px rgba(201,169,110,0.4)) drop-shadow(0 4px 30px rgba(201,169,110,0.2)) drop-shadow(0 2px 8px rgba(0,0,0,0.6))",
@@ -493,13 +493,13 @@ export default function VideoFeed() {
       {feedItems.map((item, index) => {
         if (item.kind === "live") {
           return (
-          <div
-            key={`live-${item.stream.streamKey}`}
-            className="h-full min-h-0 w-full flex-shrink-0 snap-start relative flex justify-center items-center bg-[#0A0B0E] py-10"
-            style={{ scrollSnapAlign: "start", scrollSnapStop: "always" }}
-          >
-            <div className="w-full h-full flex justify-center items-center max-w-[480px]">
-              <div className="aspect-square h-full max-w-full relative overflow-hidden rounded-xl">
+            <div
+              key={`live-${item.stream.streamKey}`}
+              className="h-full min-h-0 w-full flex-shrink-0 snap-start relative flex justify-center items-center bg-[#0A0B0E] py-10"
+              style={{ scrollSnapAlign: "start", scrollSnapStop: "always" }}
+            >
+              <div className="w-full flex justify-center items-center max-w-[420px] px-3">
+                <div className="w-full max-w-full aspect-square max-h-[420px] relative overflow-hidden rounded-xl">
                   <InlineLiveViewer
                     streamKey={item.stream.streamKey}
                     isActive={activeIndex === index}
@@ -519,8 +519,8 @@ export default function VideoFeed() {
             className="h-full min-h-0 w-full flex-shrink-0 snap-start relative flex justify-center items-center bg-[#0A0B0E] py-10"
             style={{ scrollSnapAlign: "start", scrollSnapStop: "always" }}
           >
-            <div className="w-full h-full flex justify-center items-center max-w-[480px]">
-              <div className="aspect-square h-full max-w-full relative overflow-hidden rounded-xl">
+            <div className="w-full flex justify-center items-center max-w-[420px] px-3">
+              <div className="w-full max-w-full aspect-square max-h-[420px] relative overflow-hidden rounded-xl">
                 <EnhancedVideoPlayer
                   videoId={item.videoId}
                   isActive={activeIndex === index}

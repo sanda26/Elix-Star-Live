@@ -495,7 +495,7 @@ export default function VideoFeed() {
           return (
             <div
               key={`live-${item.stream.streamKey}`}
-              className="h-full min-h-0 w-full flex-shrink-0 snap-start relative flex justify-center items-center bg-[#0A0B0E] pt-[80px] pb-[88px]"
+              className="h-full min-h-0 w-full flex-shrink-0 snap-start relative flex justify-center items-center bg-[#0A0B0E] pt-[60px] pb-[68px]"
               style={{ scrollSnapAlign: "start", scrollSnapStop: "always" }}
             >
               <div className="w-full flex justify-center items-center max-w-[480px]">
@@ -516,7 +516,7 @@ export default function VideoFeed() {
         return (
           <div
             key={`video-${item.videoId}-${index}`}
-            className="h-full min-h-0 w-full flex-shrink-0 snap-start relative flex justify-center items-center bg-[#0A0B0E] pt-[80px] pb-[88px]"
+            className="h-full min-h-0 w-full flex-shrink-0 snap-start relative flex justify-center items-center bg-[#0A0B0E] pt-[60px] pb-[68px]"
             style={{ scrollSnapAlign: "start", scrollSnapStop: "always" }}
           >
             <div className="w-full flex justify-center items-center max-w-[480px]">

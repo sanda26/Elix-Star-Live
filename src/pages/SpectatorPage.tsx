@@ -1222,16 +1222,16 @@ export default function SpectatorPage() {
   }
 
   return (
-    <div className="fixed inset-0 bg-[#0A0B0E] flex justify-center">
-      <div className="relative w-full max-w-[480px] h-full bg-[#13151A] overflow-hidden flex flex-col">
+    <div className="fixed inset-0 flex justify-center">
+      <div className="relative w-full max-w-[480px] h-full overflow-hidden flex flex-col">
 
-        {/* Video container: half-screen height (50vh) + optional co-host layout on the right when this viewer is co-host. */}
+        {/* Video container: fixed between top creator bar and bottom spectator bar; black background behind the live video. */}
         <div
-          className="absolute left-0 right-0 z-0 bg-[#13151A] flex flex-row overflow-hidden rounded-none"
+          className="absolute left-0 right-0 z-0 bg-[#0A0B0E] flex flex-row overflow-hidden rounded-none"
           style={{
             top: 'calc(env(safe-area-inset-top, 0px) + 78px)',
-            height: '50vh',
-            maxHeight: '50vh',
+            // Match bottom spectator bar height (~80px) + a small gap, so video never goes under the buttons
+            bottom: '90px',
           }}
         >
           <div className="overflow-hidden rounded-none w-1/2 min-w-0 relative flex-1">
@@ -1452,8 +1452,8 @@ export default function SpectatorPage() {
           </div>
         )}
 
-        {/* BOTTOM BAR — buttons in front of video and gift overlay, lifted 18mm up from bottom */}
-        <div className="fixed left-0 right-0 z-[120] pointer-events-auto flex justify-center" style={{ bottom: '18mm' }}>
+        {/* BOTTOM BAR — move closer to the bottom (about 1.5cm from previous position) */}
+        <div className="fixed left-0 right-0 z-[120] pointer-events-auto flex justify-center" style={{ bottom: '3mm' }}>
           <div className="w-full max-w-[480px] px-3 pb-[max(8px,env(safe-area-inset-bottom))] pt-2 bg-transparent">
           <div className="flex items-center gap-2">
           <form

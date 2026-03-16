@@ -526,12 +526,11 @@ export default function VideoFeed() {
             style={{
               scrollSnapAlign: "start",
               scrollSnapStop: "always",
-              // Align video card so its bottom sits right above the bottom bar
-              // while staying between the top and bottom home bars. We match
-              // the main layout's top padding (46px) instead of var(--topbar-height)
-              // so there is no extra gap at the bottom.
+              // Fit between top home bar and bottom nav, respecting safe areas,
+              // but shift the video container down a bit more for For You
               height:
-                "calc(100dvh - (var(--nav-height) + var(--safe-top) + var(--safe-bottom) + 46px))",
+                "calc(100dvh - var(--topbar-height) - var(--nav-height) - var(--safe-top) - var(--safe-bottom) - 2cm)",
+              marginTop: "2cm",
             }}
           >
             <div className="w-full h-full flex justify-center items-center max-w-[480px]">

@@ -66,7 +66,7 @@
     /* Top bar height (responsive) */
     --topbar-height: clamp(40px, 10vw, 56px);
     /* Total top offset so content stays below top bar (feed spacer, etc.) */
-    --topbar-total: calc(var(--safe-top) + 46px + 9mm);
+    --topbar-total: calc(var(--safe-top) + 46px + 9mm - 1cm);
 
     /* Bottom sheets */
     --sheet-collapsed: 30vh;

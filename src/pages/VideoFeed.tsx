@@ -426,8 +426,8 @@ export default function VideoFeed() {
             <div
               className="w-full max-w-[480px] relative border-2 border-black overflow-hidden bg-[#0A0B0E]"
               style={{
-                height: "calc(100dvh - var(--topbar-total, 120px) - 1rem)",
-                marginTop: "0.5rem",
+                height: "calc(100dvh - var(--topbar-total, 120px) - 1rem - 2cm)",
+                marginTop: "calc(0.5rem + 6mm)",
               }}
             >
               <InlineLiveViewer
@@ -451,8 +451,8 @@ export default function VideoFeed() {
             <div
               className="w-full max-w-[480px] relative border-2 border-black overflow-hidden bg-[#0A0B0E]"
               style={{
-                height: "calc(100dvh - var(--topbar-total, 120px) - 1rem)",
-                marginTop: "0.5rem",
+                height: "calc(100dvh - var(--topbar-total, 120px) - 1rem - 2cm)",
+                marginTop: "calc(0.5rem + 6mm)",
               }}
             >
               <EnhancedVideoPlayer

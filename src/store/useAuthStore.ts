@@ -158,7 +158,12 @@ const getAuthErrorMessage = (error: unknown): string => {
       m.includes("network request failed") ||
       m.includes("the internet connection appears to be offline")
     ) {
-      return "Network error. Please check your connection and try again.";
+      const isLocal =
+        typeof window !== "undefined" &&
+        (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+      return isLocal
+        ? "Cannot reach backend. Start both frontend and backend: npm run dev:all"
+        : "Cannot reach backend. Try again later.";
     }
     return error.message;
   }
@@ -253,9 +258,17 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
       const msg = err instanceof Error ? err.message : "Unknown error occurred";
       if (
         msg.toLowerCase().includes("fetch") ||
-        msg.toLowerCase().includes("network")
+        msg.toLowerCase().includes("network") ||
+        msg.toLowerCase().includes("failed to fetch")
       ) {
-        return { error: "Network error. Please check your connection." };
+        const isLocal =
+          typeof window !== "undefined" &&
+          (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+        return {
+          error: isLocal
+            ? "Cannot reach backend. Start both frontend and backend: npm run dev:all"
+            : "Cannot reach backend. Try again later.",
+        };
       }
       if (
         (err as { name?: string }).name === "AbortError" ||
@@ -293,10 +306,11 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
           "Signup failed. Please try again.";
         if (
           message.toLowerCase().includes("fetch") ||
-          message.toLowerCase().includes("network")
+          message.toLowerCase().includes("network") ||
+          res.status === 0
         ) {
           return {
-            error: "Network error. Please check your connection.",
+            error: "Cannot reach backend. Start both frontend and backend: npm run dev:all",
             needsEmailConfirmation: false,
           };
         }
@@ -355,10 +369,11 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
       const msg = err instanceof Error ? err.message : "Unknown error occurred";
       if (
         msg.toLowerCase().includes("fetch") ||
-        msg.toLowerCase().includes("network")
+        msg.toLowerCase().includes("network") ||
+        msg.toLowerCase().includes("failed to fetch")
       ) {
         return {
-          error: "Network error. Please check your connection.",
+          error: "Cannot reach backend. Start both frontend and backend: npm run dev:all",
           needsEmailConfirmation: false,
         };
       }

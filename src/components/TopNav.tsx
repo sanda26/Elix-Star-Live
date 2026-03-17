@@ -27,7 +27,7 @@ export const TopNav = () => {
   return (
     <div
       className="fixed left-0 right-0 z-[9999] flex justify-center pointer-events-none"
-      style={{ top: "calc(var(--safe-top) + 0.5mm)" }}
+      style={{ top: "calc(var(--safe-top) + 6mm)" }}
     >
       <div className="w-full max-w-[480px] relative">
         <div

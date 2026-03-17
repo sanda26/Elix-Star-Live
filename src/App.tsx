@@ -265,6 +265,7 @@ function App() {
         className={cn(
           "flex-1 w-full min-h-0 mx-auto max-w-[480px] overflow-auto",
           showBottomNav && !isFullScreen && "pt-topbar pb-nav",
+          (!showBottomNav || isFullScreen) && "pt-[3mm]",
         )}
       >
         <ErrorBoundary>

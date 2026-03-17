@@ -21,17 +21,7 @@ export const BottomNav = () => {
 
   return (
     <nav
-      className="pointer-events-none bg-transparent"
-      style={{
-        position: "fixed",
-        left: 0,
-        right: 0,
-        // Anchor home bar at the very bottom so there is no gap underneath
-        bottom: 0,
-        top: "auto",
-        zIndex: 9998,
-        paddingBottom: "var(--safe-bottom)",
-      }}
+      className="pointer-events-none bg-transparent fixed inset-x-0 bottom-0 top-auto z-[9998] pb-[var(--safe-bottom)]"
     >
       <div className="flex justify-center px-1 bg-transparent">
         <div className="relative w-full max-w-[480px] mx-auto">

@@ -5,12 +5,11 @@
 
 const env = typeof window !== 'undefined' ? (window as any).__ENV as Record<string, string> | undefined : undefined;
 
-/** In dev on localhost we use same-origin so Vite proxy handles /api and /live */
+/** On localhost we use same-origin so Vite proxy (or backend on 8080) handles /api */
 function isLocalDev(): boolean {
   if (typeof window === "undefined") return false;
   const host = window.location.hostname;
-  const port = window.location.port;
-  return (host === "localhost" || host === "127.0.0.1") && (port === "5173" || port === "5174" || port === "");
+  return host === "localhost" || host === "127.0.0.1";
 }
 
 export function getApiBase(): string {

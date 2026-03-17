@@ -1131,7 +1131,7 @@ export default function SpectatorPage() {
             bottom: '90px',
           }}
         >
-          <div className="overflow-hidden rounded-none w-1/2 min-w-0 relative flex-1">
+          <div className={`overflow-hidden rounded-none min-w-0 relative ${spectatorCoHosts.length > 0 ? 'w-1/2' : 'flex-1'}`}>
             <video
               ref={videoRef}
               className="absolute inset-0 w-full h-full object-cover rounded-none"
@@ -1187,8 +1187,95 @@ export default function SpectatorPage() {
               </div>
             )}
           </div>
-          {/* Co-host layout is controlled only by the creator's live view.
-              Spectators (even co-hosts) see a single viewer layout here, so we do not render a separate co-host grid. */}
+          {/* Right: mirror creator's co-host grid — shown when host has co-hosts (synced via cohost_layout_sync) */}
+          {spectatorCoHosts.length > 0 && (() => {
+            const liveList = spectatorCoHosts.filter(h => h.status === 'live' || h.status === 'accepted');
+            const invitedPending = spectatorCoHosts.filter(h => h.status === 'invited' || h.status === 'pending_accept');
+            const firstLive = liveList[0];
+            const restLive = liveList.slice(1);
+
+            type SlotType = { type: 'live' | 'invited' | 'pending' | 'empty'; host?: SpectatorCoHost };
+            const smallSlots: SlotType[] = [];
+            restLive.forEach(h => smallSlots.push({ type: 'live', host: h }));
+            invitedPending.forEach(h => smallSlots.push({ type: h.status === 'invited' ? 'invited' : 'pending', host: h }));
+            while (smallSlots.length < 8) smallSlots.push({ type: 'empty' });
+
+            const renderSlot = (slot: SlotType, isBig: boolean) => {
+              if (slot.type === 'live' && slot.host) {
+                const h = slot.host;
+                return (
+                  <>
+                    <video
+                      ref={(el) => { if (el) coHostVideoRefs.current.set(h.userId, el); else coHostVideoRefs.current.delete(h.userId); }}
+                      className="absolute inset-0 w-full h-full object-cover rounded-sm"
+                      autoPlay
+                      playsInline
+                    />
+                    <p className={`absolute bottom-0.5 left-0.5 z-10 text-white/80 font-bold bg-black/40 rounded px-1 truncate max-w-[90%] ${isBig ? 'text-[10px]' : 'text-[8px]'}`}>{h.name}</p>
+                  </>
+                );
+              }
+              if (slot.type === 'invited' && slot.host) {
+                return (
+                  <>
+                    <div className={`rounded-full overflow-hidden border-2 border-[#C9A96E]/40 bg-[#1C1E24] ${isBig ? 'w-16 h-16' : 'w-12 h-12'}`}>
+                      {slot.host.avatar ? <img src={slot.host.avatar} alt="" className="w-full h-full object-cover opacity-60" /> : <div className="w-full h-full flex items-center justify-center text-[#C9A96E]/60 text-base font-bold">{(slot.host.name || '?').charAt(0)}</div>}
+                    </div>
+                    <p className="text-white/60 text-[9px] font-bold mt-0.5 truncate max-w-[95%] text-center">{slot.host.name}</p>
+                    <span className="text-[#C9A96E]/70 text-[8px] font-semibold">Invited</span>
+                  </>
+                );
+              }
+              if (slot.type === 'pending' && slot.host) {
+                return (
+                  <>
+                    <div className={`rounded-full overflow-hidden border-2 border-[#C9A96E] bg-[#1C1E24] ${isBig ? 'w-14 h-14' : 'w-10 h-10'}`}>
+                      {slot.host.avatar ? <img src={slot.host.avatar} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[#C9A96E] text-sm font-bold">{(slot.host.name || '?').charAt(0)}</div>}
+                    </div>
+                    <p className="text-white text-[8px] font-bold mt-0.5 truncate max-w-[95%] text-center">{slot.host.name}</p>
+                    <span className="text-[#C9A96E]/70 text-[8px] font-semibold">Pending</span>
+                  </>
+                );
+              }
+              return (
+                <div className="flex flex-col items-center justify-center w-full h-full">
+                  <div className={`rounded-full border-2 border-dashed border-white/20 flex items-center justify-center ${isBig ? 'w-16 h-16' : 'w-12 h-12'}`}>
+                    <span className="text-white/30 text-2xl font-light">+</span>
+                  </div>
+                  <p className="text-white/30 text-[9px] font-semibold mt-0.5">Invite</p>
+                </div>
+              );
+            };
+
+            if (firstLive) {
+              return (
+                <div className="w-1/2 h-full flex flex-col min-w-0">
+                  <div className="flex-1 min-h-0 relative bg-[#13151A]">
+                    {renderSlot({ type: 'live', host: firstLive }, true)}
+                  </div>
+                  {(restLive.length > 0 || invitedPending.length > 0) && (
+                    <div className="flex-[0_0_auto] grid grid-cols-4 grid-rows-2 gap-[1px] bg-[#1a1c22]" style={{ maxHeight: '35%' }}>
+                      {smallSlots.slice(0, 8).map((slot, i) => (
+                        <div key={i} className="relative bg-[#13151A] flex flex-col items-center justify-center p-0.5">
+                          {renderSlot(slot, false)}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            }
+
+            return (
+              <div className="w-1/2 h-full grid grid-cols-2 grid-rows-4 gap-[1px] bg-[#1a1c22]">
+                {smallSlots.slice(0, 8).map((slot, i) => (
+                  <div key={i} className="relative bg-[#13151A] flex flex-col items-center justify-center p-1">
+                    {renderSlot(slot, false)}
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
         </div>
 
         {/* Battle overlay: when creator is in battle, show timer + scores; same half-screen height as video container */}
@@ -1411,7 +1498,6 @@ export default function SpectatorPage() {
         {/* GIFT VIDEO OVERLAY */}
         <GiftOverlay key={`gift-${giftKey}`} videoSrc={currentGift?.video ?? null} onEnded={handleGiftEnded} isBattleMode={!!spectatorBattle?.active} muted={false} />
 
-        {/* Spectator: single video only; spectatorBattle still used for gift overlay. */}
 
         {/* ═══ CO-HOST PANEL — spectator Accept/Reject when creator invited, or Request to co-host. No layout control. */}
         {showCoHostPanel && (

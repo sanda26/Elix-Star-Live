@@ -42,14 +42,34 @@ export default function InlineLiveViewer({
   };
 
   useEffect(() => {
-    if (!isActive || !streamKey) return;
+    if (!isActive || !streamKey) {
+      if (roomRef.current) {
+        roomRef.current.disconnect();
+        roomRef.current = null;
+        connectedKeyRef.current = "";
+      }
+      return;
+    }
     const connKey = `${streamKey}-${isActive}`;
     if (connectedKeyRef.current === connKey && roomRef.current) return;
     connectedKeyRef.current = connKey;
 
     let mounted = true;
+    let gotVideo = false;
     const room = new Room({ adaptiveStream: true });
     roomRef.current = room;
+
+    const cleanup = () => {
+      room.disconnect();
+      if (roomRef.current === room) roomRef.current = null;
+    };
+
+    const timeoutId = setTimeout(() => {
+      if (!mounted || gotVideo) return;
+      cleanup();
+      setConnecting(false);
+      setIsOffline(true);
+    }, 12000);
 
     (async () => {
       setConnecting(true);
@@ -64,19 +84,28 @@ export default function InlineLiveViewer({
           apiUrl(`/api/live/token?room=${encodeURIComponent(streamKey)}`),
           { method: "GET", credentials: "include", headers }
         );
-        if (!res.ok || !mounted) return;
+        if (!res.ok || !mounted) {
+          if (mounted) setIsOffline(true);
+          cleanup();
+          return;
+        }
 
         const data = await res.json().catch(() => ({}));
         let url = (data?.url ?? "").trim();
         if (!url) url = getLiveKitUrl();
         const token = data?.token;
-        if (!url || !token || !mounted) return;
+        if (!url || !token || !mounted) {
+          if (mounted) setIsOffline(true);
+          cleanup();
+          return;
+        }
 
         const onTrackSubscribed = (track: import("livekit-client").RemoteTrack) => {
           if (!mounted || track.kind !== "video") return;
           const el = videoRef.current;
           if (el) {
             track.attach(el);
+            gotVideo = true;
             setHasStream(true);
           }
         };
@@ -84,29 +113,31 @@ export default function InlineLiveViewer({
         room.on(RoomEvent.TrackSubscribed, onTrackSubscribed);
         room.on(RoomEvent.Disconnected, () => {
           if (!mounted) return;
-          if (!hasStream) {
-            setIsOffline(true);
-          }
+          if (!gotVideo) setIsOffline(true);
+          setConnecting(false);
         });
         await room.connect(url, token);
         if (!mounted) {
-          room.disconnect();
+          cleanup();
           return;
         }
 
         for (const [, participant] of room.remoteParticipants) {
           for (const [, publication] of participant.videoTrackPublications) {
-            if (publication.track && publication.isSubscribed) {
-              publication.track.attach(videoRef.current!);
+            if (publication.track && publication.isSubscribed && videoRef.current) {
+              publication.track.attach(videoRef.current);
+              gotVideo = true;
               setHasStream(true);
-              return;
+              break;
             }
           }
+          if (gotVideo) break;
         }
       } catch (err) {
         if (mounted) {
           setHasStream(false);
           setIsOffline(true);
+          cleanup();
         }
       } finally {
         if (mounted) setConnecting(false);
@@ -115,6 +146,7 @@ export default function InlineLiveViewer({
 
     return () => {
       mounted = false;
+      clearTimeout(timeoutId);
       connectedKeyRef.current = "";
       roomRef.current = null;
       room.disconnect();
@@ -169,11 +201,9 @@ export default function InlineLiveViewer({
               <div className="w-8 h-8 border-2 border-[#C9A96E] border-t-transparent rounded-full animate-spin" />
               <span className="text-white/60 text-sm">Connecting to live...</span>
             </>
-          ) : (
-            <span className="text-white/50 text-sm">
-              {isOffline ? "Stream ended" : "Connecting to live..."}
-            </span>
-          )}
+          ) : isOffline ? (
+            <span className="text-white/50 text-sm">Stream ended</span>
+          ) : null}
         </div>
       )}
 

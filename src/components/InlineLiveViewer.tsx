@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Room, RoomEvent } from "livekit-client";
+import { Room, RoomEvent, RemoteTrackPublication } from "livekit-client";
 import { apiUrl, getLiveKitUrl } from "../lib/api";
 import { useAuthStore } from "../store/useAuthStore";
 import { Radio } from "lucide-react";
@@ -111,9 +111,22 @@ export default function InlineLiveViewer({
         };
 
         room.on(RoomEvent.TrackSubscribed, onTrackSubscribed);
+        room.on(RoomEvent.TrackUnpublished, (pub: RemoteTrackPublication) => {
+          if (!mounted || pub.kind !== "video") return;
+          setHasStream(false);
+          setIsOffline(true);
+          cleanup();
+        });
+        room.on(RoomEvent.ParticipantDisconnected, () => {
+          if (!mounted) return;
+          setHasStream(false);
+          setIsOffline(true);
+          cleanup();
+        });
         room.on(RoomEvent.Disconnected, () => {
           if (!mounted) return;
           if (!gotVideo) setIsOffline(true);
+          setHasStream(false);
           setConnecting(false);
         });
         await room.connect(url, token);
@@ -207,30 +220,34 @@ export default function InlineLiveViewer({
         </div>
       )}
 
-      {/* Top: LIVE badge + viewer count */}
-      <div
-        className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between px-3 pt-2 pointer-events-none"
-        style={{ paddingTop: "calc(env(safe-area-inset-top, 8px) + 8px)" }}
-      >
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-red-500/90">
-            <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
-            <span className="text-white text-[10px] font-bold">LIVE</span>
-          </div>
-          <div className="px-2 py-1 rounded-md bg-black/50 text-white/90 text-[10px] font-semibold">
-            {formattedViewers} watching
+      {/* Top: LIVE badge + viewer count — hidden when stream ended */}
+      {!isOffline && (
+        <div
+          className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between px-3 pt-2 pointer-events-none"
+          style={{ paddingTop: "calc(env(safe-area-inset-top, 8px) + 8px)" }}
+        >
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-red-500/90">
+              <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+              <span className="text-white text-[10px] font-bold">LIVE</span>
+            </div>
+            <div className="px-2 py-1 rounded-md bg-black/50 text-white/90 text-[10px] font-semibold">
+              {formattedViewers} watching
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
-      {/* Bottom: creator name + tap anywhere hint */}
-      <div className="absolute bottom-0 left-0 right-0 z-10 p-3 pb-safe bg-gradient-to-t from-black/80 to-transparent pt-12 pointer-events-none">
-        <p className="text-white font-bold text-sm truncate mb-1">{creatorName}</p>
-        <div className="flex items-center gap-2">
-          <Radio size={14} className="text-red-400" />
-          <span className="text-white/70 text-xs font-semibold">Tap to join live</span>
+      {/* Bottom: creator name + tap anywhere hint — hidden when stream ended */}
+      {!isOffline && (
+        <div className="absolute bottom-0 left-0 right-0 z-10 p-3 pb-safe bg-gradient-to-t from-black/80 to-transparent pt-12 pointer-events-none">
+          <p className="text-white font-bold text-sm truncate mb-1">{creatorName}</p>
+          <div className="flex items-center gap-2">
+            <Radio size={14} className="text-red-400" />
+            <span className="text-white/70 text-xs font-semibold">Tap to join live</span>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

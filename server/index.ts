@@ -1200,6 +1200,7 @@ wss.on("connection", async (ws: WebSocket, req) => {
 async function checkAndBroadcastStreamEnd(roomId: string, userId: string) {
   // Remove from in-memory active streams so /api/live/streams no longer lists it
   removeActiveStream(roomId, userId);
+  lastCohostLayoutByRoom.delete(roomId);
   broadcastToRoom(roomId, "stream_ended", {
     stream_key: roomId,
     host_user_id: userId,
@@ -1455,11 +1456,14 @@ async function handleMessage(client: Client, event: string, data: any) {
       }
 
       case "stream_end": {
+        lastCohostLayoutByRoom.delete(client.roomId);
+        removeActiveStream(client.roomId, client.userId);
         broadcastToRoom(client.roomId, "stream_ended", {
           stream_key: client.roomId,
           host_user_id: client.userId,
           reason: "host_ended",
         });
+        broadcastToFeedSubscribers("stream_ended", { stream_key: client.roomId });
         break;
       }
 
@@ -1539,8 +1543,16 @@ async function handleMessage(client: Client, event: string, data: any) {
 
       case "cohost_layout_sync": {
         const roomId = typeof data.roomId === "string" ? data.roomId : client.roomId;
-        const coHosts = Array.isArray(data.coHosts) ? data.coHosts : [];
+        const rawCoHosts = Array.isArray(data.coHosts) ? data.coHosts : [];
         const hostUserId = typeof data.hostUserId === "string" ? data.hostUserId : client.userId;
+        // Deduplicate by userId and exclude the host from the co-host list
+        const seen = new Set<string>();
+        const coHosts = rawCoHosts.filter((h: any) => {
+          const uid = typeof h.userId === "string" ? h.userId : "";
+          if (!uid || uid === hostUserId || seen.has(uid)) return false;
+          seen.add(uid);
+          return true;
+        });
         if (roomId) {
           lastCohostLayoutByRoom.set(roomId, { coHosts, hostUserId });
           broadcastToRoom(roomId, "cohost_layout_sync", {

@@ -18,13 +18,20 @@ const activeStreams = new Map<
   { userId: string; startedAt: string; displayName?: string }
 >();
 
-/** Internal helper so other modules (WebSocket server) can mark streams offline. */
-export function removeActiveStream(roomId: string, userId?: string) {
+/** Internal helper so other modules (WebSocket server) can mark streams offline. Returns true if removed. */
+export function removeActiveStream(roomId: string, userId?: string): boolean {
   const s = activeStreams.get(roomId);
-  if (!s) return;
-  if (userId && s.userId !== userId) return;
+  if (!s) return false;
+  if (userId && s.userId !== userId) return false;
   activeStreams.delete(roomId);
   dbEndLiveStream(roomId).catch(() => {});
+  return true;
+}
+
+/** Check if a user is the host of a given stream room. */
+export function isStreamHost(roomId: string, userId: string): boolean {
+  const s = activeStreams.get(roomId);
+  return !!s && s.userId === userId;
 }
 
 function requireAuth(req: Request, res: Response): { userId: string } | null {

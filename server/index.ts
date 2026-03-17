@@ -70,6 +70,7 @@ import {
   handleLiveEnd,
   handleGetLiveToken,
   removeActiveStream,
+  isStreamHost,
 } from "./routes/livestream";
 import { handleUploadVideo, handleUploadAvatar } from "./routes/upload";
 import { uploadToBunny, isBunnyConfigured } from "./services/bunny";
@@ -1198,7 +1199,7 @@ wss.on("connection", async (ws: WebSocket, req) => {
 
 // When a user disconnects, check if they were the stream host and notify all viewers
 async function checkAndBroadcastStreamEnd(roomId: string, userId: string) {
-  // Remove from in-memory active streams so /api/live/streams no longer lists it
+  if (!isStreamHost(roomId, userId)) return;
   removeActiveStream(roomId, userId);
   lastCohostLayoutByRoom.delete(roomId);
   broadcastToRoom(roomId, "stream_ended", {
@@ -1206,7 +1207,6 @@ async function checkAndBroadcastStreamEnd(roomId: string, userId: string) {
     host_user_id: userId,
     reason: "host_disconnected",
   });
-  // So For You feed updates in realtime when a creator goes offline
   broadcastToFeedSubscribers("stream_ended", { stream_key: roomId });
 }
 

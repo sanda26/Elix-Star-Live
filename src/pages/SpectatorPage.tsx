@@ -1123,160 +1123,180 @@ export default function SpectatorPage() {
       <div className="relative w-full max-w-[480px] h-full overflow-hidden flex flex-col">
 
         {/* Video container: fixed between top creator bar and bottom spectator bar; black background behind the live video. */}
-        <div
-          className="absolute left-0 right-0 z-0 bg-[#0A0B0E] flex flex-row overflow-hidden rounded-none"
-          style={{
-            top: 'calc(env(safe-area-inset-top, 0px) + 78px)',
-            // Match bottom spectator bar height (~80px) + a small gap, so video never goes under the buttons
-            bottom: '90px',
-          }}
-        >
-          <div className={`overflow-hidden rounded-none min-w-0 relative ${spectatorCoHosts.length > 0 ? 'w-1/2' : 'flex-1'}`}>
-            <video
-              ref={videoRef}
-              className="absolute inset-0 w-full h-full object-cover rounded-none"
-              playsInline
-              autoPlay
-              style={{ opacity: hasStream ? 1 : 0, transition: 'opacity 0.4s ease' }}
-            />
-            {!hasStream && (
-              <div className="w-full h-full flex flex-col items-center justify-center gap-4">
-                <div className="w-24 h-24 rounded-full border-[3px] border-red-500/40 overflow-hidden">
-                  {hostAvatar ? (
-                    <img src={hostAvatar} alt="" className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full bg-[#C9A96E]/20 flex items-center justify-center">
-                      <span className="text-[#C9A96E] font-bold text-3xl">{hostName.slice(0, 1).toUpperCase()}</span>
+        {/* Video container */}
+        {(() => {
+          const myUserId = user?.id || '';
+          const hostId = hostUserIdRef.current || hostUserId || effectiveStreamId;
+          const externalCoHosts = spectatorCoHosts.filter(h => h.userId !== myUserId && h.userId !== hostId);
+          const showGrid = isCoHosting || externalCoHosts.length > 0;
+
+          type SlotType = { type: 'self' | 'live' | 'invited' | 'pending' | 'empty'; host?: SpectatorCoHost };
+
+          const buildSlots = (): SlotType[] => {
+            const slots: SlotType[] = [];
+            if (isCoHosting) slots.push({ type: 'self' });
+            const liveOthers = externalCoHosts.filter(h => h.status === 'live' || h.status === 'accepted');
+            const invitedPending = externalCoHosts.filter(h => h.status === 'invited' || h.status === 'pending_accept');
+            liveOthers.forEach(h => slots.push({ type: 'live', host: h }));
+            invitedPending.forEach(h => slots.push({ type: h.status === 'invited' ? 'invited' : 'pending', host: h }));
+            while (slots.length < 8) slots.push({ type: 'empty' });
+            return slots;
+          };
+
+          const renderSlot = (slot: SlotType) => {
+            if (slot.type === 'self') {
+              return (
+                <>
+                  <video
+                    ref={myVideoRef}
+                    className="absolute inset-0 w-full h-full object-cover rounded-sm"
+                    autoPlay playsInline muted
+                    style={isCamOff ? { display: 'none' } : undefined}
+                  />
+                  {isCamOff && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-[#13151A] z-[6] rounded-sm">
+                      <CameraOff size={24} className="text-white/30" />
+                      <span className="text-white/60 text-[9px] font-bold">Camera off</span>
                     </div>
                   )}
-                </div>
-                {!user?.id ? (
-                  <>
-                    <span className="text-white/80 text-sm text-center">Log in to watch the live stream</span>
-                    <button
-                      type="button"
-                      onClick={() => navigate('/login', { state: { from: `/watch/${effectiveStreamId}` } })}
-                      className="mt-2 px-5 py-2.5 rounded-lg bg-[#C9A96E] text-black font-semibold text-sm"
-                    >
-                      Log in
+                  <div className="absolute top-0.5 right-0.5 z-10 flex items-center gap-0.5 pointer-events-auto">
+                    <button type="button" onClick={toggleMic} className="rounded bg-black/60 p-1" title={isMicMuted ? 'Unmute' : 'Mute'}>
+                      {isMicMuted ? <MicOff className="text-red-400 w-3.5 h-3.5" strokeWidth={2.5} /> : <Mic className="text-green-400 w-3.5 h-3.5" strokeWidth={2.5} />}
                     </button>
-                  </>
-                ) : (
-                  <>
-                    <div className="flex items-center gap-2">
-                      <div className="w-4 h-4 border-2 border-[#C9A96E] border-t-transparent rounded-full animate-spin" />
-                      <span className="text-white/60 text-sm">Connecting to stream...</span>
-                    </div>
-                    {showRetryButton && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowRetryButton(false);
-                          retryJoinRoom();
-                          setTimeout(() => {
-                            if (!hasStream) setShowRetryButton(true);
-                          }, 8000);
-                        }}
-                        className="mt-2 px-5 py-2 rounded-lg bg-[#C9A96E]/20 border border-[#C9A96E]/40 text-[#C9A96E] text-sm font-medium"
-                      >
-                        Tap to retry
-                      </button>
-                    )}
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-          {/* Right: mirror creator's co-host grid — shown when host has co-hosts (synced via cohost_layout_sync) */}
-          {spectatorCoHosts.length > 0 && (() => {
-            const liveList = spectatorCoHosts.filter(h => h.status === 'live' || h.status === 'accepted');
-            const invitedPending = spectatorCoHosts.filter(h => h.status === 'invited' || h.status === 'pending_accept');
-            const firstLive = liveList[0];
-            const restLive = liveList.slice(1);
-
-            type SlotType = { type: 'live' | 'invited' | 'pending' | 'empty'; host?: SpectatorCoHost };
-            const smallSlots: SlotType[] = [];
-            restLive.forEach(h => smallSlots.push({ type: 'live', host: h }));
-            invitedPending.forEach(h => smallSlots.push({ type: h.status === 'invited' ? 'invited' : 'pending', host: h }));
-            while (smallSlots.length < 8) smallSlots.push({ type: 'empty' });
-
-            const renderSlot = (slot: SlotType, isBig: boolean) => {
-              if (slot.type === 'live' && slot.host) {
-                const h = slot.host;
-                return (
-                  <>
-                    <video
-                      ref={(el) => { if (el) coHostVideoRefs.current.set(h.userId, el); else coHostVideoRefs.current.delete(h.userId); }}
-                      className="absolute inset-0 w-full h-full object-cover rounded-sm"
-                      autoPlay
-                      playsInline
-                    />
-                    <p className={`absolute bottom-0.5 left-0.5 z-10 text-white/80 font-bold bg-black/40 rounded px-1 truncate max-w-[90%] ${isBig ? 'text-[10px]' : 'text-[8px]'}`}>{h.name}</p>
-                  </>
-                );
-              }
-              if (slot.type === 'invited' && slot.host) {
-                return (
-                  <>
-                    <div className={`rounded-full overflow-hidden border-2 border-[#C9A96E]/40 bg-[#1C1E24] ${isBig ? 'w-16 h-16' : 'w-12 h-12'}`}>
-                      {slot.host.avatar ? <img src={slot.host.avatar} alt="" className="w-full h-full object-cover opacity-60" /> : <div className="w-full h-full flex items-center justify-center text-[#C9A96E]/60 text-base font-bold">{(slot.host.name || '?').charAt(0)}</div>}
-                    </div>
-                    <p className="text-white/60 text-[9px] font-bold mt-0.5 truncate max-w-[95%] text-center">{slot.host.name}</p>
-                    <span className="text-[#C9A96E]/70 text-[8px] font-semibold">Invited</span>
-                  </>
-                );
-              }
-              if (slot.type === 'pending' && slot.host) {
-                return (
-                  <>
-                    <div className={`rounded-full overflow-hidden border-2 border-[#C9A96E] bg-[#1C1E24] ${isBig ? 'w-14 h-14' : 'w-10 h-10'}`}>
-                      {slot.host.avatar ? <img src={slot.host.avatar} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[#C9A96E] text-sm font-bold">{(slot.host.name || '?').charAt(0)}</div>}
-                    </div>
-                    <p className="text-white text-[8px] font-bold mt-0.5 truncate max-w-[95%] text-center">{slot.host.name}</p>
-                    <span className="text-[#C9A96E]/70 text-[8px] font-semibold">Pending</span>
-                  </>
-                );
-              }
-              return (
-                <div className="flex flex-col items-center justify-center w-full h-full">
-                  <div className={`rounded-full border-2 border-dashed border-white/20 flex items-center justify-center ${isBig ? 'w-16 h-16' : 'w-12 h-12'}`}>
-                    <span className="text-white/30 text-2xl font-light">+</span>
+                    <button type="button" onClick={toggleCam} className="rounded bg-black/60 p-1" title={isCamOff ? 'Camera on' : 'Camera off'}>
+                      {isCamOff ? <CameraOff className="text-red-400 w-3.5 h-3.5" strokeWidth={2.5} /> : <Camera className="text-green-400 w-3.5 h-3.5" strokeWidth={2.5} />}
+                    </button>
                   </div>
-                  <p className="text-white/30 text-[9px] font-semibold mt-0.5">Invite</p>
-                </div>
-              );
-            };
-
-            if (firstLive) {
-              return (
-                <div className="w-1/2 h-full flex flex-col min-w-0">
-                  <div className="flex-1 min-h-0 relative bg-[#13151A]">
-                    {renderSlot({ type: 'live', host: firstLive }, true)}
-                  </div>
-                  {(restLive.length > 0 || invitedPending.length > 0) && (
-                    <div className="flex-[0_0_auto] grid grid-cols-4 grid-rows-2 gap-[1px] bg-[#1a1c22]" style={{ maxHeight: '35%' }}>
-                      {smallSlots.slice(0, 8).map((slot, i) => (
-                        <div key={i} className="relative bg-[#13151A] flex flex-col items-center justify-center p-0.5">
-                          {renderSlot(slot, false)}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                  <p className="absolute bottom-0.5 left-0.5 z-10 text-white/80 text-[8px] font-bold bg-black/50 rounded px-1">You</p>
+                </>
               );
             }
-
-            return (
-              <div className="w-1/2 h-full grid grid-cols-2 grid-rows-4 gap-[1px] bg-[#1a1c22]">
-                {smallSlots.slice(0, 8).map((slot, i) => (
-                  <div key={i} className="relative bg-[#13151A] flex flex-col items-center justify-center p-1">
-                    {renderSlot(slot, false)}
+            if (slot.type === 'live' && slot.host) {
+              const h = slot.host;
+              return (
+                <>
+                  <video
+                    ref={(el) => { if (el) coHostVideoRefs.current.set(h.userId, el); else coHostVideoRefs.current.delete(h.userId); }}
+                    className="absolute inset-0 w-full h-full object-cover rounded-sm"
+                    autoPlay playsInline
+                  />
+                  <p className="absolute bottom-0.5 left-0.5 z-10 text-white/80 text-[8px] font-bold bg-black/50 rounded px-1 truncate max-w-[90%]">{h.name}</p>
+                </>
+              );
+            }
+            if (slot.type === 'invited' && slot.host) {
+              return (
+                <>
+                  <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-[#C9A96E]/40 bg-[#1C1E24]">
+                    {slot.host.avatar ? <img src={slot.host.avatar} alt="" className="w-full h-full object-cover opacity-60" /> : <div className="w-full h-full flex items-center justify-center text-[#C9A96E]/60 text-base font-bold">{(slot.host.name || '?').charAt(0)}</div>}
                   </div>
-                ))}
+                  <p className="text-white/60 text-[9px] font-bold mt-0.5 truncate max-w-[95%] text-center">{slot.host.name}</p>
+                  <span className="text-[#C9A96E]/70 text-[8px] font-semibold">Invited</span>
+                </>
+              );
+            }
+            if (slot.type === 'pending' && slot.host) {
+              return (
+                <>
+                  <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-[#C9A96E] bg-[#1C1E24]">
+                    {slot.host.avatar ? <img src={slot.host.avatar} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[#C9A96E] text-sm font-bold">{(slot.host.name || '?').charAt(0)}</div>}
+                  </div>
+                  <p className="text-white text-[8px] font-bold mt-0.5 truncate max-w-[95%] text-center">{slot.host.name}</p>
+                  <span className="text-[#C9A96E]/70 text-[8px] font-semibold">Pending</span>
+                </>
+              );
+            }
+            return (
+              <div className="flex flex-col items-center justify-center w-full h-full">
+                <div className="w-12 h-12 rounded-full border-2 border-dashed border-white/20 flex items-center justify-center">
+                  <span className="text-white/30 text-2xl font-light">+</span>
+                </div>
+                <p className="text-white/30 text-[9px] font-semibold mt-0.5">Invite</p>
               </div>
             );
-          })()}
-        </div>
+          };
+
+          const slots = buildSlots();
+
+          return (
+            <div
+              className="absolute left-0 right-0 z-0 bg-[#0A0B0E] flex flex-row overflow-hidden rounded-none"
+              style={{
+                top: 'calc(env(safe-area-inset-top, 0px) + 78px)',
+                bottom: '90px',
+              }}
+            >
+              {/* Left: host video */}
+              <div className={`overflow-hidden rounded-none min-w-0 relative ${showGrid ? 'w-1/2' : 'w-full'}`}>
+                <video
+                  ref={videoRef}
+                  className="absolute inset-0 w-full h-full object-cover rounded-none"
+                  playsInline
+                  autoPlay
+                  style={{ opacity: hasStream ? 1 : 0, transition: 'opacity 0.4s ease' }}
+                />
+                {!hasStream && (
+                  <div className="w-full h-full flex flex-col items-center justify-center gap-4">
+                    <div className="w-24 h-24 rounded-full border-[3px] border-red-500/40 overflow-hidden">
+                      {hostAvatar ? (
+                        <img src={hostAvatar} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full bg-[#C9A96E]/20 flex items-center justify-center">
+                          <span className="text-[#C9A96E] font-bold text-3xl">{hostName.slice(0, 1).toUpperCase()}</span>
+                        </div>
+                      )}
+                    </div>
+                    {!user?.id ? (
+                      <>
+                        <span className="text-white/80 text-sm text-center">Log in to watch the live stream</span>
+                        <button
+                          type="button"
+                          onClick={() => navigate('/login', { state: { from: `/watch/${effectiveStreamId}` } })}
+                          className="mt-2 px-5 py-2.5 rounded-lg bg-[#C9A96E] text-black font-semibold text-sm"
+                        >
+                          Log in
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex items-center gap-2">
+                          <div className="w-4 h-4 border-2 border-[#C9A96E] border-t-transparent rounded-full animate-spin" />
+                          <span className="text-white/60 text-sm">Connecting to stream...</span>
+                        </div>
+                        {showRetryButton && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowRetryButton(false);
+                              retryJoinRoom();
+                              setTimeout(() => {
+                                if (!hasStream) setShowRetryButton(true);
+                              }, 8000);
+                            }}
+                            className="mt-2 px-5 py-2 rounded-lg bg-[#C9A96E]/20 border border-[#C9A96E]/40 text-[#C9A96E] text-sm font-medium"
+                          >
+                            Tap to retry
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Right: co-host grid */}
+              {showGrid && (
+                <div className="w-1/2 h-full grid grid-cols-2 grid-rows-4 gap-[1px] bg-[#1a1c22]">
+                  {slots.slice(0, 8).map((slot, i) => (
+                    <div key={i} className="relative bg-[#13151A] flex flex-col items-center justify-center p-1">
+                      {renderSlot(slot)}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* Battle overlay: when creator is in battle, show timer + scores; same half-screen height as video container */}
         {spectatorBattle?.active && (

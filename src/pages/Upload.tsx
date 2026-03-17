@@ -8,6 +8,7 @@ import { trackEvent } from '../lib/analytics';
 import { useSettingsStore } from '../store/useSettingsStore';
 import { videoUploadService } from '../lib/videoUpload';
 import { apiStub } from '../lib/apiStub';
+import { useAuthStore } from '../store/useAuthStore';
 import AIToolsPanel from '../components/AIToolsPanel';
 
 export default function Upload() {
@@ -414,8 +415,8 @@ export default function Upload() {
         return;
       }
 
-      const { data: { user } } = await apiStub.auth.getUser();
-      if (!user) {
+      const authUser = useAuthStore.getState().user;
+      if (!authUser?.id) {
         navigate('/login', { state: { from: '/upload' } });
         return;
       }
@@ -473,7 +474,7 @@ export default function Upload() {
             }
         }
 
-        const videoId = await videoUploadService.uploadVideo(file, user.id, {
+        const videoId = await videoUploadService.uploadVideo(file, authUser.id, {
           description: normalizedCaption,
           hashtags: hashtags,
           isPrivate: false,
@@ -481,29 +482,8 @@ export default function Upload() {
           duetWithVideoId: duetSourceVideoId || undefined,
         });
 
-        // Put new video directly at top of For You so it shows immediately (video already in DB = stays forever)
-        const { data: row } = await apiStub
-          .from('videos')
-          .select('id, url, thumbnail_url, description, created_at, views, likes, user_id, hashtags, location, duet_with_video_id')
-          .eq('id', videoId)
-          .single();
-        if (row) {
-          let profile: any = null;
-          try {
-            const res = await apiStub.from('profiles').select('user_id, username, display_name, avatar_url, is_creator, followers_count, following_count').eq('user_id', row.user_id).single();
-            profile = res.data;
-          } catch {
-            profile = { user_id: user.id, username: user.user_metadata?.username ?? user.email?.split('@')[0], display_name: user.user_metadata?.full_name ?? user.email?.split('@')[0], avatar_url: user.user_metadata?.avatar_url, is_creator: false, followers_count: 0, following_count: 0 };
-          }
-          
-          const newVideo = mapRowToVideo(row, profile);
-          if (musicMeta) {
-             newVideo.music = musicMeta;
-          }
-          addVideo(newVideo);
-        } else {
-          await fetchVideos();
-        }
+        // Refresh feed so the new video shows up on For You
+        await fetchVideos();
 
         trackEvent('upload_post_success', { videoId });
         setRecordedVideoUrl(null);

@@ -587,7 +587,7 @@ export default function LiveStream() {
         hostUserId: invite.hostUserId,
         requesterName: myUsername,
         requesterAvatar: viewerAvatar,
-        streamKey: invite.streamKey,
+        streamKey: effectiveStreamId,
       });
     } catch { /* fire-and-forget */ }
 
@@ -1016,9 +1016,58 @@ export default function LiveStream() {
 
   const isRegularViewer = !isBroadcast && !isBattleParticipant;
 
-  // Battle opponent video: both players are in the SAME LiveKit room.
-  // Host receives opponent tracks via TrackSubscribed in the main room.
-  // Opponent receives host tracks via TrackSubscribed in battleLkRoomRef.
+  // Connect to opponent's LiveKit room to receive their video (both creators are live in separate rooms)
+  useEffect(() => {
+    if (!isBattleMode || !opponentStreamKey || !isBroadcast) return;
+    if (opponentStreamKey === effectiveStreamId) return;
+    let mounted = true;
+    const room = new Room();
+    opponentLkRoomRef.current = room;
+
+    (async () => {
+      try {
+        const authToken = useAuthStore.getState().session?.access_token;
+        const headers: Record<string, string> = {};
+        if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
+        const res = await fetch(apiUrl(`/api/live/token?room=${encodeURIComponent(opponentStreamKey)}`), { method: 'GET', credentials: 'include', headers });
+        if (!res.ok || !mounted) return;
+        const payload = await res.json().catch(() => ({}));
+        const token = payload?.token;
+        const url = (payload?.url ?? '').trim() || getLiveKitUrl();
+        if (!token || !url || !mounted) return;
+
+        room.on(RoomEvent.TrackSubscribed, (track) => {
+          if (!mounted || track.kind !== 'video') return;
+          const el = opponentVideoRef.current;
+          if (el) {
+            track.attach(el);
+            setHasOpponentStream(true);
+          }
+        });
+
+        await room.connect(url, token);
+        if (!mounted) { room.disconnect(); return; }
+
+        for (const [, participant] of room.remoteParticipants) {
+          for (const [, pub] of participant.videoTrackPublications) {
+            if (pub.track && pub.isSubscribed && opponentVideoRef.current) {
+              pub.track.attach(opponentVideoRef.current);
+              setHasOpponentStream(true);
+            }
+          }
+        }
+      } catch (e) {
+        console.error('[Battle] Failed to connect to opponent LiveKit room:', e);
+      }
+    })();
+
+    return () => {
+      mounted = false;
+      room.disconnect();
+      opponentLkRoomRef.current = null;
+      setHasOpponentStream(false);
+    };
+  }, [isBattleMode, opponentStreamKey, isBroadcast, effectiveStreamId]);
 
   // Speed Challenge State
   // SPEED CHALLENGE

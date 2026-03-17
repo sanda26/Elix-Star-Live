@@ -1007,6 +1007,9 @@ wss.on("connection", async (ws: WebSocket, req) => {
       user_count: roomClients.size,
     });
 
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/index.ts:room_state_sent',message:'Sending room_state to client',data:{roomId,userId:client.userId,hasBattle:!!battles.get(roomId)},timestamp:Date.now(),hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
     sendToClient(client, "room_state", {
       viewers,
     });
@@ -1469,11 +1472,14 @@ async function handleMessage(client: Client, event: string, data: any) {
         const hostUserId =
           typeof data.hostUserId === "string" ? data.hostUserId : "";
         if (!hostUserId) break;
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/index.ts:battle_invite_accept',message:'Opponent accepted battle invite',data:{opponentUserId:client.userId,opponentRoom:client.roomId,hostUserId,streamKeyFromData:data.streamKey},timestamp:Date.now(),hypothesisId:'A'})}).catch(()=>{});
+        // #endregion
         sendToUserGlobal(hostUserId, "battle_invite_accepted", {
           requesterUserId: client.userId,
           requesterName: data.requesterName || client.displayName,
           requesterAvatar: data.requesterAvatar || client.avatarUrl || "",
-          streamKey: data.streamKey || client.roomId,
+          streamKey: client.roomId,
         });
         break;
       }

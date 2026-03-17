@@ -250,16 +250,13 @@ export default function VideoFeed() {
             s.user_id ?? s.userId ?? s.hostUserId ?? "";
           const title =
             s.title ?? s.display_name ?? s.displayName ?? undefined;
-          const label = userId ? String(userId).slice(0, 8) : "Creator";
           const viewers = Number(
             s.viewer_count ?? s.viewerCount ?? 0
           );
           return {
             streamKey: key,
-            name: title || label,
-            avatar: userId
-              ? `https://ui-avatars.com/api/?name=${encodeURIComponent(label)}&background=121212&color=C9A96E`
-              : "",
+            name: title || (userId ? `User ${String(userId).slice(0, 8)}` : "Creator"),
+            avatar: "",
             viewers,
             title: title || undefined,
             thumbnail: "",
@@ -308,6 +305,37 @@ export default function VideoFeed() {
       monitorRef.current = null;
     };
   }, [fetchLiveStreams, fetchVideos, removeLiveStream, token]);
+
+  /* ---- Enrich live stream names/avatars from profiles ---- */
+  useEffect(() => {
+    const needsEnrichment = liveStreams.filter(s => s.userId && (!s.name || s.name.startsWith('User ') || s.name === 'Creator'));
+    if (needsEnrichment.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      for (const stream of needsEnrichment) {
+        if (cancelled || !stream.userId) continue;
+        try {
+          const pToken = useAuthStore.getState().session?.access_token;
+          const headers: Record<string, string> = {};
+          if (pToken) headers['Authorization'] = `Bearer ${pToken}`;
+          const res = await fetch(apiUrl(`/api/profiles/${stream.userId}`), { headers, credentials: 'include' });
+          if (!res.ok || cancelled) continue;
+          const profile = await res.json();
+          const displayName = profile?.display_name || profile?.username || profile?.name;
+          const avatar = profile?.avatar_url || profile?.avatar;
+          if (cancelled) return;
+          if (displayName || avatar) {
+            setLiveStreams(prev => prev.map(s =>
+              s.streamKey === stream.streamKey
+                ? { ...s, name: displayName || s.name, avatar: avatar || s.avatar }
+                : s
+            ));
+          }
+        } catch { /* ignore */ }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [liveStreams.map(s => s.streamKey).join(',')]);
 
   /* ---- Feed channel: when a creator starts live, they appear on For You immediately; reconnect on close ---- */
   useEffect(() => {

@@ -669,6 +669,7 @@ interface BattleSession {
   hostName: string;
   opponentUserId: string;
   opponentName: string;
+  opponentRoomId: string;
   player3UserId: string;
   player3Name: string;
   player4UserId: string;
@@ -703,6 +704,7 @@ function createBattle(
     hostName,
     opponentUserId: "",
     opponentName: "",
+    opponentRoomId: "",
     player3UserId: "",
     player3Name: "",
     player4UserId: "",
@@ -879,8 +881,10 @@ function broadcastBattleState(roomId: string, session: BattleSession) {
     status: session.status,
     hostUserId: session.hostUserId,
     hostName: session.hostName,
+    hostRoomId: session.hostRoomId,
     opponentUserId: session.opponentUserId,
     opponentName: session.opponentName,
+    opponentRoomId: session.opponentRoomId,
     player3UserId: session.player3UserId,
     player3Name: session.player3Name,
     player4UserId: session.player4UserId,
@@ -1346,9 +1350,12 @@ async function handleMessage(client: Client, event: string, data: any) {
           typeof data.opponentUserId === "string" ? data.opponentUserId : "";
         const opponentName =
           typeof data.opponentName === "string" ? data.opponentName : "";
+        const opponentRoomId =
+          typeof data.opponentRoomId === "string" ? data.opponentRoomId : "";
         if (opponentUserId && opponentName) {
           session.opponentUserId = opponentUserId;
           session.opponentName = opponentName;
+          session.opponentRoomId = opponentRoomId;
           if (opponentUserId) userBattleRoom.set(opponentUserId, client.roomId);
           // #region agent log
           fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/index.ts:battle_create_waiting',message:'Battle created with opponent pre-filled, status stays WAITING until opponent joins',data:{roomId:client.roomId,status:session.status,opponentUserId,opponentName},timestamp:Date.now(),hypothesisId:'D'})}).catch(()=>{});

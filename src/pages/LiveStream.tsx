@@ -609,6 +609,7 @@ export default function LiveStream() {
         hostName: myCreatorName,
         opponentUserId: invite.hostUserId,
         opponentName: invite.hostName,
+        opponentRoomId: invite.streamKey,
       });
     } else {
       showToast(`Joining @${invite.hostName}'s battle...`);
@@ -2201,6 +2202,7 @@ export default function LiveStream() {
         hostName: myCreatorName,
         opponentUserId: requesterId,
         opponentName: requesterName,
+        opponentRoomId: oppStreamKey,
       });
     };
 

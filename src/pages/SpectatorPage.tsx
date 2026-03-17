@@ -148,12 +148,57 @@ export default function SpectatorPage() {
   // ═══════════════════════════════════════════════════
   // BATTLE STATE (spectator sees host's battle status)
   // ═══════════════════════════════════════════════════
-  const [spectatorBattle, setSpectatorBattle] = useState<{ active: boolean; hostScore: number; opponentScore: number; timeLeft: number; opponentName?: string; winner?: string } | null>(null);
+  const [spectatorBattle, setSpectatorBattle] = useState<{ active: boolean; hostScore: number; opponentScore: number; timeLeft: number; opponentName?: string; opponentRoomId?: string; winner?: string } | null>(null);
+  const opponentVideoRef = useRef<HTMLVideoElement>(null);
+  const opponentLkRoomRef = useRef<Room | null>(null);
+  const [hasOpponentStream, setHasOpponentStream] = useState(false);
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
     const s = seconds % 60;
     return `${m}:${s.toString().padStart(2, '0')}`;
   };
+
+  // Connect to opponent's LiveKit room so spectators see both battle videos
+  useEffect(() => {
+    const roomId = spectatorBattle?.opponentRoomId;
+    if (!spectatorBattle?.active || !roomId) {
+      if (opponentLkRoomRef.current) { opponentLkRoomRef.current.disconnect(); opponentLkRoomRef.current = null; }
+      setHasOpponentStream(false);
+      return;
+    }
+    let mounted = true;
+    const room = new Room();
+    opponentLkRoomRef.current = room;
+    (async () => {
+      try {
+        const authToken = useAuthStore.getState().session?.access_token;
+        const headers: Record<string, string> = {};
+        if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
+        const res = await fetch(apiUrl(`/api/live/token?room=${encodeURIComponent(roomId)}`), { method: 'GET', credentials: 'include', headers });
+        if (!res.ok || !mounted) return;
+        const payload = await res.json().catch(() => ({}));
+        const token = payload?.token;
+        const url = (payload?.url ?? '').trim() || getLiveKitUrl();
+        if (!token || !url || !mounted) return;
+        room.on(RoomEvent.TrackSubscribed, (track) => {
+          if (!mounted || track.kind !== 'video') return;
+          const el = opponentVideoRef.current;
+          if (el) { track.attach(el); setHasOpponentStream(true); }
+        });
+        await room.connect(url, token);
+        if (!mounted) { room.disconnect(); return; }
+        for (const [, p] of room.remoteParticipants) {
+          for (const [, pub] of p.videoTrackPublications) {
+            if (pub.track && pub.isSubscribed && opponentVideoRef.current) {
+              pub.track.attach(opponentVideoRef.current);
+              setHasOpponentStream(true);
+            }
+          }
+        }
+      } catch { /* ignore */ }
+    })();
+    return () => { mounted = false; room.disconnect(); opponentLkRoomRef.current = null; setHasOpponentStream(false); };
+  }, [spectatorBattle?.active, spectatorBattle?.opponentRoomId]);
 
   // ═══════════════════════════════════════════════════
   // CO-HOST STATE (synced from host so spectators see same layout)
@@ -759,9 +804,20 @@ export default function SpectatorPage() {
           opponentScore: data.opponentScore ?? prev?.opponentScore ?? 0,
           timeLeft: data.timeLeft ?? prev?.timeLeft ?? 300,
           opponentName: data.opponentName || data.opponent_name || prev?.opponentName,
+          opponentRoomId: data.opponentRoomId || prev?.opponentRoomId,
         }));
-      } else if (data.status === 'ENDED' || data.status === 'WAITING') {
-        setSpectatorBattle(null);
+      } else if (data.status === 'ENDED') {
+        setSpectatorBattle(prev => prev ? { ...prev, active: false } : null);
+        setTimeout(() => setSpectatorBattle(null), 5000);
+      } else if (data.status === 'WAITING') {
+        setSpectatorBattle(prev => ({
+          active: false,
+          hostScore: 0,
+          opponentScore: 0,
+          timeLeft: data.timeLeft ?? 300,
+          opponentName: data.opponentName || prev?.opponentName,
+          opponentRoomId: data.opponentRoomId || prev?.opponentRoomId,
+        }));
       }
     };
 
@@ -1221,13 +1277,13 @@ export default function SpectatorPage() {
           return (
             <div
               className={`absolute left-0 right-0 z-0 bg-[#0A0B0E] flex flex-row overflow-hidden rounded-none`}
-              style={showGrid
+              style={(showGrid || spectatorBattle?.active)
                 ? { top: 'calc(env(safe-area-inset-top, 0px) + 78px)', height: 'calc(36dvh + 10mm)' }
                 : { top: 'calc(env(safe-area-inset-top, 0px) + 78px)', bottom: '90px' }
               }
             >
               {/* Left: host video */}
-              <div className={`overflow-hidden rounded-none min-w-0 relative ${showGrid ? 'w-1/2' : 'w-full'}`}>
+              <div className={`overflow-hidden rounded-none min-w-0 relative ${showGrid || spectatorBattle?.active ? 'w-1/2' : 'w-full'}`}>
                 <video
                   ref={videoRef}
                   className="absolute inset-0 w-full h-full object-cover rounded-none"
@@ -1298,28 +1354,52 @@ export default function SpectatorPage() {
           );
         })()}
 
-        {/* Battle overlay: when creator is in battle, show timer + scores; same half-screen height as video container */}
+        {/* Battle overlay: split-screen with opponent video + scores */}
         {spectatorBattle?.active && (
           <div
-            className="absolute left-0 right-0 z-[80] pointer-events-none flex flex-col"
+            className="absolute left-0 right-0 z-[80] flex flex-col"
             style={{
               top: 'calc(env(safe-area-inset-top, 0px) + 78px)',
-              height: '50vh',
-              maxHeight: '50vh',
+              height: 'calc(36dvh + 10mm)',
             }}
           >
-            <div className="flex justify-center pt-2">
-              <div className="flex items-center gap-2 bg-black/50 backdrop-blur-md rounded-full px-3 py-1.5 border border-white/10">
-                <span className="text-white/90 text-[10px] font-black tabular-nums">{formatTime(spectatorBattle.timeLeft)}</span>
-                <span className="text-white/50 text-[8px]">VS</span>
-                <span className="text-white/90 text-[10px] font-bold truncate max-w-[80px]">{spectatorBattle.opponentName || 'Opponent'}</span>
+            {/* Score bar */}
+            <div className="flex items-center h-6 z-10">
+              <div className="flex-1 h-full bg-[#DC143C]/80 flex items-center justify-start pl-3">
+                <span className="text-white text-xs font-black tabular-nums">{spectatorBattle.hostScore}</span>
+              </div>
+              <div className="flex items-center gap-1 bg-black/80 px-2 py-0.5 rounded-b-lg z-10">
+                <span className="text-red-400 text-[10px] font-bold">●</span>
+                <span className="text-white text-[10px] font-black tabular-nums">{formatTime(spectatorBattle.timeLeft)}</span>
+              </div>
+              <div className="flex-1 h-full bg-[#1E90FF]/80 flex items-center justify-end pr-3">
+                <span className="text-white text-xs font-black tabular-nums">{spectatorBattle.opponentScore}</span>
               </div>
             </div>
-            <div className="flex-1 min-h-0 flex items-end justify-center pb-2">
-              <div className="flex items-center gap-4 bg-black/50 backdrop-blur-md rounded-lg px-4 py-2 border border-white/10">
-                <span className="text-[#DC143C] text-sm font-black tabular-nums">{spectatorBattle.hostScore}</span>
-                <span className="text-white/50 text-xs">–</span>
-                <span className="text-[#1E90FF] text-sm font-black tabular-nums">{spectatorBattle.opponentScore}</span>
+            {/* Split video: host (left) + opponent (right) */}
+            <div className="flex-1 flex flex-row min-h-0">
+              {/* Host video already rendered below this overlay — leave left side transparent */}
+              <div className="w-1/2" />
+              {/* Opponent video */}
+              <div className="w-1/2 relative bg-[#13151A]">
+                <video
+                  ref={opponentVideoRef}
+                  className="absolute inset-0 w-full h-full object-cover"
+                  autoPlay playsInline muted
+                  style={{ opacity: hasOpponentStream ? 1 : 0, transition: 'opacity 0.3s ease' }}
+                />
+                {!hasOpponentStream && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+                    <div className="w-14 h-14 rounded-full bg-[#C9A96E]/20 flex items-center justify-center">
+                      <span className="text-xl font-bold text-[#C9A96E]/80">{(spectatorBattle.opponentName || 'O').charAt(0).toUpperCase()}</span>
+                    </div>
+                    <span className="text-white text-xs font-bold truncate max-w-[90%]">{spectatorBattle.opponentName || 'Opponent'}</span>
+                    <div className="flex items-center gap-1">
+                      <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                      <span className="text-green-400 text-[9px] font-bold">Connecting...</span>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>

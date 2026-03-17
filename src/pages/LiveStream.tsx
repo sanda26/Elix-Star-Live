@@ -2839,11 +2839,11 @@ export default function LiveStream() {
             
             {/* Base Video Layer */}
         {!isBattleMode && (() => {
-          const hasLiveCoHost = coHosts.some(h => (h.status === 'live' || h.status === 'accepted') && h.userId !== user?.id);
+          const hasAnyCoHost = coHosts.length > 0;
           return (
           <div
-            className={hasLiveCoHost ? 'absolute inset-x-0 z-[25] flex flex-row' : 'relative w-full h-full'}
-            style={hasLiveCoHost ? { top: '90px', height: 'calc(36dvh + 10mm)', filter: liveFilterCss !== 'none' ? liveFilterCss : undefined } : { filter: liveFilterCss !== 'none' ? liveFilterCss : undefined }}
+            className={hasAnyCoHost ? 'absolute inset-x-0 z-[25] flex flex-row' : 'relative w-full h-full'}
+            style={hasAnyCoHost ? { top: '90px', height: 'calc(36dvh + 10mm)', filter: liveFilterCss !== 'none' ? liveFilterCss : undefined } : { filter: liveFilterCss !== 'none' ? liveFilterCss : undefined }}
             onPointerDown={isBroadcast ? undefined : (e) => {
               if (e.target instanceof Element) {
                 const interactive = e.target.closest('button, a, input, textarea, select, [role="button"]');
@@ -2856,9 +2856,9 @@ export default function LiveStream() {
               if (now - last <= 320) handleComboClick();
             }}
           >
-            {/* Left: Host camera — 50% when at least one live co-host, else full */}
+            {/* Left: Host camera — 50% when co-hosts present, else full */}
             <div
-              className={hasLiveCoHost ? 'w-1/2 min-w-0 relative' : 'relative w-full h-full'}
+              className={hasAnyCoHost ? 'w-1/2 min-w-0 relative' : 'relative w-full h-full'}
               onPointerDown={isBroadcast ? (e) => {
                 if (e.target instanceof Element && e.target.closest('button, a, input, textarea, select, [role="button"]')) return;
                 handleLikeTap(e);
@@ -2890,7 +2890,7 @@ export default function LiveStream() {
                     <span className="text-white font-bold text-xs">{creatorName || user?.username || user?.name || 'Me'}</span>
                   </div>
                 )}
-                {isBroadcast && hasLiveCoHost && (
+                {isBroadcast && hasAnyCoHost && (
                   <div className="absolute top-1 right-1 z-10 flex items-center gap-0.5 pointer-events-auto">
                     <button type="button" onClick={(e) => { e.stopPropagation(); toggleMic(); }} className="p-0.5 rounded bg-black/50" title={isMicMuted ? 'Unmute' : 'Mute'}>
                       {isMicMuted ? <MicOff className="w-3 h-3 text-white" strokeWidth={2.5} /> : <Mic className="w-3 h-3 text-white" strokeWidth={2.5} />}
@@ -2950,51 +2950,84 @@ export default function LiveStream() {
             )}
             </div>
 
-            {/* Right: co-host half — clean half-screen when 1 live co-host */}
-            {(() => {
+            {/* Right: co-host 8-slot grid */}
+            {hasAnyCoHost && (() => {
               const list = isBroadcast ? coHosts.filter(h => h.userId !== user?.id) : coHosts;
               const liveList = list.filter(h => h.status === 'live' || h.status === 'accepted');
               const firstLive = liveList[0];
-              if (!firstLive) return null;
+              const restLive = liveList.slice(1);
+              const invitedPending = list.filter(h => h.status === 'invited' || h.status === 'pending_accept');
+              const smallSlots: Array<{ type: 'live' | 'invited' | 'pending' | 'empty'; host?: (typeof coHosts)[0] }> = [];
+              if (firstLive) smallSlots.push({ type: 'live', host: firstLive });
+              restLive.forEach(h => smallSlots.push({ type: 'live', host: h }));
+              invitedPending.forEach(h => smallSlots.push({ type: h.status === 'invited' ? 'invited' : 'pending', host: h }));
+              while (smallSlots.length < 8) smallSlots.push({ type: 'empty' });
+
+              const renderCoHostCell = (slot: { type: 'live' | 'invited' | 'pending' | 'empty'; host?: (typeof coHosts)[0] }) => {
+                if (slot.type === 'live' && slot.host) {
+                  const host = slot.host;
+                  return (
+                    <>
+                      <video
+                        ref={(el) => { if (el) coHostVideoRefs.current.set(host.userId, el); else coHostVideoRefs.current.delete(host.userId); }}
+                        className="absolute inset-0 w-full h-full object-cover rounded-sm"
+                        autoPlay playsInline muted={host.isMuted}
+                        style={coHostCameraOff[host.id] ? { display: 'none' } : undefined}
+                      />
+                      {coHostCameraOff[host.id] && (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-[#13151A] z-[6] rounded-sm">
+                          {host.avatar ? <img src={host.avatar} alt="" className="w-10 h-10 rounded-full border-2 border-[#C9A96E]/40 object-cover" /> : (
+                            <div className="w-10 h-10 rounded-full border-2 border-[#C9A96E]/40 bg-[#1C1E24] flex items-center justify-center"><span className="text-[#C9A96E]/60 text-sm font-bold">{(host.name || '?').charAt(0)}</span></div>
+                          )}
+                          <span className="text-white/90 text-[8px] font-bold truncate max-w-full px-1">{host.name}</span>
+                        </div>
+                      )}
+                      <div className="absolute top-0.5 right-0.5 z-10 flex items-center gap-0.5 pointer-events-auto">
+                        <button type="button" onClick={(e) => { e.stopPropagation(); toggleCoHostMute(host.id); }} className="rounded bg-black/50 p-0.5" title={host.isMuted ? 'Unmute' : 'Mute'}>
+                          {host.isMuted ? <MicOff className="text-white w-3 h-3" strokeWidth={2.5} /> : <Mic className="text-white w-3 h-3" strokeWidth={2.5} />}
+                        </button>
+                        <button type="button" onClick={(e) => { e.stopPropagation(); toggleCoHostCamera(host.id); }} className="p-0.5 rounded" title={coHostCameraOff[host.id] ? 'Camera on' : 'Camera off'}>
+                          {coHostCameraOff[host.id] ? <CameraOff className="text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] w-3 h-3" strokeWidth={2.5} /> : <Camera className="text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] w-3 h-3" strokeWidth={2.5} />}
+                        </button>
+                      </div>
+                    </>
+                  );
+                }
+                if (slot.type === 'invited' && slot.host) return (
+                  <>
+                    <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-[#C9A96E]/40 bg-[#1C1E24]">
+                      {slot.host.avatar ? <img src={slot.host.avatar} alt="" className="w-full h-full object-cover opacity-60" /> : <div className="w-full h-full flex items-center justify-center text-[#C9A96E]/60 text-base font-bold">{(slot.host.name || '?').charAt(0)}</div>}
+                    </div>
+                    <p className="text-white/60 text-[9px] font-bold mt-0.5 truncate max-w-[95%] text-center">{slot.host.name}</p>
+                    <span className="text-[#C9A96E]/70 text-[8px] font-semibold">Invited</span>
+                  </>
+                );
+                if (slot.type === 'pending' && slot.host) return (
+                  <>
+                    <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-[#C9A96E] bg-[#1C1E24]">
+                      {slot.host.avatar ? <img src={slot.host.avatar} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[#C9A96E] text-sm font-bold">{(slot.host.name || '?').charAt(0)}</div>}
+                    </div>
+                    <p className="text-white text-[8px] font-bold mt-0.5 truncate max-w-[95%] text-center">{slot.host.name}</p>
+                    <span className="text-[#C9A96E]/70 text-[8px] font-semibold">Pending</span>
+                  </>
+                );
+                return (
+                  <button type="button" onClick={() => setShowViewerList(true)} className="flex flex-col items-center justify-center w-full h-full active:scale-95">
+                    <div className="w-12 h-12 rounded-full border-2 border-dashed border-white/20 flex items-center justify-center">
+                      <span className="text-white/30 text-2xl font-light">+</span>
+                    </div>
+                    <p className="text-white/30 text-[9px] font-semibold mt-0.5">Invite</p>
+                  </button>
+                );
+              };
 
               return (
-                <div className="w-1/2 h-full relative bg-[#13151A] overflow-hidden min-w-0">
-                  <video
-                    ref={(el) => { if (el) coHostVideoRefs.current.set(firstLive.userId, el); else coHostVideoRefs.current.delete(firstLive.userId); }}
-                    className="absolute inset-0 w-full h-full object-cover"
-                    autoPlay
-                    playsInline
-                    muted={firstLive.isMuted}
-                    style={coHostCameraOff[firstLive.id] ? { display: 'none' } : undefined}
-                  />
-                  {coHostCameraOff[firstLive.id] && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-[#13151A] z-[6]">
-                      {firstLive.avatar ? <img src={firstLive.avatar} alt="" className="w-16 h-16 rounded-full border-2 border-[#C9A96E]/40 object-cover" /> : (
-                        <div className="w-16 h-16 rounded-full border-2 border-[#C9A96E]/40 bg-[#1C1E24] flex items-center justify-center"><span className="text-[#C9A96E]/60 text-xl font-bold">{(firstLive.name || '?').charAt(0)}</span></div>
-                      )}
-                      <span className="text-white/90 text-xs font-bold">{firstLive.name}</span>
+                <div className="w-1/2 h-full grid grid-cols-2 grid-rows-4 gap-[1px] bg-[#1a1c22]">
+                  {smallSlots.slice(0, 8).map((slot, i) => (
+                    <div key={i} className="relative bg-[#13151A] flex flex-col items-center justify-center p-1">
+                      {renderCoHostCell(slot)}
                     </div>
-                  )}
-                  {(() => {
-                    const el = coHostVideoRefs.current.get(firstLive.userId);
-                    const hasTracks = el?.srcObject && (el.srcObject as MediaStream).getVideoTracks().some(t => t.enabled);
-                    if (!hasTracks && !coHostCameraOff[firstLive.id]) return (
-                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#13151A] z-[5]">
-                        <CameraOff size={32} className="text-white/30" />
-                        <span className="text-white/40 text-sm mt-1">{firstLive.name}</span>
-                      </div>
-                    );
-                    return null;
-                  })()}
-                  <div className="absolute top-2 right-2 z-10 flex items-center gap-1 pointer-events-auto">
-                    <button type="button" onClick={(e) => { e.stopPropagation(); toggleCoHostMute(firstLive.id); }} className="rounded bg-black/50 p-1" title={firstLive.isMuted ? 'Unmute' : 'Mute'}>
-                      {firstLive.isMuted ? <MicOff className="text-white w-4 h-4" strokeWidth={2.5} /> : <Mic className="text-white w-4 h-4" strokeWidth={2.5} />}
-                    </button>
-                    <button type="button" onClick={(e) => { e.stopPropagation(); toggleCoHostCamera(firstLive.id); }} className="p-1 rounded" title={coHostCameraOff[firstLive.id] ? 'Camera on' : 'Camera off'}>
-                      {coHostCameraOff[firstLive.id] ? <CameraOff className="text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] w-4 h-4" strokeWidth={2.5} /> : <Camera className="text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] w-4 h-4" strokeWidth={2.5} />}
-                    </button>
-                  </div>
-                  <p className="absolute bottom-2 left-2 z-10 text-white/80 text-xs font-bold bg-black/50 rounded px-1.5 py-0.5 truncate max-w-[90%]">{firstLive.name}</p>
+                  ))}
                 </div>
               );
             })()}

@@ -65,6 +65,8 @@
     --nav-height: 110px;
     /* Top bar height (responsive) */
     --topbar-height: clamp(40px, 10vw, 56px);
+    /* Total top offset so content stays below top bar (feed spacer, etc.) */
+    --topbar-total: calc(var(--safe-top) + 46px + 9mm);
 
     /* Bottom sheets */
     --sheet-collapsed: 30vh;
@@ -81,6 +83,8 @@
 
   body {
     @apply bg-background text-text font-sans antialiased overflow-hidden;
+    min-height: 100%;
+    min-height: 100dvh;
     padding-top: var(--safe-top);
     padding-bottom: var(--safe-bottom);
     padding-left: var(--safe-left);
@@ -99,29 +103,39 @@
     -ms-text-size-adjust: 100%;
     text-size-adjust: 100%;
     width: 100%;
-    height: 100%;
+    min-height: 100%;
+    min-height: 100dvh;
     overflow: hidden;
-    /* Fluid base font: scales 14px (320w) → 16px (414w) */
+    /* Fluid base font: scales with viewport (320px → 414px+) */
     font-size: clamp(13px, calc(12px + 0.5vw), 17px);
   }
 
   #root {
     width: 100%;
-    height: 100%;
+    min-width: 100%;
+    min-height: 100%;
+    min-height: 100dvh;
     overflow: hidden;
     position: relative;
   }
 
   /* Prevent horizontal scroll on all devices */
-  body, html {
+  body,
+  html {
     overflow-x: hidden;
     max-width: 100vw;
   }
 
-  /* Ensure all pages fit within viewport */
+  /* Ensure all full-screen pages fit the visible viewport on any device */
   .min-h-screen {
     min-height: 100vh;
     min-height: 100dvh;
+  }
+
+  /* Fill visible viewport height (handles mobile browser chrome, notches, etc.) */
+  .h-viewport {
+    height: 100vh;
+    height: 100dvh;
   }
 
   /* Reset input visibility */
@@ -189,7 +203,7 @@
   .pb-safe { padding-bottom: var(--safe-bottom); }
   .pl-safe { padding-left: var(--safe-left); }
   .pr-safe { padding-right: var(--safe-right); }
-  .pt-topbar { padding-top: calc(var(--safe-top) + 46px + 9mm); }
+  .pt-topbar { padding-top: var(--topbar-total); }
   .pb-nav { padding-bottom: calc(var(--nav-height) + var(--safe-bottom)); }
 
   /* Responsive text that scales with viewport */

@@ -409,9 +409,8 @@ export default function VideoFeed() {
       style={{ scrollSnapType: "y mandatory" }}
       onScroll={handleScroll}
     >
-
-      {/* Spacer so content starts same distance below bar as Explore */}
-      <div className="h-[120px]" />
+      {/* Spacer so first video starts below top bar (auto-adjusts to safe area + bar) */}
+      <div style={{ height: "var(--topbar-total, 120px)" }} />
 
       {/* ============================================================ */}
       {/*  Feed items: live streams first, then videos                  */}
@@ -424,14 +423,14 @@ export default function VideoFeed() {
               className="h-[100dvh] w-full snap-start relative flex justify-center bg-[#0A0B0E]"
               style={{ scrollSnapAlign: "start", scrollSnapStop: "always" }}
             >
-              <div
-                className="w-full max-w-[480px] relative"
-                style={{
-                  height: "calc(100vh - 3.6cm)",
-                  marginTop: "1.1cm",
-                }}
-              >
-                <InlineLiveViewer
+            <div
+              className="w-full max-w-[480px] relative border-2 border-black overflow-hidden bg-[#0A0B0E]"
+              style={{
+                height: "calc(100dvh - var(--topbar-total, 120px) - 1rem)",
+                marginTop: "0.5rem",
+              }}
+            >
+              <InlineLiveViewer
                   streamKey={item.stream.streamKey}
                   isActive={activeIndex === index}
                   creatorName={item.stream.name}
@@ -450,10 +449,10 @@ export default function VideoFeed() {
             style={{ scrollSnapAlign: "start", scrollSnapStop: "always" }}
           >
             <div
-              className="w-full max-w-[480px] relative"
+              className="w-full max-w-[480px] relative border-2 border-black overflow-hidden bg-[#0A0B0E]"
               style={{
-                height: "calc(100vh - 3.6cm)",
-                marginTop: "1.1cm",
+                height: "calc(100dvh - var(--topbar-total, 120px) - 1rem)",
+                marginTop: "0.5rem",
               }}
             >
               <EnhancedVideoPlayer

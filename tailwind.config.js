@@ -47,6 +47,14 @@ export default {
         'screen-sm': '375px',
         'screen-md': '414px',
       },
+      minHeight: {
+        viewport: '100dvh',
+        'viewport-fallback': '100vh',
+      },
+      height: {
+        viewport: '100dvh',
+        'viewport-fallback': '100vh',
+      },
       keyframes: {
         pop: {
           '0%': { transform: 'scale(0.8)', opacity: '0' },

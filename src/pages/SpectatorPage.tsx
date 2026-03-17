@@ -929,6 +929,7 @@ export default function SpectatorPage() {
       const hostName = data.hostName || 'Creator';
       const streamKey = data.streamKey || effectiveStreamId;
       showToast(`@${hostName} accepted — you're joining as co-host`);
+      setShowCoHostPanel(false);
       navigate(`/watch/${streamKey}?cohost=1`, {
         replace: true,
         state: { fromCohostInvite: true },
@@ -1290,16 +1291,8 @@ export default function SpectatorPage() {
               </div>
             )}
           </div>
-          {/* Only show co-host layout on spectator page when this viewer is actually connected as a co-host. */}
-          {(isCoHostFromUrl || isCoHosting) && (
-            <SpectatorCoHostGrid
-              spectatorCoHosts={spectatorCoHosts}
-              coHostVideoRefs={coHostVideoRefs}
-              hostName={hostName}
-              onSelectSlot={setSelectedSpectatorUserId}
-              selectedSpectatorUserId={selectedSpectatorUserId}
-            />
-          )}
+          {/* Co-host layout is controlled only by the creator's live view.
+              Spectators (even co-hosts) see a single viewer layout here, so we do not render a separate co-host grid. */}
         </div>
 
         {/* Battle overlay: when creator is in battle, show timer + scores; same half-screen height as video container */}
@@ -1583,12 +1576,14 @@ export default function SpectatorPage() {
                       </p>
                       <button
                         type="button"
-                        disabled={joinRequested || !user?.id || !hostUserId}
+                        disabled={joinRequested || !user?.id}
                         onClick={() => {
-                          if (!user?.id || !hostUserId || joinRequested) return;
+                          if (!user?.id || joinRequested) return;
+                          const targetHostId = hostUserId || effectiveStreamId;
+                          if (!targetHostId) return;
                           setJoinRequested(true);
                           // Spectator-initiated co-host request; creator must still Accept before co-hosting starts
-                          websocket.send('cohost_request_send', { hostUserId, requesterName: user?.username || user?.name || 'User', requesterAvatar: user?.avatar || '' });
+                          websocket.send('cohost_request_send', { hostUserId: targetHostId, requesterName: user?.username || user?.name || 'User', requesterAvatar: user?.avatar || '' });
                           showToast('Co-host request sent!');
                         }}
                         className={`w-full py-3 rounded-xl font-bold text-sm ${joinRequested ? 'bg-white/10 text-white/40 cursor-not-allowed' : 'bg-[#C9A96E] text-black active:scale-95'}`}

@@ -731,13 +731,16 @@ function joinBattle(
   userName: string,
 ): BattleSession | null {
   const session = battles.get(roomId);
-  if (!session || session.status !== "WAITING") return null;
+  if (!session || session.status === "ENDED") return null;
 
-  // Prevent duplicate join
+  // If this user is already the opponent (pre-filled by battle_create), treat as a successful join
+  if (session.opponentUserId === userId || session.player3UserId === userId || session.player4UserId === userId) {
+    if (session.status === "WAITING") {
+      startBattleTimer(roomId);
+    }
+    return session;
+  }
   if (session.hostUserId === userId) return session;
-  if (session.opponentUserId === userId) return session;
-  if (session.player3UserId === userId) return session;
-  if (session.player4UserId === userId) return session;
 
   if (!session.opponentUserId) {
     session.opponentUserId = userId;
@@ -749,11 +752,15 @@ function joinBattle(
     session.player4UserId = userId;
     session.player4Name = userName;
   } else {
-    return null; // Full
+    return null;
   }
 
   userBattleRoom.set(userId, roomId);
-  broadcastBattleState(roomId, session);
+  if (session.status === "WAITING") {
+    startBattleTimer(roomId);
+  } else {
+    broadcastBattleState(roomId, session);
+  }
   return session;
 }
 
@@ -1317,6 +1324,9 @@ async function handleMessage(client: Client, event: string, data: any) {
 
       // ═══ BATTLE EVENTS — server-controlled ═══
       case "battle_create": {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/index.ts:battle_create',message:'battle_create received',data:{roomId:client.roomId,userId:client.userId,opponentUserId:data.opponentUserId,opponentName:data.opponentName},timestamp:Date.now(),hypothesisId:'D'})}).catch(()=>{});
+        // #endregion
         const existing = battles.get(client.roomId);
         if (existing) {
           if (existing.timer) clearInterval(existing.timer);
@@ -1337,7 +1347,10 @@ async function handleMessage(client: Client, event: string, data: any) {
           session.opponentUserId = opponentUserId;
           session.opponentName = opponentName;
           if (opponentUserId) userBattleRoom.set(opponentUserId, client.roomId);
-          startBattleTimer(client.roomId);
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/index.ts:battle_create_waiting',message:'Battle created with opponent pre-filled, status stays WAITING until opponent joins',data:{roomId:client.roomId,status:session.status,opponentUserId,opponentName},timestamp:Date.now(),hypothesisId:'D'})}).catch(()=>{});
+          // #endregion
+          broadcastBattleState(client.roomId, session);
         } else {
           sendToClient(client, "battle_created", {
             battleId: session.id,
@@ -1349,17 +1362,27 @@ async function handleMessage(client: Client, event: string, data: any) {
       }
 
       case "battle_join": {
+        // #region agent log
+        const _bjBattle = battles.get(client.roomId);
+        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/index.ts:battle_join',message:'battle_join received',data:{roomId:client.roomId,userId:client.userId,opponentName:data.opponentName,battleExists:!!_bjBattle,battleStatus:_bjBattle?.status,battleOpponentUserId:_bjBattle?.opponentUserId},timestamp:Date.now(),hypothesisId:'C,D'})}).catch(()=>{});
+        // #endregion
         const battleSession = joinBattle(
           client.roomId,
           client.userId,
           data.opponentName || client.displayName,
         );
         if (!battleSession) {
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/index.ts:battle_join_FAILED',message:'joinBattle returned null!',data:{roomId:client.roomId,userId:client.userId},timestamp:Date.now(),hypothesisId:'D'})}).catch(()=>{});
+          // #endregion
           sendToClient(client, "battle_error", {
             message: "No battle to join",
           });
           break;
         }
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/index.ts:battle_join_OK',message:'joinBattle succeeded',data:{roomId:client.roomId,userId:client.userId,sessionStatus:battleSession.status},timestamp:Date.now(),hypothesisId:'D'})}).catch(()=>{});
+        // #endregion
         break;
       }
 

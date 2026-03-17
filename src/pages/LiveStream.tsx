@@ -393,16 +393,30 @@ export default function LiveStream() {
     const room = new Room({ adaptiveStream: true });
     liveKitRoomRef.current = room;
 
-    const attachRemoteVideoToCoHostSlot = (track: import('livekit-client').Track, participant: import('livekit-client').RemoteParticipant) => {
+    const attachRemoteVideo = (track: import('livekit-client').Track, participant: import('livekit-client').RemoteParticipant) => {
       if (track.kind !== 'video') return;
       const identity = participant.identity;
       if (identity === user?.id) return;
-      const el = coHostVideoRefs.current.get(identity);
-      if (el) track.attach(el);
+
+      // Try co-host slot first
+      const coHostEl = coHostVideoRefs.current.get(identity);
+      if (coHostEl) { track.attach(coHostEl); return; }
+
+      // Try battle opponent slot — attach to whichever battle ref doesn't have a stream yet
+      if (isBattleModeRef.current) {
+        const oppEl = opponentVideoRef.current;
+        if (oppEl && !oppEl.srcObject) {
+          track.attach(oppEl);
+          setHasOpponentStream(true);
+          return;
+        }
+        if (player3VideoRef.current && !player3VideoRef.current.srcObject) { track.attach(player3VideoRef.current); return; }
+        if (player4VideoRef.current && !player4VideoRef.current.srcObject) { track.attach(player4VideoRef.current); return; }
+      }
     };
 
     room.on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
-      attachRemoteVideoToCoHostSlot(track, participant);
+      attachRemoteVideo(track, participant);
     });
 
     (async () => {
@@ -410,7 +424,7 @@ export default function LiveStream() {
         await room.connect(liveKitCreds.url, liveKitCreds.token);
         for (const [, participant] of room.remoteParticipants) {
           for (const [, pub] of participant.videoTrackPublications) {
-            if (pub.track && pub.isSubscribed) attachRemoteVideoToCoHostSlot(pub.track, participant);
+            if (pub.track && pub.isSubscribed) attachRemoteVideo(pub.track, participant);
           }
         }
         if (videoTrack) {
@@ -828,6 +842,7 @@ export default function LiveStream() {
   const isBattleJoiner = !isBroadcast && new URLSearchParams(location.search).get('battle') === '1';
 
   // If joining as battle participant, enter battle mode and start camera (server drives timer/countdown)
+  const battleLkRoomRef = useRef<Room | null>(null);
   useEffect(() => {
     if (!isBattleJoiner || !user?.id) return;
     setIsBattleMode(true);
@@ -837,22 +852,21 @@ export default function LiveStream() {
 
     let cancelled = false;
     (async () => {
-      // Derive host info from stream key (simplified without DB)
       const hostLabel = effectiveStreamId.slice(0, 8).toUpperCase();
       const hName = `Host ${hostLabel}`;
       const hAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(hostLabel)}&background=121212&color=C9A96E`;
-      
+
       if (cancelled) return;
-      setOpponentStreamKey(effectiveStreamId);
       setBattleSlots(prev => {
         const next = [...prev];
         next[0] = { userId: effectiveStreamId, name: hName, status: 'accepted', avatar: hAvatar };
         return next;
       });
 
-      // Start camera
+      // Get camera + mic
+      let stream: MediaStream | null = null;
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
+        stream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: 'user' },
           audio: { echoCancellation: true, noiseSuppression: true },
         });
@@ -865,19 +879,59 @@ export default function LiveStream() {
           videoRef.current.play().catch(() => {});
         }
       } catch {
-        showToast('Camera access denied');
+        showToast('Camera access denied — cannot join battle');
+        return;
       }
 
-      // Announce arrival to host — the shared battle_room channel effect handles
-      // battle state signaling. We just need to send joiner_arrived once the
-      // channel is ready.
-      const myName = user?.username || user?.name || 'Player';
-      const myAv = user?.avatar || '';
+      // Connect to host's LiveKit room and publish our tracks
+      try {
+        const tokenRes = await fetch(apiUrl(`/api/live/token?room=${encodeURIComponent(effectiveStreamId)}&publish=1`), {
+          method: 'GET', credentials: 'include',
+          headers: { ...(() => { const t = useAuthStore.getState().session?.access_token; const h: Record<string,string> = {}; if (t) h['Authorization'] = `Bearer ${t}`; return h; })() },
+        });
+        if (!tokenRes.ok || cancelled) return;
+        const tokenData = await tokenRes.json().catch(() => ({}));
+        const lkUrl = (tokenData?.url ?? '').trim() || getLiveKitUrl();
+        const lkToken = tokenData?.token;
+        if (!lkUrl || !lkToken || cancelled) return;
 
-      // Battle arrival via WebSocket.
+        const room = new Room({ adaptiveStream: true });
+        battleLkRoomRef.current = room;
+
+        // Subscribe to host's video for the opponent panel
+        room.on(RoomEvent.TrackSubscribed, (track) => {
+          if (cancelled || track.kind !== 'video') return;
+          const el = opponentVideoRef.current;
+          if (el) {
+            track.attach(el);
+            setHasOpponentStream(true);
+          }
+        });
+
+        await room.connect(lkUrl, lkToken);
+        if (cancelled) { room.disconnect(); return; }
+
+        // Publish our camera and mic to the host's room
+        const videoTrack = stream.getVideoTracks()[0];
+        if (videoTrack) {
+          await room.localParticipant.publishTrack(new LocalVideoTrack(videoTrack), { name: 'camera' });
+        }
+        const audioTrack = stream.getAudioTracks()[0];
+        if (audioTrack) {
+          await room.localParticipant.publishTrack(new LocalAudioTrack(audioTrack), { name: 'mic' });
+        }
+
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveStream.tsx:battleJoiner_published',message:'Battle opponent published tracks to host room',data:{room:effectiveStreamId,userId:user?.id},timestamp:Date.now(),hypothesisId:'A'})}).catch(()=>{});
+        // #endregion
+      } catch (e) {
+        console.error('[Battle] LiveKit publish failed:', e);
+        showToast('Could not connect video to battle');
+      }
     })();
     return () => {
       cancelled = true;
+      if (battleLkRoomRef.current) { battleLkRoomRef.current.disconnect(); battleLkRoomRef.current = null; }
       if (battlePeerRef.current) { battlePeerRef.current.close(); battlePeerRef.current = null; }
     };
   }, [isBattleJoiner, user?.id, effectiveStreamId]);
@@ -962,54 +1016,9 @@ export default function LiveStream() {
 
   const isRegularViewer = !isBroadcast && !isBattleParticipant;
 
-  // Connect to opponent's LiveKit room to receive their video during battle
-  useEffect(() => {
-    if (!isBattleMode || !opponentStreamKey) return;
-    let mounted = true;
-    const room = new Room();
-    opponentLkRoomRef.current = room;
-
-    (async () => {
-      try {
-        const res = await fetch(apiUrl(`/api/live/token?room=${encodeURIComponent(opponentStreamKey)}`), { method: 'GET', credentials: 'include' });
-        if (!res.ok || !mounted) return;
-        const payload = await res.json().catch(() => ({}));
-        const token = payload?.token;
-        const url = (payload?.url ?? '').trim() || getLiveKitUrl();
-        if (!token || !url || !mounted) return;
-
-        room.on(RoomEvent.TrackSubscribed, (track) => {
-          if (!mounted || track.kind !== 'video') return;
-          const el = opponentVideoRef.current;
-          if (el) {
-            track.attach(el);
-            setHasOpponentStream(true);
-          }
-        });
-
-        await room.connect(url, token);
-        if (!mounted) { room.disconnect(); return; }
-
-        for (const [, participant] of room.remoteParticipants) {
-          for (const [, pub] of participant.videoTrackPublications) {
-            if (pub.track && pub.isSubscribed && opponentVideoRef.current) {
-              pub.track.attach(opponentVideoRef.current);
-              setHasOpponentStream(true);
-            }
-          }
-        }
-      } catch (e) {
-        console.error('[Battle] Failed to connect to opponent LiveKit room:', e);
-      }
-    })();
-
-    return () => {
-      mounted = false;
-      room.disconnect();
-      opponentLkRoomRef.current = null;
-      setHasOpponentStream(false);
-    };
-  }, [isBattleMode, opponentStreamKey]);
+  // Battle opponent video: both players are in the SAME LiveKit room.
+  // Host receives opponent tracks via TrackSubscribed in the main room.
+  // Opponent receives host tracks via TrackSubscribed in battleLkRoomRef.
 
   // Speed Challenge State
   // SPEED CHALLENGE
@@ -1871,6 +1880,9 @@ export default function LiveStream() {
 
       // Opponent: once connected to the room, tell the server we're joining the battle
       if (isBattleJoiner) {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveStream.tsx:handleRoomState_battle_join',message:'Sending battle_join from opponent',data:{streamId:effectiveStreamId,userId:user?.id,isBattleJoiner},timestamp:Date.now(),hypothesisId:'C'})}).catch(()=>{});
+        // #endregion
         websocket.send('battle_join', { opponentName: user?.username || user?.name || 'Player' });
       }
     };
@@ -1964,6 +1976,9 @@ export default function LiveStream() {
     // Server-controlled battle events — single source of truth
     const handleBattleStateSync = (data: any) => {
       if (!mounted) return;
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveStream.tsx:handleBattleStateSync',message:'battle_state_sync received',data:{status:data.status,opponentUserId:data.opponentUserId,opponentName:data.opponentName,isBroadcast,isBattleJoiner,timeLeft:data.timeLeft},timestamp:Date.now(),hypothesisId:'E'})}).catch(()=>{});
+      // #endregion
       if (data.status === 'WAITING') {
         setIsBattleMode(true);
         setBattleState('INVITING');
@@ -2109,6 +2124,9 @@ export default function LiveStream() {
     };
 
     const handleBattleInviteAccepted = (data: any) => {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveStream.tsx:handleBattleInviteAccepted',message:'battle_invite_accepted received',data:{isBroadcast,requesterUserId:data.requesterUserId,requesterName:data.requesterName,streamKey:data.streamKey},timestamp:Date.now(),hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
       if (!isBroadcast) return;
       const requesterId = data.requesterUserId as string | undefined;
       const requesterName = data.requesterName as string | undefined;
@@ -2118,6 +2136,9 @@ export default function LiveStream() {
       setBattleState('INVITING');
       setOpponentCreatorName(requesterName);
       const oppStreamKey = (data.streamKey as string) || '';
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveStream.tsx:handleBattleInviteAccepted_streamKey',message:'opponentStreamKey being set',data:{oppStreamKey,isHostOwnKey:oppStreamKey===effectiveStreamId},timestamp:Date.now(),hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
       if (oppStreamKey) setOpponentStreamKey(oppStreamKey);
       setBattleSlots(prev => {
         const next = [...prev];

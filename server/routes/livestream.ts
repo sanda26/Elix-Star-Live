@@ -217,6 +217,10 @@ export async function handleGetLiveToken(req: Request, res: Response) {
     return res.status(400).json({ error: 'Query parameter "room" is required and must be alphanumeric.' });
   }
 
+  if (!publish && !activeStreams.has(roomName)) {
+    return res.status(404).json({ error: 'Stream not found or already ended.' });
+  }
+
   try {
     const token = await createLiveToken({
       userId: auth.userId,

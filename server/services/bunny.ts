@@ -5,7 +5,7 @@
 
 import { logger } from "../lib/logger";
 
-const STORAGE_HOST = process.env.BUNNY_STORAGE_HOST || process.env.BUNNY_STORAGE_HOSTNAME || 'storage.bunnycdn.com';
+const STORAGE_HOST = process.env.BUNNY_STORAGE_HOST || 'storage.bunnycdn.com';
 const STORAGE_REGION = process.env.BUNNY_STORAGE_REGION || 'de';
 const STORAGE_ZONE_RAW = process.env.BUNNY_STORAGE_ZONE || '';
 /** Storage zone name for API path (e.g. "elixlive" from "elixlive.b-cdn.net"). */

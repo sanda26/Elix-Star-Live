@@ -212,11 +212,36 @@ export default function VideoFeed() {
 
       // When API returns [], still merge with prev so streams from stream_started stay visible
       const removed = removedKeysRef.current;
+      // Hide streams that were just ended on this device (creator closed live)
+      let lastEndedRoom: string | null = null;
+      let lastEndedAt = 0;
+      if (typeof window !== "undefined") {
+        try {
+          const raw = window.localStorage.getItem("elix_last_ended_stream");
+          if (raw) {
+            const parsed = JSON.parse(raw) as { roomId?: string; endedAt?: number };
+            if (parsed?.roomId && typeof parsed.endedAt === "number") {
+              lastEndedRoom = parsed.roomId;
+              lastEndedAt = parsed.endedAt;
+            }
+          }
+        } catch {
+          /* ignore */
+        }
+      }
+      const hideOwnRecentlyEnded = (roomId: string | undefined | null) => {
+        if (!roomId || !lastEndedRoom) return false;
+        const fresh = Date.now() - lastEndedAt < 5 * 60 * 1000; // 5 minutes
+        return fresh && roomId === lastEndedRoom;
+      };
+
       const mapped: LiveStreamCard[] = streams
         .filter((s: RawStream) => {
           const key =
             s.stream_key ?? s.streamKey ?? s.room_id ?? s.roomId ?? s.id;
-          return key && !removed.has(key);
+          if (!key || removed.has(key)) return false;
+          if (hideOwnRecentlyEnded(key)) return false;
+          return true;
         })
         .map((s: RawStream) => {
           const key =

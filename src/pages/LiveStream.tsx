@@ -2619,16 +2619,59 @@ export default function LiveStream() {
     return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
-  const stopBroadcast = () => {
-      websocket.send('stream_end', {});
-      if (cameraStreamRef.current) {
-        cameraStreamRef.current.getTracks().forEach((track) => track.stop());
-        cameraStreamRef.current = null;
-        setCameraStream(null);
+  const stopBroadcast = async () => {
+    const roomId = effectiveStreamId;
+
+    // Hard-stop LiveKit room so billing/minutes stop immediately
+    if (liveKitRoomRef.current) {
+      try {
+        await liveKitRoomRef.current.disconnect();
+      } catch {
+        // ignore disconnect errors
+      } finally {
+        liveKitRoomRef.current = null;
       }
-      clearCachedCameraStream();
-      websocket.disconnect();
-      navigate('/feed', { replace: true });
+    }
+
+    // Tell websocket listeners this stream ended
+    websocket.send('stream_end', { stream_key: roomId, user_id: user?.id });
+
+    // Stop local camera/mic
+    if (cameraStreamRef.current) {
+      cameraStreamRef.current.getTracks().forEach((track) => track.stop());
+      cameraStreamRef.current = null;
+      setCameraStream(null);
+    }
+    clearCachedCameraStream();
+
+    // Remember last ended stream locally so For You feed can hide it immediately for this device
+    if (roomId && typeof window !== 'undefined') {
+      try {
+        const payload = { roomId, endedAt: Date.now() };
+        window.localStorage.setItem('elix_last_ended_stream', JSON.stringify(payload));
+      } catch {
+        // ignore storage errors
+      }
+    }
+
+    // Mark stream ended on backend list so it disappears from /api/live/streams
+    if (roomId && liveRegisteredRef.current) {
+      try {
+        await fetch(apiUrl('/api/live/end'), {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ room: roomId }),
+        });
+      } catch {
+        // backend failure is non-fatal for client shutdown
+      } finally {
+        liveRegisteredRef.current = false;
+      }
+    }
+
+    websocket.disconnect();
+    navigate('/feed', { replace: true });
   };
 
   const handleScreenTap = (e?: React.MouseEvent | React.TouchEvent) => {

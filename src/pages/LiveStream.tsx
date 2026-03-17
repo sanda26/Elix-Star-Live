@@ -756,7 +756,7 @@ export default function LiveStream() {
         userId: req.requesterId,
         name: req.requesterName,
         avatar: req.requesterAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(req.requesterName)}&background=121212&color=C9A96E`,
-        status: 'accepted',
+        status: 'live',
         isMuted: false,
       }];
     });

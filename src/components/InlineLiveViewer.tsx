@@ -32,6 +32,7 @@ export default function InlineLiveViewer({
   const connectedKeyRef = useRef<string>("");
   const [hasStream, setHasStream] = useState(false);
   const [connecting, setConnecting] = useState(false);
+  const [isOffline, setIsOffline] = useState(false);
 
   const getAuthHeaders = (): Record<string, string> => {
     const token = useAuthStore.getState().session?.access_token;
@@ -52,6 +53,7 @@ export default function InlineLiveViewer({
 
     (async () => {
       setConnecting(true);
+      setIsOffline(false);
       setHasStream(false);
       try {
         const headers: Record<string, string> = {
@@ -80,6 +82,12 @@ export default function InlineLiveViewer({
         };
 
         room.on(RoomEvent.TrackSubscribed, onTrackSubscribed);
+        room.on(RoomEvent.Disconnected, () => {
+          if (!mounted) return;
+          if (!hasStream) {
+            setIsOffline(true);
+          }
+        });
         await room.connect(url, token);
         if (!mounted) {
           room.disconnect();
@@ -96,7 +104,10 @@ export default function InlineLiveViewer({
           }
         }
       } catch (err) {
-        if (mounted) setHasStream(false);
+        if (mounted) {
+          setHasStream(false);
+          setIsOffline(true);
+        }
       } finally {
         if (mounted) setConnecting(false);
       }
@@ -153,13 +164,15 @@ export default function InlineLiveViewer({
             </div>
           )}
           <p className="text-white font-semibold text-base truncate max-w-[80%]">{creatorName}</p>
-          {connecting ? (
+          {connecting && !isOffline ? (
             <>
               <div className="w-8 h-8 border-2 border-[#C9A96E] border-t-transparent rounded-full animate-spin" />
               <span className="text-white/60 text-sm">Connecting to live...</span>
             </>
           ) : (
-            <span className="text-white/50 text-sm">Connecting to live...</span>
+            <span className="text-white/50 text-sm">
+              {isOffline ? "Stream ended" : "Connecting to live..."}
+            </span>
           )}
         </div>
       )}

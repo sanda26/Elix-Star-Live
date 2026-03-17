@@ -465,7 +465,11 @@ export default function Create() {
         <div className="flex items-center justify-between px-4 pt-[calc(env(safe-area-inset-top,0px)+8px)] pb-2">
           <div className="w-7 h-7" aria-hidden />
           <h1 className="text-sm font-black tracking-wider text-[#C9A96E] uppercase">Create</h1>
-          <button onClick={() => setShowCreateHub(false)} className="w-7 h-7 flex items-center justify-center" aria-label="Close">
+          <button
+            onClick={() => setShowCreateHub(false)}
+            className="w-7 h-7 flex items-center justify-center mr-[3mm]"
+            aria-label="Close"
+          >
             <img src="/Icons/Gold power buton.png" alt="Close" className="w-5 h-5 object-contain" />
           </button>
         </div>

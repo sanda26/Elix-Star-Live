@@ -149,12 +149,9 @@ export const useVideoStore = create<VideoStore>()(
         try {
           const { videos: apiVideos } = await fetchForYouFeed(1, 50);
 
-          // Use only real backend videos. If backend is empty or has only
-          // the onboarding clip, show the empty state instead of demo clips.
+          // Use all real backend videos. If backend is empty, show empty state.
           const hasApiVideos = Array.isArray(apiVideos) && apiVideos.length > 0;
-          const looksLikeOnboarding = hasApiVideos && apiVideos!.length <= 1;
-
-          const sourceVideos = !hasApiVideos || looksLikeOnboarding ? [] : apiVideos!;
+          const sourceVideos = hasApiVideos ? apiVideos! : [];
 
           const mappedVideos: Video[] = sourceVideos.map((v: any) => {
             const u = v.user || {};

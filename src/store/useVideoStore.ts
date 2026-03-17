@@ -149,112 +149,12 @@ export const useVideoStore = create<VideoStore>()(
         try {
           const { videos: apiVideos } = await fetchForYouFeed(1, 50);
 
-          // If backend has only the onboarding "upload your first video" clip
-          // or no videos at all, replace feed with two local demo videos:
-          // Big Buck Bunny + Sintel.
+          // Use only real backend videos. If backend is empty or has only
+          // the onboarding clip, show the empty state instead of demo clips.
           const hasApiVideos = Array.isArray(apiVideos) && apiVideos.length > 0;
-          // If there are 0 or only 1 videos from backend, treat it as "empty"
-          // and show our 3 demo clips instead.
-          const looksLikeOnboarding = !hasApiVideos || apiVideos!.length <= 1;
+          const looksLikeOnboarding = hasApiVideos && apiVideos!.length <= 1;
 
-          const sourceVideos =
-            !hasApiVideos || looksLikeOnboarding
-              ? [
-                  {
-                    id: "demo-big-buck-bunny",
-                    url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-                    thumbnail: "",
-                    description: "Big Buck Bunny • demo video",
-                    user: {
-                      id: "demo-user-1",
-                      username: "bigbunny",
-                      name: "Big Buck Bunny",
-                      avatar: "",
-                      followers: 120,
-                      following: 0,
-                      isVerified: true,
-                      level: 1,
-                    },
-                    hashtags: ["bigbuckbunny", "demo", "elixstar"],
-                    music: {
-                      id: "original",
-                      title: "Original Sound",
-                      artist: "Big Buck Bunny",
-                      duration: "0:30",
-                    },
-                    stats: {
-                      views: 120,
-                      likes: 10,
-                      comments: 0,
-                      shares: 0,
-                      saves: 0,
-                    },
-                    createdAt: new Date().toISOString(),
-                  },
-                  {
-                    id: "demo-sintel",
-                    url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4",
-                    thumbnail: "",
-                    description: "Sintel • demo video",
-                    user: {
-                      id: "demo-user-2",
-                      username: "sintel",
-                      name: "Sintel",
-                      avatar: "",
-                      followers: 95,
-                      following: 0,
-                      isVerified: true,
-                      level: 1,
-                    },
-                    hashtags: ["sintel", "demo", "elixstar"],
-                    music: {
-                      id: "original",
-                      title: "Original Sound",
-                      artist: "Sintel",
-                      duration: "0:30",
-                    },
-                    stats: {
-                      views: 95,
-                      likes: 8,
-                      comments: 0,
-                      shares: 0,
-                      saves: 0,
-                    },
-                    createdAt: new Date().toISOString(),
-                  },
-                  {
-                    id: "demo-tears-of-steel",
-                    url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4",
-                    thumbnail: "",
-                    description: "Tears of Steel • demo video",
-                    user: {
-                      id: "demo-user-3",
-                      username: "tearsofsteel",
-                      name: "Tears of Steel",
-                      avatar: "",
-                      followers: 80,
-                      following: 0,
-                      isVerified: true,
-                      level: 1,
-                    },
-                    hashtags: ["tearsofsteel", "demo", "elixstar"],
-                    music: {
-                      id: "original",
-                      title: "Original Sound",
-                      artist: "Tears of Steel",
-                      duration: "0:30",
-                    },
-                    stats: {
-                      views: 80,
-                      likes: 6,
-                      comments: 0,
-                      shares: 0,
-                      saves: 0,
-                    },
-                    createdAt: new Date().toISOString(),
-                  },
-                ]
-              : apiVideos;
+          const sourceVideos = !hasApiVideos || looksLikeOnboarding ? [] : apiVideos!;
 
           const mappedVideos: Video[] = sourceVideos.map((v: any) => {
             const u = v.user || {};

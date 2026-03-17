@@ -1739,72 +1739,57 @@ try {
       logger.info({ count: dbVideos.length }, "Videos loaded from database");
     }
 
-    const validVideos = getAllVideos().filter(v => v.url && v.url.trim());
+    // If there are still no videos after loading from DB, seed two
+    // Blender demo clips (Big Buck Bunny + Sintel) so new installs
+    // have something to watch in For You.
+    const validVideos = getAllVideos().filter((v) => v.url && v.url.trim());
     if (validVideos.length === 0) {
       const sampleVideos: Video[] = [
         {
-          id: "seed_1",
-          url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
-          thumbnail: "https://storage.googleapis.com/gtv-videos-bucket/sample/images/ForBiggerBlazes.jpg",
-          duration: 15,
-          userId: "system",
-          username: "Elix",
-          displayName: "Elix Star",
+          id: "seed_big_buck_bunny",
+          url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+          thumbnail:
+            "https://storage.googleapis.com/gtv-videos-bucket/sample/images/BigBuckBunny.jpg",
+          duration: 60,
+          userId: "demo_user_big_buck_bunny",
+          username: "bigbunny",
+          displayName: "Big Buck Bunny",
           avatar: "",
-          description: "Welcome to Elix Star Live! Go live and your stream will appear here.",
-          hashtags: ["welcome", "elixstar"],
+          description: "Big Buck Bunny — demo video",
+          hashtags: ["bigbuckbunny", "demo", "elixstar"],
           music: null,
-          views: 120,
-          likes: 45,
-          comments: 3,
-          shares: 2,
-          saves: 1,
+          views: 0,
+          likes: 0,
+          comments: 0,
+          shares: 0,
+          saves: 0,
           createdAt: new Date().toISOString(),
           privacy: "public",
         },
         {
-          id: "seed_2",
-          url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
-          thumbnail: "https://storage.googleapis.com/gtv-videos-bucket/sample/images/ForBiggerEscapes.jpg",
-          duration: 15,
-          userId: "system",
-          username: "Elix",
-          displayName: "Elix Star",
+          id: "seed_sintel",
+          url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4",
+          thumbnail:
+            "https://storage.googleapis.com/gtv-videos-bucket/sample/images/Sintel.jpg",
+          duration: 60,
+          userId: "demo_user_sintel",
+          username: "sintel",
+          displayName: "Sintel",
           avatar: "",
-          description: "Upload your first video or tap Go Live to start streaming!",
-          hashtags: ["getstarted", "live"],
+          description: "Sintel — demo video",
+          hashtags: ["sintel", "demo", "elixstar"],
           music: null,
-          views: 85,
-          likes: 32,
-          comments: 1,
+          views: 0,
+          likes: 0,
+          comments: 0,
           shares: 0,
           saves: 0,
-          createdAt: new Date(Date.now() - 60000).toISOString(),
-          privacy: "public",
-        },
-        {
-          id: "seed_3",
-          url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4",
-          thumbnail: "https://storage.googleapis.com/gtv-videos-bucket/sample/images/ForBiggerFun.jpg",
-          duration: 60,
-          userId: "system",
-          username: "Elix",
-          displayName: "Elix Star",
-          avatar: "",
-          description: "Send gifts, go live, connect with creators around the world",
-          hashtags: ["gifts", "creators", "live"],
-          music: null,
-          views: 200,
-          likes: 78,
-          comments: 5,
-          shares: 3,
-          saves: 2,
-          createdAt: new Date(Date.now() - 120000).toISOString(),
+          createdAt: new Date().toISOString(),
           privacy: "public",
         },
       ];
       for (const v of sampleVideos) addVideo(v);
-      logger.info({ count: sampleVideos.length }, "Seed videos added (no DB videos found)");
+      logger.info({ count: sampleVideos.length }, "Seed demo videos added (Big Buck Bunny, Sintel)");
     }
 
     logger.info({ port: PORT, version: BUILD_VERSION }, "Server running successfully");

@@ -3882,7 +3882,8 @@ export default function LiveStream() {
                       websocket.send('battle_create', {
                         hostName: myCreatorName,
                         opponentUserId: battleSlots[0].userId,
-                        opponentName: battleSlots[0].name
+                        opponentName: battleSlots[0].name,
+                        opponentRoomId: opponentStreamKey || '',
                       });
                     }
                     setBattleTime(300);
@@ -4121,6 +4122,7 @@ export default function LiveStream() {
                       hostName: myCreatorName,
                       opponentUserId: accepted?.userId ?? '',
                       opponentName: accepted?.name ?? 'Opponent',
+                      opponentRoomId: opponentStreamKey || '',
                     });
                   }}
                   className="w-full py-2.5 bg-[#C9A96E] text-black text-xs font-bold rounded-lg shadow-lg active:scale-95 transition-all flex items-center justify-center gap-1.5"
@@ -4700,7 +4702,7 @@ export default function LiveStream() {
               </button>
 
               {isBattleMode && battleWinner && isBroadcast && (
-                <button type="button" onClick={() => { if (battleSlots[0]?.userId) { websocket.send('battle_create', { hostName: myCreatorName, opponentUserId: battleSlots[0].userId, opponentName: battleSlots[0].name }); } setBattleTime(300); setMyScore(0); setOpponentScore(0); setPlayer3Score(0); setPlayer4Score(0); setBattleWinner(null); setBattleCountdown(null); reachedThresholdsRef.current.clear(); setIsMoreMenuOpen(false); }} className="flex flex-col items-center gap-1.5 active:scale-95 transition-transform">
+                <button type="button" onClick={() => { if (battleSlots[0]?.userId) { websocket.send('battle_create', { hostName: myCreatorName, opponentUserId: battleSlots[0].userId, opponentName: battleSlots[0].name, opponentRoomId: opponentStreamKey || '' }); } setBattleTime(300); setMyScore(0); setOpponentScore(0); setPlayer3Score(0); setPlayer4Score(0); setBattleWinner(null); setBattleCountdown(null); reachedThresholdsRef.current.clear(); setIsMoreMenuOpen(false); }} className="flex flex-col items-center gap-1.5 active:scale-95 transition-transform">
                   <div className="w-11 h-11 rounded-full relative flex items-center justify-center">
                     <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[1]" />
                     <RefreshCw className="w-[18px] h-[18px] text-[#C9A96E] relative z-[2]" strokeWidth={1.8} />

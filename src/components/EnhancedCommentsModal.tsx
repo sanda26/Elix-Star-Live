@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Send, Heart, Trash2, Edit3, MessageSquare, Reply, MoreVertical } from 'lucide-react';
 import { useVideoStore } from '../store/useVideoStore';
 import { useAuthStore } from '../store/useAuthStore';
-import { apiStub } from '../lib/apiStub';
+import { apiUrl } from '../lib/api';
 import { LevelBadge } from './LevelBadge';
 
 interface Comment {
@@ -38,6 +38,7 @@ export default function CommentsModal({ isOpen, onClose, videoId }: CommentsModa
   const commentsEndRef = useRef<HTMLDivElement>(null);
   
   const { user } = useAuthStore();
+  const token = useAuthStore((s) => s.session?.access_token || '');
   const { getVideoById, updateVideo } = useVideoStore();
 
   // Fetch comments when modal opens
@@ -45,47 +46,20 @@ export default function CommentsModal({ isOpen, onClose, videoId }: CommentsModa
     if (isOpen && videoId) {
       fetchComments();
     }
-  }, [isOpen, videoId]);
+  }, [isOpen, videoId, sortBy]);
 
   const fetchComments = async () => {
     try {
       setLoading(true);
-      const { data, error } = await apiStub
-        .from('comments')
-        .select('*')
-        .eq('video_id', videoId)
-        .is('parent_id', null)
-        .order('created_at', { ascending: sortBy === 'oldest' });
-
-      if (error) throw error;
-
-      const rows = data || [];
-      const userIds = [...new Set(rows.map((c: any) => c.user_id).filter(Boolean))];
-      const profilesMap: Record<string, { username?: string; avatar_url?: string; level?: number }> = {};
-      if (userIds.length > 0) {
-        const { data: profiles } = await apiStub
-          .from('profiles')
-          .select('user_id, username, avatar_url, level')
-          .in('user_id', userIds);
-        (profiles || []).forEach((p: any) => { profilesMap[p.user_id] = p; });
-      }
-
-      const commentsWithReplies = await Promise.all(
-        rows.map(async (comment: any) => {
-          const replies = await fetchReplies(comment.id);
-          const profile = profilesMap[comment.user_id] || {};
-          return {
-            ...comment,
-            username: profile.username || 'Unknown',
-            avatar_url: profile.avatar_url || '',
-            level: profile.level ?? 1,
-            replies,
-            reply_count: replies.length
-          };
-        })
-      );
-
-      setComments(commentsWithReplies);
+      const sort = sortBy === 'oldest' ? 'oldest' : 'newest';
+      const res = await fetch(apiUrl(`/api/videos/${encodeURIComponent(videoId)}/comments?sort=${sort}`), {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error(`Failed to fetch comments (${res.status})`);
+      const body = await res.json().catch(() => ({ comments: [] }));
+      setComments(Array.isArray(body.comments) ? body.comments : []);
     } catch (error) {
       console.error('Failed to fetch comments:', error);
     } finally {
@@ -93,69 +67,20 @@ export default function CommentsModal({ isOpen, onClose, videoId }: CommentsModa
     }
   };
 
-  const fetchReplies = async (parentId: string): Promise<Comment[]> => {
-    try {
-      const { data, error } = await apiStub
-        .from('comments')
-        .select('*')
-        .eq('parent_id', parentId)
-        .order('created_at', { ascending: true });
-
-      if (error) throw error;
-
-      const rows = data || [];
-      if (rows.length === 0) return [];
-      const userIds = [...new Set(rows.map((r: any) => r.user_id).filter(Boolean))];
-      const profilesMap: Record<string, { username?: string; avatar_url?: string; level?: number }> = {};
-      if (userIds.length > 0) {
-        const { data: profiles } = await apiStub
-          .from('profiles')
-          .select('user_id, username, avatar_url, level')
-          .in('user_id', userIds);
-        (profiles || []).forEach((p: any) => { profilesMap[p.user_id] = p; });
-      }
-      return rows.map((reply: any) => {
-        const profile = profilesMap[reply.user_id] || {};
-        return {
-          ...reply,
-          username: profile.username || 'Unknown',
-          avatar_url: profile.avatar_url || '',
-          level: profile.level ?? 1
-        };
-      });
-    } catch (error) {
-      return [];
-    }
-  };
-
   const handleAddComment = async (parentComment?: Comment) => {
-    const commentText = parentComment ? newComment : newComment.trim();
+    const commentText = newComment.trim();
     if (!commentText || !user?.id) return;
 
     try {
-      const commentData = {
-        video_id: videoId,
-        user_id: user.id,
-        text: commentText,
-        parent_id: parentComment?.id || null
-      };
-
-      const { data, error } = await apiStub
-        .from('comments')
-        .insert(commentData)
-        .select('*')
-        .single();
-
-      if (error) throw error;
-
-      const newCommentFormatted = {
-        ...data,
-        username: user.username || 'User',
-        avatar_url: user.avatar || '',
-        level: user.level ?? 1,
-        replies: [],
-        reply_count: 0
-      };
+      const res = await fetch(apiUrl(`/api/videos/${encodeURIComponent(videoId)}/comments`), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        credentials: 'include',
+        body: JSON.stringify({ text: commentText, parentId: parentComment?.id || null }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body?.error || `Failed to add comment (${res.status})`);
+      const newCommentFormatted: any = body.comment;
 
       if (parentComment) {
         // Add reply to parent comment
@@ -190,13 +115,13 @@ export default function CommentsModal({ isOpen, onClose, videoId }: CommentsModa
 
   const handleDeleteComment = async (commentId: string, isReply: boolean = false, parentId?: string) => {
     try {
-      const { error } = await apiStub
-        .from('comments')
-        .delete()
-        .eq('id', commentId)
-        .eq('user_id', user?.id);
-
-      if (error) throw error;
+      const res = await fetch(apiUrl(`/api/videos/${encodeURIComponent(videoId)}/comments/${encodeURIComponent(commentId)}`), {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        credentials: 'include',
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body?.error || `Failed to delete comment (${res.status})`);
 
       if (isReply && parentId) {
         // Remove reply from parent comment
@@ -213,6 +138,12 @@ export default function CommentsModal({ isOpen, onClose, videoId }: CommentsModa
       } else {
         // Remove top-level comment
         setComments(prev => prev.filter(comment => comment.id !== commentId));
+        const video = getVideoById(videoId);
+        if (video) {
+          updateVideo(videoId, {
+            stats: { ...video.stats, comments: Math.max(0, video.stats.comments - 1) }
+          });
+        }
       }
     } catch (error) {
 
@@ -223,13 +154,8 @@ export default function CommentsModal({ isOpen, onClose, videoId }: CommentsModa
     if (!editText.trim()) return;
 
     try {
-      const { error } = await apiStub
-        .from('comments')
-        .update({ text: editText.trim() })
-        .eq('id', commentId)
-        .eq('user_id', user?.id);
-
-      if (error) throw error;
+      // Edit not supported by backend yet; update local only so UI doesn't break.
+      // (Can be added later if needed.)
 
       // Update comment in state
       setComments(prev => prev.map(comment => {
@@ -259,37 +185,13 @@ export default function CommentsModal({ isOpen, onClose, videoId }: CommentsModa
     if (!user?.id) return;
 
     try {
-      const { data: existingLike } = await apiStub
-        .from('comment_likes')
-        .select('*')
-        .eq('comment_id', commentId)
-        .eq('user_id', user.id)
-        .single();
-
-      if (existingLike) {
-        // Unlike
-        await apiStub
-          .from('comment_likes')
-          .delete()
-          .eq('comment_id', commentId)
-          .eq('user_id', user.id);
-      } else {
-        // Like
-        await apiStub
-          .from('comment_likes')
-          .insert({
-            comment_id: commentId,
-            user_id: user.id
-          });
-      }
-
-      // Update comment likes in state
+      // Backend likes not implemented; keep it purely UI for now.
       setComments(prev => prev.map(comment => {
         if (comment.id === commentId) {
           return {
             ...comment,
-            likes: existingLike ? comment.likes - 1 : comment.likes + 1,
-            is_liked: !existingLike
+            likes: comment.is_liked ? Math.max(0, comment.likes - 1) : comment.likes + 1,
+            is_liked: !comment.is_liked
           };
         }
         // Also check replies
@@ -299,8 +201,8 @@ export default function CommentsModal({ isOpen, onClose, videoId }: CommentsModa
             replies: comment.replies.map(reply => 
               reply.id === commentId ? {
                 ...reply,
-                likes: existingLike ? reply.likes - 1 : reply.likes + 1,
-                is_liked: !existingLike
+                likes: reply.is_liked ? Math.max(0, reply.likes - 1) : reply.likes + 1,
+                is_liked: !reply.is_liked
               } : reply
             )
           };
@@ -485,7 +387,7 @@ export default function CommentsModal({ isOpen, onClose, videoId }: CommentsModa
     >
       <div
         className="bg-[#1C1E24]/95 rounded-t-2xl p-3 pb-safe h-1/2 w-full max-w-[480px] shadow-2xl flex flex-col border-2 border-b-0 border-[#C9A96E]"
-        style={{ marginBottom: '90px', boxShadow: '0 -4px 30px rgba(201,169,110,0.25)' }}
+        style={{ marginBottom: 'calc(90px + 2mm)', boxShadow: '0 -4px 30px rgba(201,169,110,0.25)' }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-2">

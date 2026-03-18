@@ -651,67 +651,57 @@ export default function Upload() {
                  </div>
                </div>
 
-                  {/* Upload - left side only, camera-style button */}
+                  {/* Upload - small black button (match camera mode) */}
                   <button
                     onClick={handleFileUpload}
-                    className="absolute bottom-[10%] left-[5%] flex flex-col items-center gap-1 z-30 pointer-events-auto group"
+                    className="absolute bottom-[7%] left-[5%] flex flex-col items-center gap-1 z-30 pointer-events-auto group"
                     title="Upload"
                   >
-                    <div className="w-[60px] h-[60px] rounded-full flex items-center justify-center shadow-xl border-[3px] border-white bg-white group-active:scale-90 transition-transform">
-                      <div className="w-[44px] h-[44px] bg-red-600 rounded-full shadow-inner" />
+                    <div className="w-9 h-9 bg-[#13151A] rounded-full flex items-center justify-center text-white border border-[#C9A96E]/30 relative group-active:scale-90 transition-transform">
+                      <div className="w-4 h-4 border-2 border-white rounded-sm relative overflow-hidden z-[2]">
+                        <div className="absolute top-0.5 right-0.5 w-1 h-1 bg-white rounded-full"></div>
+                      </div>
                     </div>
-                    <span className="text-white font-bold text-[10px] shadow-black drop-shadow-md">Upload</span>
+                    <span className="text-white text-[10px] font-bold shadow-black drop-shadow-md">Upload</span>
                   </button>
 
-                  {/* All other buttons - right side */}
-                  <div className="absolute bottom-[10%] right-[5%] flex flex-col items-center gap-4 z-30 pointer-events-auto">
+                  {/* AI Studio (moved up) */}
+                  <button
+                    onClick={() => setShowAITools(true)}
+                    className="absolute right-[5%] bottom-[26%] flex flex-col items-center gap-1 z-30 pointer-events-auto group translate-x-[10mm]"
+                    title="AI Studio"
+                  >
+                    <div className="flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <Wand2 size={18} className="text-[#FFD700] drop-shadow-[0_0_8px_rgba(255,215,0,1)] drop-shadow-[0_0_16px_rgba(255,215,0,0.6)]" />
+                    </div>
+                    <span className="text-white font-bold text-[10px] shadow-black drop-shadow-md">AI Studio</span>
+                  </button>
+
+                  {/* Retake + Post (moved down) */}
+                  <div className="absolute bottom-[7%] right-[5%] flex flex-col items-center gap-4 z-30 pointer-events-auto translate-x-[10mm]">
                     <button
-                        onClick={() => setShowAITools(true)}
-                        className="flex flex-col items-center gap-1 group"
-                        title="AI Studio"
+                      onClick={handleDiscard}
+                      className="flex flex-col items-center gap-1 group"
+                      title="Retake"
                     >
-                        <div className="flex items-center justify-center group-hover:scale-110 transition-transform">
-                            <Wand2 size={18} className="text-[#FFD700] drop-shadow-[0_0_8px_rgba(255,215,0,1)] drop-shadow-[0_0_16px_rgba(255,215,0,0.6)]" />
-                        </div>
-                        <span className="text-white font-bold text-[10px] shadow-black drop-shadow-md text-[10px]">AI Studio</span>
+                      <div className="flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <RotateCcw size={18} className="text-[#FFD700] drop-shadow-[0_0_8px_rgba(255,215,0,1)] drop-shadow-[0_0_16px_rgba(255,215,0,0.6)]" />
+                      </div>
+                      <span className="text-white font-bold text-[10px] shadow-black drop-shadow-md">Retake</span>
                     </button>
-                    <button 
-                        onClick={handleDiscard}
-                        className="flex flex-col items-center gap-1 group"
-                        title="Retake"
+
+                    <button
+                      type="button"
+                      onClick={handlePost}
+                      className="flex flex-col items-center gap-1 group disabled:opacity-60"
+                      title="Post"
+                      disabled={isPosting}
                     >
-                        <div className="flex items-center justify-center group-hover:scale-110 transition-transform">
-                            <RotateCcw size={18} className="text-[#FFD700] drop-shadow-[0_0_8px_rgba(255,215,0,1)] drop-shadow-[0_0_16px_rgba(255,215,0,0.6)]" />
-                        </div>
-                        <span className="text-white font-bold text-[10px] shadow-black drop-shadow-md text-[10px]">Retake</span>
-                    </button>
-                    <button 
-                        type="button"
-                        onClick={handlePost}
-                        className="flex flex-col items-center gap-1 group disabled:opacity-60"
-                        title="Post"
-                        disabled={isPosting}
-                    >
-                        <div className={`flex items-center justify-center group-hover:scale-110 active:scale-95 transition-transform ${isPosting ? '' : ''}`}>
-                            <Check size={18} className={`drop-shadow-[0_0_8px_rgba(255,215,0,1)] ${isPosting ? 'text-gray-400' : 'text-[#FFD700]'}`} />
-                        </div>
-                        <span className="text-white font-bold text-[10px] shadow-black drop-shadow-md">{isPosting ? 'Posting…' : 'Post'}</span>
-                    </button>
-                    
-                    {/* Original Sound - spinning disc */}
-                    <button 
-                        onClick={() => setShowMusicModal(true)}
-                        className="flex flex-col items-center gap-1 group mt-2"
-                        title="Sound"
-                    >
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#1a1a1a] via-[#333] to-[#1a1a1a] border-2 border-[#FFD700]/50 flex items-center justify-center relative animate-spin-slow shadow-lg">
-                            <div className="w-4 h-4 rounded-full bg-[#FFD700] flex items-center justify-center">
-                                <Music size={8} className="text-black" />
-                            </div>
-                        </div>
-                        <span className="text-white font-bold text-[8px] shadow-black drop-shadow-md text-center max-w-[50px] truncate">
-                            {selectedAudioId === 'original' || selectedAudioId === 'none' ? 'Original' : 'Sound'}
-                        </span>
+                      {/* Red circle behind Post icon */}
+                      <div className="w-11 h-11 rounded-full bg-red-600 border-[3px] border-white flex items-center justify-center shadow-xl group-hover:scale-110 active:scale-95 transition-transform">
+                        <Check size={18} className={`${isPosting ? 'text-white/60' : 'text-white'} drop-shadow-[0_0_8px_rgba(0,0,0,0.6)]`} />
+                      </div>
+                      <span className="text-white font-bold text-[10px] shadow-black drop-shadow-md">{isPosting ? 'Posting…' : 'Post'}</span>
                     </button>
                   </div>
                </div>
@@ -813,7 +803,7 @@ export default function Upload() {
               {/* Interactive Hitboxes Layer */}
               <div className="absolute inset-0 z-20 w-full h-full pointer-events-auto">
                   {/* Right side - all controls except Upload (no round containers) */}
-                  <div className="absolute top-0 right-[10%] bottom-0 flex flex-col items-center gap-4 py-2" style={{ paddingTop: 'max(0.5rem, env(safe-area-inset-top))' }}>
+                  <div className="absolute top-0 right-[10%] bottom-0 flex flex-col items-center gap-4 py-2 translate-x-[10mm]" style={{ paddingTop: 'max(0.5rem, env(safe-area-inset-top))' }}>
                     <button onClick={() => navigate('/feed')} className="flex items-center justify-center relative" title="Close">
                       <img src="/Icons/Gold power buton.png" alt="Close" className="w-5 h-5" />
                     </button>

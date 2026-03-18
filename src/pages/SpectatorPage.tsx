@@ -996,11 +996,32 @@ export default function SpectatorPage() {
     };
   }, [effectiveStreamId, user?.id, streamIsLive]);
 
-  // Fetch share followers (people you follow / who follow you)
-  // Note: Without a database, we return an empty list
+  // Share panel contacts: show all platform users (and implicitly followers).
   useEffect(() => {
-    if (!user?.id) return;
-    setShareContacts([]);
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(apiUrl('/api/profiles'));
+        if (!res.ok) throw new Error('Failed to load profiles');
+        const json = await res.json();
+        const list = Array.isArray(json?.profiles) ? json.profiles : [];
+        const mapped = list
+          .map((p: any) => ({
+            id: String(p.user_id ?? p.id ?? ''),
+            name: String(p.display_name ?? p.username ?? 'User'),
+            avatar: String(p.avatar_url ?? ''),
+          }))
+          .filter((p: { id: string }) => !!p.id && p.id !== user?.id);
+        const dedup = new Map<string, { id: string; name: string; avatar: string }>();
+        for (const p of mapped) dedup.set(p.id, p);
+        if (!cancelled) setShareContacts(Array.from(dedup.values()));
+      } catch {
+        if (!cancelled) setShareContacts([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [user?.id]);
 
   // Gift queue processor
@@ -1230,10 +1251,10 @@ export default function SpectatorPage() {
                     </div>
                   )}
                   <div className="absolute top-0.5 right-0.5 z-10 flex items-center gap-0.5 pointer-events-auto">
-                    <button type="button" onClick={toggleMic} className="rounded bg-black/60 p-1" title={isMicMuted ? 'Unmute' : 'Mute'}>
+                    <button type="button" onClick={toggleMic} className="p-1" title={isMicMuted ? 'Unmute' : 'Mute'}>
                       {isMicMuted ? <MicOff className="text-red-400 w-3.5 h-3.5" strokeWidth={2.5} /> : <Mic className="text-green-400 w-3.5 h-3.5" strokeWidth={2.5} />}
                     </button>
-                    <button type="button" onClick={toggleCam} className="rounded bg-black/60 p-1" title={isCamOff ? 'Camera on' : 'Camera off'}>
+                    <button type="button" onClick={toggleCam} className="p-1" title={isCamOff ? 'Camera on' : 'Camera off'}>
                       {isCamOff ? <CameraOff className="text-red-400 w-3.5 h-3.5" strokeWidth={2.5} /> : <Camera className="text-green-400 w-3.5 h-3.5" strokeWidth={2.5} />}
                     </button>
                   </div>
@@ -1651,39 +1672,54 @@ export default function SpectatorPage() {
 
           {/* Request co-host (spectator-initiated) */}
           <button
-              type="button"
-              title="Request to co-host"
-              aria-label="Request to co-host"
-              onClick={() => setShowCoHostPanel(true)}
-              className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg relative flex-shrink-0 active:scale-95 transition-transform"
-            >
-              <span className="flex items-center justify-center w-full h-full relative z-[2]">
-                <UserPlus size={20} className="text-[#C9A96E] shrink-0" strokeWidth={2} />
-              </span>
-              <img
-                src="/Icons/Music Icon.png"
-                alt=""
-                className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-125 translate-y-0.5"
-              />
-            </button>
-
-          {/* Gift */}
-          <button type="button" title="Send gift" onClick={() => setShowGiftPanel(true)} className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform relative flex-shrink-0">
-            <Gift size={20} className="text-[#C9A96E] relative z-[2]" />
-            <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-125 translate-y-0.5" />
+            type="button"
+            title="Request to co-host"
+            aria-label="Request to co-host"
+            onClick={() => setShowCoHostPanel(true)}
+            className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg relative flex-shrink-0 active:scale-95 transition-transform"
+          >
+            <span className="flex items-center justify-center w-full h-full relative z-[2]">
+              <UserPlus size={20} className="text-[#C9A96E] shrink-0" strokeWidth={2} />
+            </span>
+            <img
+              src="/Icons/Music Icon.png"
+              alt=""
+              className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-125 translate-y-0.5"
+            />
           </button>
 
-            {/* Share */}
-            <button type="button" title="Share" onClick={() => setShowSharePanel(true)} className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform relative">
-              <Share2 size={20} className="text-[#C9A96E] relative z-[2]" />
-              <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-125 translate-y-0.5" />
-            </button>
+          {/* Gift */}
+          <button
+            type="button"
+            title="Send gift"
+            onClick={() => setShowGiftPanel(true)}
+            className="flex flex-col items-center justify-center w-12 active:scale-95 transition-transform select-none"
+          >
+            <Gift size={20} className="text-[#C9A96E]" />
+            <span className="text-[10px] font-semibold text-[#C9A96E] mt-0.5">Gift</span>
+          </button>
 
-            {/* More (3 dots) */}
-            <button type="button" title="More options" onClick={() => setIsMoreMenuOpen(true)} className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform relative flex-shrink-0">
-              <MoreVertical size={20} className="text-[#C9A96E] relative z-[2]" />
-              <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-125 translate-y-0.5" />
-            </button>
+          {/* Share */}
+          <button
+            type="button"
+            title="Share"
+            onClick={() => setShowSharePanel(true)}
+            className="flex flex-col items-center justify-center w-12 active:scale-95 transition-transform select-none"
+          >
+            <Share2 size={20} className="text-[#C9A96E]" />
+            <span className="text-[10px] font-semibold text-[#C9A96E] mt-0.5">Share</span>
+          </button>
+
+          {/* More (3 dots) */}
+          <button
+            type="button"
+            title="More options"
+            onClick={() => setIsMoreMenuOpen(true)}
+            className="flex flex-col items-center justify-center w-12 active:scale-95 transition-transform select-none"
+          >
+            <MoreVertical size={20} className="text-[#C9A96E]" />
+            <span className="text-[10px] font-semibold text-[#C9A96E] mt-0.5">More</span>
+          </button>
           </div>
           </div>
         </div>
@@ -2035,9 +2071,9 @@ export default function SpectatorPage() {
                         key={u.id}
                         className="flex flex-col items-center gap-1 min-w-[64px] active:scale-95 transition-transform"
                         style={{ marginTop: '6mm' }}
-                        onClick={() => setShowSharePanel(false)}
+                        onClick={() => { setShowSharePanel(false); navigate(`/profile/${u.id}`); }}
                       >
-                        <AvatarRing src={u.avatar || '/Icons/Profile icon.png'} alt={u.name} size={56} />
+                        <AvatarRing src={u.avatar || ''} alt={u.name} size={56} />
                         <span className="text-white/60 text-[10px] font-medium truncate w-16 text-center">{u.name}</span>
                       </button>
                     ))}

@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Search as SearchIcon, X } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { apiStub } from '../lib/apiStub';
 import { AvatarRing } from '../components/AvatarRing';
+import { apiUrl } from '../lib/api';
+import { useVideoStore } from '../store/useVideoStore';
 
 const TRENDING_SEARCHES = [
   'Dance challenge',
@@ -21,8 +22,13 @@ export default function SearchPage() {
   const [matchedVideos, setMatchedVideos] = useState<{ id: string; description: string; thumbnail: string; username: string; hashtags: string[] }[]>([]);
   const [searching, setSearching] = useState(false);
   const [visible, setVisible] = useState(false);
+  const [suggestedUsers, setSuggestedUsers] = useState<{ id: string; username: string; name: string; avatar: string }[]>([]);
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const panelRef = useRef<HTMLDivElement>(null);
   const touchStart = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const { videos, fetchVideos } = useVideoStore();
+
+  const RECENT_KEY = 'elix_recent_searches_v1';
 
   useEffect(() => {
     requestAnimationFrame(() => setVisible(true));
@@ -51,6 +57,12 @@ export default function SearchPage() {
     const params = new URLSearchParams(location.search);
     if (next) {
       params.set('q', next);
+      try {
+        const prev = JSON.parse(localStorage.getItem(RECENT_KEY) || '[]') as string[];
+        const merged = [next, ...prev.filter((s) => s.toLowerCase() !== next.toLowerCase())].slice(0, 10);
+        localStorage.setItem(RECENT_KEY, JSON.stringify(merged));
+        setRecentSearches(merged);
+      } catch { /* ignore */ }
     } else {
       params.delete('q');
     }
@@ -77,56 +89,93 @@ export default function SearchPage() {
 
     (async () => {
       try {
-        const [usersRes, videosRes] = await Promise.all([
-          apiStub
-            .from('profiles')
-            .select('user_id, username, display_name, avatar_url')
-            .or(`username.ilike.%${normalizedQuery}%,display_name.ilike.%${normalizedQuery}%`)
-            .limit(20),
-          apiStub
-            .from('videos')
-            .select('id, description, thumbnail_url, user_id, hashtags')
-            .eq('is_public', true)
-            .or(`description.ilike.%${normalizedQuery}%`)
-            .order('created_at', { ascending: false })
-            .limit(30),
-        ]);
+        // Users: filter the backend /api/profiles list client-side
+        const profilesRes = await fetch(apiUrl('/api/profiles'), { credentials: 'include' });
+        const profilesBody = await profilesRes.json().catch(() => ({ profiles: [] }));
+        const profiles = Array.isArray(profilesBody?.profiles) ? profilesBody.profiles : [];
+        const users = profiles
+          .map((p: any) => ({
+            id: p.user_id || p.userId,
+            username: (p.username || 'user') as string,
+            name: (p.display_name || p.displayName || p.username || '') as string,
+            avatar: (p.avatar_url || p.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.username || 'U')}&background=121212&color=C9A96E`) as string,
+          }))
+          .filter((u: any) => !!u.id)
+          .filter((u: any) => {
+            const hay = `${u.username} ${u.name}`.toLowerCase();
+            return hay.includes(normalizedQuery);
+          })
+          .slice(0, 20);
+
+        // Videos: filter current For You list client-side
+        if (videos.length === 0) {
+          await fetchVideos();
+        }
+        const q = normalizedQuery;
+        const vids = (useVideoStore.getState().videos || [])
+          .filter((v) => {
+            const d = (v.description || '').toLowerCase();
+            const tags = (v.hashtags || []).join(' ').toLowerCase();
+            return d.includes(q) || tags.includes(q);
+          })
+          .slice(0, 30)
+          .map((v) => ({
+            id: v.id,
+            description: v.description || '',
+            thumbnail: v.thumbnail || '',
+            username: v.user?.username || 'user',
+            hashtags: v.hashtags || [],
+          }));
 
         if (cancelled) return;
-
-        if (usersRes.data) {
-          setMatchedUsers(usersRes.data.map((p: any) => ({
-            id: p.user_id,
-            username: p.username || 'user',
-            name: p.display_name || p.username || '',
-            avatar: p.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.username || 'U')}&background=121212&color=C9A96E`,
-          })));
-        }
-
-        if (videosRes.data) {
-          const userIds = [...new Set(videosRes.data.map((v: any) => v.user_id))];
-          const { data: profiles } = await apiStub
-            .from('profiles')
-            .select('user_id, username')
-            .in('user_id', userIds);
-          const profileMap = new Map((profiles || []).map((p: any) => [p.user_id, p.username || 'user']));
-
-          if (!cancelled) {
-            setMatchedVideos(videosRes.data.map((v: any) => ({
-              id: v.id,
-              description: v.description || '',
-              thumbnail: v.thumbnail_url || '',
-              username: profileMap.get(v.user_id) || 'user',
-              hashtags: v.hashtags || [],
-            })));
-          }
-        }
+        setMatchedUsers(users);
+        setMatchedVideos(vids);
       } catch { /* ignore */ }
       if (!cancelled) setSearching(false);
     })();
 
     return () => { cancelled = true; };
-  }, [normalizedQuery]);
+  }, [normalizedQuery, fetchVideos, videos.length]);
+
+  useEffect(() => {
+    // Load recent searches
+    try {
+      const prev = JSON.parse(localStorage.getItem(RECENT_KEY) || '[]') as string[];
+      setRecentSearches(Array.isArray(prev) ? prev.slice(0, 10) : []);
+    } catch {
+      setRecentSearches([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    // Suggested users for empty state (always show)
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(apiUrl('/api/profiles'), { credentials: 'include' });
+        const body = await res.json().catch(() => ({ profiles: [] }));
+        const profiles = Array.isArray(body?.profiles) ? body.profiles : [];
+        const blocklist = new Set(['', 'user', 'demo', 'test', 'unknown', 'anonymous', 'guest']);
+        const mapped = profiles
+          .map((p: any) => ({
+            id: p.user_id || p.userId,
+            username: (p.username || 'user') as string,
+            name: (p.display_name || p.displayName || p.username || 'User') as string,
+            avatar: (p.avatar_url || p.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.username || 'U')}&background=121212&color=C9A96E`) as string,
+          }))
+          .filter((u: any) => !!u.id)
+          .filter((u: any) => {
+            const n = (u.name || u.username || '').trim().toLowerCase();
+            return n.length >= 2 && !blocklist.has(n);
+          })
+          .slice(0, 12);
+        if (!cancelled) setSuggestedUsers(mapped);
+      } catch {
+        if (!cancelled) setSuggestedUsers([]);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   return (
     <div className="fixed inset-0 z-[99999] flex justify-center">
@@ -192,21 +241,108 @@ export default function SearchPage() {
           <div className="flex-1 overflow-y-auto px-4 pb-4">
             {!normalizedQuery ? (
               <>
-                <h2 className="font-bold mb-3 text-gold-metallic text-sm">You may like</h2>
-                <div className="flex flex-wrap gap-2">
-                  {TRENDING_SEARCHES.map((tag) => (
-                    <button 
-                      key={tag}
-                      onClick={() => {
-                        const params = new URLSearchParams(location.search);
-                        params.set('q', tag);
-                        navigate({ pathname: location.pathname, search: `?${params.toString()}` }, { replace: true });
-                      }}
-                      className="bg-[#1C1E24] px-3 py-1.5 rounded-full text-xs border border-[#C9A96E]/30 text-gold-metallic hover:border-[#C9A96E] transition-colors"
-                    >
-                      {tag}
-                    </button>
-                  ))}
+                {/* Quick chips */}
+                <div className="mt-2">
+                  <h2 className="font-bold mb-2 text-gold-metallic text-sm">You may like</h2>
+                  <div className="flex flex-wrap gap-2">
+                    {TRENDING_SEARCHES.map((tag) => (
+                      <button 
+                        key={tag}
+                        onClick={() => {
+                          const params = new URLSearchParams(location.search);
+                          params.set('q', tag);
+                          navigate({ pathname: location.pathname, search: `?${params.toString()}` }, { replace: true });
+                        }}
+                        className="bg-[#1C1E24] px-3 py-1.5 rounded-full text-xs border border-[#C9A96E]/30 text-gold-metallic hover:border-[#C9A96E] transition-colors"
+                      >
+                        {tag}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Recent searches */}
+                {recentSearches.length > 0 && (
+                  <div className="mt-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <h2 className="font-bold text-gold-metallic text-sm">Recent</h2>
+                      <button
+                        type="button"
+                        onClick={() => { try { localStorage.removeItem(RECENT_KEY); } catch {} setRecentSearches([]); }}
+                        className="text-[11px] text-white/40 hover:text-white/70"
+                      >
+                        Clear
+                      </button>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {recentSearches.map((tag) => (
+                        <button
+                          key={tag}
+                          onClick={() => {
+                            const params = new URLSearchParams(location.search);
+                            params.set('q', tag);
+                            navigate({ pathname: location.pathname, search: `?${params.toString()}` }, { replace: true });
+                          }}
+                          className="bg-[#13151A] px-3 py-1.5 rounded-full text-xs border border-white/10 text-white/70 hover:border-white/20 transition-colors"
+                        >
+                          {tag}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Trending users */}
+                {suggestedUsers.length > 0 && (
+                  <div className="mt-5">
+                    <h2 className="font-bold mb-2 text-gold-metallic text-sm">Trending users</h2>
+                    <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2">
+                      {suggestedUsers.map((u) => (
+                        <button
+                          key={u.id}
+                          onClick={() => navigate(`/profile/${u.id}`)}
+                          className="flex-shrink-0 flex flex-col items-center gap-1 w-[76px]"
+                        >
+                          <AvatarRing src={u.avatar} alt={u.username} size={56} />
+                          <div className="text-[10px] text-white/80 truncate w-full text-center">
+                            {u.name || u.username}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Trending videos */}
+                <div className="mt-4">
+                  <h2 className="font-bold mb-2 text-gold-metallic text-sm">Trending videos</h2>
+                  <div className="grid grid-cols-2 gap-2">
+                    {(videos || []).slice(0, 8).map((v) => (
+                      <button
+                        key={v.id}
+                        onClick={() => navigate(`/video/${v.id}`)}
+                        className="relative aspect-[9/16] rounded-xl overflow-hidden bg-[#1C1E24] border border-white/10"
+                      >
+                        <img
+                          src={v.thumbnail || ''}
+                          alt=""
+                          className="absolute inset-0 w-full h-full object-cover"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                        <div className="absolute bottom-2 left-2 right-2 text-left">
+                          <div className="text-[10px] font-bold text-white truncate">
+                            @{v.user?.username || 'user'}
+                          </div>
+                          <div className="text-[9px] text-white/80 line-clamp-2">
+                            {v.description || ''}
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                  {videos.length === 0 && (
+                    <div className="text-xs text-white/30 py-3">No videos yet.</div>
+                  )}
                 </div>
               </>
             ) : (

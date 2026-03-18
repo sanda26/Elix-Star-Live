@@ -7,6 +7,9 @@
 
 import { Request, Response } from "express";
 import { getTokenFromRequest, verifyAuthToken } from "./auth";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 
 export interface Profile {
   userId: string;
@@ -26,6 +29,23 @@ export interface Profile {
 }
 
 const profiles = new Map<string, Profile>();
+
+type StoredUserRow = { id: string; email?: string; username?: string; avatar_url?: string };
+
+function readUsersFromDisk(): StoredUserRow[] {
+  try {
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = path.dirname(__filename);
+    const usersFile = path.join(__dirname, "..", "data", "users.json");
+    if (!fs.existsSync(usersFile)) return [];
+    const raw = fs.readFileSync(usersFile, "utf8");
+    if (!raw.trim()) return [];
+    const parsed = JSON.parse(raw) as { users?: StoredUserRow[] };
+    return Array.isArray(parsed.users) ? parsed.users.filter(Boolean) : [];
+  } catch {
+    return [];
+  }
+}
 
 export function getOrCreateProfile(userId: string, seed?: Partial<Profile>): Profile {
   const existing = profiles.get(userId);
@@ -63,6 +83,39 @@ export function handleGetProfile(req: Request, res: Response): void {
   }
   const profile = getOrCreateProfile(userId);
   res.json({ profile });
+}
+
+/** GET /api/profiles — list all known users/profiles */
+export function handleListProfiles(_req: Request, res: Response): void {
+  // Merge in-memory profiles + persisted auth users
+  const merged = new Map<string, Profile>();
+  for (const p of profiles.values()) merged.set(p.userId, p);
+
+  const users = readUsersFromDisk();
+  for (const u of users) {
+    if (!u?.id) continue;
+    const username =
+      (typeof u.username === "string" && u.username.trim()) ||
+      (typeof u.email === "string" && u.email.includes("@") ? u.email.split("@")[0] : "") ||
+      `user_${u.id.slice(0, 8)}`;
+    const avatarUrl =
+      (typeof u.avatar_url === "string" && u.avatar_url.trim()) ||
+      `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=random`;
+    const p = getOrCreateProfile(u.id, { username, displayName: username, avatarUrl });
+    merged.set(p.userId, p);
+  }
+
+  const list = Array.from(merged.values()).map((p) => ({
+    user_id: p.userId,
+    username: p.username,
+    display_name: p.displayName,
+    avatar_url: p.avatarUrl,
+    level: p.level,
+    is_creator: p.isVerified,
+    followers_count: p.followers,
+    following_count: p.following,
+  }));
+  res.json({ profiles: list });
 }
 
 /** GET /api/profiles/:userId/followers */

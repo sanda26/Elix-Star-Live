@@ -79,6 +79,28 @@ export async function initPostgres(): Promise<void> {
         viewer_count INTEGER DEFAULT 0
       )
     `);
+
+    // Comments (basic; likes are handled client-side for now)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS comments (
+        id TEXT PRIMARY KEY,
+        video_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        text TEXT NOT NULL,
+        parent_id TEXT,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+    const commentCols: [string, string][] = [
+      ["video_id", "TEXT DEFAULT ''"],
+      ["user_id", "TEXT DEFAULT ''"],
+      ["text", "TEXT DEFAULT ''"],
+      ["parent_id", "TEXT"],
+      ["created_at", "TIMESTAMPTZ DEFAULT NOW()"],
+    ];
+    for (const [col, def] of commentCols) {
+      await pool.query(`ALTER TABLE comments ADD COLUMN IF NOT EXISTS ${col} ${def}`).catch(() => {});
+    }
   } catch (err) {
     logger.error({ err }, "Postgres init failed");
     pool = null;

@@ -6,6 +6,7 @@ import { useAuthStore } from '../store/useAuthStore';
 import { Heart, UserPlus, Search, ShoppingBag, Archive, MicOff, Plus, Sword, X, ChevronRight, Trash2 } from 'lucide-react';
 import { AvatarRing } from '../components/AvatarRing';
 import { showToast } from '../lib/toast';
+import { apiUrl } from '../lib/api';
 
 interface Notification {
   id: string;
@@ -189,28 +190,32 @@ export default function Inbox() {
     };
     const fetchSuggestedUsers = async () => {
       try {
-        const { data: usersData, error } = await apiStub
-          .from('profiles')
-          .select('user_id, username, display_name, avatar_url')
-          .neq('user_id', currentUserId || '')
-          .limit(50);
-        if (error) throw error;
-        const { data: liveData } = await apiStub
-          .from('live_streams')
-          .select('user_id')
-          .eq('is_live', true);
-        const liveSet = new Set((liveData || []).map((s: { user_id: string }) => s.user_id));
-        if (usersData) {
-          const mapped: SuggestedUser[] = usersData.map((p: { user_id: string; username?: string; display_name?: string; avatar_url?: string }) => ({
-            id: p.user_id,
+        const [profilesRes, liveRes] = await Promise.all([
+          fetch(apiUrl('/api/profiles'), { credentials: 'include' }),
+          fetch(apiUrl('/api/live/streams'), { credentials: 'include' }).catch(() => null as any),
+        ]);
+        const profilesBody = await profilesRes.json().catch(() => ({ profiles: [] }));
+        const liveBody = liveRes ? await liveRes.json().catch(() => ({ streams: [] })) : { streams: [] };
+        const liveSet = new Set((liveBody?.streams || []).map((s: any) => s.userId || s.user_id).filter(Boolean));
+
+        const rows = Array.isArray(profilesBody?.profiles) ? profilesBody.profiles : [];
+        const blocklist = ['', 'user', 'demo', 'test', 'unknown', 'anonymous', 'guest'];
+        const mapped: SuggestedUser[] = rows
+          .map((p: any) => ({
+            id: p.user_id || p.userId,
             username: p.username || 'user',
-            name: p.display_name || p.username || 'User',
-            avatar_url: p.avatar_url,
-            is_live: liveSet.has(p.user_id),
-          }));
-          mapped.sort((a, b) => (a.is_live === b.is_live ? 0 : a.is_live ? -1 : 1));
-          setSuggestedUsers(mapped);
-        }
+            name: p.display_name || p.displayName || p.username || 'User',
+            avatar_url: p.avatar_url || p.avatarUrl,
+            is_live: liveSet.has(p.user_id || p.userId),
+          }))
+          .filter((p) => !!p.id && p.id !== currentUserId)
+          .filter((p) => {
+            const name = (p.name || p.username || '').trim().toLowerCase();
+            return name !== '' && !blocklist.includes(name) && name.length >= 2;
+          });
+
+        mapped.sort((a, b) => (a.is_live === b.is_live ? 0 : a.is_live ? -1 : 1));
+        setSuggestedUsers(mapped);
       } catch {}
     };
     fetchNotifications();
@@ -299,7 +304,8 @@ export default function Inbox() {
                     </button>
                 ))}
 
-                {suggestedUsers.filter((u) => u.id !== user?.id && (u.name || u.username || '').trim().toLowerCase() !== 'user').map((u) => (
+                {/* All Elix users (always visible) */}
+                {suggestedUsers.map((u) => (
                     <button
                         key={u.id}
                         type="button"

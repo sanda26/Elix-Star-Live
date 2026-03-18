@@ -17,7 +17,6 @@ import { handleLiveKitWebhook } from "./routes/livekit-webhook";
 import {
   handleAnalytics,
   handleBlockUser,
-  handleDeleteAccount,
   handleReport,
   handleSendNotification,
   handleVerifyPurchase,
@@ -29,6 +28,11 @@ import {
   handleTrackInteraction,
   handleGetVideoScore,
 } from "./routes/feed";
+import {
+  handleGetVideoComments,
+  handlePostVideoComment,
+  handleDeleteVideoComment,
+} from "./routes/comments";
 import {
   addVideo,
   getVideo,
@@ -55,6 +59,7 @@ import {
   handleShopPurchases,
 } from "./routes/payout";
 import { handleLiveModerationCheck } from "./routes/moderation";
+import { createShopCheckoutSession } from "./routes/shopCheckout";
 import {
   handleLogin,
   handleRegister,
@@ -88,6 +93,7 @@ import {
   handleUnfollow,
   handleSeedProfile,
   handleAddTestCoins,
+  handleListProfiles,
 } from "./routes/profiles";
 import { addFeedSubscriber, removeFeedSubscriber, broadcastToFeedSubscribers } from "./feedBroadcast";
 import { logger } from "./lib/logger";
@@ -238,6 +244,7 @@ app.post("/api/block-user", handleBlockUser);
 app.post("/api/test-coins", handleAddTestCoins);
 
 // Profiles
+app.get("/api/profiles", handleListProfiles);
 app.get("/api/profiles/by-username/:username", handleGetProfileByUsername);
 app.get("/api/profiles/:userId", handleGetProfile);
 app.get("/api/profiles/:userId/followers", handleGetFollowers);
@@ -259,6 +266,11 @@ app.get("/api/feed/foryou", handleForYouFeed);
 app.post("/api/feed/track-view", handleTrackView);
 app.post("/api/feed/track-interaction", handleTrackInteraction);
 app.get("/api/feed/score/:videoId", handleGetVideoScore);
+
+// Comments (For You)
+app.get("/api/videos/:id/comments", handleGetVideoComments);
+app.post("/api/videos/:id/comments", handlePostVideoComment);
+app.delete("/api/videos/:id/comments/:commentId", handleDeleteVideoComment);
 
 // ── Video CRUD (in-memory store; persists to Postgres when DATABASE_URL set) ───────────────────
 app.post("/api/videos", async (req, res) => {
@@ -384,6 +396,7 @@ app.post("/api/admin/unfreeze/:userId", (_req, res) => {
 // Shop Item Purchase & Refund API
 app.post("/api/shop/buy", handleShopBuy);
 app.post("/api/shop/refund", handleShopRefund);
+app.post("/api/shop/checkout", createShopCheckoutSession);
 app.get("/api/shop/purchases", handleShopPurchases);
 
 // ── Bunny Storage media routes (frontend calls these) ──────────────

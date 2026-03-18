@@ -150,6 +150,10 @@ export const useVideoStore = create<VideoStore>()(
         set({ loading: true });
         try {
           const { videos: apiVideos } = await fetchForYouFeed(1, 50);
+          const { likedVideos, savedVideos, followingUsers } = get();
+          const likedSet = new Set(likedVideos);
+          const savedSet = new Set(savedVideos);
+          const followingSet = new Set(followingUsers);
 
           // Use all real backend videos. If backend is empty, show empty state.
           const hasApiVideos = Array.isArray(apiVideos) && apiVideos.length > 0;
@@ -160,8 +164,10 @@ export const useVideoStore = create<VideoStore>()(
             const stats = v.stats || {};
             const music = v.music || { id: 'original', title: 'Original Sound', artist: u.name || 'Creator', duration: '0:15' };
             const durationStr = typeof v.duration === 'number' ? `0:${String(v.duration).padStart(2, '0')}` : (v.duration || '0:15');
+            const id = String(v.id || '');
+            const locallySaved = savedSet.has(id);
             return {
-              id: v.id,
+              id,
               url: v.url,
               thumbnail: v.thumbnail || getVideoPosterUrl(v.url || ''),
               duration: durationStr,
@@ -174,7 +180,7 @@ export const useVideoStore = create<VideoStore>()(
                 isVerified: !!u.isVerified,
                 followers: u.followers ?? 0,
                 following: u.following ?? 0,
-                isFollowing: !!u.isFollowing,
+                isFollowing: followingSet.has(String(u.id || '')),
               },
               description: v.description || '',
               hashtags: Array.isArray(v.hashtags) ? v.hashtags : [],
@@ -189,12 +195,15 @@ export const useVideoStore = create<VideoStore>()(
                 likes: stats.likes ?? 0,
                 comments: stats.comments ?? 0,
                 shares: stats.shares ?? 0,
-                saves: stats.saves ?? 0,
+                // If backend doesn't return save counts yet, keep UI stable after refresh.
+                saves: Math.max(0, Number(stats.saves ?? 0) || 0) + (locallySaved ? 1 : 0),
               },
               createdAt: v.createdAt || v.created_at || new Date().toISOString(),
-              isLiked: !!v.isLiked,
-              isSaved: !!v.isSaved,
-              isFollowing: !!u.isFollowing,
+              // Persist like/save/follow UI across refresh using local store.
+              // Backend may not return these flags yet.
+              isLiked: likedSet.has(id) || !!v.isLiked,
+              isSaved: savedSet.has(id) || !!v.isSaved,
+              isFollowing: followingSet.has(String(u.id || '')) || !!u.isFollowing,
               comments: [],
               quality: 'auto',
               privacy: 'public',
@@ -210,104 +219,12 @@ export const useVideoStore = create<VideoStore>()(
       fetchStemVideos: async () => {
         set({ stemLoading: true });
         try {
-          const { data, error } = await apiStub
-            .from('videos')
-            .select('*')
-            .eq('is_public', true)
-            .gte('views', 10000)
-            .order('views', { ascending: false })
-            .limit(50);
-
-          if (error || !data || data.length === 0) {
-            set({ stemVideos: [], stemLoading: false });
-            return;
-          }
-
-          const userIds = [...new Set(data.map((v: any) => v.user_id).filter(Boolean))];
-          const profilesMap: Record<string, any> = {};
-          if (userIds.length > 0) {
-            const { data: profiles } = await apiStub
-              .from('profiles')
-              .select('user_id, username, display_name, avatar_url, is_creator, followers_count, following_count')
-              .in('user_id', userIds);
-            if (profiles) {
-              profiles.forEach((p: any) => { profilesMap[p.user_id] = p; });
-            }
-          }
-
-          let likedIds: string[] = [];
-          let followedUserIds: string[] = [];
-          let savedIds: string[] = [];
-          let blockedUserIds: string[] = [];
-          try {
-            const { data: { user } } = await apiStub.auth.getUser();
-            if (user) {
-              const [{ data: likes }, { data: follows }, { data: saves }, { data: blocks }] = await Promise.all([
-                apiStub.from('likes').select('video_id').eq('user_id', user.id),
-                apiStub.from('followers').select('following_id').eq('follower_id', user.id),
-                apiStub.from('saved_videos').select('video_id').eq('user_id', user.id),
-                apiStub.from('blocked_users').select('blocked_id').eq('blocker_id', user.id),
-              ]);
-              likedIds = likes?.map((r: { video_id: string }) => r.video_id) ?? [];
-              followedUserIds = follows?.map((r: { following_id: string }) => r.following_id) ?? [];
-              savedIds = saves?.map((r: { video_id: string }) => r.video_id) ?? [];
-              blockedUserIds = blocks?.map((r: { blocked_id: string }) => r.blocked_id) ?? [];
-            }
-          } catch {}
-          const likedSet = new Set(likedIds);
-          const followedSet = new Set(followedUserIds);
-          const savedSet = new Set(savedIds);
-          const blockedSet = new Set(blockedUserIds);
-
-          const mappedVideos: Video[] = data
-            .filter((v: any) => !blockedSet.has(v.user_id))
-            .map((v: any) => {
-              const p = profilesMap[v.user_id] || {};
-              const displayName = p.display_name || p.username || 'Creator';
-              const uname = p.username || p.display_name || 'creator';
-              return {
-                id: v.id,
-                url: v.url,
-                thumbnail: v.thumbnail_url || getVideoPosterUrl(v.url || ''),
-                duration: '0:15',
-                user: {
-                  id: v.user_id || 'unknown',
-                  username: uname,
-                  name: displayName,
-                  avatar: p.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}`,
-                  level: 1,
-                  isVerified: !!p.is_creator,
-                  followers: p.followers_count || 0,
-                  following: p.following_count || 0
-                },
-                description: v.description || v.caption || '',
-                hashtags: (() => {
-                  if (v.hashtags && Array.isArray(v.hashtags) && v.hashtags.length > 0) return v.hashtags;
-                  const text = v.description || v.caption || '';
-                  const matches = text.match(/#[\w\u00C0-\u024F]+/g);
-                  return matches ? matches.map((t: string) => t.slice(1)) : [];
-                })(),
-                music: { id: 'original', title: 'Original Sound', artist: displayName, duration: '0:15' },
-                stats: {
-                  views: v.views || 0,
-                  likes: v.likes || 0,
-                  comments: v.comments || 0,
-                  shares: v.shares || 0,
-                  saves: 0
-                },
-                createdAt: v.created_at,
-                location: v.location || undefined,
-                isLiked: likedSet.has(v.id),
-                isSaved: savedSet.has(v.id),
-                isFollowing: followedSet.has(v.user_id),
-                comments: [],
-                quality: 'auto',
-                privacy: v.is_public ? 'public' : 'private',
-                duetWithVideoId: v.duet_with_video_id || undefined
-              };
-            });
-
-          set({ stemVideos: mappedVideos, stemLoading: false });
+          // STEM is a "most viewed" slice of For You.
+          // Keep videos on For You; also show any video with >= 5k views here.
+          const state = get();
+          const source = (state.videos || []).filter((v) => (v.stats?.views ?? 0) >= 5000);
+          const sorted = [...source].sort((a, b) => (b.stats?.views ?? 0) - (a.stats?.views ?? 0));
+          set({ stemVideos: sorted.slice(0, 50), stemLoading: false });
         } catch (err) {
           set({ stemLoading: false });
         }

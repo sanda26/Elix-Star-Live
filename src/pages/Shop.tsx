@@ -5,6 +5,7 @@ import { useAuthStore } from '../store/useAuthStore';
 import { Plus, X, Camera, Tag, MessageCircle, Search } from 'lucide-react';
 import { AvatarRing } from '../components/AvatarRing';
 import { showToast } from '../lib/toast';
+import { apiUrl } from '../lib/api';
 
 interface ShopItem {
   id: string;
@@ -128,6 +129,34 @@ export default function Shop() {
     setCreating(false);
   };
 
+  const handleBuy = async (item: ShopItem) => {
+    try {
+      const res = await fetch(apiUrl('/api/shop/checkout'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          item: {
+            id: item.id,
+            title: item.title,
+            price: item.price,
+            currency: item.currency || 'gbp',
+            sellerId: item.user_id,
+          },
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `Checkout failed (${res.status})`);
+      if (data.url) {
+        window.location.href = data.url;
+        return;
+      }
+      throw new Error('Stripe checkout URL missing');
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Could not start checkout');
+    }
+  };
+
   const contactSeller = async (sellerId: string) => {
     if (!user?.id || sellerId === user.id) return;
     const { data: existing } = await apiStub
@@ -157,10 +186,9 @@ export default function Shop() {
   ] as const;
 
   return (
-    <div className="fixed inset-0 bg-[#13151A] text-white flex justify-center">
+    <div className="fixed inset-0 bg-[#13151A] text-white flex justify-center px-2 pt-[calc(var(--safe-top)+46px)] pb-[calc(var(--safe-bottom)+110px)]">
       <div
-        className="w-full max-w-[480px] flex flex-col overflow-hidden pb-24"
-        style={{ height: 'calc(100vh - 3.6cm)', marginTop: 0 }}
+        className="w-full max-w-[480px] h-full flex flex-col overflow-hidden"
       >
         <div className="sticky top-0 bg-[#13151A] z-10 px-4 py-3 flex items-center justify-between border-b border-white/5">
           <div className="flex items-center gap-3">
@@ -206,7 +234,7 @@ export default function Shop() {
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-3 px-4 py-2">
+          <div className="grid grid-cols-2 gap-3 px-4 py-2 pb-6 overflow-y-auto">
             {items.map(item => (
               <div key={item.id} className="bg-white/5 rounded-2xl overflow-hidden border border-white/5">
                 {item.image_url ? (
@@ -235,6 +263,16 @@ export default function Shop() {
                       </button>
                     )}
                   </div>
+
+                  {item.user_id !== user?.id && (
+                    <button
+                      type="button"
+                      onClick={() => handleBuy(item)}
+                      className="w-full mt-3 py-2 rounded-xl bg-[#C9A96E] text-black font-extrabold text-[12px]"
+                    >
+                      Buy with Stripe
+                    </button>
+                  )}
                 </div>
               </div>
             ))}

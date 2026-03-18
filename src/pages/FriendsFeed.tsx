@@ -1,11 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { apiStub } from '../lib/apiStub';
 import { useAuthStore } from '../store/useAuthStore';
 import { useVideoStore } from '../store/useVideoStore';
-import { AvatarRing } from '../components/AvatarRing';
 import EnhancedVideoPlayer from '../components/EnhancedVideoPlayer';
+import { apiUrl } from '../lib/api';
 
 interface SuggestedUser {
   id: string;
@@ -20,76 +19,42 @@ export default function FriendsFeed() {
   const { user } = useAuthStore();
   const { friendVideos, fetchFriendVideos, friendsLoading: loading } = useVideoStore();
   const [suggestedUsers, setSuggestedUsers] = useState<SuggestedUser[]>([]);
-  const [myFollowers, setMyFollowers] = useState<SuggestedUser[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const friendVideoIds = friendVideos.map((v) => v.id);
 
   useEffect(() => {
-    const fetchMyFollowers = async () => {
-      if (!user?.id) return;
-      try {
-        const { data: followData } = await apiStub
-          .from('followers')
-          .select('follower_id')
-          .eq('following_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(200);
-        const ids = (followData || [])
-          .map((f: { follower_id: string }) => f.follower_id)
-          .filter((id: string) => id !== user?.id);
-        if (ids.length === 0) { setMyFollowers([]); return; }
-        const { data: profiles } = await apiStub
-          .from('profiles')
-          .select('user_id, username, display_name, avatar_url')
-          .in('user_id', ids);
-        if (profiles) {
-          const blocklist = ['', 'user', 'demo', 'test', 'unknown', 'anonymous', 'guest'];
-          const list = (profiles as { user_id: string; username?: string; display_name?: string; avatar_url?: string }[])
-            .filter((p) => p.user_id !== user?.id)
-            .filter((p) => {
-              const name = (p.display_name || p.username || '').trim().toLowerCase();
-              return name !== '' && !blocklist.includes(name) && name.length >= 2;
-            })
-            .map((p) => ({
-              id: p.user_id,
-              username: p.username || 'user',
-              name: p.display_name || p.username || 'User',
-              avatar_url: p.avatar_url,
-            }));
-          setMyFollowers(list);
-        }
-      } catch { setMyFollowers([]); }
-    };
-
     const fetchUsers = async () => {
       try {
-        const { data: usersData, error } = await apiStub
-          .from('profiles')
-          .select('user_id, username, display_name, avatar_url')
-          .neq('user_id', user?.id || '')
-          .limit(50);
-        if (error) throw error;
-        const { data: liveData } = await apiStub
-          .from('live_streams')
-          .select('user_id')
-          .eq('is_live', true);
-        const liveSet = new Set((liveData || []).map((s: any) => s.user_id));
-        if (usersData) {
-          const mapped = usersData.map((p: any) => ({
-            id: p.user_id,
+        const [profilesRes, liveRes] = await Promise.all([
+          fetch(apiUrl('/api/profiles'), { credentials: 'include' }),
+          fetch(apiUrl('/api/live/streams'), { credentials: 'include' }).catch(() => null as any),
+        ]);
+        const profilesBody = await profilesRes.json().catch(() => ({ profiles: [] }));
+        const liveBody = liveRes ? await liveRes.json().catch(() => ({ streams: [] })) : { streams: [] };
+        const liveSet = new Set((liveBody?.streams || []).map((s: any) => s.userId || s.user_id).filter(Boolean));
+
+        const rows = Array.isArray(profilesBody?.profiles) ? profilesBody.profiles : [];
+        const blocklist = ['', 'user', 'demo', 'test', 'unknown', 'anonymous', 'guest'];
+        const mapped: SuggestedUser[] = rows
+          .map((p: any) => ({
+            id: p.user_id || p.userId,
             username: p.username || 'user',
-            name: p.display_name || p.username || 'User',
-            avatar_url: p.avatar_url,
-            is_live: liveSet.has(p.user_id),
-          }));
-          mapped.sort((a: SuggestedUser, b: SuggestedUser) => (a.is_live === b.is_live ? 0 : a.is_live ? -1 : 1));
-          setSuggestedUsers(mapped);
-        }
+            name: p.display_name || p.displayName || p.username || 'User',
+            avatar_url: p.avatar_url || p.avatarUrl,
+            is_live: liveSet.has(p.user_id || p.userId),
+          }))
+          .filter((p) => !!p.id && p.id !== user?.id)
+          .filter((p) => {
+            const name = (p.name || p.username || '').trim().toLowerCase();
+            return name !== '' && !blocklist.includes(name) && name.length >= 2;
+          });
+
+        mapped.sort((a, b) => (a.is_live === b.is_live ? 0 : a.is_live ? -1 : 1));
+        setSuggestedUsers(mapped);
       } catch {}
     };
 
-    fetchMyFollowers();
     fetchUsers();
     fetchFriendVideos();
   }, [user?.id, fetchFriendVideos]);
@@ -174,37 +139,8 @@ export default function FriendsFeed() {
               <div className="text-[11px] text-white/80 truncate w-full text-center">Create</div>
             </button>
 
-            {myFollowers.filter((u) => u.id !== user?.id && (u.name || u.username || '').trim().toLowerCase() !== 'user').map((u) => (
-              <button
-                key={u.id}
-                type="button"
-                onClick={() => navigate(`/profile/${u.id}`)}
-                className="flex-shrink-0 flex flex-col items-center gap-1" style={{ width: 95, minWidth: 95 }}
-              >
-                <div className="relative" style={{ width: 85, height: 85 }}>
-                  <img
-                    src="/Icons/Profile icon.png"
-                    alt=""
-                    className="w-full h-full object-contain"
-                  />
-                  {u.avatar_url ? (
-                    <img
-                      src={u.avatar_url}
-                      alt={u.name || u.username}
-                      className="absolute rounded-full object-cover"
-                      style={{ width: 52, height: 52, top: '45%', left: '51%', transform: 'translate(-50%, -50%)', zIndex: -1 }}
-                    />
-                  ) : (
-                    <span className="absolute text-[#C9A96E] font-bold text-xl z-10" style={{ top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}>
-                      {(u.name || u.username || 'U').charAt(0).toUpperCase()}
-                    </span>
-                  )}
-                </div>
-                <div className="text-[11px] text-white/80 truncate w-full text-center">{u.name || u.username}</div>
-              </button>
-            ))}
-
-            {suggestedUsers.filter((u) => u.id !== user?.id && (u.name || u.username || '').trim().toLowerCase() !== 'user').map((u) => (
+            {/* All Elix users (always visible) */}
+            {suggestedUsers.map((u) => (
               <button
                 key={u.id}
                 type="button"

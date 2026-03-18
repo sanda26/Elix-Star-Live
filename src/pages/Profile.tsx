@@ -471,10 +471,9 @@ export default function Profile() {
   }
 
   return (
-    <div className="fixed inset-0 bg-[#13151A] text-white flex justify-center">
+    <div className="fixed inset-0 bg-[#13151A] text-white flex justify-center px-2 pt-[calc(var(--safe-top)+46px)] pb-[calc(var(--safe-bottom)+110px)]">
       <div
-        className="w-full max-w-[480px] flex flex-col bg-[#13151A] rounded-3xl overflow-hidden"
-        style={{ height: 'calc(100vh - 3.6cm)', marginTop: '-4mm' }}
+        className="w-full max-w-[480px] h-full flex flex-col bg-[#13151A] rounded-3xl overflow-hidden"
       >
         {/* Small top header with Share + Exit buttons */}
         <header className="flex items-center justify-between px-4 pt-2 pb-2 relative z-10">
@@ -486,7 +485,13 @@ export default function Profile() {
           >
             <img src="/Icons/Share Icon.png" alt="Share" className="w-5 h-5 object-contain" />
           </button>
-          <div className="flex-1" />
+          <div className="flex-1 flex items-center justify-center min-w-0 px-2">
+            <div className="min-w-0 text-center">
+              <div className="text-[12px] font-bold text-gold-metallic truncate">
+                {displayName}
+              </div>
+            </div>
+          </div>
           <button
             type="button"
             onClick={() => navigate(-1)}
@@ -648,7 +653,7 @@ export default function Profile() {
           {avatarError && <div className="text-xs text-rose-300 mt-1">{avatarError}</div>}
         </div>
 
-        {/* ═══ NAME + EDIT ═══ */}
+        {/* ═══ NAME + USERNAME ═══ */}
         <div className="flex flex-col items-center px-4" style={{ marginTop: '-6px' }}>
           <div className="flex items-center gap-2">
             <h1 className="text-[17px] font-extrabold text-gold-metallic tracking-tight">{displayName}</h1>
@@ -658,7 +663,7 @@ export default function Profile() {
               </span>
             )}
           </div>
-          <span className="text-[13px] text-white font-medium">@{displayUsername}</span>
+          <span className="text-[13px] text-white/80 font-medium">@{displayUsername}</span>
         </div>
 
 

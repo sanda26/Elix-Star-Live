@@ -348,7 +348,7 @@ export default function ElixCameraLayout({
         {/* Close Button (no circular container) */}
         <button
           onClick={onClose}
-          className="flex-shrink-0 flex items-center justify-center hover:scale-110 transition-transform active:scale-95 z-[60] relative translate-x-[1.5mm]"
+          className="flex-shrink-0 flex items-center justify-center hover:scale-110 transition-transform active:scale-95 z-[60] relative translate-x-[-2.5mm]"
           title="Close"
         >
           <img

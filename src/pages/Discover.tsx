@@ -52,6 +52,26 @@ export default function Discover() {
   const [rankings, setRankings] = useState<CreatorRanking[]>([]);
   const [loading, setLoading] = useState(false);
 
+  const isIndecent = (v: Video): boolean => {
+    const text = `${v.description || ''}`.toLowerCase();
+    // Heuristic keyword filter (caption/hashtags). Keep simple and user-controlled.
+    const keywords = [
+      'bikini',
+      'lingerie',
+      'sexy',
+      'nude',
+      'nudity',
+      'nsfw',
+      'onlyfans',
+      'porn',
+      'xxx',
+      'boobs',
+      'ass',
+      'tits',
+    ];
+    return keywords.some((k) => text.includes(k));
+  };
+
   useEffect(() => {
     if (activeTab === 'trending') {
       loadTrending();
@@ -254,11 +274,34 @@ export default function Discover() {
                 <h2 className="text-[14px] font-bold text-gold-metallic">Trending Now</h2>
               </div>
               {trendingVideos.length > 0 ? (
-                <div className="grid grid-cols-2 gap-2">
-                  {trendingVideos.map(video => (
-                    <VideoThumbnail key={video.id} video={video} />
-                  ))}
-                </div>
+                <>
+                  {/* Two containers per row: left = normal, right = indecent */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="rounded-2xl border border-white/10 bg-white/[0.02] overflow-hidden">
+                      <div className="px-2.5 py-2 border-b border-white/5 flex items-center justify-between">
+                        <span className="text-[11px] font-bold text-white/80">Trending</span>
+                        <span className="text-[10px] text-white/30">Safe</span>
+                      </div>
+                      <div className="p-2 grid grid-cols-2 gap-2">
+                        {trendingVideos.filter(v => !isIndecent(v)).slice(0, 8).map(video => (
+                          <VideoThumbnail key={video.id} video={video} />
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-white/10 bg-white/[0.02] overflow-hidden">
+                      <div className="px-2.5 py-2 border-b border-white/5 flex items-center justify-between">
+                        <span className="text-[11px] font-bold text-white/80">Indecent</span>
+                        <span className="text-[10px] text-white/30">Filtered</span>
+                      </div>
+                      <div className="p-2 grid grid-cols-2 gap-2">
+                        {trendingVideos.filter(v => isIndecent(v)).slice(0, 8).map(video => (
+                          <VideoThumbnail key={video.id} video={video} />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </>
               ) : (
                 <EmptyState icon={<TrendingUp className="w-10 h-10" />} text="No trending videos yet" />
               )}

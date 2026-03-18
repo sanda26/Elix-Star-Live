@@ -55,6 +55,10 @@ export async function uploadToBunny(
 
   const bodyBuffer = body instanceof Buffer ? body : Buffer.from(body instanceof ArrayBuffer ? body : await (body as Blob).arrayBuffer());
 
+  // #region agent log
+  logger.info({ url, zone: STORAGE_ZONE_NAME, region: STORAGE_REGION, host: STORAGE_HOST, keyPrefix: ACCESS_KEY ? ACCESS_KEY.slice(0, 8) + '...' : 'MISSING' }, "Bunny upload attempt");
+  // #endregion
+
   try {
     const res = await fetch(url, {
       method: 'PUT',

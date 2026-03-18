@@ -731,6 +731,12 @@ export default function Profile() {
               <AvatarRing src={displayAvatar} alt="" size={14} />
               <span className="text-[11px] font-bold text-white">Edit profile</span>
             </button>
+            {isOwnProfile && (
+              <button onClick={() => navigate('/settings')} className="flex items-center gap-1.5 px-3 py-2 whitespace-nowrap">
+                <Settings size={14} className="text-[#C9A96E]" />
+                <span className="text-[11px] font-bold text-white">Settings</span>
+              </button>
+            )}
           </div>
         </div>
 

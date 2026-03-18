@@ -38,8 +38,11 @@ export default function EditProfile() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   useEffect(() => {
-    loadProfile();
-  }, []);
+    // Reload profile once auth store has the current user ID
+    if (user?.id) {
+      loadProfile();
+    }
+  }, [user?.id]);
 
   const loadProfile = async () => {
     try {
@@ -149,8 +152,8 @@ export default function EditProfile() {
         </button>
         {/* Center title */}
         <h1 className="text-lg font-bold text-center flex-1">Edit Profile</h1>
-        {/* Right: Close/back power button */}
-        <button onClick={() => navigate(-1)} className="p-2 hover:brightness-125 rounded-full transition">
+        {/* Right: Close/back power button, nudged left from the edge */}
+        <button onClick={() => navigate(-1)} className="p-2 mr-3 hover:brightness-125 rounded-full transition">
           <img src="/Icons/Gold power buton.png" alt="Back" className="w-5 h-5" />
         </button>
       </div>

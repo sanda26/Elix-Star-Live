@@ -63,6 +63,7 @@ import {
   handleResendConfirmation,
   handleAppleStart,
   handleGuestLogin,
+  handleDeleteAccount,
 } from "./routes/auth";
 import {
   handleGetStreams,
@@ -206,6 +207,7 @@ app.post("/api/auth/login", handleLogin);
 app.post("/api/auth/guest", handleGuestLogin);
 app.post("/api/auth/register", handleRegister);
 app.post("/api/auth/logout", handleLogout);
+app.post("/api/auth/delete", handleDeleteAccount);
 app.get("/api/auth/me", handleMe);
 app.post("/api/auth/resend-confirmation", handleResendConfirmation);
 app.post("/api/auth/apple/start", handleAppleStart);

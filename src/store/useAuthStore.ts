@@ -524,6 +524,9 @@ export const useAuthStore = create<AuthStore>()(persist((set, get) => ({
       });
 
       if (!res.ok) {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useAuthStore.ts:checkUser',message:'auth/me not ok',data:{status:res.status},timestamp:Date.now(),runId:'auth-pre-fix',hypothesisId:'A1'})}).catch(()=>{});
+        // #endregion
         set({
           backendUser: null,
           session: null,
@@ -540,6 +543,9 @@ export const useAuthStore = create<AuthStore>()(persist((set, get) => ({
         const text = await res.text();
         if (text) data = JSON.parse(text) as Record<string, unknown>;
       } catch {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useAuthStore.ts:checkUser',message:'auth/me parse failed',data:{raw: 'non-empty'},timestamp:Date.now(),runId:'auth-pre-fix',hypothesisId:'A2'})}).catch(()=>{});
+        // #endregion
         set({
           backendUser: null,
           session: null,
@@ -559,6 +565,9 @@ export const useAuthStore = create<AuthStore>()(persist((set, get) => ({
       const accessToken = sessionData?.accessToken ?? sessionData?.access_token;
 
       if (!backendUser || typeof backendUser.id !== "string") {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useAuthStore.ts:checkUser',message:'auth/me no backendUser',data:{hasUser:!!backendUser},timestamp:Date.now(),runId:'auth-pre-fix',hypothesisId:'A3'})}).catch(()=>{});
+        // #endregion
         set({
           backendUser: null,
           session: null,
@@ -581,6 +590,10 @@ export const useAuthStore = create<AuthStore>()(persist((set, get) => ({
           userToSet = mapped;
         }
       }
+
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useAuthStore.ts:checkUser',message:'auth/me success',data:{userId:backendUser.id,hasAccessToken:!!accessToken},timestamp:Date.now(),runId:'auth-pre-fix',hypothesisId:'A4'})}).catch(()=>{});
+      // #endregion
 
       set({
         backendUser,
@@ -615,6 +628,9 @@ export const useAuthStore = create<AuthStore>()(persist((set, get) => ({
   onRehydrateStorage: () => (state) => {
     if (state) {
       state.isLoading = false;
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useAuthStore.ts:onRehydrateStorage',message:'auth store rehydrated',data:{hasUser:!!state.user,isAuthenticated:state.isAuthenticated},timestamp:Date.now(),runId:'auth-pre-fix',hypothesisId:'A0'})}).catch(()=>{});
+      // #endregion
     }
   },
 }));

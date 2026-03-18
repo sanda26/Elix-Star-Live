@@ -258,6 +258,27 @@ export async function handleMe(req: Request, res: Response) {
   });
 }
 
+export async function handleDeleteAccount(req: Request, res: Response) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  const token = getTokenFromRequest(req);
+  if (!token) return res.status(401).json({ error: 'Not authenticated.' });
+  const payload = verifyAuthToken(token);
+  if (!payload) return res.status(401).json({ error: 'Invalid or expired session.' });
+
+  const user = usersById.get(payload.sub);
+  if (!user) {
+    return res.status(404).json({ error: 'User not found.' });
+  }
+
+  // Remove from in-memory stores
+  usersById.delete(user.id);
+  usersByEmail.delete(user.email.toLowerCase());
+  saveUsersToDisk();
+
+  clearAuthCookie(res);
+  return res.status(200).json({ ok: true });
+}
+
 export async function handleResendConfirmation(req: Request, res: Response) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
   const { email } = req.body ?? {};

@@ -669,21 +669,7 @@ export default function EnhancedVideoPlayer({
         </button>
         <span className="text-white text-[10px] font-semibold -mt-1">{formatNumber(video.stats.shares)}</span>
 
-        {/* Delete Button — only for your own videos */}
-        {isOwnVideo && (
-          <>
-            <button 
-              onClick={handleDeleteVideo}
-              className="hover:scale-105 active:scale-95 transition-transform relative"
-              style={{width:'48px',height:'48px'}}
-              title="Delete video"
-            >
-              <img src="/Icons/3 Dots Buton.png" alt="Delete" className="absolute inset-0 w-full h-full object-contain opacity-70" />
-              <Trash2 className="absolute inset-0 m-auto w-5 h-5 text-red-400 z-[2]" />
-            </button>
-            <span className="text-white text-[10px] font-semibold -mt-1">Delete</span>
-          </>
-        )}
+        {/* Delete button removed from right sidebar to avoid duplicate 3-dots / extra control here */}
 
         {/* Music Button - same gold circle + size as others */}
         <button 
@@ -718,8 +704,8 @@ export default function EnhancedVideoPlayer({
         </button>
       </div>
 
-      {/* Bottom Info Area - Same Layout with Subtle Luxury */}
-      <div className="absolute z-[10] left-4 bottom-[80px] md:bottom-[110px] w-[70%] pb-4 pointer-events-none">
+      {/* Bottom Info Area - moved slightly up and nudged left so user + hashtags + original sound line up cleanly */}
+      <div className="absolute z-[10] left-3 bottom-[96px] md:bottom-[120px] w-[70%] pb-4 pointer-events-none">
         <div className="flex items-center gap-2 mb-2">
           <LevelBadge level={video.user.level ?? 1} size={10} layout="fixed" avatar={video.user.avatar} />
           <h3 className="text-white font-bold text-shadow-md">{video.user.name || video.user.username}</h3>

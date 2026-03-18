@@ -1357,34 +1357,54 @@ export default function SpectatorPage() {
           );
         })()}
 
-        {/* Battle overlay: split-screen with opponent video + scores */}
+        {/* Battle overlay — same layout as creator: score bar + split video grid */}
         {spectatorBattle?.active && (
           <div
-            className="absolute left-0 right-0 z-[80] flex flex-col"
+            className="absolute left-0 right-0 z-[80] flex flex-col pointer-events-none"
             style={{
               top: 'calc(env(safe-area-inset-top, 0px) + 78px)',
-              height: 'calc(36dvh + 10mm)',
+              height: 'calc(44dvh)',
             }}
           >
-            {/* Score bar */}
-            <div className="flex items-center h-6 z-10">
-              <div className="flex-1 h-full bg-[#DC143C]/80 flex items-center justify-start pl-3">
-                <span className="text-white text-xs font-black tabular-nums">{spectatorBattle.hostScore}</span>
-              </div>
-              <div className="flex items-center gap-1 bg-black/80 px-2 py-0.5 rounded-b-lg z-10">
+            {/* Battle timer */}
+            <div className="flex justify-center py-1 z-30">
+              <div className="flex items-center gap-1 bg-black/40 backdrop-blur-md rounded-full px-2 py-0.5 border border-white/10">
                 <span className="text-red-400 text-[10px] font-bold">●</span>
                 <span className="text-white text-[10px] font-black tabular-nums">{formatTime(spectatorBattle.timeLeft)}</span>
               </div>
-              <div className="flex-1 h-full bg-[#1E90FF]/80 flex items-center justify-end pr-3">
-                <span className="text-white text-xs font-black tabular-nums">{spectatorBattle.opponentScore}</span>
+            </div>
+
+            {/* Score bar — same gradient as creator */}
+            <div className="relative z-20 w-full flex-none overflow-hidden" style={{ height: '18px' }}>
+              {(() => {
+                const total = (spectatorBattle.hostScore || 0) + (spectatorBattle.opponentScore || 0);
+                const leftPct = total > 0 ? Math.max(5, Math.min(95, ((spectatorBattle.hostScore || 0) / total) * 100)) : 50;
+                return (
+                  <div className="absolute inset-0 flex">
+                    <div className="h-full transition-all duration-500 ease-out" style={{ width: `${leftPct}%`, backgroundImage: 'linear-gradient(90deg, #DC143C, #FF1744, #C41E3A)' }} />
+                    <div className="h-full flex-1 transition-all duration-500 ease-out" style={{ backgroundImage: 'linear-gradient(90deg, #1E90FF, #4169E1, #0047AB)' }} />
+                  </div>
+                );
+              })()}
+              <div className="absolute inset-0 z-10 flex items-center justify-between px-2 pointer-events-none">
+                <span className="text-white font-black text-[14px] tabular-nums drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">{(spectatorBattle.hostScore || 0).toLocaleString()}</span>
+                <span className="text-white font-black text-[14px] tabular-nums drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">{(spectatorBattle.opponentScore || 0).toLocaleString()}</span>
               </div>
             </div>
-            {/* Split video: host (left) + opponent (right) */}
+
+            {/* Split video: host (left) + opponent (right) — tap opponent to visit their stream */}
             <div className="flex-1 flex flex-row min-h-0">
-              {/* Host video already rendered below this overlay — leave left side transparent */}
-              <div className="w-1/2" />
-              {/* Opponent video */}
-              <div className="w-1/2 relative bg-[#13151A]">
+              <div className="w-1/2 relative pointer-events-auto">
+                {/* Host video is rendered behind this overlay */}
+              </div>
+              <div
+                className="w-1/2 relative bg-[#13151A] pointer-events-auto cursor-pointer"
+                onClick={() => {
+                  if (spectatorBattle.opponentRoomId) {
+                    navigate(`/watch/${spectatorBattle.opponentRoomId}`);
+                  }
+                }}
+              >
                 <video
                   ref={opponentVideoRef}
                   className="absolute inset-0 w-full h-full object-cover"
@@ -1401,6 +1421,12 @@ export default function SpectatorPage() {
                       <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
                       <span className="text-green-400 text-[9px] font-bold">Connecting...</span>
                     </div>
+                  </div>
+                )}
+                {/* Tap hint */}
+                {spectatorBattle.opponentRoomId && (
+                  <div className="absolute bottom-1 left-0 right-0 flex justify-center pointer-events-none">
+                    <span className="text-white/50 text-[8px] bg-black/40 rounded px-1.5 py-0.5">Tap to visit</span>
                   </div>
                 )}
               </div>

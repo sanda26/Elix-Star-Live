@@ -612,4 +612,9 @@ export const useAuthStore = create<AuthStore>()(persist((set, get) => ({
     backendUser: state.backendUser,
     authMode: state.authMode,
   }),
+  onRehydrateStorage: () => (state) => {
+    if (state) {
+      state.isLoading = false;
+    }
+  },
 }));

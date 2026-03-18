@@ -17,14 +17,16 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { showToast } from '../lib/toast';
+import { useAuthStore } from '../store/useAuthStore';
 
 export default function Settings() {
   const navigate = useNavigate();
   const [toast, setToast] = React.useState('');
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 2000); };
+  const signOut = useAuthStore((s) => s.signOut);
 
   const handleLogout = async () => {
-    await apiStub.auth.signOut();
+    await signOut();
     navigate('/login');
   };
 
@@ -40,26 +42,19 @@ export default function Settings() {
     if (!doubleConfirm) return;
 
     try {
-      const { data } = await apiStub.auth.getSession();
-      const token = data.session?.access_token;
+      const response = await fetch('/api/auth/delete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+      });
 
-      if (token) {
-        const response = await fetch('/api/delete-account', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        if (response.ok) {
-          await apiStub.auth.signOut();
-          navigate('/login');
-        } else {
-          showToast('Failed to delete account. Please contact support.');
-        }
+      if (response.ok) {
+        await signOut();
+        navigate('/login');
       } else {
-        showToast('Session expired. Please log in again.');
+        showToast('Failed to delete account. Please contact support.');
       }
     } catch {
       showToast('Something went wrong. Please try again.');

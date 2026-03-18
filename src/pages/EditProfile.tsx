@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { apiStub } from '../lib/apiStub';
+import { apiUrl } from '../lib/api';
 import { Camera } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { trackEvent } from '../lib/analytics';
 import { AvatarRing } from '../components/AvatarRing';
 import { avatarUploadService } from '../lib/avatarUploadService';
 import { showToast } from '../lib/toast';
+import { useAuthStore } from '../store/useAuthStore';
 
 interface Profile {
   username: string;
@@ -20,6 +21,8 @@ interface Profile {
 
 export default function EditProfile() {
   const navigate = useNavigate();
+  const user = useAuthStore((s) => s.user);
+  const updateUser = useAuthStore((s) => s.updateUser);
   const [profile, setProfile] = useState<Profile>({
     username: '',
     display_name: '',
@@ -40,32 +43,31 @@ export default function EditProfile() {
 
   const loadProfile = async () => {
     try {
-      const { data: userData } = await apiStub.auth.getUser();
-      if (!userData.user) return;
+      if (!user?.id) return;
+      setCurrentUserId(user.id);
 
-      setCurrentUserId(userData.user.id);
-
-      const { data, error } = await apiStub
-        .from('profiles')
-        .select('*')
-        .eq('user_id', userData.user.id)
-        .single();
-
-      if (error) throw error;
+      const res = await fetch(apiUrl(`/api/profiles/${encodeURIComponent(user.id)}`), {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      });
+      if (!res.ok) return;
+      const body = await res.json().catch(() => ({} as any));
+      const data = body.profile || body;
       if (data) {
         setProfile({
-          username: data.username || '',
-          display_name: data.display_name || '',
+          username: data.username || user.username || '',
+          display_name: data.displayName || user.name || '',
           bio: data.bio || '',
-          avatar_url: data.avatar_url || '',
+          avatar_url: data.avatarUrl || user.avatar || '',
           website: data.website || '',
           instagram: data.instagram || '',
           youtube: data.youtube || '',
           tiktok: data.tiktok || '',
         });
       }
-    } catch (error) {
-
+    } catch {
+      // ignore, form will stay with defaults
     }
   };
 
@@ -80,9 +82,9 @@ export default function EditProfile() {
       if (result.success && result.publicUrl) {
         setProfile(prev => ({ ...prev, avatar_url: result.publicUrl }));
         trackEvent('profile_avatar_change', {});
-        
-        // Optional: Force a refresh of the user metadata if needed by other components
-        await apiStub.auth.refreshSession();
+        if (user?.id) {
+          updateUser({ avatar: result.publicUrl });
+        }
       } else {
         showToast(result.error || 'Failed to upload avatar');
       }
@@ -99,29 +101,37 @@ export default function EditProfile() {
 
     setLoading(true);
     try {
-      const { error } = await apiStub
-        .from('profiles')
-        .update({
-          display_name: profile.display_name,
-          bio: profile.bio,
-          avatar_url: profile.avatar_url,
-          website: profile.website,
-          instagram: profile.instagram,
-          youtube: profile.youtube,
-          tiktok: profile.tiktok,
-        })
-        .eq('user_id', currentUserId);
+    const res = await fetch(apiUrl(`/api/profiles/${encodeURIComponent(currentUserId)}`), {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({
+        displayName: profile.display_name,
+        bio: profile.bio,
+        avatarUrl: profile.avatar_url,
+        website: profile.website,
+      }),
+    });
 
-      if (error) throw error;
-
-      trackEvent('profile_update', {});
-      navigate(-1); // Go back
-    } catch (error) {
-
+    if (!res.ok) {
       showToast('Failed to save profile');
-    } finally {
       setLoading(false);
+      return;
     }
+
+    trackEvent('profile_update', {});
+    if (user?.id === currentUserId) {
+      updateUser({
+        name: profile.display_name || user.name,
+        avatar: profile.avatar_url || user.avatar,
+      });
+    }
+    navigate(-1);
+  } catch {
+    showToast('Failed to save profile');
+  } finally {
+    setLoading(false);
+  }
   };
 
   return (

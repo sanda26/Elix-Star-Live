@@ -1365,7 +1365,7 @@ export default function SpectatorPage() {
           );
         })()}
 
-        {/* Battle overlay — same layout as creator: score bar + split video grid */}
+        {/* Battle overlay — IDENTICAL top battle layout as creator: VS timer + score bar + split video frame */}
         {spectatorBattle?.active && (
           <div
             className="absolute left-0 right-0 z-[80] flex flex-col pointer-events-none"
@@ -1374,39 +1374,46 @@ export default function SpectatorPage() {
               height: 'calc(44dvh)',
             }}
           >
-            {/* Battle timer */}
-            <div className="flex justify-center py-1 z-30">
-              <div className="flex items-center gap-1 bg-black/40 backdrop-blur-md rounded-full px-2 py-0.5 border border-white/10">
-                <span className="text-red-400 text-[10px] font-bold">●</span>
-                <span className="text-white text-[10px] font-black tabular-nums">{formatTime(spectatorBattle.timeLeft)}</span>
+            {/* VS timer bar — copied from creator battle header */}
+            <div className="fixed top-0 left-0 right-0 z-[9999] pointer-events-none flex justify-center max-w-[480px] mx-auto py-1.5 px-2 bg-gradient-to-b from-black/50 to-transparent" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 4cm - 10.5mm)' }}>
+              <div className="flex items-center gap-1 bg-black/40 backdrop-blur-md rounded-full px-2 py-0.5 border border-white/10 shadow-sm">
+                <div className="relative w-[16px] h-[16px] flex items-center justify-center">
+                  <svg viewBox="0 0 40 44" className="absolute inset-0 w-full h-full drop-shadow-md">
+                    <path d="M20 2 L36 10 L36 26 Q36 38 20 42 Q4 38 4 26 L4 10 Z" fill="url(#vsGradSpectator)" stroke="rgba(255,255,255,0.5)" strokeWidth="1.5"/>
+                    <defs><linearGradient id="vsGradSpectator" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor="#DC143C"/><stop offset="50%" stopColor="#8B0000"/><stop offset="100%" stopColor="#1E90FF"/></linearGradient></defs>
+                  </svg>
+                  <span className="relative z-10 text-white text-[5px] font-black italic drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">VS</span>
+                </div>
+                <span className="text-white text-[10px] font-black tabular-nums drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+                  {formatTime(spectatorBattle.timeLeft)}
+                </span>
               </div>
             </div>
 
-            {/* Score bar — same gradient as creator */}
+            {/* Score bar — same gradient and typography as creator */}
             <div className="relative z-20 w-full flex-none overflow-hidden" style={{ height: '18px' }}>
               {(() => {
                 const total = (spectatorBattle.hostScore || 0) + (spectatorBattle.opponentScore || 0);
                 const leftPct = total > 0 ? Math.max(5, Math.min(95, ((spectatorBattle.hostScore || 0) / total) * 100)) : 50;
+                const redTeamScore = spectatorBattle.hostScore || 0;
+                const blueTeamScore = spectatorBattle.opponentScore || 0;
                 return (
-                  <div className="absolute inset-0 flex">
-                    <div className="h-full transition-all duration-500 ease-out" style={{ width: `${leftPct}%`, backgroundImage: 'linear-gradient(90deg, #DC143C, #FF1744, #C41E3A)' }} />
-                    <div className="h-full flex-1 transition-all duration-500 ease-out" style={{ backgroundImage: 'linear-gradient(90deg, #1E90FF, #4169E1, #0047AB)' }} />
-                  </div>
+                  <>
+                    <div className="absolute inset-0 flex">
+                      <div className="h-full transition-all duration-500 ease-out" style={{ width: `${leftPct}%`, backgroundImage: 'linear-gradient(90deg, #DC143C, #FF1744, #C41E3A)' }} />
+                      <div className="h-full flex-1 transition-all duration-500 ease-out" style={{ backgroundImage: 'linear-gradient(90deg, #1E90FF, #4169E1, #0047AB)' }} />
+                    </div>
+                    <div className="absolute inset-0 z-10 flex items-center justify-between px-2 pointer-events-none">
+                      <span className="text-white font-black text-[14px] tabular-nums drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+                        {(typeof redTeamScore === 'number' && Number.isFinite(redTeamScore) ? redTeamScore : 0).toLocaleString()}
+                      </span>
+                      <span className="text-white font-black text-[14px] tabular-nums drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+                        {(typeof blueTeamScore === 'number' && Number.isFinite(blueTeamScore) ? blueTeamScore : 0).toLocaleString()}
+                      </span>
+                    </div>
+                  </>
                 );
               })()}
-              <div className="absolute inset-0 z-10 flex items-center justify-between px-2 pointer-events-none">
-                <span className="text-white font-black text-[14px] tabular-nums drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">{(spectatorBattle.hostScore || 0).toLocaleString()}</span>
-                <span className="text-white font-black text-[14px] tabular-nums drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">{(spectatorBattle.opponentScore || 0).toLocaleString()}</span>
-              </div>
-            </div>
-
-            {/* Spectator tap vote indicator */}
-            <div className="flex justify-center py-0.5 z-30">
-              <div className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#13151A]/70 backdrop-blur-md border border-[#C9A96E]/30">
-                <span className={`text-[9px] font-bold ${spectatorVoted ? 'text-white/40' : 'text-white'}`}>
-                  {spectatorVoted ? 'Voted +5' : 'Tap a side to vote +5'}
-                </span>
-              </div>
             </div>
 
             {/* Split video: host (left, tap to vote) + opponent (right, tap to visit) */}

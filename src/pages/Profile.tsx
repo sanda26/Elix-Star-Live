@@ -727,10 +727,6 @@ export default function Profile() {
               <ShoppingBag size={14} className="text-[#ff2d55]" />
               <span className="text-[11px] font-bold text-white">Showcase</span>
             </button>
-            <button onClick={() => navigate('/edit-profile')} className="flex items-center gap-1.5 px-3 py-2 whitespace-nowrap">
-              <AvatarRing src={displayAvatar} alt="" size={14} />
-              <span className="text-[11px] font-bold text-white">Edit profile</span>
-            </button>
             {isOwnProfile && (
               <button onClick={() => navigate('/settings')} className="flex items-center gap-1.5 px-3 py-2 whitespace-nowrap">
                 <Settings size={14} className="text-[#C9A96E]" />

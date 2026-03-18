@@ -64,16 +64,16 @@ export default function Settings() {
   return (
     <div className="bg-[#13151A] text-white flex justify-center px-2">
       {toast && <div className="fixed top-16 left-1/2 -translate-x-1/2 bg-white/10 backdrop-blur-md text-white text-sm px-4 py-2 rounded-xl z-[9999] animate-pulse">{toast}</div>}
-      <div className="w-full max-w-[480px] rounded-3xl overflow-hidden bg-[#13151A] flex flex-col">
+      <div className="w-full max-w-[420px] rounded-3xl overflow-hidden bg-[#13151A] flex flex-col shadow-[0_0_20px_rgba(0,0,0,0.7)]">
       {/* Header */}
-      <div className="sticky top-0 z-10 px-4 py-4 flex items-center gap-3 bg-[#13151A]">
+      <div className="sticky top-0 z-10 px-3 py-3 flex items-center gap-2 bg-[#13151A]/98 backdrop-blur">
         <button onClick={() => navigate('/feed')} className="p-1 hover:brightness-125 transition" title="Back to For You">
           <img src="/Icons/Gold power buton.png" alt="Back" className="w-5 h-5" />
         </button>
-        <h1 className="text-2xl font-bold">Settings</h1>
+        <h1 className="text-lg font-bold">Settings</h1>
       </div>
 
-      <div className="px-4 py-6 space-y-6 flex-1 overflow-y-auto">
+      <div className="px-3 py-4 space-y-4 flex-1 overflow-y-auto">
         {/* Account Section */}
         <Section title="Account">
           <SettingItem
@@ -156,17 +156,17 @@ export default function Settings() {
         </Section>
 
         {/* Actions */}
-        <div className="space-y-3 pt-4">
+        <div className="space-y-2 pt-3">
           <button
             onClick={handleLogout}
-            className="w-full flex items-center justify-center gap-2 py-4 rounded-xl hover:brightness-125 transition"
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl hover:brightness-125 transition text-sm"
           >
             <LogOut className="w-5 h-5" />
             Log Out
           </button>
           <button
             onClick={handleDeleteAccount}
-            className="w-full flex items-center justify-center gap-2 py-4 bg-red-500/10 text-red-500 rounded-xl hover:bg-red-500/20 transition"
+            className="w-full flex items-center justify-center gap-2 py-3 bg-red-500/10 text-red-500 rounded-xl hover:bg-red-500/20 transition text-sm"
           >
             <Trash2 className="w-5 h-5" />
             Delete Account
@@ -174,7 +174,7 @@ export default function Settings() {
         </div>
 
         {/* Version */}
-        <div className="text-center text-xs text-white/40 pt-6">Version 1.0.0</div>
+        <div className="text-center text-[10px] text-white/40 pt-4 pb-2">Version 1.0.0</div>
       </div>
       </div>
     </div>
@@ -184,8 +184,8 @@ export default function Settings() {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div>
-      <h2 className="text-sm font-semibold text-white/60 mb-3 px-2">{title}</h2>
-      <div className="rounded-xl overflow-hidden">
+      <h2 className="text-xs font-semibold text-white/50 mb-2 px-2 tracking-wide uppercase">{title}</h2>
+      <div className="rounded-2xl overflow-hidden border border-white/5 bg-[#181A20]/80">
         {children}
       </div>
     </div>
@@ -206,12 +206,12 @@ function SettingItem({
   return (
     <button
       onClick={onClick}
-      className="w-full flex items-center gap-3 px-4 py-4 hover:brightness-125 transition text-left"
+      className="w-full flex items-center gap-2 px-3 py-3 hover:bg-white/5 transition text-left text-sm"
     >
-      {icon && <div className="text-white/60">{icon}</div>}
+      {icon && <div className="text-white/60 shrink-0">{icon}</div>}
       <span className="flex-1">{label}</span>
-      {value && <span className="text-white/40 text-sm">{value}</span>}
-      <ChevronRight className="w-5 h-5 text-white/40" />
+      {value && <span className="text-white/40 text-[11px]">{value}</span>}
+      <ChevronRight className="w-4 h-4 text-white/40 shrink-0" />
     </button>
   );
 }

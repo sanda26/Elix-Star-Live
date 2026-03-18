@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { apiStub } from '../lib/apiStub';
+import { useAuthStore } from './useAuthStore';
+import { apiUrl } from '../lib/api';
 import {
   calculateEngagementScore,
   isEligibleForFyp,
@@ -439,52 +441,24 @@ export const useVideoStore = create<VideoStore>()(
       deleteVideo: async (videoId) => {
         const snapshot = get();
         try {
-          const { data: auth } = await apiStub.auth.getUser();
-          const user = auth.user;
-          if (!user) {
+          const authUser = useAuthStore.getState().user;
+          if (!authUser?.id) {
             throw new Error('Please sign in to delete videos.');
           }
 
-          const { data: row, error: rowError } = await apiStub
-            .from('videos')
-            .select('id,user_id,url,thumbnail_url')
-            .eq('id', videoId)
-            .single();
+          const token = useAuthStore.getState().session?.access_token;
+          const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+          if (token) headers['Authorization'] = `Bearer ${token}`;
 
-          if (rowError || !row) {
-            throw new Error('Video not found.');
-          }
-          if (row.user_id !== user.id) {
-            throw new Error('You can only delete your own videos.');
-          }
+          const res = await fetch(apiUrl(`/api/videos/${videoId}`), {
+            method: 'DELETE',
+            headers,
+            credentials: 'include',
+          });
 
-          const extractObjectKey = (rawUrl: string | null | undefined) => {
-            if (!rawUrl) return null;
-            try {
-              const u = new URL(rawUrl);
-              const p = u.pathname;
-              const marker = '/user-content/';
-              const idx = p.indexOf(marker);
-              if (idx === -1) return null;
-              return decodeURIComponent(p.slice(idx + marker.length));
-            } catch {
-              const marker = 'user-content/';
-              const idx = rawUrl.indexOf(marker);
-              if (idx === -1) return null;
-              return rawUrl.slice(idx + marker.length);
-            }
-          };
-
-          const keys = [extractObjectKey(row.url), extractObjectKey(row.thumbnail_url)].filter(
-            (k): k is string => !!k
-          );
-          if (keys.length) {
-            await apiStub.storage.from('user-content').remove(keys).catch(() => {});
-          }
-
-          const { error: deleteError } = await apiStub.from('videos').delete().eq('id', videoId).eq('user_id', user.id);
-          if (deleteError) {
-            throw new Error(deleteError.message || 'Failed to delete video.');
+          if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            throw new Error(data.error || `Failed to delete video (${res.status})`);
           }
 
           set({ videos: get().videos.filter((v) => v.id !== videoId), friendVideos: get().friendVideos.filter((v) => v.id !== videoId) });

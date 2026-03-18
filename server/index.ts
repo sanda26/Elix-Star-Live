@@ -327,8 +327,16 @@ app.get("/api/videos/user/:userId", (req, res) => {
 });
 
 app.delete("/api/videos/:id", (req, res) => {
-  const deleted = deleteVideo(req.params.id);
-  if (!deleted) return res.status(404).json({ error: "Video not found" });
+  const token = getTokenFromRequest(req);
+  if (!token) return res.status(401).json({ error: "Not authenticated." });
+  const payload = verifyAuthToken(token);
+  if (!payload) return res.status(401).json({ error: "Invalid or expired session." });
+
+  const video = getVideo(req.params.id);
+  if (!video) return res.status(404).json({ error: "Video not found" });
+  if (video.userId !== payload.sub) return res.status(403).json({ error: "You can only delete your own videos." });
+
+  deleteVideo(req.params.id);
   res.json({ ok: true });
 });
 

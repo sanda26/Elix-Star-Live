@@ -6,8 +6,10 @@ import {
   incrementStat,
   decrementStat,
 } from "../lib/videoStore";
+import { getPool } from "../lib/postgres";
 
-const db: any = null;
+// Use Postgres when configured; otherwise fall back to in-memory store only.
+const db = getPool();
 
 const SCORE_WEIGHTS = {
   watch_time: 2,

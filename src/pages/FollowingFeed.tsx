@@ -154,14 +154,14 @@ export default function FollowingFeed() {
           <div className="px-3 pt-[calc(env(safe-area-inset-top,8px)+6px)] pb-1 flex items-center justify-between relative">
             <button onClick={() => navigate('/search')} className="p-1 z-10" aria-label="Search"><Search size={18} className="text-white" /></button>
             <h1 className="text-sm font-bold text-white absolute left-1/2 transform -translate-x-1/2">Following</h1>
+            <button
+              onClick={() => navigate(-1)}
+              title="Back"
+              className="p-1 z-10"
+            >
+              <img src="/Icons/Gold power buton.png" alt="Back" className="w-5 h-5 object-contain" />
+            </button>
           </div>
-          <button
-            onClick={() => navigate(-1)}
-            title="Back"
-            className="absolute top-1 right-1 p-1 z-20"
-          >
-            <img src="/Icons/Gold power buton.png" alt="Back" className="w-5 h-5" />
-          </button>
 
           {/* Circles — Create, then followers who are live, then all other users who are live; scroll left */}
           <div className="px-3 py-2">

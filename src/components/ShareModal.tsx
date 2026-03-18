@@ -157,7 +157,7 @@ export default function ShareModal({ isOpen, onClose, video, onReport, onJoin, i
               style={{ marginTop: '6mm' }}
               onClick={() => sendShareTo(f.user_id)}
             >
-              <AvatarRing src={f.avatar_url || '/Icons/Profile icon.png'} alt={f.username} size={56} />
+              <AvatarRing src={f.avatar_url || ''} alt={f.username} size={56} />
               <span className="text-white/60 text-[10px] font-medium truncate w-16 text-center">
                 {sentTo.has(f.user_id) ? 'Sent' : f.username || 'User'}
               </span>

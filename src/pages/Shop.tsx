@@ -30,6 +30,7 @@ export default function Shop() {
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [activeFilter, setActiveFilter] = useState<'all' | 'clothing' | 'electronics' | 'accessories' | 'other'>('all');
+  const [liveUsers, setLiveUsers] = useState<{ id: string; name: string; avatar: string; streamKey: string }[]>([]);
 
   const [newTitle, setNewTitle] = useState('');
   const [newDescription, setNewDescription] = useState('');
@@ -40,6 +41,56 @@ export default function Shop() {
   const [creating, setCreating] = useState(false);
 
   useEffect(() => { fetchItems(); }, [activeFilter]);
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const [streamsRes, profilesRes] = await Promise.all([
+          fetch(apiUrl('/api/live/streams'), { credentials: 'include' }).catch(() => null as any),
+          fetch(apiUrl('/api/profiles'), { credentials: 'include' }).catch(() => null as any),
+        ]);
+        const streamsBody = streamsRes ? await streamsRes.json().catch(() => ({ streams: [] })) : { streams: [] };
+        const profilesBody = profilesRes ? await profilesRes.json().catch(() => ({ profiles: [] })) : { profiles: [] };
+
+        const profiles = Array.isArray(profilesBody?.profiles) ? profilesBody.profiles : [];
+        const byId = new Map<string, { name: string; avatar: string }>();
+        for (const p of profiles) {
+          const id = String(p.user_id ?? p.userId ?? '');
+          if (!id) continue;
+          const name = String(p.display_name ?? p.displayName ?? p.username ?? 'User');
+          const avatar = String(p.avatar_url ?? p.avatarUrl ?? '');
+          byId.set(id, { name, avatar });
+        }
+
+        const streams = Array.isArray(streamsBody?.streams) ? streamsBody.streams : [];
+        const mapped = streams
+          .map((s: any) => {
+            const userId = String(s.user_id ?? s.userId ?? '');
+            const streamKey = String(s.stream_key ?? s.streamKey ?? s.room_id ?? userId);
+            const prof = byId.get(userId);
+            return {
+              id: userId || streamKey,
+              name: prof?.name || String(s.display_name ?? s.title ?? 'Live'),
+              avatar: prof?.avatar || '',
+              streamKey,
+            };
+          })
+          .filter((x: any) => !!x.streamKey)
+          .slice(0, 25);
+
+        if (!cancelled) setLiveUsers(mapped);
+      } catch {
+        if (!cancelled) setLiveUsers([]);
+      }
+    };
+
+    load();
+    const t = window.setInterval(load, 15000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(t);
+    };
+  }, []);
 
   const fetchItems = async () => {
     setLoading(true);
@@ -221,6 +272,45 @@ export default function Shop() {
           ))}
         </div>
 
+        {/* Live now circles */}
+        {liveUsers.length > 0 && (
+          <div className="px-4 pb-2">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[11px] font-bold text-white/60">LIVE now</span>
+              <button
+                type="button"
+                onClick={() => navigate('/live')}
+                className="text-[11px] font-bold text-[#C9A96E]"
+              >
+                See all
+              </button>
+            </div>
+            <div className="flex gap-3 overflow-x-auto overflow-y-hidden no-scrollbar py-1">
+              {liveUsers.map((u) => (
+                <button
+                  key={u.streamKey}
+                  type="button"
+                  onClick={() => navigate(`/watch/${u.streamKey}`)}
+                  className="flex-shrink-0 flex flex-col items-center gap-1 active:scale-95 transition-transform"
+                  style={{ width: 64, minWidth: 64 }}
+                  title={u.name}
+                >
+                  <div className="relative w-12 h-12 flex items-center justify-center">
+                    <div className="absolute inset-0 rounded-full border-[3px] border-red-500" />
+                    <div className="relative rounded-full overflow-hidden" style={{ width: 42, height: 42 }}>
+                      <AvatarRing src={u.avatar || ''} alt={u.name} size={42} />
+                    </div>
+                    <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 bg-red-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded z-20">
+                      LIVE
+                    </div>
+                  </div>
+                  <div className="text-[10px] text-white/70 truncate w-full text-center">{u.name}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {loading ? (
           <div className="flex-1 flex items-center justify-center py-20">
             <div className="w-8 h-8 border-2 border-[#C9A96E] border-t-transparent rounded-full animate-spin" />
@@ -281,12 +371,18 @@ export default function Shop() {
 
         {/* Create Listing Modal */}
         {showCreate && (
-          <div className="fixed inset-0 z-[9999] bg-black/70 flex items-end justify-center" onClick={() => setShowCreate(false)}>
+          <>
             <div
-              className="w-full max-w-[480px] bg-[#1C1E24] rounded-t-3xl border-2 border-b-0 border-[#C9A96E] pb-safe"
-              style={{ maxHeight: '80dvh', boxShadow: '0 -4px 30px rgba(201,169,110,0.25)' }}
-              onClick={e => e.stopPropagation()}
-            >
+              className="fixed inset-0 z-[9998] bg-black/70"
+              onClick={() => setShowCreate(false)}
+            />
+            {/* Anchor the modal exactly to the top of the bottom bar (no extra gap). */}
+            <div className="fixed left-0 right-0 z-[9999] pointer-events-auto max-w-[480px] mx-auto" style={{ bottom: 'calc(env(safe-area-inset-bottom,0px) + 110px)' }}>
+              <div
+                className="w-full bg-[#1C1E24] rounded-t-3xl border-2 border-b-0 border-[#C9A96E] pb-safe"
+                style={{ maxHeight: '80dvh', boxShadow: '0 -4px 30px rgba(201,169,110,0.25)' }}
+                onClick={e => e.stopPropagation()}
+              >
               <div className="flex items-center justify-center pt-3 pb-1">
                 <div className="w-10 h-1 rounded-full bg-white/20" />
               </div>
@@ -361,8 +457,9 @@ export default function Shop() {
                   {creating ? 'Listing...' : 'List for Sale'}
                 </button>
               </div>
+              </div>
             </div>
-          </div>
+          </>
         )}
       </div>
     </div>

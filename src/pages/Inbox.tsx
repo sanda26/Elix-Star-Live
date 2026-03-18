@@ -271,7 +271,7 @@ export default function Inbox() {
                                 src={user?.avatar || (user?.id ? localStorage.getItem('elix_avatar_' + user.id) : null) || ''}
                                 alt="You"
                                 className="absolute rounded-full object-cover"
-                                style={{ width: 52, height: 52, top: '45%', left: '51%', transform: 'translate(-50%, -50%)', zIndex: -1 }}
+                                style={{ width: 52, height: 52, top: '45%', left: '51%', transform: 'translate(-50%, -50%)', zIndex: 1 }}
                             />
                         )}
                     </div>
@@ -292,7 +292,7 @@ export default function Inbox() {
                                     src={f.avatar_url}
                                     alt={f.display_name || f.username || 'User'}
                                     className="absolute rounded-full object-cover"
-                                    style={{ width: 52, height: 52, top: '45%', left: '51%', transform: 'translate(-50%, -50%)', zIndex: -1 }}
+                                    style={{ width: 52, height: 52, top: '45%', left: '51%', transform: 'translate(-50%, -50%)', zIndex: 1 }}
                                 />
                             ) : (
                                 <span className="absolute text-[#C9A96E] font-bold text-xl z-10" style={{ top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}>
@@ -319,7 +319,7 @@ export default function Inbox() {
                                     <div className="relative rounded-full overflow-hidden flex items-center justify-center" style={{ width: 78, height: 78 }}>
                                         <img src="/Icons/Profile icon.png" alt="" className="w-full h-full object-contain" />
                                         {u.avatar_url ? (
-                                            <img src={u.avatar_url} alt={u.name || u.username} className="absolute rounded-full object-cover" style={{ width: 48, height: 48, top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: -1 }} />
+                                            <img src={u.avatar_url} alt={u.name || u.username} className="absolute rounded-full object-cover" style={{ width: 48, height: 48, top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 1 }} />
                                         ) : (
                                             <span className="absolute text-[#C9A96E] font-bold text-lg z-10" style={{ top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}>{(u.name || u.username || 'U').charAt(0).toUpperCase()}</span>
                                         )}
@@ -331,7 +331,7 @@ export default function Inbox() {
                                     <div className="relative" style={{ width: 85, height: 85 }}>
                                         <img src="/Icons/Profile icon.png" alt="" className="w-full h-full object-contain" />
                                         {u.avatar_url ? (
-                                            <img src={u.avatar_url} alt={u.name || u.username} className="absolute rounded-full object-cover" style={{ width: 52, height: 52, top: '45%', left: '51%', transform: 'translate(-50%, -50%)', zIndex: -1 }} />
+                                            <img src={u.avatar_url} alt={u.name || u.username} className="absolute rounded-full object-cover" style={{ width: 52, height: 52, top: '45%', left: '51%', transform: 'translate(-50%, -50%)', zIndex: 1 }} />
                                         ) : (
                                             <span className="absolute text-[#C9A96E] font-bold text-xl z-10" style={{ top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}>{(u.name || u.username || 'U').charAt(0).toUpperCase()}</span>
                                         )}

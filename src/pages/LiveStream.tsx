@@ -3156,15 +3156,49 @@ export default function LiveStream() {
               </div>
             )}
 
+            {/* Overall Top 3 Gifters — above battle grid */}
+            {(() => {
+              const top3 = getTop3GiftersOverall();
+              if (top3.length === 0) return null;
+              return (
+                <div className="w-full flex justify-center gap-3 py-1.5 pointer-events-none flex-none z-30">
+                  {[0, 1, 2].map((i) => {
+                    const g = top3[i];
+                    if (!g) return (
+                      <div key={i} className="flex flex-col items-center">
+                        <div className="w-10 h-10 rounded-full border-2 border-dashed border-white/20 flex items-center justify-center bg-[#13151A]/50">
+                          <span className="text-white/20 text-xs">{i + 1}</span>
+                        </div>
+                      </div>
+                    );
+                    return (
+                      <div key={i} className="flex flex-col items-center relative">
+                        <div className="relative">
+                          {g.avatar ? (
+                            <img src={g.avatar} alt={g.name} className="w-10 h-10 rounded-full border-2 border-[#C9A96E] object-cover" />
+                          ) : (
+                            <div className="w-10 h-10 rounded-full border-2 border-[#C9A96E] bg-[#1C1E24] flex items-center justify-center">
+                              <span className="text-[#C9A96E] font-bold text-sm">{(g.name || '?').charAt(0).toUpperCase()}</span>
+                            </div>
+                          )}
+                          <div className={`absolute -top-1 -right-1 rounded-full w-4 h-4 flex items-center justify-center border border-black shadow-lg z-10 text-[7px] font-black ${i === 0 ? 'bg-[#C9A96E] text-black' : i === 1 ? 'bg-white/80 text-black' : 'bg-[#CD7F32] text-black'}`}>
+                            {i + 1}
+                          </div>
+                        </div>
+                        <span className="text-[7px] font-bold mt-0.5 text-white/70 truncate max-w-[50px]">{g.name}</span>
+                        <span className="text-[6px] text-[#C9A96E] font-semibold">{formatCoinsShort(g.coins)}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+
             {/* Dynamic Battle Grid: 2-split or 4-split based on players */}
             {(() => {
               const is4Player = battleSlots[1].status !== 'empty' || battleSlots[2].status !== 'empty';
               return (
                 <div className={`relative w-full flex-none flex flex-col ${is4Player ? 'aspect-square' : 'h-[44dvh]'}`}>
-                  {/* Fan Club Button - Left of Battle Bar */}
-                  <div className="absolute top-2 left-[20%] -translate-x-1/2 z-30 pointer-events-auto">
-                    {/* Fan Club Removed */}
-                  </div>
 
                   {/* Battle Score Bar */}
                   <div className="relative z-20 w-full flex-none overflow-hidden" style={{ height: '18px' }}>

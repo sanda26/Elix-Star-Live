@@ -704,8 +704,8 @@ export default function EnhancedVideoPlayer({
         </button>
       </div>
 
-      {/* Bottom Info Area - moved slightly up and nudged left so user + hashtags + original sound line up cleanly */}
-      <div className="absolute z-[10] left-3 bottom-[96px] md:bottom-[120px] w-[70%] pb-4 pointer-events-none">
+      {/* Bottom Info Area - For You hashtags / sound bar aligned and slightly lower */}
+      <div className="absolute z-[10] left-3 bottom-[72px] md:bottom-[96px] w-[72%] pb-4 pointer-events-none">
         <div className="flex items-center gap-2 mb-2">
           <LevelBadge level={video.user.level ?? 1} size={10} layout="fixed" avatar={video.user.avatar} />
           <h3 className="text-white font-bold text-shadow-md">{video.user.name || video.user.username}</h3>
@@ -714,8 +714,6 @@ export default function EnhancedVideoPlayer({
               <div className="w-2 h-2 bg-white rounded-full" />
             </div>
           )}
-          <span className="text-white/60 text-sm">•</span>
-          <span className="text-white/60 text-sm">{formatNumber(video.user.followers)} followers</span>
         </div>
         
         <p className="text-white/90 text-sm mb-2 text-shadow-md line-clamp-2">

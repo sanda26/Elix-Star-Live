@@ -1,6 +1,7 @@
 /**
- * Bunny Storage service: upload files (e.g. video) to Bunny Storage.
- * CDN serves files via pull zone (e.g. https://cdn.anberlive.co.uk/streams/video.mp4).
+ * Bunny Storage + Stream service: upload files to Bunny.
+ * Primary: Bunny Storage API (PUT to storage.bunnycdn.com)
+ * Fallback: Bunny Stream Library API (for videos when Storage key fails)
  */
 
 import { logger } from "../lib/logger";
@@ -8,39 +9,36 @@ import { logger } from "../lib/logger";
 const STORAGE_HOST = process.env.BUNNY_STORAGE_HOST || 'storage.bunnycdn.com';
 const STORAGE_REGION = process.env.BUNNY_STORAGE_REGION || 'de';
 const STORAGE_ZONE_RAW = process.env.BUNNY_STORAGE_ZONE || '';
-/** Storage zone name for API path (e.g. "elixlive" from "elixlive.b-cdn.net"). */
 const STORAGE_ZONE_NAME = STORAGE_ZONE_RAW.split('.')[0] || STORAGE_ZONE_RAW;
 const ACCESS_KEY = process.env.BUNNY_STORAGE_API_KEY;
 
+const STREAM_LIBRARY_ID = process.env.BUNNY_LIBRARY_ID || '';
+const STREAM_API_KEY = process.env.BUNNY_LIBRARY_API_KEY || '';
+
 export function isBunnyConfigured(): boolean {
-  return Boolean(ACCESS_KEY && STORAGE_ZONE_NAME);
+  return Boolean((ACCESS_KEY && STORAGE_ZONE_NAME) || (STREAM_LIBRARY_ID && STREAM_API_KEY));
 }
 
-/** Human-readable reason when Bunny is not configured (for error responses). */
 export function getBunnyConfigError(): string {
-  if (!STORAGE_ZONE_NAME) {
-    return 'Bunny storage zone missing. Set BUNNY_STORAGE_ZONE in your environment (e.g. elixlive.b-cdn.net).';
+  if (!STORAGE_ZONE_NAME && !STREAM_LIBRARY_ID) {
+    return 'Bunny not configured. Set BUNNY_STORAGE_ZONE or BUNNY_LIBRARY_ID.';
   }
-  if (!ACCESS_KEY) {
-    return 'Bunny storage API key missing. Set BUNNY_STORAGE_API_KEY in your environment (from Bunny dashboard → Storage → Pull Zone → Password).';
+  if (!ACCESS_KEY && !STREAM_API_KEY) {
+    return 'Bunny API key missing. Set BUNNY_STORAGE_API_KEY or BUNNY_LIBRARY_API_KEY.';
   }
-  return 'Bunny storage is not configured.';
+  return 'Bunny is not configured.';
 }
 
 /**
- * Upload a file to Bunny Storage.
- * @param path - Path under the zone, e.g. "streams/video.mp4"
- * @param body - Raw file buffer or stream
- * @param contentType - Optional Content-Type header
- * @returns Object with success and CDN URL (if VITE_CDN_URL or pull zone is set)
+ * Upload via Bunny Storage API (PUT to storage.bunnycdn.com)
  */
-export async function uploadToBunny(
+async function uploadViaStorage(
   path: string,
-  body: Buffer | Blob | ArrayBuffer,
+  body: Buffer,
   contentType?: string
 ): Promise<{ success: boolean; path: string; cdnUrl?: string; error?: string }> {
   if (!ACCESS_KEY || !STORAGE_ZONE_NAME) {
-    return { success: false, path, error: getBunnyConfigError() };
+    return { success: false, path, error: 'Storage API not configured' };
   }
 
   const baseUrl = STORAGE_REGION === 'de'
@@ -48,40 +46,133 @@ export async function uploadToBunny(
     : `https://${STORAGE_REGION}.${STORAGE_HOST}`;
   const url = `${baseUrl}/${STORAGE_ZONE_NAME}/${path.replace(/^\/+/, '')}`;
 
-  const headers: Record<string, string> = {
-    AccessKey: ACCESS_KEY,
-  };
+  const headers: Record<string, string> = { AccessKey: ACCESS_KEY };
   if (contentType) headers['Content-Type'] = contentType;
 
-  const bodyBuffer = body instanceof Buffer ? body : Buffer.from(body instanceof ArrayBuffer ? body : await (body as Blob).arrayBuffer());
-
   // #region agent log
-  logger.info({ url, zone: STORAGE_ZONE_NAME, region: STORAGE_REGION, host: STORAGE_HOST, keyPrefix: ACCESS_KEY ? ACCESS_KEY.slice(0, 8) + '...' : 'MISSING' }, "Bunny upload attempt");
+  logger.info({ url, zone: STORAGE_ZONE_NAME, region: STORAGE_REGION, keyPrefix: ACCESS_KEY.slice(0, 8) + '...' }, "Bunny Storage upload attempt");
   // #endregion
 
+  const res = await fetch(url, {
+    method: 'PUT',
+    headers,
+    body,
+    duplex: 'half',
+  } as RequestInit);
+
+  if (!res.ok) {
+    const text = await res.text();
+    logger.error({ path, status: res.status, body: text }, "Bunny Storage upload failed");
+    return { success: false, path, error: `Bunny API ${res.status}: ${text}` };
+  }
+
+  const cdnHost = process.env.VITE_CDN_URL || process.env.VITE_BUNNY_CDN_HOSTNAME;
+  const cdnUrl = cdnHost
+    ? `${cdnHost.replace(/\/$/, '')}/${path.replace(/^\/+/, '')}`
+    : undefined;
+
+  return { success: true, path, cdnUrl };
+}
+
+/**
+ * Upload via Bunny Stream Library API (for video files).
+ * 1. Create video entry: POST /library/{id}/videos
+ * 2. Upload file: PUT /library/{id}/videos/{videoId}
+ * 3. Returns the CDN iframe/direct URL
+ */
+async function uploadViaStream(
+  path: string,
+  body: Buffer,
+  contentType?: string
+): Promise<{ success: boolean; path: string; cdnUrl?: string; error?: string }> {
+  if (!STREAM_LIBRARY_ID || !STREAM_API_KEY) {
+    return { success: false, path, error: 'Stream Library not configured' };
+  }
+
+  const filename = path.split('/').pop() || 'video.mp4';
+
   try {
-    const res = await fetch(url, {
+    // Step 1: Create video entry
+    const createRes = await fetch(`https://video.bunnycdn.com/library/${STREAM_LIBRARY_ID}/videos`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'AccessKey': STREAM_API_KEY,
+      },
+      body: JSON.stringify({ title: filename }),
+    });
+
+    if (!createRes.ok) {
+      const text = await createRes.text();
+      logger.error({ status: createRes.status, body: text }, "Bunny Stream create video failed");
+      return { success: false, path, error: `Stream create failed (${createRes.status}): ${text}` };
+    }
+
+    const videoData = await createRes.json() as { guid?: string };
+    const videoGuid = videoData.guid;
+    if (!videoGuid) {
+      return { success: false, path, error: 'Stream API did not return video GUID' };
+    }
+
+    // Step 2: Upload the video file
+    const uploadRes = await fetch(`https://video.bunnycdn.com/library/${STREAM_LIBRARY_ID}/videos/${videoGuid}`, {
       method: 'PUT',
-      headers,
-      body: bodyBuffer,
+      headers: {
+        'AccessKey': STREAM_API_KEY,
+      },
+      body,
       duplex: 'half',
     } as RequestInit);
 
-    if (!res.ok) {
-      const text = await res.text();
-      logger.error({ path, status: res.status, body: text }, "Bunny Storage upload failed");
-      return { success: false, path, error: `Bunny API ${res.status}: ${text}` };
+    if (!uploadRes.ok) {
+      const text = await uploadRes.text();
+      logger.error({ status: uploadRes.status, body: text }, "Bunny Stream upload failed");
+      return { success: false, path, error: `Stream upload failed (${uploadRes.status}): ${text}` };
     }
 
-    const cdnHost = process.env.VITE_CDN_URL || process.env.VITE_BUNNY_CDN_HOSTNAME;
-    const cdnUrl = cdnHost
-      ? `${cdnHost.replace(/\/$/, '')}/${path.replace(/^\/+/, '')}`
-      : undefined;
+    logger.info({ videoGuid, libraryId: STREAM_LIBRARY_ID }, "Bunny Stream upload success");
+
+    const cdnUrl = `https://vz-5a4105cf-3f6.b-cdn.net/${videoGuid}/play_720p.mp4`;
 
     return { success: true, path, cdnUrl };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    logger.error({ err, path }, "Bunny Storage upload exception");
+    logger.error({ err, path }, "Bunny Stream upload exception");
     return { success: false, path, error: message };
   }
+}
+
+/**
+ * Upload a file to Bunny. Tries Storage API first, falls back to Stream Library for videos.
+ */
+export async function uploadToBunny(
+  path: string,
+  body: Buffer | Blob | ArrayBuffer,
+  contentType?: string
+): Promise<{ success: boolean; path: string; cdnUrl?: string; error?: string }> {
+  if (!isBunnyConfigured()) {
+    return { success: false, path, error: getBunnyConfigError() };
+  }
+
+  const bodyBuffer = body instanceof Buffer ? body : Buffer.from(body instanceof ArrayBuffer ? body : await (body as Blob).arrayBuffer());
+
+  // Try Storage API first
+  if (ACCESS_KEY && STORAGE_ZONE_NAME) {
+    const result = await uploadViaStorage(path, bodyBuffer, contentType);
+    if (result.success) return result;
+    logger.warn({ error: result.error }, "Storage API failed, trying Stream Library fallback");
+  }
+
+  // Fallback to Stream Library for video files
+  const isVideo = contentType?.startsWith('video/') || /\.(mp4|webm|mov)$/i.test(path);
+  if (isVideo && STREAM_LIBRARY_ID && STREAM_API_KEY) {
+    return uploadViaStream(path, bodyBuffer, contentType);
+  }
+
+  // For non-video files (thumbnails etc), try Storage only
+  if (!ACCESS_KEY || !STORAGE_ZONE_NAME) {
+    return { success: false, path, error: 'Storage API key invalid and file is not a video (cannot use Stream fallback)' };
+  }
+
+  return { success: false, path, error: 'All upload methods failed' };
 }

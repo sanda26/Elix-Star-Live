@@ -157,6 +157,9 @@ export default function SpectatorPage() {
   const handleSpectatorVote = (target: 'host' | 'opponent') => {
     if (spectatorVoted || !spectatorBattle?.active) return;
     setSpectatorVoted(true);
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SpectatorPage.tsx:handleSpectatorVote',message:'spectator tap vote sent',data:{target},timestamp:Date.now(),runId:'pre-fix',hypothesisId:'H1'})}).catch(()=>{});
+    // #endregion
     websocket.send('battle_spectator_vote', { target });
   };
 

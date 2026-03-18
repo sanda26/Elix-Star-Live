@@ -1419,8 +1419,14 @@ async function handleMessage(client: Client, event: string, data: any) {
       case "battle_spectator_vote": {
         const voteRoom = client.roomId;
         const voteBattle = battles.get(voteRoom);
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/index.ts:battle_spectator_vote',message:'incoming spectator vote',data:{roomId:voteRoom,hasBattle:!!voteBattle,status:voteBattle?.status,target:data?.target},timestamp:Date.now(),runId:'pre-fix',hypothesisId:'H2'})}).catch(()=>{});
+        // #endregion
         if (!voteBattle || voteBattle.status !== "ACTIVE") break;
         const voteTarget = data.target === "host" ? "host" : "opponent";
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/index.ts:battle_spectator_vote',message:'adding spectator vote points',data:{roomId:voteRoom,target:voteTarget,points:5},timestamp:Date.now(),runId:'pre-fix',hypothesisId:'H3'})}).catch(()=>{});
+        // #endregion
         addBattleScoreForTarget(voteRoom, voteTarget, 5);
         sendToClient(client, "battle_vote_ack", { target: voteTarget, points: 5 });
         break;

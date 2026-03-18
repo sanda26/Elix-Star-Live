@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Share2, Menu, Lock, Play, Heart, Camera, Sparkles, LogOut, UserPlus, X, Bookmark, Grid3X3, Coins, ShoppingBag, Repeat2, ChevronDown, ChevronRight, Store, Search, Copy, MessageCircle, Check, TrendingUp, Flag, Download, Plus } from 'lucide-react';
+import { Share2, Menu, Lock, Play, Heart, Camera, Sparkles, LogOut, UserPlus, X, Bookmark, Grid3X3, Coins, ShoppingBag, Repeat2, ChevronDown, ChevronRight, Store, Search, Copy, MessageCircle, Check, TrendingUp, Flag, Download, Plus, Settings } from 'lucide-react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
 import { apiStub } from '../lib/apiStub';

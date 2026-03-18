@@ -271,6 +271,10 @@ app.post("/api/videos", async (req, res) => {
       return res.status(400).json({ error: "url is required" });
     }
 
+    // Look up the real user profile
+    const { getOrCreateProfile } = await import("./routes/profiles");
+    const profile = getOrCreateProfile(payload.sub);
+
     const id =
       body.id || `vid_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 
@@ -280,11 +284,9 @@ app.post("/api/videos", async (req, res) => {
       thumbnail: body.thumbnailUrl || body.thumbnail_url || body.thumbnail || "",
       duration: body.duration || 0,
       userId: payload.sub,
-      username: body.username || (payload as { username?: string }).username || "user",
-      displayName: body.displayName || body.username || (payload as { username?: string }).username || "User",
-      avatar:
-        body.avatar ||
-        `https://ui-avatars.com/api/?name=${encodeURIComponent(body.username || (payload as { username?: string }).username || "User")}&background=random&size=400`,
+      username: profile.username || body.username || "user",
+      displayName: profile.displayName || body.displayName || "User",
+      avatar: profile.avatarUrl || body.avatar || "",
       description: body.description || "",
       hashtags: body.hashtags || [],
       music: body.music || null,
@@ -1787,11 +1789,16 @@ try {
       logger.info({ count: dbVideos.length }, "Videos loaded from database");
     }
 
-    // If there are still no videos after loading from DB, seed two
-    // Blender demo clips (Big Buck Bunny + Sintel) so new installs
-    // have something to watch in For You.
-    const validVideos = getAllVideos().filter((v) => v.url && v.url.trim());
-    if (validVideos.length === 0) {
+    // Remove any leftover demo/seed videos
+    const allVids = getAllVideos();
+    for (const v of allVids) {
+      if (v.userId?.startsWith('demo_user_') || v.id?.startsWith('seed_')) {
+        deleteVideo(v.id);
+      }
+    }
+
+    // No more demo videos — real uploads only
+    if (false) {
       const sampleVideos: Video[] = [
         {
           id: "seed_big_buck_bunny",

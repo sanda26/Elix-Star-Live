@@ -27,7 +27,7 @@ export interface Profile {
 
 const profiles = new Map<string, Profile>();
 
-function getOrCreateProfile(userId: string, seed?: Partial<Profile>): Profile {
+export function getOrCreateProfile(userId: string, seed?: Partial<Profile>): Profile {
   const existing = profiles.get(userId);
   if (existing) return existing;
 

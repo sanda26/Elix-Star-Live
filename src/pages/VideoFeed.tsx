@@ -417,13 +417,27 @@ export default function VideoFeed() {
     feedLogRef.current = feedItems.length;
   }
 
-  /* ---- Scroll handling ---- */
+  /* ---- Scroll handling — use IntersectionObserver for reliable active detection ---- */
   const handleScroll = () => {
     if (!containerRef.current) return;
     const container = containerRef.current;
-    const index = Math.round(container.scrollTop / container.clientHeight);
-    if (index >= 0 && index < feedItems.length) {
-      setActiveIndex(index);
+    const children = container.querySelectorAll('[data-feed-index]');
+    const containerRect = container.getBoundingClientRect();
+    const centerY = containerRect.top + containerRect.height / 2;
+    let bestIndex = 0;
+    let bestDist = Infinity;
+    children.forEach((child) => {
+      const rect = child.getBoundingClientRect();
+      const childCenter = rect.top + rect.height / 2;
+      const dist = Math.abs(childCenter - centerY);
+      const idx = parseInt(child.getAttribute('data-feed-index') || '0', 10);
+      if (dist < bestDist) {
+        bestDist = dist;
+        bestIndex = idx;
+      }
+    });
+    if (bestIndex >= 0 && bestIndex < feedItems.length && bestIndex !== activeIndex) {
+      setActiveIndex(bestIndex);
     }
   };
 
@@ -473,6 +487,7 @@ export default function VideoFeed() {
           return (
             <div
               key={`live-${item.stream.streamKey}`}
+              data-feed-index={index}
               className="h-[100dvh] w-full snap-start relative flex justify-center bg-[#0A0B0E]"
               style={{ scrollSnapAlign: "start", scrollSnapStop: "always" }}
             >
@@ -498,6 +513,7 @@ export default function VideoFeed() {
         return (
           <div
             key={`video-${item.videoId}-${index}`}
+            data-feed-index={index}
             className="h-[100dvh] w-full snap-start relative flex justify-center bg-[#0A0B0E]"
             style={{ scrollSnapAlign: "start", scrollSnapStop: "always" }}
           >

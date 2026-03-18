@@ -339,7 +339,7 @@ export default function EnhancedVideoPlayer({
         try { a.pause(); } catch { void 0; }
       }
     }
-  }, [incrementViews, isActive, isDuetLayout, muteAllSounds, originalVideo, video?.music?.previewUrl, videoId, volume]);
+  }, [incrementViews, isActive, isDuetLayout, muteAllSounds, originalVideo, video?.url, video?.music?.previewUrl, videoId, volume]);
 
   useEffect(() => {
     if (!muteAllSounds) return;

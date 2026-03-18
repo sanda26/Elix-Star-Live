@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 import { apiUrl } from "../lib/api";
 
 interface User {
@@ -173,7 +174,7 @@ const getAuthErrorMessage = (error: unknown): string => {
 
 // ── Store ─────────────────────────────────────────────────────────────────────
 
-export const useAuthStore = create<AuthStore>()((set, get) => ({
+export const useAuthStore = create<AuthStore>()(persist((set, get) => ({
   user: null,
   session: null,
   isAuthenticated: false,
@@ -602,4 +603,13 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
       });
     }
   },
+}), {
+  name: 'elix-auth',
+  partialize: (state) => ({
+    user: state.user,
+    session: state.session,
+    isAuthenticated: state.isAuthenticated,
+    backendUser: state.backendUser,
+    authMode: state.authMode,
+  }),
 }));

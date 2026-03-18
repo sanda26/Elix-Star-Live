@@ -8,9 +8,6 @@ import {
 } from "../lib/videoStore";
 import { getPool } from "../lib/postgres";
 
-// Use Postgres when configured; otherwise fall back to in-memory store only.
-const db = getPool();
-
 const SCORE_WEIGHTS = {
   watch_time: 2,
   likes: 5,
@@ -75,6 +72,7 @@ function checkRateLimit(key: string): boolean {
 }
 
 async function getUserId(req: Request): Promise<string | null> {
+  const db = getPool();
   if (!db) return null;
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith("Bearer ")) return null;
@@ -90,6 +88,7 @@ async function getUserId(req: Request): Promise<string | null> {
 }
 
 async function getTrendingVideos(limit: number): Promise<any[]> {
+  const db = getPool();
   if (!db) return [];
   const now = Date.now();
   if (trendingCache.data && now - trendingCache.ts < TRENDING_CACHE_TTL) {
@@ -133,6 +132,7 @@ async function getTrendingVideos(limit: number): Promise<any[]> {
 }
 
 async function getFollowingVideoIds(userId: string): Promise<string[]> {
+  const db = getPool();
   if (!db) return [];
   const { data: following } = await db
     .from("followers")
@@ -151,6 +151,7 @@ async function getFollowingVideoIds(userId: string): Promise<string[]> {
 }
 
 async function getUserInterests(userId: string): Promise<Map<string, number>> {
+  const db = getPool();
   if (!db) return new Map();
   const { data } = await db
     .from("user_interests")
@@ -164,6 +165,7 @@ async function getUserInterests(userId: string): Promise<Map<string, number>> {
 }
 
 async function getWatchedVideoIds(userId: string): Promise<Set<string>> {
+  const db = getPool();
   if (!db) return new Set();
   const { data } = await db
     .from("video_views")
@@ -175,6 +177,7 @@ async function getWatchedVideoIds(userId: string): Promise<Set<string>> {
 }
 
 async function getNotInterestedIds(userId: string): Promise<Set<string>> {
+  const db = getPool();
   if (!db) return new Set();
   const { data } = await db
     .from("user_not_interested")
@@ -185,6 +188,7 @@ async function getNotInterestedIds(userId: string): Promise<Set<string>> {
 }
 
 async function getLikedVideoCategories(userId: string): Promise<string[]> {
+  const db = getPool();
   if (!db) return [];
   // Use likes table
   const { data: likes } = await db
@@ -310,6 +314,7 @@ export async function handleForYouFeed(req: Request, res: Response) {
     const offset = (page - 1) * limit;
 
     // If DB is available, try the full personalized pipeline
+    const db = getPool();
     if (db) {
       const userId = await getUserId(req);
 
@@ -464,6 +469,7 @@ export async function handleTrackView(req: Request, res: Response) {
     } = req.body;
     if (!videoId) return res.status(400).json({ error: "videoId required" });
 
+    const db = getPool();
     // ── No DB: use in-memory store ──
     if (!db) {
       incrementStat(videoId, "views");
@@ -544,6 +550,7 @@ export async function handleTrackInteraction(req: Request, res: Response) {
     if (!videoId || !type)
       return res.status(400).json({ error: "videoId and type required" });
 
+    const db = getPool();
     // ── No DB: use in-memory store ──
     if (!db) {
       if (type === "like") incrementStat(videoId, "likes");
@@ -659,6 +666,7 @@ export async function handleTrackInteraction(req: Request, res: Response) {
 }
 
 async function updateVideoScore(videoId: string) {
+  const db = getPool();
   if (!db) return;
   try {
     const [
@@ -800,6 +808,7 @@ async function updateVideoScore(videoId: string) {
 }
 
 async function updateUserInterests(userId: string, videoId: string) {
+  const db = getPool();
   if (!db) return;
   try {
     const { data: video } = await db
@@ -874,6 +883,7 @@ export async function handleGetVideoScore(req: Request, res: Response) {
     const videoId = req.params.videoId;
     if (!videoId) return res.status(400).json({ error: "videoId required" });
 
+    const db = getPool();
     // ── No DB: return zero score ──
     if (!db) {
       const memVideo = getVideo(videoId);

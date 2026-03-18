@@ -183,9 +183,11 @@ export default function Settings() {
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div>
-      <h2 className="text-xs font-semibold text-white/50 mb-2 px-2 tracking-wide uppercase">{title}</h2>
-      <div className="rounded-2xl overflow-hidden border border-white/5 bg-[#181A20]/80">
+    <div className="space-y-1">
+      <h2 className="text-[10px] font-semibold text-white/40 px-1 tracking-[0.15em] uppercase">
+        {title}
+      </h2>
+      <div>
         {children}
       </div>
     </div>

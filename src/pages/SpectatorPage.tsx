@@ -1395,7 +1395,7 @@ export default function SpectatorPage() {
             className="absolute left-0 right-0 z-[80] flex flex-col pointer-events-none"
             style={{
               top: 'calc(env(safe-area-inset-top, 0px) + 78px)',
-              height: 'calc(44dvh)',
+              height: 'calc(44dvh - 20mm)',
             }}
           >
             {/* VS timer bar — copied from creator battle header */}
@@ -1408,7 +1408,7 @@ export default function SpectatorPage() {
                   </svg>
                   <span className="relative z-10 text-white text-[5px] font-black italic drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">VS</span>
                 </div>
-                <span className="text-white text-[10px] font-black tabular-nums drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+                <span className="text-white text-[10px] font-black tabular-nums drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] translate-y-[3mm]">
                   {formatTime(spectatorBattle.timeLeft)}
                 </span>
               </div>
@@ -1619,7 +1619,7 @@ export default function SpectatorPage() {
 
         {/* CHAT — behind buttons, behind gift overlay, same as creator page */}
         <div className="chat-zone fixed left-0 right-0 bottom-[calc(58px+max(12px,env(safe-area-inset-bottom)))] z-[5] flex justify-center pointer-events-none">
-          <div className="w-full max-w-[480px] h-[25dvh] max-h-[25dvh] overflow-y-auto pointer-events-auto bg-transparent">
+          <div className="w-full max-w-[480px] h-[calc(25dvh-30mm)] max-h-[calc(25dvh-30mm)] overflow-y-auto pointer-events-auto bg-transparent py-[15mm]">
             <ChatOverlay
               messages={messages}
               variant="panel"

@@ -152,6 +152,14 @@ export default function SpectatorPage() {
   const opponentVideoRef = useRef<HTMLVideoElement>(null);
   const opponentLkRoomRef = useRef<Room | null>(null);
   const [hasOpponentStream, setHasOpponentStream] = useState(false);
+  const [spectatorVoted, setSpectatorVoted] = useState(false);
+
+  const handleSpectatorVote = (target: 'host' | 'opponent') => {
+    if (spectatorVoted || !spectatorBattle?.active) return;
+    setSpectatorVoted(true);
+    websocket.send('battle_spectator_vote', { target });
+  };
+
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
     const s = seconds % 60;
@@ -1392,16 +1400,32 @@ export default function SpectatorPage() {
               </div>
             </div>
 
-            {/* Split video: host (left) + opponent (right) — tap opponent to visit their stream */}
+            {/* Spectator tap vote indicator */}
+            <div className="flex justify-center py-0.5 z-30">
+              <div className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#13151A]/70 backdrop-blur-md border border-[#C9A96E]/30">
+                <span className={`text-[9px] font-bold ${spectatorVoted ? 'text-white/40' : 'text-white'}`}>
+                  {spectatorVoted ? 'Voted +5' : 'Tap a side to vote +5'}
+                </span>
+              </div>
+            </div>
+
+            {/* Split video: host (left, tap to vote) + opponent (right, tap to visit) */}
             <div className="flex-1 flex flex-row min-h-0">
-              <div className="w-1/2 relative pointer-events-auto">
+              {/* Host side — tap to vote +5 */}
+              <div
+                className="w-1/2 relative pointer-events-auto cursor-pointer"
+                onClick={() => handleSpectatorVote('host')}
+              >
                 {/* Host video is rendered behind this overlay */}
               </div>
+              {/* Opponent side — tap to visit their stream */}
               <div
                 className="w-1/2 relative bg-[#13151A] pointer-events-auto cursor-pointer"
                 onClick={() => {
                   if (spectatorBattle.opponentRoomId) {
                     navigate(`/watch/${spectatorBattle.opponentRoomId}`);
+                  } else {
+                    handleSpectatorVote('opponent');
                   }
                 }}
               >
@@ -1423,12 +1447,45 @@ export default function SpectatorPage() {
                     </div>
                   </div>
                 )}
-                {/* Tap hint */}
                 {spectatorBattle.opponentRoomId && (
                   <div className="absolute bottom-1 left-0 right-0 flex justify-center pointer-events-none">
                     <span className="text-white/50 text-[8px] bg-black/40 rounded px-1.5 py-0.5">Tap to visit</span>
                   </div>
                 )}
+              </div>
+            </div>
+
+            {/* 6 MVP circles: 3 left (host gifters) + 3 right (opponent gifters) — placeholder until gifts are sent */}
+            <div className="w-full px-3 py-1.5 flex items-center justify-between flex-none pointer-events-none z-30">
+              <div className="flex items-center gap-1">
+                {[1, 2, 3].map((i) => (
+                  <div key={`mvp-l-${i}`} className="flex flex-col items-center">
+                    <div className="relative">
+                      <div className="w-[34px] h-[34px] rounded-full border-2 border-dashed border-white/20 bg-[#13151A]/50 flex items-center justify-center">
+                        <span className="text-white/20 text-[9px]">{i}</span>
+                      </div>
+                      <div className={`absolute -top-1.5 -right-1 rounded-full w-4 h-4 flex items-center justify-center border border-black shadow-lg z-10 text-[7px] font-black ${i === 1 ? 'bg-[#C9A96E] text-black' : i === 2 ? 'bg-white/80 text-black' : 'bg-[#CD7F32] text-black'}`}>
+                        {i}
+                      </div>
+                    </div>
+                    <span className={`text-[7px] font-bold mt-0.5 ${i === 1 ? 'text-[#C9A96E]' : 'text-white/50'}`}>MVP</span>
+                  </div>
+                ))}
+              </div>
+              <div className="flex items-center gap-1">
+                {[1, 2, 3].map((i) => (
+                  <div key={`mvp-r-${i}`} className="flex flex-col items-center">
+                    <div className="relative">
+                      <div className="w-[34px] h-[34px] rounded-full border-2 border-dashed border-white/20 bg-[#13151A]/50 flex items-center justify-center">
+                        <span className="text-white/20 text-[9px]">{i}</span>
+                      </div>
+                      <div className={`absolute -top-1.5 -right-1 rounded-full w-4 h-4 flex items-center justify-center border border-black shadow-lg z-10 text-[7px] font-black ${i === 1 ? 'bg-[#C9A96E] text-black' : i === 2 ? 'bg-white/80 text-black' : 'bg-[#CD7F32] text-black'}`}>
+                        {i}
+                      </div>
+                    </div>
+                    <span className={`text-[7px] font-bold mt-0.5 ${i === 1 ? 'text-[#C9A96E]' : 'text-white/50'}`}>MVP</span>
+                  </div>
+                ))}
               </div>
             </div>
           </div>

@@ -1416,6 +1416,16 @@ async function handleMessage(client: Client, event: string, data: any) {
         break;
       }
 
+      case "battle_spectator_vote": {
+        const voteRoom = client.roomId;
+        const voteBattle = battles.get(voteRoom);
+        if (!voteBattle || voteBattle.status !== "ACTIVE") break;
+        const voteTarget = data.target === "host" ? "host" : "opponent";
+        addBattleScoreForTarget(voteRoom, voteTarget, 5);
+        sendToClient(client, "battle_vote_ack", { target: voteTarget, points: 5 });
+        break;
+      }
+
       case "battle_end": {
         // Host manually ends battle
         const bSession = battles.get(client.roomId);

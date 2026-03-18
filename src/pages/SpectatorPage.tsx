@@ -699,6 +699,7 @@ export default function SpectatorPage() {
         actualViewersRef.current.clear();
         roomUsers = viewers.map((v: any) => v.user_id).filter(Boolean);
         hostFoundInRoom = false;
+        let count = 0;
         for (const v of viewers) {
           if (v.user_id === hid || v.user_id === effectiveStreamId || v.is_host) {
             hostFoundInRoom = true;
@@ -708,8 +709,10 @@ export default function SpectatorPage() {
               avatar: v.avatar_url || '',
               level: v.level || 1,
             });
+            count++;
           }
         }
+        setViewerCount(Math.max(count, viewers.length - 1));
         if (!hostFoundInRoom && !hid) {
           hostFoundInRoom = true;
         }

@@ -1367,10 +1367,7 @@ async function handleMessage(client: Client, event: string, data: any) {
           session.opponentName = opponentName;
           session.opponentRoomId = opponentRoomId;
           if (opponentUserId) userBattleRoom.set(opponentUserId, client.roomId);
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/index.ts:battle_create_waiting',message:'Battle created with opponent pre-filled, status stays WAITING until opponent joins',data:{roomId:client.roomId,status:session.status,opponentUserId,opponentName},timestamp:Date.now(),hypothesisId:'D'})}).catch(()=>{});
-          // #endregion
-          broadcastBattleState(client.roomId, session);
+          startBattleTimer(client.roomId);
         } else {
           sendToClient(client, "battle_created", {
             battleId: session.id,

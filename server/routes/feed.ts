@@ -7,6 +7,7 @@ import {
   decrementStat,
 } from "../lib/videoStore";
 import { getPool } from "../lib/postgres";
+import { getTokenFromRequest, verifyAuthToken } from "./auth";
 
 const SCORE_WEIGHTS = {
   watch_time: 2,
@@ -72,19 +73,10 @@ function checkRateLimit(key: string): boolean {
 }
 
 async function getUserId(req: Request): Promise<string | null> {
-  const db = getPool();
-  if (!db) return null;
-  const authHeader = req.headers.authorization;
-  if (!authHeader?.startsWith("Bearer ")) return null;
-  const token = authHeader.slice(7);
-  try {
-    const {
-      data: { user },
-    } = await db.auth.getUser(token);
-    return user?.id || null;
-  } catch {
-    return null;
-  }
+  const token = getTokenFromRequest(req);
+  if (!token) return null;
+  const payload = verifyAuthToken(token);
+  return payload?.sub ?? null;
 }
 
 async function getTrendingVideos(limit: number): Promise<any[]> {
@@ -313,104 +305,77 @@ export async function handleForYouFeed(req: Request, res: Response) {
     );
     const offset = (page - 1) * limit;
 
-    // If DB is available, try the full personalized pipeline
     const db = getPool();
     if (db) {
-      const userId = await getUserId(req);
-
-      const cacheKey = userId
-        ? `${userId}:${page}:${limit}`
-        : `anon:${page}:${limit}`;
+      // Postgres Pool is configured: serve from our `videos` table.
+      // This keeps uploads persistent across refresh/reload.
+      const cacheKey = `pg:${page}:${limit}`;
       const cached = feedCache.get(cacheKey);
       if (cached && Date.now() - cached.ts < CACHE_TTL) {
-        return res.json({ videos: cached.data, page, limit, source: "cache" });
+        return res.json({
+          videos: cached.data,
+          page,
+          limit,
+          hasMore: true,
+          total: cached.data.length,
+          source: "cache",
+        });
       }
 
-      const allDbVideos = await getTrendingVideos(100);
+      const totalRes = await db.query(`SELECT COUNT(*)::int AS count FROM videos`);
+      const total = Number(totalRes.rows?.[0]?.count ?? 0) || 0;
 
-      let likedSet = new Set<string>();
-      let followingSet = new Set<string>();
-      let ranked: any[];
-
-      if (userId) {
-        const [
-          followingIds,
-          interests,
-          watchedIds,
-          notInterestedIds,
-          likedCategories,
-          userLikes,
-          userFollowing,
-        ] = await Promise.all([
-          getFollowingVideoIds(userId),
-          getUserInterests(userId),
-          getWatchedVideoIds(userId),
-          getNotInterestedIds(userId),
-          getLikedVideoCategories(userId),
-          db
-            .from("likes")
-            .select("video_id")
-            .eq("user_id", userId)
-            .then((r: any) => r.data?.map((d: any) => d.video_id) || []),
-          db
-            .from("followers")
-            .select("following_id")
-            .eq("follower_id", userId)
-            .then((r: any) => r.data?.map((d: any) => d.following_id) || []),
-        ]);
-
-        likedSet = new Set(userLikes);
-        followingSet = new Set(userFollowing);
-
-        const followingVideoIds = new Set(followingIds);
-        const followingVideos = allDbVideos.filter((v: any) => {
-          const uid = v.user?.id || v.user?.user_id || v.user_id;
-          return uid && followingVideoIds.has(v.id);
-        });
-
-        const combinedVideos = [...allDbVideos];
-        followingVideos.forEach((fv: any) => {
-          if (!combinedVideos.find((v) => v.id === fv.id))
-            combinedVideos.push(fv);
-        });
-
-        ranked = personalizeAndRank(
-          combinedVideos,
-          userFollowing,
-          interests,
-          watchedIds,
-          notInterestedIds,
-          likedCategories,
-        );
-      } else {
-        ranked = allDbVideos.map((v: any) => ({
-          ...v,
-          _feedScore: (v.engagement_score || 0) + Math.random() * 20,
-        }));
-        ranked.sort((a: any, b: any) => b._feedScore - a._feedScore);
-      }
-
-      const paginated = ranked.slice(offset, offset + limit);
-      const formatted = paginated.map((v) =>
-        formatVideoForClient(v, likedSet, followingSet),
+      const listRes = await db.query(
+        `SELECT id, url, thumbnail, duration, user_id, username, display_name, avatar,
+                description, hashtags, music, views, likes, comments, shares, saves,
+                created_at, privacy
+         FROM videos
+         ORDER BY created_at DESC
+         LIMIT $1 OFFSET $2`,
+        [limit, offset],
       );
 
-      feedCache.set(cacheKey, { data: formatted, ts: Date.now() });
+      const formatted = (listRes.rows || []).map((v: any) => ({
+        id: String(v.id),
+        url: String(v.url),
+        thumbnail: String(v.thumbnail ?? ""),
+        duration: Number(v.duration ?? 0),
+        user: {
+          id: String(v.user_id ?? "unknown"),
+          username: String(v.username ?? "user"),
+          name: String(v.display_name ?? v.username ?? "User"),
+          avatar: String(v.avatar ?? ""),
+          level: 1,
+          isVerified: false,
+          followers: 0,
+          following: 0,
+        },
+        description: String(v.description ?? ""),
+        hashtags: Array.isArray(v.hashtags) ? v.hashtags : [],
+        music: v.music && typeof v.music === "object" ? v.music : null,
+        stats: {
+          views: Number(v.views ?? 0),
+          likes: Number(v.likes ?? 0),
+          comments: Number(v.comments ?? 0),
+          shares: Number(v.shares ?? 0),
+          saves: Number(v.saves ?? 0),
+        },
+        created_at:
+          v.created_at instanceof Date ? v.created_at.toISOString() : String(v.created_at ?? ""),
+        createdAt:
+          v.created_at instanceof Date ? v.created_at.toISOString() : String(v.created_at ?? ""),
+        privacy: String(v.privacy ?? "public"),
+      }));
 
-      if (feedCache.size > 1000) {
-        const oldest = [...feedCache.entries()].sort(
-          (a, b) => a[1].ts - b[1].ts,
-        );
-        oldest.slice(0, 500).forEach(([k]) => feedCache.delete(k));
-      }
+      feedCache.set(cacheKey, { data: formatted, ts: Date.now() });
 
       return res.json({
         videos: formatted,
         page,
         limit,
-        hasMore: ranked.length > offset + limit,
-        total: ranked.length,
-        source: "live",
+        hasMore: total > offset + limit,
+        total,
+        source: "postgres",
       });
     }
 

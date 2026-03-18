@@ -147,11 +147,11 @@ export default function FriendsFeed() {
                 onClick={() => u.is_live ? navigate(`/watch/${u.id}`) : navigate(`/profile/${u.id}`)}
                 className="flex-shrink-0 flex flex-col items-center gap-1" style={{ width: 95, minWidth: 95 }}
               >
-                <div className="relative flex items-center justify-center" style={{ width: 90, height: 90 }}>
+                <div className="relative flex items-center justify-center" style={{ width: 85, height: 85 }}>
                   {u.is_live ? (
                     <>
-                      <div className="absolute inset-0 rounded-full border-4 border-red-500" style={{ width: 90, height: 90 }} />
-                      <div className="relative rounded-full overflow-hidden flex items-center justify-center" style={{ width: 78, height: 78 }}>
+                      <div className="absolute inset-0 rounded-full border-4 border-red-500" style={{ width: 85, height: 85 }} />
+                      <div className="relative rounded-full overflow-hidden flex items-center justify-center" style={{ width: 85, height: 85 }}>
                         <img
                           src="/Icons/Profile icon.png"
                           alt=""
@@ -162,7 +162,7 @@ export default function FriendsFeed() {
                             src={u.avatar_url}
                             alt={u.name || u.username}
                             className="absolute rounded-full object-cover"
-                            style={{ width: 48, height: 48, top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: -1 }}
+                            style={{ width: 52, height: 52, top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 1 }}
                           />
                         ) : (
                           <span className="absolute text-[#C9A96E] font-bold text-lg z-10" style={{ top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}>
@@ -187,7 +187,7 @@ export default function FriendsFeed() {
                             src={u.avatar_url}
                             alt={u.name || u.username}
                             className="absolute rounded-full object-cover"
-                            style={{ width: 52, height: 52, top: '45%', left: '51%', transform: 'translate(-50%, -50%)', zIndex: -1 }}
+                            style={{ width: 52, height: 52, top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 1 }}
                           />
                         ) : (
                           <span className="absolute text-[#C9A96E] font-bold text-xl z-10" style={{ top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}>

@@ -256,25 +256,9 @@ export default function Shop() {
           </button>
         </div>
 
-        <div className="flex gap-2 px-4 py-3 overflow-x-auto no-scrollbar">
-          {filters.map(f => (
-            <button
-              key={f.key}
-              onClick={() => setActiveFilter(f.key)}
-              className={`px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap border transition-colors ${
-                activeFilter === f.key
-                  ? 'bg-[#C9A96E] text-black border-[#C9A96E]'
-                  : 'bg-white/5 text-white/60 border-white/10'
-              }`}
-            >
-              {f.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Live now circles */}
+        {/* Live now circles — between header and filter bar */}
         {liveUsers.length > 0 && (
-          <div className="px-4 pb-2">
+          <div className="px-4 pt-2 pb-1">
             <div className="flex items-center justify-between mb-1">
               <span className="text-[11px] font-bold text-white/60">LIVE now</span>
               <button
@@ -292,24 +276,54 @@ export default function Shop() {
                   type="button"
                   onClick={() => navigate(`/watch/${u.streamKey}`)}
                   className="flex-shrink-0 flex flex-col items-center gap-1 active:scale-95 transition-transform"
-                  style={{ width: 64, minWidth: 64 }}
+                  style={{ width: 58, minWidth: 58 }}
                   title={u.name}
                 >
-                  <div className="relative w-12 h-12 flex items-center justify-center">
-                    <div className="absolute inset-0 rounded-full border-[3px] border-red-500" />
-                    <div className="relative rounded-full overflow-hidden" style={{ width: 42, height: 42 }}>
-                      <AvatarRing src={u.avatar || ''} alt={u.name} size={42} />
+                  {/* Keep the golden frame; just add a red LIVE ring on top */}
+                  <div className="relative flex items-center justify-center" style={{ width: 85, height: 85 }}>
+                    <div className="absolute inset-0 rounded-full border-4 border-red-500" style={{ width: 85, height: 85 }} />
+                    <div className="relative" style={{ width: 85, height: 85 }}>
+                      <img src="/Icons/Profile icon.png" alt="" className="w-full h-full object-contain" />
+                      {u.avatar ? (
+                        <img
+                          src={u.avatar}
+                          alt={u.name}
+                          className="absolute rounded-full object-cover"
+                          style={{ width: 52, height: 52, top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 1 }}
+                        />
+                      ) : (
+                        <span className="absolute text-[#C9A96E] font-bold text-xl z-10" style={{ top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}>
+                          {(u.name || 'U').charAt(0).toUpperCase()}
+                        </span>
+                      )}
                     </div>
-                    <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 bg-red-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded z-20">
+                    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 bg-red-500 text-white text-[9px] font-bold px-2 py-0.5 rounded z-20 whitespace-nowrap">
                       LIVE
                     </div>
                   </div>
-                  <div className="text-[10px] text-white/70 truncate w-full text-center">{u.name}</div>
+                  <div className="text-[9px] text-white/70 truncate w-full text-center">{u.name}</div>
                 </button>
               ))}
             </div>
           </div>
         )}
+
+        {/* Filter bar (All / Clothing / ...) */}
+        <div className="flex gap-2 px-4 py-3 overflow-x-auto no-scrollbar">
+          {filters.map(f => (
+            <button
+              key={f.key}
+              onClick={() => setActiveFilter(f.key)}
+              className={`px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap border transition-colors ${
+                activeFilter === f.key
+                  ? 'bg-[#C9A96E] text-black border-[#C9A96E]'
+                  : 'bg-white/5 text-white/60 border-white/10'
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
 
         {loading ? (
           <div className="flex-1 flex items-center justify-center py-20">

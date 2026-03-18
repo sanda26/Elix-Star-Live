@@ -517,9 +517,18 @@ export const useAuthStore = create<AuthStore>()(persist((set, get) => ({
   // ── Check session (app boot / token refresh) ─────────────────────────────
   checkUser: async () => {
     try {
+      const existing = get();
+      const bearer =
+        existing.session?.access_token ||
+        (existing.session as any)?.accessToken ||
+        (existing.session as any)?.access_token ||
+        undefined;
       const res = await fetch(apiUrl("/api/auth/me"), {
         method: "GET",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(bearer ? { Authorization: `Bearer ${bearer}` } : {}),
+        },
         credentials: "include",
       });
 
@@ -527,6 +536,13 @@ export const useAuthStore = create<AuthStore>()(persist((set, get) => ({
         // #region agent log
         fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useAuthStore.ts:checkUser',message:'auth/me not ok',data:{status:res.status},timestamp:Date.now(),runId:'auth-pre-fix',hypothesisId:'A1'})}).catch(()=>{});
         // #endregion
+        // If cookies are blocked but we still have a persisted session token,
+        // keep the user logged in instead of wiping state on refresh.
+        const st = get();
+        if (st.session?.access_token || (st.session as any)?.accessToken || st.user) {
+          set({ isLoading: false });
+          return;
+        }
         set({
           backendUser: null,
           session: null,

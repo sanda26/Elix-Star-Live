@@ -6,6 +6,7 @@ import { useAuthStore } from '../store/useAuthStore';
 import { useVideoStore } from '../store/useVideoStore';
 import { trackScreenView } from '../lib/analytics';
 import EnhancedVideoPlayer from '../components/EnhancedVideoPlayer';
+import { apiUrl } from '../lib/api';
 
 interface FollowingUser {
   id: string;
@@ -21,6 +22,7 @@ export default function FollowingFeed() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const { friendVideos, fetchFriendVideos, friendsLoading: loading } = useVideoStore();
+  const followingIds = useVideoStore((s) => s.followingUsers);
   const [followingUsers, setFollowingUsers] = useState<FollowingUser[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -37,75 +39,68 @@ export default function FollowingFeed() {
   const loadData = async () => {
     if (!user?.id) return;
     try {
-      const { data: followData } = await apiStub
-        .from('followers')
-        .select('following_id')
-        .eq('follower_id', user.id);
-      const followingIds = (followData || []).map((f: any) => f.following_id);
+      const [profilesRes, streamsRes] = await Promise.all([
+        fetch(apiUrl('/api/profiles'), { credentials: 'include' }),
+        fetch(apiUrl('/api/live/streams'), { credentials: 'include' }).catch(() => null as any),
+      ]);
 
-      const { data: liveData } = await apiStub
-        .from('live_streams')
-        .select('id, user_id')
-        .eq('is_live', true);
-      const liveList = liveData || [];
-      const liveUserIds = [...new Set(liveList.map((s: any) => s.user_id))];
-      const liveMap = new Map<string, string>();
-      liveList.forEach((s: any) => liveMap.set(s.user_id, s.id));
+      const profilesBody = await profilesRes.json().catch(() => ({ profiles: [] }));
+      const streamsBody = streamsRes ? await streamsRes.json().catch(() => ({ streams: [] })) : { streams: [] };
 
-      const allLiveUserIds = liveUserIds.length ? liveUserIds : [];
-      const followingSet = new Set(followingIds);
-
-      const idsToFetch = followingIds.length > 0
-        ? [...new Set([...followingIds, ...allLiveUserIds])]
-        : allLiveUserIds;
-      if (idsToFetch.length === 0) {
-        setFollowingUsers([]);
-        return;
+      const profiles = Array.isArray(profilesBody?.profiles) ? profilesBody.profiles : [];
+      const byId = new Map<string, any>();
+      for (const p of profiles) {
+        const id = String(p.user_id ?? p.userId ?? '');
+        if (!id) continue;
+        byId.set(id, p);
       }
 
-      const { data: profilesData } = await apiStub
-        .from('profiles')
-        .select('user_id, username, display_name, avatar_url')
-        .in('user_id', idsToFetch);
+      const streams = Array.isArray(streamsBody?.streams) ? streamsBody.streams : [];
+      const liveMap = new Map<string, string>();
+      for (const s of streams) {
+        const uid = String(s.user_id ?? s.userId ?? '');
+        const streamKey = String(s.stream_key ?? s.streamKey ?? s.room_id ?? uid);
+        if (uid && streamKey) liveMap.set(uid, streamKey);
+      }
 
-      const profiles = profilesData || [];
-      const followingWithLive = followingIds
-        .map((id: string) => {
-          const p = profiles.find((r: any) => r.user_id === id);
-          if (!p) return null;
-          const isLive = liveMap.has(id);
+      const followingSet = new Set(followingIds || []);
+
+      const followingUsersList: FollowingUser[] = (followingIds || [])
+        .filter((id) => id && id !== user.id)
+        .map((id) => {
+          const p = byId.get(id);
           return {
-            id: p.user_id,
-            username: p.username || 'user',
-            name: (p.display_name || p.username || 'User') as string,
-            avatar_url: p.avatar_url,
-            is_live: isLive,
-            stream_id: liveMap.get(p.user_id),
+            id,
+            username: String(p?.username ?? 'user'),
+            name: String(p?.display_name ?? p?.displayName ?? p?.username ?? 'User'),
+            avatar_url: (p?.avatar_url ?? p?.avatarUrl ?? null) as any,
+            is_live: liveMap.has(id),
+            stream_id: liveMap.get(id),
             is_following: true,
-          } as FollowingUser;
-        })
-        .filter(Boolean) as FollowingUser[];
+          };
+        });
 
-      const otherLiveIds = allLiveUserIds.filter((id: string) => !followingSet.has(id));
-      const otherLiveUsers: FollowingUser[] = otherLiveIds.map((id: string) => {
-        const p = profiles.find((r: any) => r.user_id === id);
-        return {
-          id,
-          username: p?.username || 'user',
-          name: (p?.display_name || p?.username || 'User') as string,
-          avatar_url: p?.avatar_url || null,
-          is_live: true,
-          stream_id: liveMap.get(id),
-          is_following: false,
-        };
-      });
+      const otherLiveUsers: FollowingUser[] = Array.from(liveMap.entries())
+        .filter(([uid]) => uid && uid !== user.id && !followingSet.has(uid))
+        .map(([uid, streamKey]) => {
+          const p = byId.get(uid);
+          return {
+            id: uid,
+            username: String(p?.username ?? 'user'),
+            name: String(p?.display_name ?? p?.displayName ?? p?.username ?? 'User'),
+            avatar_url: (p?.avatar_url ?? p?.avatarUrl ?? null) as any,
+            is_live: true,
+            stream_id: streamKey,
+            is_following: false,
+          };
+        });
 
-      const liveFollowers = followingWithLive.filter((u) => u.is_live);
-      const nonLiveFollowers = followingWithLive.filter((u) => !u.is_live);
-      const circleUsers = [...liveFollowers, ...otherLiveUsers, ...nonLiveFollowers];
-
-      setFollowingUsers(circleUsers);
-    } catch {}
+      const liveFollowers = followingUsersList.filter((u) => u.is_live);
+      const nonLiveFollowers = followingUsersList.filter((u) => !u.is_live);
+      setFollowingUsers([...liveFollowers, ...otherLiveUsers, ...nonLiveFollowers]);
+    } catch {
+      setFollowingUsers([]);
+    }
   };
 
   const handleScroll = () => {
@@ -195,8 +190,9 @@ export default function FollowingFeed() {
                   <div className="relative flex items-center justify-center" style={{ width: 90, height: 90 }}>
                     {u.is_live ? (
                       <>
-                        <div className="absolute inset-0 rounded-full border-4 border-red-500" style={{ width: 90, height: 90 }} />
-                        <div className="relative rounded-full overflow-hidden flex items-center justify-center" style={{ width: 78, height: 78 }}>
+                        {/* Keep the golden frame; just add a red LIVE ring on top */}
+                        <div className="absolute inset-0 rounded-full border-4 border-red-500" style={{ width: 85, height: 85 }} />
+                        <div className="relative" style={{ width: 85, height: 85 }}>
                           <img
                             src="/Icons/Profile icon.png"
                             alt=""
@@ -207,7 +203,7 @@ export default function FollowingFeed() {
                               src={u.avatar_url}
                               alt={u.name || u.username}
                               className="absolute rounded-full object-cover"
-                              style={{ width: 48, height: 48, top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: -1 }}
+                              style={{ width: 52, height: 52, top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 1 }}
                             />
                           ) : (
                             <span className="absolute text-[#C9A96E] font-bold text-lg z-10" style={{ top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}>
@@ -232,7 +228,7 @@ export default function FollowingFeed() {
                               src={u.avatar_url}
                               alt={u.name || u.username}
                               className="absolute rounded-full object-cover"
-                              style={{ width: 52, height: 52, top: '45%', left: '51%', transform: 'translate(-50%, -50%)', zIndex: -1 }}
+                              style={{ width: 52, height: 52, top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 1 }}
                             />
                           ) : (
                             <span className="absolute text-[#C9A96E] font-bold text-xl z-10" style={{ top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}>

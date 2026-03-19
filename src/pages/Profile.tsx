@@ -127,7 +127,7 @@ export default function Profile() {
   };
   
   const displayName = isOwnProfile
-    ? (user?.name || profileData?.display_name || profileData?.username || user?.email?.split('@')[0] || 'User')
+    ? (profileData?.display_name || user?.name || profileData?.username || user?.email?.split('@')[0] || 'User')
     : (profileData?.display_name || profileData?.username || displayUserId || 'User');
   const rawUsername = isOwnProfile
     ? (user?.email?.split('@')[0] || profileData?.username || 'user')

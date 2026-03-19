@@ -322,7 +322,7 @@ export async function handleForYouFeed(req: Request, res: Response) {
         });
       }
 
-      const totalRes = await db.query(`SELECT COUNT(*)::int AS count FROM videos`);
+      const totalRes = await db.query(`SELECT COUNT(*)::int AS count FROM videos WHERE COALESCE(url, '') != ''`);
       const total = Number(totalRes.rows?.[0]?.count ?? 0) || 0;
 
       const listRes = await db.query(
@@ -330,6 +330,7 @@ export async function handleForYouFeed(req: Request, res: Response) {
                 description, hashtags, music, views, likes, comments, shares, saves,
                 created_at, privacy
          FROM videos
+         WHERE COALESCE(url, '') != ''
          ORDER BY created_at DESC
          LIMIT $1 OFFSET $2`,
         [limit, offset],

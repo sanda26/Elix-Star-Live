@@ -407,7 +407,7 @@ app.post("/api/videos", async (req, res) => {
 });
 
 app.get("/api/videos", (_req, res) => {
-  const videos = getAllVideos();
+  const videos = getAllVideos().filter(v => v.url && v.url.trim());
   res.json({ videos, total: videos.length });
 });
 

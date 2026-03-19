@@ -1,6 +1,6 @@
 import React from 'react';
-import { apiStub } from '../lib/apiStub';
 import { nativeConfirm } from '../components/NativeDialog';
+import { apiUrl } from '../lib/api';
 import {
   ChevronRight,
   User,
@@ -45,11 +45,12 @@ export default function Settings() {
     if (!doubleConfirm) return;
 
     try {
-      const response = await fetch('/api/auth/delete', {
+      const session = useAuthStore.getState().session;
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
+      const response = await fetch(apiUrl('/api/auth/delete'), {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         credentials: 'include',
       });
 

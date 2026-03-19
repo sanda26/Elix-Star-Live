@@ -77,68 +77,56 @@ export default function Settings() {
     }
   };
 
-  return (
-    <div className="bg-[#13151A] text-white min-h-screen pb-[100px]">
-      {toast && <div className="fixed top-12 left-1/2 -translate-x-1/2 bg-white/10 backdrop-blur-md text-white text-xs px-3 py-1.5 rounded-lg z-[9999] animate-pulse">{toast}</div>}
+  const R = ({ ic, t, v, fn }: { ic?: React.ReactNode; t: string; v?: string; fn: () => void }) => (
+    <button onClick={fn} className="w-full flex items-center gap-1.5 px-1 py-[5px] active:bg-white/5 text-left">
+      {ic && <span className="text-[#C9A96E]/60 shrink-0">{ic}</span>}
+      <span className="flex-1 text-[11px] text-white/80">{t}</span>
+      {v && <span className="text-[9px] text-white/35">{v}</span>}
+      <ChevronRight size={10} className="text-white/20 shrink-0" />
+    </button>
+  );
+  const S = ({ t }: { t: string }) => <p className="text-[8px] text-white/25 uppercase tracking-[0.15em] mt-2 mb-0 px-1">{t}</p>;
 
-      <div className="sticky top-0 z-10 px-3 py-2 flex items-center gap-2 bg-[#13151A]">
-        <button onClick={() => navigate(-1)} className="p-1" title="Back">
-          <ChevronRight className="w-4 h-4 text-white/60 rotate-180" />
-        </button>
-        <h1 className="text-sm font-bold text-[#C9A96E]">Settings</h1>
+  return (
+    <div className="bg-[#13151A] text-white min-h-screen pb-[90px]">
+      {toast && <div className="fixed top-10 left-1/2 -translate-x-1/2 bg-white/10 backdrop-blur text-white text-[10px] px-3 py-1 rounded-lg z-[9999]">{toast}</div>}
+
+      <div className="px-2 py-1.5 flex items-center gap-1.5">
+        <button onClick={() => navigate(-1)} className="p-0.5"><ChevronRight size={13} className="text-white/50 rotate-180" /></button>
+        <span className="text-[12px] font-bold text-[#C9A96E]">Settings</span>
       </div>
 
       <div className="px-2">
-        <SectionLabel text="Account" />
-        <Row icon={<User size={15} />} label="Edit Profile" onClick={() => navigate('/edit-profile')} />
-        <Row icon={<Lock size={15} />} label="Privacy" onClick={() => navigate('/settings/safety')} />
-        <Row icon={<Shield size={15} />} label="Security" onClick={() => navigate('/settings/safety')} />
+        <S t="Account" />
+        <R ic={<User size={13} />} t="Edit Profile" fn={() => navigate('/edit-profile')} />
+        <R ic={<Lock size={13} />} t="Privacy" fn={() => navigate('/settings/safety')} />
+        <R ic={<Shield size={13} />} t="Security" fn={() => navigate('/settings/safety')} />
+        <S t="Preferences" />
+        <R ic={<Bell size={13} />} t="Notifications" fn={() => navigate('/settings/safety')} />
+        <R ic={<Moon size={13} />} t="Dark Mode" v="On" fn={() => showToast('Always on')} />
+        <R ic={<Globe size={13} />} t="Language" v="EN" fn={() => showToast('English only')} />
+        <S t="Content" />
+        <R ic={<Video size={13} />} t="Video Quality" v="Auto" fn={() => showToast('Auto')} />
+        <R ic={<Heart size={13} />} t="Liked Videos" fn={() => navigate('/profile?tab=liked')} />
+        <S t="Safety" />
+        <R ic={<Ban size={13} />} t="Blocked Accounts" fn={() => navigate('/settings/blocked')} />
+        <R ic={<Shield size={13} />} t="Safety Center" fn={() => navigate('/settings/safety')} />
+        <S t="Support" />
+        <R ic={<HelpCircle size={13} />} t="Help & Support" fn={() => navigate('/support')} />
+        <R t="Terms" fn={() => navigate('/terms')} />
+        <R t="Privacy Policy" fn={() => navigate('/privacy')} />
+        <R t="Guidelines" fn={() => navigate('/guidelines')} />
 
-        <SectionLabel text="Preferences" />
-        <Row icon={<Bell size={15} />} label="Notifications" onClick={() => navigate('/settings/safety')} />
-        <Row icon={<Moon size={15} />} label="Dark Mode" value="On" onClick={() => showToast('Dark mode is always on.')} />
-        <Row icon={<Globe size={15} />} label="Language" value="EN" onClick={() => showToast('English only for now.')} />
-
-        <SectionLabel text="Content" />
-        <Row icon={<Video size={15} />} label="Video Quality" value="Auto" onClick={() => showToast('Auto quality based on connection.')} />
-        <Row icon={<Heart size={15} />} label="Liked Videos" onClick={() => navigate('/profile?tab=liked')} />
-
-        <SectionLabel text="Safety" />
-        <Row icon={<Ban size={15} />} label="Blocked Accounts" onClick={() => navigate('/settings/blocked')} />
-        <Row icon={<Shield size={15} />} label="Safety Center" onClick={() => navigate('/settings/safety')} />
-
-        <SectionLabel text="Support" />
-        <Row icon={<HelpCircle size={15} />} label="Help & Support" onClick={() => navigate('/support')} />
-        <Row label="Terms of Service" onClick={() => navigate('/terms')} />
-        <Row label="Privacy Policy" onClick={() => navigate('/privacy')} />
-        <Row label="Guidelines" onClick={() => navigate('/guidelines')} />
-
-        <div className="mt-4 space-y-1">
-          <button onClick={handleLogout} className="w-full flex items-center justify-center gap-1.5 py-2 text-white/70 text-xs active:bg-white/5">
-            <LogOut size={14} /> Log Out
+        <div className="mt-2 flex items-center justify-center gap-4">
+          <button onClick={handleLogout} className="flex items-center gap-1 py-1 text-white/50 text-[10px] active:bg-white/5 px-3 rounded">
+            <LogOut size={11} /> Log Out
           </button>
-          <button onClick={handleDeleteAccount} className="w-full flex items-center justify-center gap-1.5 py-2 text-red-400 text-xs active:bg-red-500/10">
-            <Trash2 size={14} /> Delete Account
+          <button onClick={handleDeleteAccount} className="flex items-center gap-1 py-1 text-red-400/70 text-[10px] active:bg-red-500/10 px-3 rounded">
+            <Trash2 size={11} /> Delete
           </button>
         </div>
-
-        <div className="text-center text-[9px] text-white/30 pt-3 pb-2">v1.0.0</div>
+        <p className="text-center text-[8px] text-white/20 mt-1">v1.0.0</p>
       </div>
     </div>
-  );
-}
-
-function SectionLabel({ text }: { text: string }) {
-  return <p className="text-[9px] font-semibold text-white/30 uppercase tracking-widest mt-3 mb-0.5 px-1">{text}</p>;
-}
-
-function Row({ icon, label, value, onClick }: { icon?: React.ReactNode; label: string; value?: string; onClick: () => void }) {
-  return (
-    <button onClick={onClick} className="w-full flex items-center gap-2 px-2 py-2 active:bg-white/5 text-left">
-      {icon && <span className="text-[#C9A96E]/70 shrink-0">{icon}</span>}
-      <span className="flex-1 text-xs text-white/90">{label}</span>
-      {value && <span className="text-[10px] text-white/40">{value}</span>}
-      <ChevronRight size={12} className="text-white/30 shrink-0" />
-    </button>
   );
 }

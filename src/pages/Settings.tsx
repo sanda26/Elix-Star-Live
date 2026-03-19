@@ -88,15 +88,15 @@ export default function Settings() {
   const S = ({ t }: { t: string }) => <p className="text-[8px] text-white/25 uppercase tracking-[0.15em] mt-2 mb-0 px-1">{t}</p>;
 
   return (
-    <div className="bg-[#13151A] text-white min-h-screen pb-[90px]">
+    <div className="bg-[#13151A] text-white min-h-screen flex flex-col items-center pb-[90px]">
       {toast && <div className="fixed top-10 left-1/2 -translate-x-1/2 bg-white/10 backdrop-blur text-white text-[10px] px-3 py-1 rounded-lg z-[9999]">{toast}</div>}
 
-      <div className="px-2 py-1.5 flex items-center gap-1.5">
-        <button onClick={() => navigate(-1)} className="p-0.5"><ChevronRight size={13} className="text-white/50 rotate-180" /></button>
-        <span className="text-[12px] font-bold text-[#C9A96E]">Settings</span>
-      </div>
+      <div className="w-full max-w-[360px] px-3">
+        <div className="py-2 flex items-center justify-center gap-2">
+          <img src="/Icons/Gold power buton.png" alt="" className="w-4 h-4 opacity-70 cursor-pointer" onClick={() => navigate(-1)} />
+          <span className="text-[12px] font-bold text-[#C9A96E]">Settings</span>
+        </div>
 
-      <div className="px-2">
         <S t="Account" />
         <R ic={<User size={13} />} t="Edit Profile" fn={() => navigate('/edit-profile')} />
         <R ic={<Lock size={13} />} t="Privacy" fn={() => navigate('/settings/safety')} />

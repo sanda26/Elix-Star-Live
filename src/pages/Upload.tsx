@@ -679,7 +679,7 @@ export default function Upload() {
                   </button>
 
                   {/* Retake + Post (moved down) */}
-                  <div className="absolute bottom-[7%] right-[5%] flex flex-col items-center gap-4 z-30 pointer-events-auto translate-x-[10mm]">
+                  <div className="absolute bottom-[7%] right-[5%] flex flex-col items-center gap-4 z-30 pointer-events-auto">
                     <button
                       onClick={handleDiscard}
                       className="flex flex-col items-center gap-1 group"

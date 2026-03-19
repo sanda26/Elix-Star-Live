@@ -66,158 +66,67 @@ export default function Settings() {
   };
 
   return (
-    <div className="bg-[#13151A] text-white flex justify-center px-2">
-      {toast && <div className="fixed top-16 left-1/2 -translate-x-1/2 bg-white/10 backdrop-blur-md text-white text-sm px-4 py-2 rounded-xl z-[9999] animate-pulse">{toast}</div>}
-      <div className="w-full max-w-[420px] rounded-3xl overflow-hidden bg-[#13151A] flex flex-col shadow-[0_0_20px_rgba(0,0,0,0.7)]">
-      {/* Header */}
-      <div className="sticky top-0 z-10 px-3 py-3 flex items-center gap-2 bg-[#13151A]/98 backdrop-blur">
-        <button onClick={() => navigate('/feed')} className="p-1 hover:brightness-125 transition" title="Back to For You">
-          <img src="/Icons/Gold power buton.png" alt="Back" className="w-5 h-5" />
+    <div className="bg-[#13151A] text-white min-h-screen pb-[100px]">
+      {toast && <div className="fixed top-12 left-1/2 -translate-x-1/2 bg-white/10 backdrop-blur-md text-white text-xs px-3 py-1.5 rounded-lg z-[9999] animate-pulse">{toast}</div>}
+
+      <div className="sticky top-0 z-10 px-3 py-2 flex items-center gap-2 bg-[#13151A]">
+        <button onClick={() => navigate(-1)} className="p-1" title="Back">
+          <ChevronRight className="w-4 h-4 text-white/60 rotate-180" />
         </button>
-        <h1 className="text-lg font-bold">Settings</h1>
+        <h1 className="text-sm font-bold text-[#C9A96E]">Settings</h1>
       </div>
 
-      <div className="px-3 py-4 space-y-4 flex-1 overflow-y-auto">
-        {/* Account Section */}
-        <Section title="Account">
-          <SettingItem
-            icon={<User className="w-5 h-5" />}
-            label="Edit Profile"
-            onClick={() => navigate('/edit-profile')}
-          />
-          <SettingItem
-            icon={<Lock className="w-5 h-5" />}
-            label="Privacy"
-            onClick={() => navigate('/settings/safety')}
-          />
-          <SettingItem
-            icon={<Shield className="w-5 h-5" />}
-            label="Security"
-            onClick={() => navigate('/settings/safety')}
-          />
-        </Section>
+      <div className="px-2">
+        <SectionLabel text="Account" />
+        <Row icon={<User size={15} />} label="Edit Profile" onClick={() => navigate('/edit-profile')} />
+        <Row icon={<Lock size={15} />} label="Privacy" onClick={() => navigate('/settings/safety')} />
+        <Row icon={<Shield size={15} />} label="Security" onClick={() => navigate('/settings/safety')} />
 
-        {/* Preferences Section */}
-        <Section title="Preferences">
-          <SettingItem
-            icon={<Bell className="w-5 h-5" />}
-            label="Notifications"
-            onClick={() => navigate('/settings/safety')}
-          />
-          <SettingItem
-            icon={<Moon className="w-5 h-5" />}
-            label="Dark Mode"
-            value="Always On"
-            onClick={() => showToast('Dark mode is always on. This app uses dark theme by default.')}
-          />
-          <SettingItem
-            icon={<Globe className="w-5 h-5" />}
-            label="Language"
-            value="English"
-            onClick={() => showToast('English is the only supported language for now.')}
-          />
-        </Section>
+        <SectionLabel text="Preferences" />
+        <Row icon={<Bell size={15} />} label="Notifications" onClick={() => navigate('/settings/safety')} />
+        <Row icon={<Moon size={15} />} label="Dark Mode" value="On" onClick={() => showToast('Dark mode is always on.')} />
+        <Row icon={<Globe size={15} />} label="Language" value="EN" onClick={() => showToast('English only for now.')} />
 
-        {/* Content Section */}
-        <Section title="Content">
-          <SettingItem
-            icon={<Video className="w-5 h-5" />}
-            label="Video Quality"
-            value="Auto"
-            onClick={() => showToast('Video quality adjusts automatically based on your connection.')}
-          />
-          <SettingItem
-            icon={<Heart className="w-5 h-5" />}
-            label="Liked Videos"
-            onClick={() => navigate('/profile?tab=liked')}
-          />
-        </Section>
+        <SectionLabel text="Content" />
+        <Row icon={<Video size={15} />} label="Video Quality" value="Auto" onClick={() => showToast('Auto quality based on connection.')} />
+        <Row icon={<Heart size={15} />} label="Liked Videos" onClick={() => navigate('/profile?tab=liked')} />
 
-        {/* Safety Section */}
-        <Section title="Safety & Privacy">
-          <SettingItem
-            icon={<Ban className="w-5 h-5" />}
-            label="Blocked Accounts"
-            onClick={() => navigate('/settings/blocked')}
-          />
-          <SettingItem
-            icon={<Shield className="w-5 h-5" />}
-            label="Safety Center"
-            onClick={() => navigate('/settings/safety')}
-          />
-        </Section>
+        <SectionLabel text="Safety" />
+        <Row icon={<Ban size={15} />} label="Blocked Accounts" onClick={() => navigate('/settings/blocked')} />
+        <Row icon={<Shield size={15} />} label="Safety Center" onClick={() => navigate('/settings/safety')} />
 
-        {/* Support Section */}
-        <Section title="Support">
-          <SettingItem
-            icon={<HelpCircle className="w-5 h-5" />}
-            label="Help & Support"
-            onClick={() => navigate('/support')}
-          />
-          <SettingItem label="Terms of Service" onClick={() => navigate('/terms')} />
-          <SettingItem label="Privacy Policy" onClick={() => navigate('/privacy')} />
-          <SettingItem label="Community Guidelines" onClick={() => navigate('/guidelines')} />
-        </Section>
+        <SectionLabel text="Support" />
+        <Row icon={<HelpCircle size={15} />} label="Help & Support" onClick={() => navigate('/support')} />
+        <Row label="Terms of Service" onClick={() => navigate('/terms')} />
+        <Row label="Privacy Policy" onClick={() => navigate('/privacy')} />
+        <Row label="Guidelines" onClick={() => navigate('/guidelines')} />
 
-        {/* Actions */}
-        <div className="space-y-2 pt-3">
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl hover:brightness-125 transition text-sm"
-          >
-            <LogOut className="w-5 h-5" />
-            Log Out
+        <div className="mt-4 space-y-1">
+          <button onClick={handleLogout} className="w-full flex items-center justify-center gap-1.5 py-2 text-white/70 text-xs active:bg-white/5">
+            <LogOut size={14} /> Log Out
           </button>
-          <button
-            onClick={handleDeleteAccount}
-            className="w-full flex items-center justify-center gap-2 py-3 bg-red-500/10 text-red-500 rounded-xl hover:bg-red-500/20 transition text-sm"
-          >
-            <Trash2 className="w-5 h-5" />
-            Delete Account
+          <button onClick={handleDeleteAccount} className="w-full flex items-center justify-center gap-1.5 py-2 text-red-400 text-xs active:bg-red-500/10">
+            <Trash2 size={14} /> Delete Account
           </button>
         </div>
 
-        {/* Version */}
-        <div className="text-center text-[10px] text-white/40 pt-4 pb-2">Version 1.0.0</div>
-      </div>
+        <div className="text-center text-[9px] text-white/30 pt-3 pb-2">v1.0.0</div>
       </div>
     </div>
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="space-y-1">
-      <h2 className="text-[10px] font-semibold text-white/40 px-1 tracking-[0.15em] uppercase">
-        {title}
-      </h2>
-      <div>
-        {children}
-      </div>
-    </div>
-  );
+function SectionLabel({ text }: { text: string }) {
+  return <p className="text-[9px] font-semibold text-white/30 uppercase tracking-widest mt-3 mb-0.5 px-1">{text}</p>;
 }
 
-function SettingItem({
-  icon,
-  label,
-  value,
-  onClick,
-}: {
-  icon?: React.ReactNode;
-  label: string;
-  value?: string;
-  onClick: () => void;
-}) {
+function Row({ icon, label, value, onClick }: { icon?: React.ReactNode; label: string; value?: string; onClick: () => void }) {
   return (
-    <button
-      onClick={onClick}
-      className="w-full flex items-center gap-2 px-3 py-3 hover:bg-white/5 transition text-left text-sm"
-    >
-      {icon && <div className="text-white/60 shrink-0">{icon}</div>}
-      <span className="flex-1">{label}</span>
-      {value && <span className="text-white/40 text-[11px]">{value}</span>}
-      <ChevronRight className="w-4 h-4 text-white/40 shrink-0" />
+    <button onClick={onClick} className="w-full flex items-center gap-2 px-2 py-2 active:bg-white/5 text-left">
+      {icon && <span className="text-[#C9A96E]/70 shrink-0">{icon}</span>}
+      <span className="flex-1 text-xs text-white/90">{label}</span>
+      {value && <span className="text-[10px] text-white/40">{value}</span>}
+      <ChevronRight size={12} className="text-white/30 shrink-0" />
     </button>
   );
 }

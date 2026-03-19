@@ -109,7 +109,10 @@ export default function Login() {
   return (
     <div className="min-h-[100dvh] h-[100dvh] bg-[#13151A] text-white flex items-center justify-center p-4 xs:p-3 sm:p-4 overflow-y-auto pt-[calc(var(--safe-top)+46px)] pb-[calc(var(--safe-bottom)+110px)]">
       <div className="w-full max-w-[420px] xs:max-w-[320px] sm:max-w-[380px] bg-white/5 border border-white/10 rounded-2xl p-6 xs:p-4 sm:p-5">
-        <h1 className="text-fluid-xl font-bold mb-6 xs:mb-4 sm:mb-5 text-center">Login</h1>
+        <div className="flex justify-center mb-4">
+          <img src="/elix-logo.png" alt="Elix Star Live" className="w-24 h-24 object-contain" />
+        </div>
+        <h1 className="text-fluid-xl font-bold mb-4 xs:mb-3 sm:mb-4 text-center">Login</h1>
 
         <form onSubmit={onSubmit} className="space-y-4 xs:space-y-3 sm:space-y-4">
           <div className="space-y-2">

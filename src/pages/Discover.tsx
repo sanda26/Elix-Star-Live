@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { apiStub } from '../lib/apiStub';
 import { Search, TrendingUp, Hash, Users, Video as VideoIcon, Trophy, Music, Flame, Sparkles, Star, Zap } from 'lucide-react';
 import { trackEvent } from '../lib/analytics';
 import { AvatarRing } from '../components/AvatarRing';
 import { getVideoPosterUrl } from '../lib/bunnyStorage';
+import { apiUrl } from '../lib/api';
+import { useAuthStore } from '../store/useAuthStore';
+import { useVideoStore } from '../store/useVideoStore';
 
 interface Video {
   id: string;
@@ -96,29 +98,32 @@ export default function Discover() {
     setLoading(true);
     setTrendingVideos([]);
     try {
-      const { data: videoRows, error: videoError } = await apiStub
-        .from('videos')
-        .select('*')
-        .eq('is_public', true)
-        .order('created_at', { ascending: false })
-        .limit(30);
+      const session = useAuthStore.getState().session;
+      const headers: Record<string, string> = {};
+      if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
 
-      if (videoError) throw videoError;
-      const list = videoRows || [];
+      const res = await fetch(apiUrl('/api/videos'), { credentials: 'include', headers });
+      if (!res.ok) throw new Error('Failed');
+      const body = await res.json();
+      const list = Array.isArray(body?.videos) ? body.videos : [];
+
 
       if (list.length > 0) {
-        const userIds = [...new Set(list.map((v: any) => v.user_id).filter(Boolean))];
-        const { data: profiles } = await apiStub
-          .from('profiles')
-          .select('user_id, username, avatar_url')
-          .in('user_id', userIds);
+        const profRes = await fetch(apiUrl('/api/profiles'), { credentials: 'include', headers });
+        const allProfiles = profRes.ok ? ((await profRes.json()).profiles || []) : [];
         const profileMap: Record<string, { username: string; avatar_url: string | null }> = {};
-        (profiles || []).forEach((p: any) => {
-          profileMap[p.user_id] = { username: p.username || 'User', avatar_url: p.avatar_url ?? null };
-        });
-        setTrendingVideos(list.map((v: any) => ({
-          ...v,
-          creator: profileMap[v.user_id] ? { username: profileMap[v.user_id].username, avatar_url: profileMap[v.user_id].avatar_url } : { username: 'User', avatar_url: null },
+        allProfiles.forEach((p: any) => { profileMap[p.user_id] = { username: p.username || 'User', avatar_url: p.avatar_url ?? null }; });
+
+        setTrendingVideos(list.slice(0, 30).map((v: any) => ({
+          id: v.id,
+          user_id: v.userId || v.user_id,
+          thumbnail_url: v.thumbnail || v.thumbnail_url || '',
+          url: v.url || '',
+          description: v.description || '',
+          views: v.views || 0,
+          likes: v.likes || 0,
+          engagement_score: 0,
+          creator: profileMap[v.userId || v.user_id] || { username: v.username || 'User', avatar_url: v.avatar || null },
         })));
       }
     } catch {
@@ -131,14 +136,12 @@ export default function Discover() {
   const loadHashtags = async () => {
     setLoading(true);
     try {
-      const { data, error } = await apiStub
-        .from('hashtags')
-        .select('*')
-        .order('use_count', { ascending: false })
-        .limit(50);
-
-      if (error) throw error;
-      setTrendingHashtags(data || []);
+      // Extract hashtags from videos in the store
+      const { videos } = useVideoStore.getState();
+      const tagCount = new Map<string, number>();
+      videos.forEach(v => (v.hashtags || []).forEach(h => tagCount.set(h, (tagCount.get(h) || 0) + 1)));
+      const sorted = [...tagCount.entries()].sort((a, b) => b[1] - a[1]).slice(0, 50);
+      setTrendingHashtags(sorted.map(([name, count], i) => ({ id: i + 1, name, use_count: count, is_trending: count >= 3 })));
     } catch {
       setTrendingHashtags([]);
     } finally {
@@ -149,10 +152,17 @@ export default function Discover() {
   const loadRanking = async () => {
     setLoading(true);
     try {
-      const { data, error } = await apiStub.rpc('get_weekly_creator_ranking', { p_limit: 99 });
-
-      if (error) throw error;
-      setRankings(data || []);
+      const session = useAuthStore.getState().session;
+      const headers: Record<string, string> = {};
+      if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
+      const res = await fetch(apiUrl('/api/profiles'), { credentials: 'include', headers });
+      if (!res.ok) throw new Error('Failed');
+      const allProfiles = (await res.json()).profiles || [];
+      const ranked = allProfiles
+        .map((p: any, i: number) => ({ rank: i + 1, user_id: p.user_id, username: p.username, display_name: p.display_name, avatar_url: p.avatar_url, score: p.followers_count || 0 }))
+        .sort((a: any, b: any) => b.score - a.score)
+        .slice(0, 50);
+      setRankings(ranked);
     } catch {
       setRankings([]);
     } finally {
@@ -162,38 +172,33 @@ export default function Discover() {
 
   const performSearch = async () => {
     if (!searchQuery || searchQuery.length < 2) return;
-
     setLoading(true);
     trackEvent('search_query', { query: searchQuery });
-
     try {
-      const [videosRes, usersRes] = await Promise.all([
-        apiStub
-          .from('videos')
-          .select('*')
-          .eq('is_public', true)
-          .ilike('description', `%${searchQuery}%`)
-          .limit(20),
-        apiStub
-          .from('profiles')
-          .select('user_id, username, avatar_url, followers_count')
-          .ilike('username', `%${searchQuery}%`)
-          .limit(20),
-      ]);
+      const session = useAuthStore.getState().session;
+      const headers: Record<string, string> = {};
+      if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
 
-      const videoList = videosRes.data || [];
-      if (videoList.length > 0) {
-        const userIds = [...new Set(videoList.map((v: any) => v.user_id).filter(Boolean))];
-        const { data: profiles } = await apiStub.from('profiles').select('user_id, username, avatar_url').in('user_id', userIds);
-        const profileMap: Record<string, { username: string; avatar_url: string | null }> = {};
-        (profiles || []).forEach((p: any) => { profileMap[p.user_id] = { username: p.username || 'User', avatar_url: p.avatar_url ?? null }; });
-        setSearchResults({
-          videos: videoList.map((v: any) => ({ ...v, creator: profileMap[v.user_id] || { username: 'User', avatar_url: null } })),
-          users: usersRes.data || [],
-        });
-      } else {
-        setSearchResults({ videos: [], users: usersRes.data || [] });
-      }
+      const [videosRes, profilesRes] = await Promise.all([
+        fetch(apiUrl('/api/videos'), { credentials: 'include', headers }),
+        fetch(apiUrl('/api/profiles'), { credentials: 'include', headers }),
+      ]);
+      const allVids = videosRes.ok ? ((await videosRes.json()).videos || []) : [];
+      const allProfiles = profilesRes.ok ? ((await profilesRes.json()).profiles || []) : [];
+      const q = searchQuery.toLowerCase();
+      const matchedVids = allVids.filter((v: any) => (v.description || '').toLowerCase().includes(q)).slice(0, 20);
+      const matchedUsers = allProfiles.filter((p: any) => (p.username || '').toLowerCase().includes(q) || (p.display_name || '').toLowerCase().includes(q)).slice(0, 20);
+
+      const profileMap: Record<string, { username: string; avatar_url: string | null }> = {};
+      allProfiles.forEach((p: any) => { profileMap[p.user_id] = { username: p.username || 'User', avatar_url: p.avatar_url ?? null }; });
+      setSearchResults({
+        videos: matchedVids.map((v: any) => ({
+          id: v.id, user_id: v.userId || v.user_id, thumbnail_url: v.thumbnail || '', url: v.url || '',
+          description: v.description || '', views: v.views || 0, likes: v.likes || 0, engagement_score: 0,
+          creator: profileMap[v.userId || v.user_id] || { username: v.username || 'User', avatar_url: v.avatar || null },
+        })),
+        users: matchedUsers,
+      });
     } catch {
       setSearchResults({ videos: [], users: [] });
     } finally {

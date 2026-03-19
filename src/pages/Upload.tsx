@@ -8,6 +8,7 @@ import { trackEvent } from '../lib/analytics';
 import { useSettingsStore } from '../store/useSettingsStore';
 import { videoUploadService } from '../lib/videoUpload';
 import { apiStub } from '../lib/apiStub';
+import { nativePrompt } from '../components/NativeDialog';
 import { useAuthStore } from '../store/useAuthStore';
 import AIToolsPanel from '../components/AIToolsPanel';
 
@@ -944,10 +945,10 @@ export default function Upload() {
                       <h2 className="text-white text-xl font-bold">Select Sound</h2>
                       <div className="flex items-center gap-2">
                         <button
-                          onClick={() => {
-                            const url = window.prompt('Paste audio URL (mp3/ogg):');
+                          onClick={async () => {
+                            const url = await nativePrompt('Paste audio URL (mp3/ogg):', '', 'Add Sound');
                             if (!url) return;
-                            const title = window.prompt('Sound name:') ?? 'Custom sound';
+                            const title = (await nativePrompt('Sound name:', 'Custom sound', 'Sound Name')) ?? 'Custom sound';
                             const next: SoundTrack = {
                               id: Date.now(),
                               title: title.trim() || 'Custom sound',

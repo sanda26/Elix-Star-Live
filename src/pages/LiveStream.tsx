@@ -922,9 +922,6 @@ export default function LiveStream() {
           await room.localParticipant.publishTrack(new LocalAudioTrack(audioTrack), { name: 'mic' });
         }
 
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveStream.tsx:battleJoiner_published',message:'Battle opponent published tracks to host room',data:{room:effectiveStreamId,userId:user?.id},timestamp:Date.now(),hypothesisId:'A'})}).catch(()=>{});
-        // #endregion
       } catch (e) {
         console.error('[Battle] LiveKit publish failed:', e);
         showToast('Could not connect video to battle');
@@ -1930,9 +1927,6 @@ export default function LiveStream() {
 
       // Opponent: once connected to the room, tell the server we're joining the battle
       if (isBattleJoiner) {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveStream.tsx:handleRoomState_battle_join',message:'Sending battle_join from opponent',data:{streamId:effectiveStreamId,userId:user?.id,isBattleJoiner},timestamp:Date.now(),hypothesisId:'C'})}).catch(()=>{});
-        // #endregion
         websocket.send('battle_join', { opponentName: user?.username || user?.name || 'Player' });
       }
     };
@@ -2026,9 +2020,6 @@ export default function LiveStream() {
     // Server-controlled battle events — single source of truth
     const handleBattleStateSync = (data: any) => {
       if (!mounted) return;
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveStream.tsx:handleBattleStateSync',message:'battle_state_sync received',data:{status:data.status,opponentUserId:data.opponentUserId,opponentName:data.opponentName,isBroadcast,isBattleJoiner,timeLeft:data.timeLeft},timestamp:Date.now(),hypothesisId:'E'})}).catch(()=>{});
-      // #endregion
       if (data.status === 'WAITING') {
         setIsBattleMode(true);
         setBattleState('INVITING');
@@ -2174,9 +2165,6 @@ export default function LiveStream() {
     };
 
     const handleBattleInviteAccepted = (data: any) => {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveStream.tsx:handleBattleInviteAccepted',message:'battle_invite_accepted received',data:{isBroadcast,requesterUserId:data.requesterUserId,requesterName:data.requesterName,streamKey:data.streamKey},timestamp:Date.now(),hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
       if (!isBroadcast) return;
       const requesterId = data.requesterUserId as string | undefined;
       const requesterName = data.requesterName as string | undefined;
@@ -2186,9 +2174,6 @@ export default function LiveStream() {
       setBattleState('INVITING');
       setOpponentCreatorName(requesterName);
       const oppStreamKey = (data.streamKey as string) || '';
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveStream.tsx:handleBattleInviteAccepted_streamKey',message:'opponentStreamKey being set',data:{oppStreamKey,isHostOwnKey:oppStreamKey===effectiveStreamId},timestamp:Date.now(),hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
       if (oppStreamKey) setOpponentStreamKey(oppStreamKey);
       setBattleSlots(prev => {
         const next = [...prev];
@@ -5009,7 +4994,7 @@ export default function LiveStream() {
                   style={{ marginTop: '6mm' }}
                   onClick={() => sendShareToFollower(f.user_id)}
                 >
-                  <AvatarRing src={f.avatar_url || ''} alt={f.username} size={56} />
+                  <AvatarRing src={f.avatar_url || '/Icons/Profile icon.png'} alt={f.username} size={56} />
                   <span className="text-white/60 text-[10px] font-medium truncate w-16 text-center">{shareSentTo.has(f.user_id) ? 'Sent' : f.username || 'User'}</span>
                 </button>
               ))}

@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { apiStub } from '../lib/apiStub';
 import { useAuthStore } from './useAuthStore';
 import { apiUrl } from '../lib/api';
 import {
@@ -17,6 +16,19 @@ import {
 } from '../lib/interactionTracker';
 import { showToast } from '../lib/toast';
 import { getVideoPosterUrl } from '../lib/bunnyStorage';
+
+async function withRetry<T>(fn: () => Promise<T>, retries = 3, delay = 2000): Promise<T> {
+  for (let i = 0; i <= retries; i++) {
+    try { return await fn(); }
+    catch (err) {
+      if (i === retries) throw err;
+      await new Promise(r => setTimeout(r, delay * (i + 1)));
+    }
+  }
+  throw new Error('Retry exhausted');
+}
+
+let _feedFetchPromise: Promise<void> | null = null;
 
 interface User {
   id: string;
@@ -147,9 +159,11 @@ export const useVideoStore = create<VideoStore>()(
       },
 
       fetchVideos: async () => {
+        if (_feedFetchPromise) return _feedFetchPromise;
+        const doFetch = async () => {
         set({ loading: true });
         try {
-          const { videos: apiVideos } = await fetchForYouFeed(1, 50);
+          const { videos: apiVideos } = await withRetry(() => fetchForYouFeed(1, 50));
           const { likedVideos, savedVideos, followingUsers } = get();
           const likedSet = new Set(likedVideos);
           const savedSet = new Set(savedVideos);
@@ -213,7 +227,12 @@ export const useVideoStore = create<VideoStore>()(
           set({ videos: mappedVideos, loading: false });
         } catch (err) {
           set({ loading: false });
+          if (!navigator.onLine) showToast('No internet connection');
+          else showToast('Failed to load feed. Pull down to retry.');
         }
+        };
+        _feedFetchPromise = doFetch().finally(() => { _feedFetchPromise = null; });
+        return _feedFetchPromise;
       },
 
       fetchStemVideos: async () => {
@@ -233,108 +252,87 @@ export const useVideoStore = create<VideoStore>()(
       fetchFriendVideos: async () => {
         set({ friendsLoading: true });
         try {
-          const { data: { user: authUser } } = await apiStub.auth.getUser();
+          const authUser = useAuthStore.getState().user;
+          const session = useAuthStore.getState().session;
           if (!authUser?.id) {
-            set({ friendVideos: [], friendsLoading: false });
+            set({ friendsLoading: false });
             return;
           }
-          const { data: followData } = await apiStub
-            .from('followers')
-            .select('following_id')
-            .eq('follower_id', authUser.id);
-          const followingIds = (followData ?? []).map((f: { following_id: string }) => f.following_id).filter(Boolean);
-          if (followingIds.length === 0) {
-            set({ friendVideos: [], friendsLoading: false });
-            return;
-          }
-          const { data, error } = await apiStub
-            .from('videos')
-            .select('*')
-            .eq('is_public', true)
-            .in('user_id', followingIds)
-            .order('created_at', { ascending: false })
-            .limit(50);
-          if (error || !data || data.length === 0) {
-            set({ friendVideos: [], friendsLoading: false });
-            return;
-          }
-          const userIds = [...new Set(data.map((v: any) => v.user_id).filter(Boolean))];
-          const profilesMap: Record<string, any> = {};
-          if (userIds.length > 0) {
-            const { data: profiles } = await apiStub
-              .from('profiles')
-              .select('user_id, username, display_name, avatar_url, is_creator, followers_count, following_count')
-              .in('user_id', userIds);
-            if (profiles) {
-              profiles.forEach((p: any) => { profilesMap[p.user_id] = p; });
+          const headers: Record<string, string> = {};
+          if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
+
+          // First load who we follow so followingUsers is up to date
+          const followRes = await fetch(apiUrl(`/api/profiles/${authUser.id}/following`), { credentials: 'include', headers });
+          if (followRes.ok) {
+            const followBody = await followRes.json().catch(() => ({ following: [] }));
+            const ids: string[] = Array.isArray(followBody?.following) ? followBody.following : [];
+            if (ids.length > 0) {
+              set({ followingUsers: ids });
             }
           }
-          let likedIds: string[] = [];
-          let followedUserIds: string[] = [];
-          let savedIds: string[] = [];
-          let blockedUserIds: string[] = [];
-          try {
-            const [{ data: likes }, { data: follows }, { data: saves }, { data: blocks }] = await Promise.all([
-              apiStub.from('likes').select('video_id').eq('user_id', authUser.id),
-              apiStub.from('followers').select('following_id').eq('follower_id', authUser.id),
-              apiStub.from('saved_videos').select('video_id').eq('user_id', authUser.id),
-              apiStub.from('blocked_users').select('blocked_id').eq('blocker_id', authUser.id),
-            ]);
-            likedIds = likes?.map((r: { video_id: string }) => r.video_id) ?? [];
-            followedUserIds = follows?.map((r: { following_id: string }) => r.following_id) ?? [];
-            savedIds = saves?.map((r: { video_id: string }) => r.video_id) ?? [];
-            blockedUserIds = blocks?.map((r: { blocked_id: string }) => r.blocked_id) ?? [];
-          } catch {}
-          const likedSet = new Set(likedIds);
-          const followedSet = new Set(followedUserIds);
-          const savedSet = new Set(savedIds);
-          const blockedSet = new Set(blockedUserIds);
-          const mappedVideos: Video[] = data
-            .filter((v: any) => !blockedSet.has(v.user_id))
-            .map((v: any) => {
-              const p = profilesMap[v.user_id] || {};
-              const displayName = p.display_name || p.username || 'Creator';
-              const uname = p.username || p.display_name || 'creator';
-              return {
-                id: v.id,
-                url: v.url,
-                thumbnail: v.thumbnail_url || getVideoPosterUrl(v.url || ''),
-                duration: '0:15',
-                user: {
-                  id: v.user_id || 'unknown',
-                  username: uname,
-                  name: displayName,
-                  avatar: p.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}`,
-                  level: 1,
-                  isVerified: !!p.is_creator,
-                  followers: p.followers_count || 0,
-                  following: p.following_count || 0
-                },
-                description: v.description || v.caption || '',
-                hashtags: (() => {
-                  if (v.hashtags && Array.isArray(v.hashtags) && v.hashtags.length > 0) return v.hashtags;
-                  const text = v.description || v.caption || '';
-                  const matches = text.match(/#[\w\u00C0-\u024F]+/g);
-                  return matches ? matches.map((t: string) => t.slice(1)) : [];
-                })(),
-                music: { id: 'original', title: 'Original Sound', artist: displayName, duration: '0:15' },
-                stats: { views: v.views || 0, likes: v.likes || 0, comments: v.comments || 0, shares: v.shares || 0, saves: 0 },
-                createdAt: v.created_at,
-                location: v.location || undefined,
-                isLiked: likedSet.has(v.id),
-                isSaved: savedSet.has(v.id),
-                isFollowing: followedSet.has(v.user_id),
-                comments: [],
-                quality: 'auto',
-                privacy: v.is_public ? 'public' : 'private',
-                duetWithVideoId: v.duet_with_video_id || undefined
-              };
-            });
+
+          const { followingUsers } = get();
+          if (followingUsers.length === 0) {
+            set({ friendsLoading: false });
+            return;
+          }
+
+          // Fetch friend videos from server
+          const res = await fetch(apiUrl('/api/feed/friends'), { credentials: 'include', headers });
+          if (!res.ok) {
+            set({ friendsLoading: false });
+            return;
+          }
+          const body = await res.json().catch(() => ({ videos: [] }));
+          const apiVideos = Array.isArray(body?.videos) ? body.videos : [];
+          if (apiVideos.length === 0) {
+            set({ friendVideos: [], friendsLoading: false });
+            return;
+          }
+
+          const { likedVideos, savedVideos } = get();
+          const likedSet = new Set(likedVideos);
+          const savedSet = new Set(savedVideos);
+          const followingSet = new Set(followingUsers);
+
+          const mappedVideos: Video[] = apiVideos.map((v: any) => {
+            const u = v.user || {};
+            const id = String(v.id || '');
+            return {
+              id,
+              url: v.url || '',
+              thumbnail: v.thumbnail || getVideoPosterUrl(v.url || ''),
+              duration: v.duration || '0:15',
+              user: {
+                id: u.id || v.user_id || 'unknown',
+                username: u.username || 'creator',
+                name: u.name || u.username || 'Creator',
+                avatar: u.avatar || '',
+                level: u.level || 1,
+                isVerified: !!u.isVerified,
+                followers: u.followers ?? 0,
+                following: u.following ?? 0,
+                isFollowing: followingSet.has(String(u.id || '')),
+              },
+              description: v.description || '',
+              hashtags: Array.isArray(v.hashtags) ? v.hashtags : [],
+              music: v.music || { id: 'original', title: 'Original Sound', artist: u.name || 'Creator', duration: '0:15' },
+              stats: v.stats || { views: 0, likes: 0, comments: 0, shares: 0, saves: 0 },
+              createdAt: v.createdAt || new Date().toISOString(),
+              location: v.location,
+              isLiked: likedSet.has(id) || !!v.isLiked,
+              isSaved: savedSet.has(id) || !!v.isSaved,
+              isFollowing: followingSet.has(String(u.id || '')) || !!v.isFollowing,
+              comments: [],
+              quality: 'auto',
+              privacy: v.privacy || 'public',
+              duetWithVideoId: v.duetWithVideoId,
+            };
+          });
           set({ friendVideos: mappedVideos, friendsLoading: false });
-        } catch (err) {
-          set({ friendVideos: [], friendsLoading: false });
-        } finally {
-          set((s) => (s.friendsLoading ? { friendsLoading: false } : {}));
+        } catch {
+          set({ friendsLoading: false });
+          if (!navigator.onLine) showToast('No internet connection');
         }
       },
 
@@ -385,7 +383,7 @@ export const useVideoStore = create<VideoStore>()(
         }
       },
 
-      // Like actions (persist to likes table + update video engagement / FYP eligibility)
+      // Like actions (persist to server + update video engagement / FYP eligibility)
       toggleLike: async (videoId) => {
         const state = get();
         const video = state.getVideoById(videoId);
@@ -394,8 +392,6 @@ export const useVideoStore = create<VideoStore>()(
         const wasLiked = video.isLiked;
         const newLikes = Math.max(0, wasLiked ? video.stats.likes - 1 : video.stats.likes + 1);
         const updatedStats = { ...video.stats, likes: newLikes };
-        const score = calculateEngagementScore(updatedStats);
-        const eligible = isEligibleForFyp(score);
 
         const newLikedVideos = wasLiked
           ? state.likedVideos.filter(id => id !== videoId)
@@ -409,22 +405,21 @@ export const useVideoStore = create<VideoStore>()(
         });
 
         try {
-          const { data: { user } } = await apiStub.auth.getUser();
-          if (!user) return;
-          if (wasLiked) {
-            await apiStub.from('likes').delete().eq('video_id', videoId).eq('user_id', user.id);
-          } else {
-            await apiStub.from('likes').insert({ video_id: videoId, user_id: user.id });
-            trackLike(videoId).catch(() => {});
-          }
-          await apiStub
-            .from('videos')
-            .update({
-              likes: newLikes,
-              engagement_score: score,
-              is_eligible_for_fyp: eligible
-            })
-            .eq('id', videoId);
+          const authUser = useAuthStore.getState().user;
+          const session = useAuthStore.getState().session;
+          if (!authUser?.id) return;
+          const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+          if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
+
+          const endpoint = wasLiked
+            ? apiUrl(`/api/videos/${videoId}/unlike`)
+            : apiUrl(`/api/videos/${videoId}/like`);
+
+          const res = await fetch(endpoint, { method: 'POST', credentials: 'include', headers });
+          if (!res.ok) throw new Error('Like failed');
+
+          if (!wasLiked) trackLike(videoId).catch(() => {});
+          await refreshVideoFypStatus(videoId, updatedStats);
         } catch (err) {
           set({ videos: state.videos, friendVideos: state.friendVideos, likedVideos: state.likedVideos });
         }
@@ -435,7 +430,7 @@ export const useVideoStore = create<VideoStore>()(
         return videos.filter(video => likedVideos.includes(video.id));
       },
 
-      // Save actions — persist (feature disabled)
+      // Save actions — persist to server
       toggleSave: async (videoId) => {
         const state = get();
         const video = state.getVideoById(videoId);
@@ -457,13 +452,18 @@ export const useVideoStore = create<VideoStore>()(
         });
 
         try {
-          const { data: { user } } = await apiStub.auth.getUser();
-          if (!user) return;
-          if (wasSaved) {
-            await apiStub.from('saved_videos').delete().eq('user_id', user.id).eq('video_id', videoId);
-          } else {
-            await apiStub.from('saved_videos').insert({ user_id: user.id, video_id: videoId });
-          }
+          const authUser = useAuthStore.getState().user;
+          const session = useAuthStore.getState().session;
+          if (!authUser?.id) return;
+          const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+          if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
+
+          const endpoint = wasSaved
+            ? apiUrl(`/api/videos/${videoId}/unsave`)
+            : apiUrl(`/api/videos/${videoId}/save`);
+
+          const res = await fetch(endpoint, { method: 'POST', credentials: 'include', headers });
+          if (!res.ok) throw new Error('Save failed');
         } catch {
           const s = get();
           const revertSaves = Math.max(0, wasSaved ? (video.stats.saves || 0) + 1 : (video.stats.saves || 0) - 1);
@@ -502,14 +502,14 @@ export const useVideoStore = create<VideoStore>()(
           });
         };
 
-        const { data: { user } } = await apiStub.auth.getUser();
-        if (!user) {
+        const authUser = useAuthStore.getState().user;
+        if (!authUser?.id) {
           showToast('Please sign in to follow');
           return;
         }
-        if (user.id === userId) return; // can't follow self
+        if (authUser.id === userId) return;
 
-        // Update local state immediately (optimistic)
+        // Optimistic update
         set((s) => {
           const newFollowingUsers = s.followingUsers.includes(userId)
             ? s.followingUsers.filter(id => id !== userId)
@@ -532,14 +532,15 @@ export const useVideoStore = create<VideoStore>()(
         });
 
         try {
-          if (wasFollowing) {
-            const { error } = await apiStub.from('followers').delete().eq('follower_id', user.id).eq('following_id', userId);
-            if (error) throw error;
-          } else {
-            const { error } = await apiStub.from('followers').insert({ follower_id: user.id, following_id: userId });
-            if (error && error.code !== '23505') throw error; // 23505 = unique, already following
-            if (!error) trackFollow(userId).catch(() => {});
-          }
+          const session = useAuthStore.getState().session;
+          const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+          if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
+          const endpoint = wasFollowing
+            ? apiUrl(`/api/profiles/${userId}/unfollow`)
+            : apiUrl(`/api/profiles/${userId}/follow`);
+          const res = await fetch(endpoint, { method: 'POST', credentials: 'include', headers });
+          if (!res.ok) throw new Error('Follow request failed');
+          if (!wasFollowing) trackFollow(userId).catch(() => {});
         } catch {
           revert();
           showToast('Couldn’t follow. Please try again.');
@@ -575,24 +576,24 @@ export const useVideoStore = create<VideoStore>()(
         }
       },
 
-      // Comment actions – also refresh FYP eligibility
+      // Comment actions – persist to server, refresh FYP eligibility
       addComment: async (videoId, commentData) => {
         const state = get();
         const video = state.getVideoById(videoId);
         if (!video) return;
 
-        // Get current user for optimistic UI
-        const { data: { user } } = await apiStub.auth.getUser();
-        if (!user) return; // Must be logged in
+        const authUser = useAuthStore.getState().user;
+        const session = useAuthStore.getState().session;
+        if (!authUser?.id) return;
 
         // Optimistic update
         const tempId = `comment_${Date.now()}`;
         const newComment: Comment = {
           ...commentData,
           id: tempId,
-          userId: user.id,
-          username: user.user_metadata.username || 'user',
-          avatar: user.user_metadata.avatar_url || `https://ui-avatars.com/api/?name=${user.email}`,
+          userId: authUser.id,
+          username: authUser.username || authUser.email?.split('@')[0] || 'user',
+          avatar: authUser.avatar || `https://ui-avatars.com/api/?name=${authUser.name || 'User'}`,
           time: 'just now',
           likes: 0,
           isLiked: false
@@ -609,34 +610,42 @@ export const useVideoStore = create<VideoStore>()(
         });
 
         try {
-          // Persist to DB
-          const { data: insertedComment, error } = await apiStub
-            .from('comments')
-            .insert({
-              video_id: videoId,
-              user_id: user.id,
-              text: commentData.text
-            })
-            .select()
-            .single();
+          const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+          if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
 
-          if (error) throw error;
+          const res = await fetch(apiUrl(`/api/videos/${videoId}/comments`), {
+            method: 'POST',
+            credentials: 'include',
+            headers,
+            body: JSON.stringify({ text: commentData.text, parentId: (commentData as any).parentId || null }),
+          });
 
-          // Update the optimistic comment with real ID
-          if (insertedComment) {
-             const commentIdUpdate = (v: Video) => v.id === videoId
-               ? { ...v, comments: v.comments.map(c => c.id === tempId ? { ...c, id: insertedComment.id } : c) }
-               : v;
-             set(s => ({
-               videos: s.videos.map(commentIdUpdate),
-               friendVideos: s.friendVideos.map(commentIdUpdate),
-             }));
+          if (!res.ok) throw new Error('Comment failed');
+
+          const body = await res.json();
+          if (body?.comment?.id) {
+            const realId = body.comment.id;
+            const commentIdUpdate = (v: Video) => v.id === videoId
+              ? { ...v, comments: v.comments.map(c => c.id === tempId ? { ...c, id: realId } : c) }
+              : v;
+            set(s => ({
+              videos: s.videos.map(commentIdUpdate),
+              friendVideos: s.friendVideos.map(commentIdUpdate),
+            }));
           }
 
           trackComment(videoId, commentData.text).catch(() => {});
           await refreshVideoFypStatus(videoId, updatedStats);
         } catch (err) {
-          /* ignored */
+          /* revert optimistic update on failure */
+          set(s => ({
+            videos: s.videos.map(v => v.id === videoId
+              ? { ...v, comments: v.comments.filter(c => c.id !== tempId), stats: { ...v.stats, comments: Math.max(0, v.stats.comments - 1) } }
+              : v),
+            friendVideos: s.friendVideos.map(v => v.id === videoId
+              ? { ...v, comments: v.comments.filter(c => c.id !== tempId), stats: { ...v.stats, comments: Math.max(0, v.stats.comments - 1) } }
+              : v),
+          }));
         }
       },
 
@@ -653,7 +662,14 @@ export const useVideoStore = create<VideoStore>()(
           friendVideos: state.friendVideos.map(commentDelUpdate),
         }));
         try {
-          await apiStub.from('comments').delete().eq('id', commentId);
+          const session = useAuthStore.getState().session;
+          const headers: Record<string, string> = {};
+          if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
+          await fetch(apiUrl(`/api/videos/${videoId}/comments/${commentId}`), {
+            method: 'DELETE',
+            credentials: 'include',
+            headers,
+          });
         } catch (err) {
           /* ignored */
         }
@@ -683,18 +699,7 @@ export const useVideoStore = create<VideoStore>()(
           friendVideos: s.friendVideos.map(commentLikeUpdate),
         }));
 
-        try {
-          const { data: { user } } = await apiStub.auth.getUser();
-          if (!user) return;
-
-          if (wasLiked) {
-             await apiStub.from('comment_likes').delete().eq('comment_id', commentId).eq('user_id', user.id);
-          } else {
-             await apiStub.from('comment_likes').insert({ comment_id: commentId, user_id: user.id });
-          }
-        } catch (err) {
-          /* ignored */
-        }
+        // Comment likes are UI-only for now (no dedicated server endpoint)
       },
 
       // Analytics
@@ -712,12 +717,15 @@ export const useVideoStore = create<VideoStore>()(
         });
 
         try {
-          // Persist view count to DB
-          await apiStub
-            .from('videos')
-            .update({ views: newViews })
-            .eq('id', videoId);
-          // Refresh FYP eligibility with new view count
+          const session = useAuthStore.getState().session;
+          const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+          if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
+          await fetch(apiUrl('/api/feed/track-view'), {
+            method: 'POST',
+            credentials: 'include',
+            headers,
+            body: JSON.stringify({ videoId }),
+          }).catch(() => {});
           await refreshVideoFypStatus(videoId, updatedStats);
         } catch (err) {
           /* ignored */
@@ -742,9 +750,10 @@ export const useVideoStore = create<VideoStore>()(
       }
     }),
     {
-      name: 'video-store-v5',
+      name: 'video-store-v6',
       partialize: (state) => ({
         videos: state.videos,
+        friendVideos: state.friendVideos,
         likedVideos: state.likedVideos,
         savedVideos: state.savedVideos,
         followingUsers: state.followingUsers

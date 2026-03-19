@@ -156,11 +156,7 @@ export async function fetchForYouFeed(page: number = 1, limit: number = 20): Pro
   total: number;
   source: string;
 }> {
-  try {
-    return await apiGet(`/api/feed/foryou?page=${page}&limit=${limit}`);
-  } catch {
-    return { videos: [], page, limit, hasMore: false, total: 0, source: 'error' };
-  }
+  return await apiGet(`/api/feed/foryou?page=${page}&limit=${limit}`);
 }
 
 export async function getVideoScore(videoId: string): Promise<any> {

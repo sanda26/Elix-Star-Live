@@ -30,6 +30,7 @@ import ReportModal from './ReportModal';
 import PromotePanel from './PromotePanel';
 import { LevelBadge } from './LevelBadge';
 import { apiStub } from '../lib/apiStub';
+import { nativeConfirm } from './NativeDialog';
 import { getVideoPosterUrl } from '../lib/bunnyStorage';
 
 interface EnhancedVideoPlayerProps {
@@ -140,6 +141,7 @@ export default function EnhancedVideoPlayer({
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const [showQrCodeInMore, setShowQrCodeInMore] = useState(false);
   const [videoError, setVideoError] = useState(false);
+  const retryCountRef = useRef(0);
   const [isDoubleClick, setIsDoubleClick] = useState(false);
   const [showHeartAnimation, setShowHeartAnimation] = useState(false);
   const [duetOriginalUrl, setDuetOriginalUrl] = useState<string | null>(null);
@@ -262,43 +264,53 @@ export default function EnhancedVideoPlayer({
   // Auto-play based on visibility — try with sound first; if blocked (e.g. iOS), fall back to muted
   useEffect(() => {
     if (isActive) {
-      const el = videoRef.current;
       setVideoError(false);
+      retryCountRef.current = 0;
+
       const runPlay = (videoEl: HTMLVideoElement) => {
         videoEl.volume = volume;
-        if (muteAllSounds) {
-          videoEl.muted = true;
-          videoEl.play().then(() => { setIsPlaying(true); setIsMuted(true); }).catch(() => {});
-          return;
-        }
-        videoEl.muted = false;
+        // Always start muted for guaranteed autoplay, then unmute
+        videoEl.muted = true;
         videoEl.play()
           .then(() => {
             setIsPlaying(true);
-            setIsMuted(false);
+            if (!muteAllSounds) {
+              videoEl.muted = false;
+              videoEl.volume = volume;
+              setIsMuted(false);
+            } else {
+              setIsMuted(true);
+            }
           })
           .catch(() => {
+            // Last resort: stay muted
             videoEl.muted = true;
             videoEl.play().then(() => {
               setIsPlaying(true);
               setIsMuted(true);
-              trackEvent('video_autoplay_sound_blocked', { videoId });
             }).catch(() => {});
           });
       };
-      const onCanPlay = () => {
-        const v = videoRef.current;
-        if (v) runPlay(v);
+
+      const tryPlay = () => {
+        const el = videoRef.current;
+        if (!el) return;
+        if (el.readyState >= 2) {
+          runPlay(el);
+        } else {
+          const onReady = () => {
+            el.removeEventListener('canplay', onReady);
+            el.removeEventListener('loadeddata', onReady);
+            runPlay(el);
+          };
+          el.addEventListener('canplay', onReady);
+          el.addEventListener('loadeddata', onReady);
+          el.load();
+        }
       };
-      if (el) {
-        runPlay(el);
-        el.addEventListener('canplay', onCanPlay);
-      } else {
-        requestAnimationFrame(() => {
-          const videoEl = videoRef.current;
-          if (videoEl) runPlay(videoEl);
-        });
-      }
+
+      // Slight delay lets the DOM settle after scroll-snap
+      const timer = setTimeout(tryPlay, 50);
 
       incrementViews(videoId);
       trackEvent('video_view', { videoId });
@@ -323,7 +335,7 @@ export default function EnhancedVideoPlayer({
       }
 
       return () => {
-        if (el) el.removeEventListener('canplay', onCanPlay);
+        clearTimeout(timer);
       };
     } else {
       const v = videoRef.current;
@@ -455,7 +467,8 @@ export default function EnhancedVideoPlayer({
   const isOwnVideo = !!authUserId && !!video?.user?.id && authUserId === video.user.id;
   const handleDeleteVideo = async () => {
     if (!isOwnVideo) return;
-    if (!window.confirm('Delete this video? This cannot be undone.')) return;
+    const ok = await nativeConfirm('Delete this video? This cannot be undone.', 'Delete Video');
+    if (!ok) return;
     try {
       await deleteVideo(videoId);
       setIsMoreMenuOpen(false);
@@ -510,11 +523,21 @@ export default function EnhancedVideoPlayer({
                 className="w-full h-full object-cover"
                 loop
                 playsInline
+                autoPlay
+                muted
                 preload="auto"
-                muted={effectiveMuted}
                 onClick={handleVideoClick}
                 poster={posterUrl}
                 onError={() => {
+                  if (retryCountRef.current < 2 && video.url) {
+                    retryCountRef.current += 1;
+                    const el = videoRef.current;
+                    if (el) {
+                      el.src = '';
+                      setTimeout(() => { el.src = video.url; el.load(); }, 500 * retryCountRef.current);
+                    }
+                    return;
+                  }
                   setIsPlaying(false);
                   setVideoError(true);
                 }}
@@ -528,11 +551,21 @@ export default function EnhancedVideoPlayer({
           className="w-full h-full object-cover"
           loop
           playsInline
+          autoPlay
+          muted
           preload="auto"
-          muted={effectiveMuted}
           onClick={handleVideoClick}
           poster={posterUrl}
           onError={() => {
+            if (retryCountRef.current < 2 && video.url) {
+              retryCountRef.current += 1;
+              const el = videoRef.current;
+              if (el) {
+                el.src = '';
+                setTimeout(() => { el.src = video.url; el.load(); }, 500 * retryCountRef.current);
+              }
+              return;
+            }
             setIsPlaying(false);
             setVideoError(true);
           }}

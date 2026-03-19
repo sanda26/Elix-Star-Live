@@ -15,6 +15,9 @@ type DbCommentRow = {
   created_at: string;
 };
 
+// In-memory comment store (used when no DATABASE_URL)
+const memComments = new Map<string, DbCommentRow[]>(); // videoId → comments
+
 function getSort(req: Request): Sort {
   const s = String(req.query.sort || "").toLowerCase();
   return s === "oldest" ? "oldest" : "newest";
@@ -42,7 +45,19 @@ export async function handleGetVideoComments(req: Request, res: Response) {
 
   const pool = getPool();
   if (!pool) {
-    return res.json({ comments: [], source: "memory" });
+    // In-memory fallback
+    const sort = getSort(req);
+    const all = memComments.get(videoId) || [];
+    const topLevel = all.filter(c => !c.parent_id);
+    if (sort === "oldest") topLevel.sort((a, b) => a.created_at.localeCompare(b.created_at));
+    else topLevel.sort((a, b) => b.created_at.localeCompare(a.created_at));
+
+    const comments = topLevel.map(r => {
+      const c = formatComment(r);
+      const replies = all.filter(x => x.parent_id === r.id).map(formatComment);
+      return { ...c, replies, reply_count: replies.length };
+    });
+    return res.json({ comments, source: "memory" });
   }
 
   try {
@@ -105,19 +120,35 @@ export async function handlePostVideoComment(req: Request, res: Response) {
 
   if (!text) return res.status(400).json({ error: "text is required" });
 
+  const id = `cmt_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const createdAt = new Date().toISOString();
+
+  const row: DbCommentRow = {
+    id,
+    video_id: videoId,
+    user_id: payload.sub,
+    text,
+    parent_id: parentId,
+    created_at: createdAt,
+  };
+
   const pool = getPool();
-  if (!pool) return res.status(503).json({ error: "Database not configured." });
+  if (!pool) {
+    // In-memory fallback
+    if (!memComments.has(videoId)) memComments.set(videoId, []);
+    memComments.get(videoId)!.push(row);
+    if (!parentId) incrementStat(videoId, "comments");
+    void getVideo(videoId);
+    return res.status(201).json({ comment: formatComment(row) });
+  }
 
   try {
-    const id = `cmt_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-    const createdAt = new Date().toISOString();
     await pool.query(
       `INSERT INTO comments (id, video_id, user_id, text, parent_id, created_at)
        VALUES ($1, $2, $3, $4, $5, $6)`,
       [id, videoId, payload.sub, text, parentId, createdAt],
     );
 
-    // Update counts (top-level only affects video stats)
     if (!parentId) {
       incrementStat(videoId, "comments");
       await pool
@@ -125,18 +156,7 @@ export async function handlePostVideoComment(req: Request, res: Response) {
         .catch(() => {});
     }
 
-    const row: DbCommentRow = {
-      id,
-      video_id: videoId,
-      user_id: payload.sub,
-      text,
-      parent_id: parentId,
-      created_at: createdAt,
-    };
-
-    // Ensure video exists in memory (some flows read from store for UI stats)
     void getVideo(videoId);
-
     return res.status(201).json({ comment: formatComment(row) });
   } catch (err: any) {
     return res.status(500).json({ error: err?.message || "Failed to add comment" });
@@ -154,7 +174,18 @@ export async function handleDeleteVideoComment(req: Request, res: Response) {
   if (!payload) return res.status(401).json({ error: "Invalid or expired session." });
 
   const pool = getPool();
-  if (!pool) return res.status(503).json({ error: "Database not configured." });
+  if (!pool) {
+    // In-memory fallback
+    const list = memComments.get(videoId);
+    if (!list) return res.status(404).json({ error: "Comment not found" });
+    const idx = list.findIndex(c => c.id === commentId);
+    if (idx === -1) return res.status(404).json({ error: "Comment not found" });
+    if (list[idx].user_id !== payload.sub) return res.status(403).json({ error: "Forbidden" });
+    const wasTopLevel = !list[idx].parent_id;
+    list.splice(idx, 1);
+    if (wasTopLevel) decrementStat(videoId, "comments");
+    return res.json({ ok: true });
+  }
 
   try {
     const existing = await pool.query<{ user_id: string; parent_id: string | null }>(
@@ -179,4 +210,3 @@ export async function handleDeleteVideoComment(req: Request, res: Response) {
     return res.status(500).json({ error: err?.message || "Failed to delete comment" });
   }
 }
-

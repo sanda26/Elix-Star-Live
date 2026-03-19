@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Mail, ArrowLeft, CheckCircle } from 'lucide-react';
-import { apiStub } from '../lib/apiStub';
+import { apiUrl } from '../lib/api';
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState('');
@@ -15,17 +15,21 @@ export default function ForgotPassword() {
     setIsSubmitting(true);
 
     try {
-      const { error: resetError } = await apiStub.auth.resetPasswordForEmail(email.trim(), {
-        redirectTo: `${window.location.origin}/reset-password`,
+      const res = await fetch(apiUrl('/api/auth/forgot-password'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ email: email.trim() }),
       });
 
-      if (resetError) {
-        setError(resetError.message);
-      } else {
+      if (res.ok) {
         setSuccess(true);
+      } else {
+        const body = await res.json().catch(() => ({}));
+        setError(body?.error || 'Unable to process request. Please try again.');
       }
     } catch {
-      setError('Failed to send reset email. Please try again.');
+      setError('Network error. Please check your connection and try again.');
     } finally {
       setIsSubmitting(false);
     }

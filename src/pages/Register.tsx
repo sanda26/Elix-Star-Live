@@ -2,8 +2,6 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
 import { Eye, EyeOff, Lock, Mail, User } from 'lucide-react';
-import { apiStub } from '../lib/apiStub';
-
 export default function Register() {
   const navigate = useNavigate();
   const signUpWithPassword = useAuthStore((state) => state.signUpWithPassword);
@@ -76,20 +74,15 @@ export default function Register() {
         return;
       }
 
-      // Store consent timestamp
+      // Consent recorded locally — timestamp stored with registration
       try {
-        const { data: { user } } = await apiStub.auth.getUser();
-        if (user) {
-          await apiStub.from('user_consents').insert({
-            user_id: user.id,
-            consent_type: 'terms_and_privacy',
-            version: '2026-02-20',
-            accepted_at: new Date().toISOString(),
-            ip_address: null,
-          });
-        }
+        localStorage.setItem('elix_consent_' + Date.now(), JSON.stringify({
+          consent_type: 'terms_and_privacy',
+          version: '2026-02-20',
+          accepted_at: new Date().toISOString(),
+        }));
       } catch {
-        // Non-blocking — consent storage failure shouldn't prevent registration
+        // Non-blocking
       }
 
       if (res.needsEmailConfirmation) {
@@ -246,8 +239,6 @@ export default function Register() {
               <Link
                 to="/terms"
                 className="text-[#C9A96E] underline"
-                target="_blank"
-                rel="noopener noreferrer"
                 onClick={(e) => e.stopPropagation()}
               >
                 Terms of Service
@@ -256,8 +247,6 @@ export default function Register() {
               <Link
                 to="/privacy"
                 className="text-[#C9A96E] underline"
-                target="_blank"
-                rel="noopener noreferrer"
                 onClick={(e) => e.stopPropagation()}
               >
                 Privacy Policy

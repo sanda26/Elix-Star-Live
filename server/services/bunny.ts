@@ -49,9 +49,6 @@ async function uploadViaStorage(
   const headers: Record<string, string> = { AccessKey: ACCESS_KEY };
   if (contentType) headers['Content-Type'] = contentType;
 
-  // #region agent log
-  logger.info({ url, zone: STORAGE_ZONE_NAME, region: STORAGE_REGION, keyPrefix: ACCESS_KEY.slice(0, 8) + '...' }, "Bunny Storage upload attempt");
-  // #endregion
 
   const res = await fetch(url, {
     method: 'PUT',

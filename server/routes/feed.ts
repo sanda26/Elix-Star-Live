@@ -429,77 +429,55 @@ export async function handleTrackView(req: Request, res: Response) {
       watchTime,
       videoDuration,
       completed,
-      replayed,
-      replayCount,
     } = req.body;
     if (!videoId) return res.status(400).json({ error: "videoId required" });
 
     const db = getPool();
-    // ── No DB: use in-memory store ──
+
+    // Always increment the in-memory stat (used for feed ranking)
+    incrementStat(videoId, "views");
+
     if (!db) {
-      incrementStat(videoId, "views");
       return res.json({ ok: true });
     }
 
     const userId = await getUserId(req);
-    if (!userId) return res.status(401).json({ error: "Auth required" });
-
     const ipHash = getIpHash(req);
-    if (!checkRateLimit(`${userId}:${ipHash}`)) {
-      await db
-        .from("abuse_log")
-        .insert({
-          user_id: userId,
-          ip_hash: ipHash,
-          action: "rate_limited_view",
-          video_id: videoId,
-          flagged: true,
-          reason: "rate_limit_exceeded",
-        });
+    const rateKey = userId ? `${userId}:${ipHash}` : ipHash;
+
+    if (!checkRateLimit(rateKey)) {
       return res.status(429).json({ error: "Rate limit exceeded" });
     }
 
     if (watchTime && videoDuration && watchTime > videoDuration * 1.5) {
-      await db
-        .from("abuse_log")
-        .insert({
-          user_id: userId,
-          ip_hash: ipHash,
-          action: "suspicious_watch_time",
-          video_id: videoId,
-          flagged: true,
-          reason: `watch_time=${watchTime} > duration=${videoDuration}`,
-        });
       return res.status(400).json({ error: "Invalid watch time" });
     }
 
-    const recentCheck = await db
-      .from("video_views")
-      .select("id")
-      .eq("user_id", userId)
-      .eq("video_id", videoId)
-      .gte("created_at", new Date(Date.now() - 2000).toISOString())
-      .limit(1);
-    if (recentCheck.data && recentCheck.data.length > 0) {
-      return res.json({ ok: true, deduplicated: true });
+    // Persist view to Postgres if the table exists
+    try {
+      await db.query(
+        `INSERT INTO video_views (id, user_id, video_id, watch_time_seconds, video_duration_seconds, completed, ip_hash, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+         ON CONFLICT DO NOTHING`,
+        [
+          `v_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+          userId || 'anonymous',
+          videoId,
+          watchTime || 0,
+          videoDuration || 0,
+          completed || false,
+          ipHash,
+        ],
+      );
+    } catch {
+      // video_views table may not exist yet — non-fatal
     }
 
-    await db.from("video_views").insert({
-      user_id: userId,
-      video_id: videoId,
-      watch_time_seconds: watchTime || 0,
-      video_duration_seconds: videoDuration || 0,
-      completed: completed || false,
-      replayed: replayed || false,
-      replay_count: replayCount || 0,
-      ip_hash: ipHash,
-      ended_at: new Date().toISOString(),
-    });
-
-    await updateVideoScore(videoId);
-
-    if (completed) {
-      await updateUserInterests(userId, videoId);
+    // Update video stats in the videos table
+    try {
+      await db.query(`UPDATE videos SET views = views + 1 WHERE id = $1`, [videoId]);
+    } catch {
+      // non-fatal
     }
 
     res.json({ ok: true });
@@ -511,117 +489,22 @@ export async function handleTrackView(req: Request, res: Response) {
 
 export async function handleTrackInteraction(req: Request, res: Response) {
   try {
-    const { videoId, type, data } = req.body;
+    const { videoId, type, data: _data } = req.body;
     if (!videoId || !type)
       return res.status(400).json({ error: "videoId and type required" });
 
+    if (type === "like") incrementStat(videoId, "likes");
+    else if (type === "comment") incrementStat(videoId, "comments");
+    else if (type === "share") incrementStat(videoId, "shares");
+    else if (type === "save") incrementStat(videoId, "saves");
+
     const db = getPool();
-    // ── No DB: use in-memory store ──
-    if (!db) {
-      if (type === "like") incrementStat(videoId, "likes");
-      else if (type === "comment") incrementStat(videoId, "comments");
-      else if (type === "share") incrementStat(videoId, "shares");
-      else if (type === "save") incrementStat(videoId, "saves");
-      return res.json({ ok: true });
-    }
-
-    const userId = await getUserId(req);
-    if (!userId) return res.status(401).json({ error: "Auth required" });
-
-    const _ipHash = getIpHash(req);
-
-    if (type === "like") {
-      const existing = await db
-        .from("likes")
-        .select("video_id")
-        .eq("user_id", userId)
-        .eq("video_id", videoId)
-        .limit(1);
-      if (existing.data && existing.data.length > 0) {
-        await db
-          .from("likes")
-          .delete()
-          .eq("user_id", userId)
-          .eq("video_id", videoId);
-        const r = await db
-          .from("videos")
-          .select("likes")
-          .eq("id", videoId)
-          .single();
-        if (r.data)
-          await db
-            .from("videos")
-            .update({ likes: Math.max(0, (r.data.likes || 0) - 1) })
-            .eq("id", videoId);
-      } else {
-        await db.from("likes").insert({ user_id: userId, video_id: videoId });
-        const r = await db
-          .from("videos")
-          .select("likes")
-          .eq("id", videoId)
-          .single();
-        if (r.data)
-          await db
-            .from("videos")
-            .update({ likes: (r.data.likes || 0) + 1 })
-            .eq("id", videoId);
-      }
-    } else if (type === "comment") {
-      await db
-        .from("comments")
-        .insert({ user_id: userId, video_id: videoId, text: data?.text || "" });
-      const { count } = await db
-        .from("comments")
-        .select("id", { count: "exact", head: true })
-        .eq("video_id", videoId);
-      await db
-        .from("videos")
-        .update({ comments: count || 0 })
-        .eq("id", videoId);
-    } else if (type === "share") {
-      await db
-        .from("shares")
-        .insert({
-          user_id: userId,
-          video_id: videoId,
-          platform: data?.platform || "copy",
-        });
-      const { count } = await db
-        .from("shares")
-        .select("id", { count: "exact", head: true })
-        .eq("video_id", videoId);
-      await db
-        .from("videos")
-        .update({ shares: count || 0 })
-        .eq("id", videoId);
-    } else if (type === "follow") {
-      const targetUserId = data?.targetUserId;
-      if (!targetUserId)
-        return res.status(400).json({ error: "targetUserId required" });
-      const existing = await db
-        .from("followers")
-        .select("follower_id")
-        .eq("follower_id", userId)
-        .eq("following_id", targetUserId)
-        .limit(1);
-      if (existing.data && existing.data.length > 0) {
-        await db
-          .from("followers")
-          .delete()
-          .eq("follower_id", userId)
-          .eq("following_id", targetUserId);
-      } else {
-        await db
-          .from("followers")
-          .insert({ follower_id: userId, following_id: targetUserId });
+    if (db) {
+      const col = type === "like" ? "likes" : type === "comment" ? "comments" : type === "share" ? "shares" : type === "save" ? "saves" : null;
+      if (col) {
+        try { await db.query(`UPDATE videos SET ${col} = ${col} + 1 WHERE id = $1`, [videoId]); } catch {}
       }
     }
-
-    await db
-      .from("video_interactions")
-      .insert({ user_id: userId, video_id: videoId, interaction_type: type });
-
-    await updateVideoScore(videoId);
 
     res.json({ ok: true });
   } catch (err: any) {
@@ -866,14 +749,63 @@ export async function handleGetVideoScore(req: Request, res: Response) {
       });
     }
 
-    const { data } = await db
-      .from("video_scores")
-      .select("*")
-      .eq("video_id", videoId)
-      .single();
-    res.json({ score: data || null });
+    try {
+      const result = await db.query(`SELECT * FROM video_scores WHERE video_id = $1 LIMIT 1`, [videoId]);
+      res.json({ score: result.rows?.[0] || null });
+    } catch {
+      const memVideo = getVideo(videoId);
+      res.json({ score: memVideo ? { video_id: videoId, total_views: memVideo.views, score: 0 } : null });
+    }
   } catch (_err) {
     res.status(500).json({ error: "Failed to get score" });
+  }
+}
+
+/** GET /api/feed/friends — videos from users the caller follows */
+export async function handleFriendsFeed(req: Request, res: Response) {
+  try {
+    const token = getTokenFromRequest(req);
+    const jwtUser = token ? verifyAuthToken(token) : null;
+    if (!jwtUser) {
+      return res.json({ videos: [] });
+    }
+
+    const { getFollowingIds } = await import("./profiles");
+    const followingIds = getFollowingIds(jwtUser.sub);
+    if (followingIds.length === 0) {
+      return res.json({ videos: [] });
+    }
+
+    const followingSet = new Set(followingIds);
+    const likedSet = new Set<string>();
+
+    const db = getPool();
+    if (db) {
+      const { rows } = await db.query(
+        `SELECT v.*, row_to_json(p) AS user
+         FROM videos v
+         LEFT JOIN profiles p ON p.user_id = v.user_id
+         WHERE v.user_id = ANY($1) AND v.is_public != false
+         ORDER BY v.created_at DESC
+         LIMIT 50`,
+        [followingIds],
+      );
+      const mapped = (rows || []).map((v: any) => formatVideoForClient(v, likedSet, followingSet));
+      return res.json({ videos: mapped });
+    }
+
+    // In-memory fallback
+    const allVideos = getAllVideos();
+    const friendVids = allVideos
+      .filter((v) => followingSet.has(v.user_id) && v.is_public !== false)
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      .slice(0, 50);
+
+    const mapped = friendVids.map((v) => formatVideoForClient(v, likedSet, followingSet));
+    return res.json({ videos: mapped });
+  } catch (err) {
+    console.error("[friends feed]", err);
+    return res.json({ videos: [] });
   }
 }
 

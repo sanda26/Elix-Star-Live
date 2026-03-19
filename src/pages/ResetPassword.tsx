@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Lock, CheckCircle } from 'lucide-react';
-import { apiStub } from '../lib/apiStub';
+import { apiUrl } from '../lib/api';
 
 export default function ResetPassword() {
   const navigate = useNavigate();
@@ -10,15 +10,6 @@ export default function ResetPassword() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-
-  useEffect(() => {
-    const { data: listener } = apiStub.auth.onAuthStateChange((event) => {
-      if (event === 'PASSWORD_RECOVERY') {
-        // User arrived via password reset link — form is ready
-      }
-    });
-    return () => { listener?.subscription.unsubscribe(); };
-  }, []);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,9 +26,15 @@ export default function ResetPassword() {
 
     setIsSubmitting(true);
     try {
-      const { error: updateError } = await apiStub.auth.updateUser({ password });
-      if (updateError) {
-        setError(updateError.message);
+      const res = await fetch(apiUrl('/api/auth/reset-password'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ password }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(body?.error || 'Password reset is not available at this time.');
       } else {
         setSuccess(true);
         setTimeout(() => navigate('/login', { replace: true }), 3000);

@@ -172,9 +172,6 @@ export default function SpectatorPage() {
   const handleSpectatorVote = (target: 'host' | 'opponent') => {
     if (spectatorVoted || !spectatorBattle?.active) return;
     setSpectatorVoted(true);
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SpectatorPage.tsx:handleSpectatorVote',message:'spectator tap vote sent',data:{target},timestamp:Date.now(),runId:'pre-fix',hypothesisId:'H1'})}).catch(()=>{});
-    // #endregion
     websocket.send('battle_spectator_vote', { target });
   };
 
@@ -600,6 +597,26 @@ export default function SpectatorPage() {
     videoTrack.attach(videoEl);
     currentMainTrackRef.current = videoTrack;
   }, [selectedSpectatorUserId, hasStream, effectiveStreamId]);
+
+  // Re-attach host LiveKit track when DOM video element is recreated (e.g. battle mode toggle)
+  useEffect(() => {
+    const room = liveKitRoomRef.current;
+    const videoEl = videoRef.current;
+    if (!room || !videoEl) return;
+    const hostId = hostUserIdRef.current || effectiveStreamId;
+    for (const [, participant] of room.remoteParticipants) {
+      const identity = participant.identity || '';
+      if (identity !== hostId && identity !== effectiveStreamId) continue;
+      for (const [, pub] of participant.videoTrackPublications) {
+        if (pub.track && pub.isSubscribed) {
+          pub.track.attach(videoEl);
+          currentMainTrackRef.current = pub.track;
+          setHasStream(true);
+          return;
+        }
+      }
+    }
+  }, [spectatorBattle?.active, effectiveStreamId]);
 
   // If we're still "connecting" after 18s, hint that host may not be publishing
   useEffect(() => {
@@ -1236,6 +1253,177 @@ export default function SpectatorPage() {
           const externalCoHosts = spectatorCoHosts.filter(h => h.userId !== hostId);
           const showGrid = isCoHosting || externalCoHosts.length > 0;
 
+          /* ═══ BATTLE MODE: creator-identical 50/50 split layout ═══ */
+          if (spectatorBattle?.active) {
+            const total = (spectatorBattle.hostScore || 0) + (spectatorBattle.opponentScore || 0);
+            const leftPct = total > 0 ? Math.max(5, Math.min(95, ((spectatorBattle.hostScore || 0) / total) * 100)) : 50;
+            const redTeamScore = spectatorBattle.hostScore || 0;
+            const blueTeamScore = spectatorBattle.opponentScore || 0;
+            return (
+              <div
+                className="absolute inset-0 z-[80] flex flex-col"
+                style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 90px)' }}
+              >
+                {/* Score bar — identical to creator */}
+                <div className="relative z-20 w-full flex-none overflow-hidden" style={{ height: '18px' }}>
+                  <div className="absolute inset-0 flex">
+                    <div className="h-full transition-all duration-500 ease-out" style={{ width: `${leftPct}%`, backgroundImage: 'linear-gradient(90deg, #DC143C, #FF1744, #C41E3A)' }} />
+                    <div className="h-full flex-1 transition-all duration-500 ease-out" style={{ backgroundImage: 'linear-gradient(90deg, #1E90FF, #4169E1, #0047AB)' }} />
+                  </div>
+                  <div className="absolute inset-0 z-10 flex items-center justify-between px-2 pointer-events-none">
+                    <span className="text-white font-black text-[14px] tabular-nums drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+                      {(typeof redTeamScore === 'number' && Number.isFinite(redTeamScore) ? redTeamScore : 0).toLocaleString()}
+                    </span>
+                    <span className="text-white font-black text-[14px] tabular-nums drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+                      {(typeof blueTeamScore === 'number' && Number.isFinite(blueTeamScore) ? blueTeamScore : 0).toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Battle grid — creator-identical 50/50 */}
+                <div className="relative w-full flex-none flex flex-col h-[44dvh]">
+                  <div className="flex-1 min-h-0 flex flex-col">
+                    <div className="flex flex-1 min-h-0">
+                      {/* Host side — tap to vote */}
+                      <div
+                        className="w-1/2 h-full overflow-hidden relative bg-[#13151A] pointer-events-auto cursor-pointer border-r border-white/5"
+                        onClick={() => handleSpectatorVote('host')}
+                      >
+                        <video
+                          ref={videoRef}
+                          className="absolute inset-0 w-full h-full object-cover"
+                          playsInline
+                          autoPlay
+                          style={{ opacity: hasStream ? 1 : 0, transition: 'opacity 0.4s ease' }}
+                        />
+                        {!hasStream && (
+                          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-[#13151A]">
+                            {hostAvatar ? (
+                              <img src={hostAvatar} alt="" className="w-16 h-16 rounded-full border-2 border-[#C9A96E] object-cover" />
+                            ) : (
+                              <div className="w-16 h-16 rounded-full border-2 border-[#C9A96E] bg-[#1C1E24] flex items-center justify-center">
+                                <span className="text-2xl font-black text-[#C9A96E]">{(hostName || 'H').charAt(0).toUpperCase()}</span>
+                              </div>
+                            )}
+                            <span className="text-white text-xs font-bold">{hostName}</span>
+                            <div className="flex items-center gap-1">
+                              <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                              <span className="text-green-400 text-[10px] font-bold">Connecting...</span>
+                            </div>
+                          </div>
+                        )}
+                        {spectatorBattle.winner && (
+                          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                            <span className={`text-sm font-black drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)] ${spectatorBattle.winner === 'host' ? 'text-white' : spectatorBattle.winner === 'draw' ? 'text-white' : 'text-red-400'}`}>
+                              {spectatorBattle.winner === 'host' ? 'WIN' : spectatorBattle.winner === 'draw' ? 'DRAW' : 'LOSS'}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Opponent side — tap to visit / vote */}
+                      <div
+                        className="w-1/2 h-full overflow-hidden relative bg-[#13151A] pointer-events-auto cursor-pointer"
+                        onClick={() => {
+                          if (spectatorBattle.opponentRoomId) {
+                            navigate(`/watch/${spectatorBattle.opponentRoomId}`);
+                          } else {
+                            handleSpectatorVote('opponent');
+                          }
+                        }}
+                      >
+                        <video
+                          ref={opponentVideoRef}
+                          className="absolute inset-0 w-full h-full object-cover"
+                          autoPlay
+                          playsInline
+                          muted
+                          style={{ opacity: hasOpponentStream ? 1 : 0, transition: 'opacity 0.3s ease' }}
+                        />
+                        {!hasOpponentStream && (
+                          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-[#13151A]">
+                            {spectatorBattle.opponentName ? (
+                              <div className="w-16 h-16 rounded-full border-2 border-[#C9A96E] bg-[#1C1E24] flex items-center justify-center">
+                                <span className="text-2xl font-black text-[#C9A96E]">{spectatorBattle.opponentName.charAt(0).toUpperCase()}</span>
+                              </div>
+                            ) : (
+                              <div className="w-16 h-16 rounded-full border-2 border-[#C9A96E] bg-[#1C1E24] flex items-center justify-center">
+                                <span className="text-2xl font-black text-[#C9A96E]">O</span>
+                              </div>
+                            )}
+                            <span className="text-white text-xs font-bold truncate max-w-[90%]">{spectatorBattle.opponentName || 'Opponent'}</span>
+                            <div className="flex items-center gap-1">
+                              <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                              <span className="text-green-400 text-[10px] font-bold">Connecting...</span>
+                            </div>
+                          </div>
+                        )}
+                        {spectatorBattle.opponentRoomId && (
+                          <div className="absolute bottom-1 left-0 right-0 flex justify-center pointer-events-none">
+                            <span className="text-white/50 text-[8px] bg-black/40 rounded px-1.5 py-0.5">Tap to visit</span>
+                          </div>
+                        )}
+                        {spectatorBattle.winner && (
+                          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                            <span className={`text-sm font-black drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)] ${spectatorBattle.winner === 'opponent' ? 'text-white' : spectatorBattle.winner === 'draw' ? 'text-white' : 'text-red-400'}`}>
+                              {spectatorBattle.winner === 'opponent' ? 'WIN' : spectatorBattle.winner === 'draw' ? 'DRAW' : 'LOSS'}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 6 MVP circles: 3 left (host) + 3 right (opponent) */}
+                <div className="w-full px-3 py-1.5 flex items-center justify-between flex-none pointer-events-none z-30">
+                  <div className="flex items-center gap-1">
+                    {battleMvp.left.map((u, idx) => {
+                      const i = idx + 1;
+                      return (
+                        <div key={`mvp-l-${u.id}-${i}`} className="flex flex-col items-center">
+                          <div className="relative">
+                            <div className="w-[28px] h-[28px] rounded-full border-2 border-[#C9A96E]/70 bg-[#13151A]/50 overflow-hidden flex items-center justify-center">
+                              {u.avatar ? (
+                                <img src={u.avatar} alt="" className="w-full h-full object-cover" />
+                              ) : u.name ? (
+                                <span className="text-[#C9A96E] text-[10px] font-black">{u.name.slice(0, 1).toUpperCase()}</span>
+                              ) : (
+                                <span className="text-white/20 text-[9px]">{i}</span>
+                              )}
+                            </div>
+                          </div>
+                          <span className={`text-[7px] font-bold mt-0.5 ${i === 1 ? 'text-[#C9A96E]' : 'text-white/50'}`}>{i} MVP</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {battleMvp.right.map((u, idx) => {
+                      const i = idx + 1;
+                      return (
+                        <div key={`mvp-r-${u.id}-${i}`} className="flex flex-col items-center">
+                          <div className="relative">
+                            <div className="w-[28px] h-[28px] rounded-full border-2 border-[#C9A96E]/70 bg-[#13151A]/50 overflow-hidden flex items-center justify-center">
+                              {u.avatar ? (
+                                <img src={u.avatar} alt="" className="w-full h-full object-cover" />
+                              ) : u.name ? (
+                                <span className="text-[#C9A96E] text-[10px] font-black">{u.name.slice(0, 1).toUpperCase()}</span>
+                              ) : (
+                                <span className="text-white/20 text-[9px]">{i}</span>
+                              )}
+                            </div>
+                          </div>
+                          <span className={`text-[7px] font-bold mt-0.5 ${i === 1 ? 'text-[#C9A96E]' : 'text-white/50'}`}>{i} MVP</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            );
+          }
+
           type SlotType = { type: 'self' | 'live' | 'invited' | 'pending' | 'empty'; host?: typeof spectatorCoHosts[0] };
 
           const buildSlots = (): SlotType[] => {
@@ -1404,145 +1592,20 @@ export default function SpectatorPage() {
           );
         })()}
 
-        {/* Battle overlay — IDENTICAL top battle layout as creator: VS timer + score bar + split video frame */}
+        {/* Battle VS timer — fixed overlay (score bar, videos, MVPs are in the unified battle container above) */}
         {spectatorBattle?.active && (
-          <div
-            className="absolute left-0 right-0 z-[80] flex flex-col pointer-events-none"
-            style={{
-              top: 'calc(env(safe-area-inset-top, 0px) + 78px)',
-              height: 'calc(44dvh - 20mm)',
-            }}
-          >
-            {/* VS timer bar — copied from creator battle header */}
-            <div className="fixed top-0 left-0 right-0 z-[9999] pointer-events-none flex justify-center max-w-[480px] mx-auto py-1.5 px-2 bg-gradient-to-b from-black/50 to-transparent" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 4cm - 10.5mm)' }}>
-              <div className="flex items-center gap-1 bg-black/40 backdrop-blur-md rounded-full px-2 py-0.5 border border-white/10 shadow-sm">
-                <div className="relative w-[16px] h-[16px] flex items-center justify-center">
-                  <svg viewBox="0 0 40 44" className="absolute inset-0 w-full h-full drop-shadow-md">
-                    <path d="M20 2 L36 10 L36 26 Q36 38 20 42 Q4 38 4 26 L4 10 Z" fill="url(#vsGradSpectator)" stroke="rgba(255,255,255,0.5)" strokeWidth="1.5"/>
-                    <defs><linearGradient id="vsGradSpectator" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor="#DC143C"/><stop offset="50%" stopColor="#8B0000"/><stop offset="100%" stopColor="#1E90FF"/></linearGradient></defs>
-                  </svg>
-                  <span className="relative z-10 text-white text-[5px] font-black italic drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">VS</span>
-                </div>
-                <span className="text-white text-[10px] font-black tabular-nums drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] translate-y-[3mm]">
-                  {formatTime(spectatorBattle.timeLeft)}
-                </span>
+          <div className="fixed top-0 left-0 right-0 z-[9999] pointer-events-none flex justify-center max-w-[480px] mx-auto py-1.5 px-2 bg-gradient-to-b from-black/50 to-transparent" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 4cm - 10.5mm)' }}>
+            <div className="flex items-center gap-1 bg-black/40 backdrop-blur-md rounded-full px-2 py-0.5 border border-white/10 shadow-sm">
+              <div className="relative w-[16px] h-[16px] flex items-center justify-center">
+                <svg viewBox="0 0 40 44" className="absolute inset-0 w-full h-full drop-shadow-md">
+                  <path d="M20 2 L36 10 L36 26 Q36 38 20 42 Q4 38 4 26 L4 10 Z" fill="url(#vsGradSpectator)" stroke="rgba(255,255,255,0.5)" strokeWidth="1.5"/>
+                  <defs><linearGradient id="vsGradSpectator" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor="#DC143C"/><stop offset="50%" stopColor="#8B0000"/><stop offset="100%" stopColor="#1E90FF"/></linearGradient></defs>
+                </svg>
+                <span className="relative z-10 text-white text-[5px] font-black italic drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">VS</span>
               </div>
-            </div>
-
-            {/* Score bar — same gradient and typography as creator */}
-            <div className="relative z-20 w-full flex-none overflow-hidden" style={{ height: '18px' }}>
-              {(() => {
-                const total = (spectatorBattle.hostScore || 0) + (spectatorBattle.opponentScore || 0);
-                const leftPct = total > 0 ? Math.max(5, Math.min(95, ((spectatorBattle.hostScore || 0) / total) * 100)) : 50;
-                const redTeamScore = spectatorBattle.hostScore || 0;
-                const blueTeamScore = spectatorBattle.opponentScore || 0;
-                return (
-                  <>
-                    <div className="absolute inset-0 flex">
-                      <div className="h-full transition-all duration-500 ease-out" style={{ width: `${leftPct}%`, backgroundImage: 'linear-gradient(90deg, #DC143C, #FF1744, #C41E3A)' }} />
-                      <div className="h-full flex-1 transition-all duration-500 ease-out" style={{ backgroundImage: 'linear-gradient(90deg, #1E90FF, #4169E1, #0047AB)' }} />
-                    </div>
-                    <div className="absolute inset-0 z-10 flex items-center justify-between px-2 pointer-events-none">
-                      <span className="text-white font-black text-[14px] tabular-nums drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
-                        {(typeof redTeamScore === 'number' && Number.isFinite(redTeamScore) ? redTeamScore : 0).toLocaleString()}
-                      </span>
-                      <span className="text-white font-black text-[14px] tabular-nums drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
-                        {(typeof blueTeamScore === 'number' && Number.isFinite(blueTeamScore) ? blueTeamScore : 0).toLocaleString()}
-                      </span>
-                    </div>
-                  </>
-                );
-              })()}
-            </div>
-
-            {/* Split video: host (left, tap to vote) + opponent (right, tap to visit) */}
-            <div className="flex-1 flex flex-row min-h-0">
-              {/* Host side — tap to vote +5 */}
-              <div
-                className="w-1/2 relative pointer-events-auto cursor-pointer"
-                onClick={() => handleSpectatorVote('host')}
-              >
-                {/* Host video is rendered behind this overlay */}
-              </div>
-              {/* Opponent side — tap to visit their stream */}
-              <div
-                className="w-1/2 relative bg-[#13151A] pointer-events-auto cursor-pointer"
-                onClick={() => {
-                  if (spectatorBattle.opponentRoomId) {
-                    navigate(`/watch/${spectatorBattle.opponentRoomId}`);
-                  } else {
-                    handleSpectatorVote('opponent');
-                  }
-                }}
-              >
-                <video
-                  ref={opponentVideoRef}
-                  className="absolute inset-0 w-full h-full object-cover"
-                  autoPlay playsInline muted
-                  style={{ opacity: hasOpponentStream ? 1 : 0, transition: 'opacity 0.3s ease' }}
-                />
-                {!hasOpponentStream && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
-                    <div className="w-14 h-14 rounded-full bg-[#C9A96E]/20 flex items-center justify-center">
-                      <span className="text-xl font-bold text-[#C9A96E]/80">{(spectatorBattle.opponentName || 'O').charAt(0).toUpperCase()}</span>
-                    </div>
-                    <span className="text-white text-xs font-bold truncate max-w-[90%]">{spectatorBattle.opponentName || 'Opponent'}</span>
-                    <div className="flex items-center gap-1">
-                      <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                      <span className="text-green-400 text-[9px] font-bold">Connecting...</span>
-                    </div>
-                  </div>
-                )}
-                {spectatorBattle.opponentRoomId && (
-                  <div className="absolute bottom-1 left-0 right-0 flex justify-center pointer-events-none">
-                    <span className="text-white/50 text-[8px] bg-black/40 rounded px-1.5 py-0.5">Tap to visit</span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* 6 MVP circles: 3 left (host side) + 3 right (opponent side) */}
-            <div className="w-full px-3 py-1.5 flex items-center justify-between flex-none pointer-events-none z-30">
-              <div className="flex items-center gap-1">
-                {battleMvp.left.map((u, idx) => {
-                  const i = idx + 1;
-                  return (
-                  <div key={`mvp-l-${u.id}-${i}`} className="flex flex-col items-center">
-                    <div className="relative">
-                      <div className="w-[28px] h-[28px] rounded-full border-2 border-[#C9A96E]/70 bg-[#13151A]/50 overflow-hidden flex items-center justify-center">
-                        {u.avatar ? (
-                          <img src={u.avatar} alt="" className="w-full h-full object-cover" />
-                        ) : u.name ? (
-                          <span className="text-[#C9A96E] text-[10px] font-black">{u.name.slice(0, 1).toUpperCase()}</span>
-                        ) : (
-                          <span className="text-white/20 text-[9px]">{i}</span>
-                        )}
-                      </div>
-                    </div>
-                    <span className={`text-[7px] font-bold mt-0.5 ${i === 1 ? 'text-[#C9A96E]' : 'text-white/50'}`}>{i} MVP</span>
-                  </div>
-                )})}
-              </div>
-              <div className="flex items-center gap-1">
-                {battleMvp.right.map((u, idx) => {
-                  const i = idx + 1;
-                  return (
-                  <div key={`mvp-r-${u.id}-${i}`} className="flex flex-col items-center">
-                    <div className="relative">
-                      <div className="w-[28px] h-[28px] rounded-full border-2 border-[#C9A96E]/70 bg-[#13151A]/50 overflow-hidden flex items-center justify-center">
-                        {u.avatar ? (
-                          <img src={u.avatar} alt="" className="w-full h-full object-cover" />
-                        ) : u.name ? (
-                          <span className="text-[#C9A96E] text-[10px] font-black">{u.name.slice(0, 1).toUpperCase()}</span>
-                        ) : (
-                          <span className="text-white/20 text-[9px]">{i}</span>
-                        )}
-                      </div>
-                    </div>
-                    <span className={`text-[7px] font-bold mt-0.5 ${i === 1 ? 'text-[#C9A96E]' : 'text-white/50'}`}>{i} MVP</span>
-                  </div>
-                )})}
-              </div>
+              <span className="text-white text-[10px] font-black tabular-nums drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] translate-y-[3mm]">
+                {formatTime(spectatorBattle.timeLeft)}
+              </span>
             </div>
           </div>
         )}
@@ -2098,7 +2161,7 @@ export default function SpectatorPage() {
                         style={{ marginTop: '6mm' }}
                         onClick={() => { setShowSharePanel(false); navigate(`/profile/${u.id}`); }}
                       >
-                        <AvatarRing src={u.avatar || ''} alt={u.name} size={56} />
+                        <AvatarRing src={u.avatar || '/Icons/Profile icon.png'} alt={u.name} size={56} />
                         <span className="text-white/60 text-[10px] font-medium truncate w-16 text-center">{u.name}</span>
                       </button>
                     ))}

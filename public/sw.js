@@ -6,8 +6,9 @@ const urlsToCache = [
   '/',
   '/index.html',
   '/manifest.json',
-  '/icon-192x192.png',
-  '/icon-512x512.png'
+  '/favicon.svg',
+  '/pwa-192x192.svg',
+  '/pwa-512x512.svg'
 ];
 
 // Install service worker and cache assets

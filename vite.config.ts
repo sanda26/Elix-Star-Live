@@ -2,8 +2,6 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tsconfigPaths from "vite-tsconfig-paths";
 import path from 'node:path';
-import { VitePWA } from 'vite-plugin-pwa';
-
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => ({
   resolve: {
@@ -12,20 +10,23 @@ export default defineConfig(({ mode }) => ({
     },
   },
   build: {
-    sourcemap: mode !== 'production',
+    sourcemap: mode !== 'production' && mode !== 'store',
     target: 'esnext',
     minify: 'terser',
     terserOptions: {
       compress: {
         drop_console: mode === 'production' || mode === 'store',
         drop_debugger: true,
+        passes: 2,
       },
     },
+    chunkSizeWarningLimit: 600,
     rollupOptions: {
       output: {
         manualChunks: {
           'vendor-react': ['react', 'react-dom', 'react-router-dom'],
           'vendor-ui': ['framer-motion', 'lucide-react', 'clsx', 'tailwind-merge'],
+          'vendor-state': ['zustand'],
         },
       },
     },

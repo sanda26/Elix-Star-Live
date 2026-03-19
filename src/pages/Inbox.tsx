@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { apiStub } from '../lib/apiStub';
 import { useAuthStore } from '../store/useAuthStore';
+import { nativeConfirm } from '../components/NativeDialog';
 import { Heart, UserPlus, Search, ShoppingBag, Archive, MicOff, Plus, Sword, X, ChevronRight, Trash2 } from 'lucide-react';
 import { AvatarRing } from '../components/AvatarRing';
 import { showToast } from '../lib/toast';
@@ -265,15 +266,13 @@ export default function Inbox() {
                     className="flex-shrink-0 flex flex-col items-center gap-1" style={{ width: 95, minWidth: 95 }}
                 >
                     <div className="relative" style={{ width: 85, height: 85 }}>
-                        <img src="/Icons/Profile icon.png" alt="" className="w-full h-full object-contain" />
-                        {(user?.avatar || (user?.id && typeof localStorage !== 'undefined' && localStorage.getItem('elix_avatar_' + user.id))) && (
-                            <img
-                                src={user?.avatar || (user?.id ? localStorage.getItem('elix_avatar_' + user.id) : null) || ''}
-                                alt="You"
-                                className="absolute rounded-full object-cover"
-                                style={{ width: 52, height: 52, top: '45%', left: '51%', transform: 'translate(-50%, -50%)', zIndex: 1 }}
-                            />
-                        )}
+                        <img src="/Icons/Profile icon.png" alt="" className="w-full h-full object-contain" style={{ position: 'relative', zIndex: 1 }} />
+                        <img
+                            src={user?.avatar || (user?.id && typeof localStorage !== 'undefined' ? localStorage.getItem('elix_avatar_' + user.id) : null) || '/Icons/Profile icon.png'}
+                            alt="You"
+                            className="absolute rounded-full object-cover"
+                            style={{ width: 52, height: 52, top: '45%', left: '51%', transform: 'translate(-50%, -50%)', zIndex: 0 }}
+                        />
                     </div>
                     <div className="text-[11px] text-white/80 truncate w-full text-center">Create</div>
                 </button>
@@ -286,19 +285,13 @@ export default function Inbox() {
                         className="flex-shrink-0 flex flex-col items-center gap-1" style={{ width: 95, minWidth: 95 }}
                     >
                         <div className="relative" style={{ width: 85, height: 85 }}>
-                            <img src="/Icons/Profile icon.png" alt="" className="w-full h-full object-contain" />
-                            {f.avatar_url ? (
-                                <img
-                                    src={f.avatar_url}
-                                    alt={f.display_name || f.username || 'User'}
-                                    className="absolute rounded-full object-cover"
-                                    style={{ width: 52, height: 52, top: '45%', left: '51%', transform: 'translate(-50%, -50%)', zIndex: 1 }}
-                                />
-                            ) : (
-                                <span className="absolute text-[#C9A96E] font-bold text-xl z-10" style={{ top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}>
-                                    {(f.display_name || f.username || 'U').charAt(0).toUpperCase()}
-                                </span>
-                            )}
+                            <img src="/Icons/Profile icon.png" alt="" className="w-full h-full object-contain" style={{ position: 'relative', zIndex: 1 }} />
+                            <img
+                                src={f.avatar_url || '/Icons/Profile icon.png'}
+                                alt={f.display_name || f.username || 'User'}
+                                className="absolute rounded-full object-cover"
+                                style={{ width: 52, height: 52, top: '45%', left: '51%', transform: 'translate(-50%, -50%)', zIndex: 0 }}
+                            />
                         </div>
                         <div className="text-[11px] text-white/80 truncate w-full text-center">{f.display_name || f.username || 'User'}</div>
                     </button>
@@ -315,26 +308,33 @@ export default function Inbox() {
                         <div className="relative flex items-center justify-center" style={{ width: 85, height: 85 }}>
                             {u.is_live ? (
                                 <>
-                                    <div className="absolute inset-0 rounded-full border-4 border-red-500" style={{ width: 85, height: 85 }} />
-                                    <div className="relative rounded-full overflow-hidden flex items-center justify-center" style={{ width: 85, height: 85 }}>
-                                        <img src="/Icons/Profile icon.png" alt="" className="w-full h-full object-contain" />
-                                        {u.avatar_url ? (
-                                            <img src={u.avatar_url} alt={u.name || u.username} className="absolute rounded-full object-cover" style={{ width: 52, height: 52, top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 1 }} />
-                                        ) : (
-                                            <span className="absolute text-[#C9A96E] font-bold text-lg z-10" style={{ top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}>{(u.name || u.username || 'U').charAt(0).toUpperCase()}</span>
-                                        )}
-                                    </div>
+                                    <div
+                                        className="absolute inset-0 rounded-full"
+                                        style={{
+                                            width: 85, height: 85,
+                                            background: 'conic-gradient(#ff0040, #ff6a00, #ff0040, #ff6a00, #ff0040)',
+                                            WebkitMask: 'radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 4px))',
+                                            mask: 'radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 4px))',
+                                        }}
+                                    />
+                                    <img
+                                        src={u.avatar_url || '/Icons/Profile icon.png'}
+                                        alt={u.name || u.username}
+                                        className="rounded-full object-cover"
+                                        style={{ width: 52, height: 52, zIndex: 1 }}
+                                    />
                                     <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 bg-red-500 text-white text-[9px] font-bold px-2 py-0.5 rounded z-20 whitespace-nowrap">LIVE</div>
                                 </>
                             ) : (
                                 <>
                                     <div className="relative" style={{ width: 85, height: 85 }}>
-                                        <img src="/Icons/Profile icon.png" alt="" className="w-full h-full object-contain" />
-                                        {u.avatar_url ? (
-                                            <img src={u.avatar_url} alt={u.name || u.username} className="absolute rounded-full object-cover" style={{ width: 52, height: 52, top: '45%', left: '51%', transform: 'translate(-50%, -50%)', zIndex: 1 }} />
-                                        ) : (
-                                            <span className="absolute text-[#C9A96E] font-bold text-xl z-10" style={{ top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}>{(u.name || u.username || 'U').charAt(0).toUpperCase()}</span>
-                                        )}
+                                        <img src="/Icons/Profile icon.png" alt="" className="w-full h-full object-contain" style={{ position: 'relative', zIndex: 1 }} />
+                                        <img
+                                            src={u.avatar_url || '/Icons/Profile icon.png'}
+                                            alt={u.name || u.username}
+                                            className="absolute rounded-full object-cover"
+                                            style={{ width: 52, height: 52, top: '45%', left: '51%', transform: 'translate(-50%, -50%)', zIndex: 0 }}
+                                        />
                                     </div>
                                 </>
                             )}
@@ -417,9 +417,10 @@ export default function Inbox() {
                             </div>
                             <button
                                 type="button"
-                                onClick={(e) => {
+                                onClick={async (e) => {
                                     e.stopPropagation();
-                                    if (!window.confirm('Delete this conversation? Messages will be removed.')) return;
+                                    const ok = await nativeConfirm('Delete this conversation? Messages will be removed.', 'Delete Conversation');
+                                    if (!ok) return;
                                     apiStub.from('chat_threads').delete().eq('id', conv.id).then(({ error }) => {
                                         if (error) showToast('Could not delete');
                                         else {
@@ -459,9 +460,10 @@ export default function Inbox() {
                             </div>
                             <button
                                 type="button"
-                                onClick={(e) => {
+                                onClick={async (e) => {
                                     e.stopPropagation();
-                                    if (!window.confirm('Delete this conversation? Messages will be removed.')) return;
+                                    const ok = await nativeConfirm('Delete this conversation? Messages will be removed.', 'Delete Conversation');
+                                    if (!ok) return;
                                     apiStub.from('chat_threads').delete().eq('id', conv.id).then(({ error }) => {
                                         if (error) showToast('Could not delete');
                                         else {

@@ -24,6 +24,7 @@ import {
 } from "./routes/misc";
 import {
   handleForYouFeed,
+  handleFriendsFeed,
   handleTrackView,
   handleTrackInteraction,
   handleGetVideoScore,
@@ -41,6 +42,8 @@ import {
   getVideosByUser,
   deleteVideo,
   replaceVideos,
+  incrementStat,
+  decrementStat,
   type Video,
 } from "./lib/videoStore";
 import { initPostgres, loadVideosFromDb, saveVideoToDb, dbUpdateViewerCount } from "./lib/postgres";
@@ -218,6 +221,12 @@ app.post("/api/auth/delete", handleDeleteAccount);
 app.get("/api/auth/me", handleMe);
 app.post("/api/auth/resend-confirmation", handleResendConfirmation);
 app.post("/api/auth/apple/start", handleAppleStart);
+app.post("/api/auth/forgot-password", (_req, res) => {
+  res.json({ message: "If an account exists with that email, a reset link has been sent." });
+});
+app.post("/api/auth/reset-password", (_req, res) => {
+  res.status(501).json({ error: "Password reset is not yet available. Please contact support." });
+});
 
 // Profile (alias for /api/auth/me)
 app.get("/api/profile", handleMe);
@@ -264,6 +273,7 @@ app.post("/api/promote-iap-complete", handlePromoteIAPComplete);
 
 // Feed & Recommendation API
 app.get("/api/feed/foryou", handleForYouFeed);
+app.get("/api/feed/friends", handleFriendsFeed);
 app.post("/api/feed/track-view", handleTrackView);
 app.post("/api/feed/track-interaction", handleTrackInteraction);
 app.get("/api/feed/score/:videoId", handleGetVideoScore);
@@ -272,6 +282,76 @@ app.get("/api/feed/score/:videoId", handleGetVideoScore);
 app.get("/api/videos/:id/comments", handleGetVideoComments);
 app.post("/api/videos/:id/comments", handlePostVideoComment);
 app.delete("/api/videos/:id/comments/:commentId", handleDeleteVideoComment);
+
+// ── Like / Save (in-memory; persists across session via Zustand on client) ──────────────────────
+const likesMap = new Map<string, Set<string>>(); // videoId → Set<userId>
+const savesMap = new Map<string, Set<string>>(); // videoId → Set<userId>
+
+app.post("/api/videos/:id/like", (req, res) => {
+  const videoId = req.params.id;
+  const token = getTokenFromRequest(req);
+  if (!token) return res.status(401).json({ error: "Not authenticated." });
+  const payload = verifyAuthToken(token);
+  if (!payload) return res.status(401).json({ error: "Invalid session." });
+  const userId = payload.sub;
+
+  if (!likesMap.has(videoId)) likesMap.set(videoId, new Set());
+  const set = likesMap.get(videoId)!;
+  if (set.has(userId)) return res.json({ liked: true, likes: getVideo(videoId)?.likes || 0 });
+  set.add(userId);
+  incrementStat(videoId, "likes");
+  const video = getVideo(videoId);
+  return res.json({ liked: true, likes: video?.likes || 0 });
+});
+
+app.post("/api/videos/:id/unlike", (req, res) => {
+  const videoId = req.params.id;
+  const token = getTokenFromRequest(req);
+  if (!token) return res.status(401).json({ error: "Not authenticated." });
+  const payload = verifyAuthToken(token);
+  if (!payload) return res.status(401).json({ error: "Invalid session." });
+  const userId = payload.sub;
+
+  const set = likesMap.get(videoId);
+  if (!set || !set.has(userId)) return res.json({ liked: false, likes: getVideo(videoId)?.likes || 0 });
+  set.delete(userId);
+  decrementStat(videoId, "likes");
+  const video = getVideo(videoId);
+  return res.json({ liked: false, likes: video?.likes || 0 });
+});
+
+app.post("/api/videos/:id/save", (req, res) => {
+  const videoId = req.params.id;
+  const token = getTokenFromRequest(req);
+  if (!token) return res.status(401).json({ error: "Not authenticated." });
+  const payload = verifyAuthToken(token);
+  if (!payload) return res.status(401).json({ error: "Invalid session." });
+  const userId = payload.sub;
+
+  if (!savesMap.has(videoId)) savesMap.set(videoId, new Set());
+  const set = savesMap.get(videoId)!;
+  if (set.has(userId)) return res.json({ saved: true, saves: getVideo(videoId)?.saves || 0 });
+  set.add(userId);
+  incrementStat(videoId, "saves");
+  const video = getVideo(videoId);
+  return res.json({ saved: true, saves: video?.saves || 0 });
+});
+
+app.post("/api/videos/:id/unsave", (req, res) => {
+  const videoId = req.params.id;
+  const token = getTokenFromRequest(req);
+  if (!token) return res.status(401).json({ error: "Not authenticated." });
+  const payload = verifyAuthToken(token);
+  if (!payload) return res.status(401).json({ error: "Invalid session." });
+  const userId = payload.sub;
+
+  const set = savesMap.get(videoId);
+  if (!set || !set.has(userId)) return res.json({ saved: false, saves: getVideo(videoId)?.saves || 0 });
+  set.delete(userId);
+  decrementStat(videoId, "saves");
+  const video = getVideo(videoId);
+  return res.json({ saved: false, saves: video?.saves || 0 });
+});
 
 // ── Video CRUD (in-memory store; persists to Postgres when DATABASE_URL set) ───────────────────
 app.post("/api/videos", async (req, res) => {
@@ -1039,9 +1119,6 @@ wss.on("connection", async (ws: WebSocket, req) => {
       user_count: roomClients.size,
     });
 
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/index.ts:room_state_sent',message:'Sending room_state to client',data:{roomId,userId:client.userId,hasBattle:!!battles.get(roomId)},timestamp:Date.now(),hypothesisId:'C'})}).catch(()=>{});
-    // #endregion
     sendToClient(client, "room_state", {
       viewers,
     });
@@ -1359,9 +1436,6 @@ async function handleMessage(client: Client, event: string, data: any) {
 
       // ═══ BATTLE EVENTS — server-controlled ═══
       case "battle_create": {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/index.ts:battle_create',message:'battle_create received',data:{roomId:client.roomId,userId:client.userId,opponentUserId:data.opponentUserId,opponentName:data.opponentName},timestamp:Date.now(),hypothesisId:'D'})}).catch(()=>{});
-        // #endregion
         const existing = battles.get(client.roomId);
         if (existing) {
           if (existing.timer) clearInterval(existing.timer);
@@ -1397,27 +1471,17 @@ async function handleMessage(client: Client, event: string, data: any) {
       }
 
       case "battle_join": {
-        // #region agent log
-        const _bjBattle = battles.get(client.roomId);
-        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/index.ts:battle_join',message:'battle_join received',data:{roomId:client.roomId,userId:client.userId,opponentName:data.opponentName,battleExists:!!_bjBattle,battleStatus:_bjBattle?.status,battleOpponentUserId:_bjBattle?.opponentUserId},timestamp:Date.now(),hypothesisId:'C,D'})}).catch(()=>{});
-        // #endregion
         const battleSession = joinBattle(
           client.roomId,
           client.userId,
           data.opponentName || client.displayName,
         );
         if (!battleSession) {
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/index.ts:battle_join_FAILED',message:'joinBattle returned null!',data:{roomId:client.roomId,userId:client.userId},timestamp:Date.now(),hypothesisId:'D'})}).catch(()=>{});
-          // #endregion
           sendToClient(client, "battle_error", {
             message: "No battle to join",
           });
           break;
         }
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/index.ts:battle_join_OK',message:'joinBattle succeeded',data:{roomId:client.roomId,userId:client.userId,sessionStatus:battleSession.status},timestamp:Date.now(),hypothesisId:'D'})}).catch(()=>{});
-        // #endregion
         break;
       }
 
@@ -1437,14 +1501,8 @@ async function handleMessage(client: Client, event: string, data: any) {
       case "battle_spectator_vote": {
         const voteRoom = client.roomId;
         const voteBattle = battles.get(voteRoom);
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/index.ts:battle_spectator_vote',message:'incoming spectator vote',data:{roomId:voteRoom,hasBattle:!!voteBattle,status:voteBattle?.status,target:data?.target},timestamp:Date.now(),runId:'pre-fix',hypothesisId:'H2'})}).catch(()=>{});
-        // #endregion
         if (!voteBattle || voteBattle.status !== "ACTIVE") break;
         const voteTarget = data.target === "host" ? "host" : "opponent";
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/index.ts:battle_spectator_vote',message:'adding spectator vote points',data:{roomId:voteRoom,target:voteTarget,points:5},timestamp:Date.now(),runId:'pre-fix',hypothesisId:'H3'})}).catch(()=>{});
-        // #endregion
         addBattleScoreForTarget(voteRoom, voteTarget, 5);
         sendToClient(client, "battle_vote_ack", { target: voteTarget, points: 5 });
         break;
@@ -1520,9 +1578,6 @@ async function handleMessage(client: Client, event: string, data: any) {
         const hostUserId =
           typeof data.hostUserId === "string" ? data.hostUserId : "";
         if (!hostUserId) break;
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/index.ts:battle_invite_accept',message:'Opponent accepted battle invite',data:{opponentUserId:client.userId,opponentRoom:client.roomId,hostUserId,streamKeyFromData:data.streamKey},timestamp:Date.now(),hypothesisId:'A'})}).catch(()=>{});
-        // #endregion
         sendToUserGlobal(hostUserId, "battle_invite_accepted", {
           requesterUserId: client.userId,
           requesterName: data.requesterName || client.displayName,

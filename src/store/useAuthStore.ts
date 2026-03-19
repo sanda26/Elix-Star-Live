@@ -526,6 +526,7 @@ export const useAuthStore = create<AuthStore>()(persist((set, get) => ({
         (existing.session as any)?.accessToken ||
         (existing.session as any)?.access_token ||
         undefined;
+
       const res = await fetch(apiUrl("/api/auth/me"), {
         method: "GET",
         headers: {

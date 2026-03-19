@@ -30,13 +30,50 @@ export interface Profile {
 
 const profiles = new Map<string, Profile>();
 
-type StoredUserRow = { id: string; email?: string; username?: string; avatar_url?: string };
+type StoredUserRow = { id: string; email?: string; username?: string; avatar_url?: string; display_name?: string };
+
+const __filename_p = fileURLToPath(import.meta.url);
+const __dirname_p = path.dirname(__filename_p);
+const followsFile = path.join(__dirname_p, "..", "data", "follows.json");
+
+// followsMap: key = follower_id, value = Set of following_ids
+const followsMap = new Map<string, Set<string>>();
+
+function loadFollowsFromDisk(): void {
+  try {
+    if (!fs.existsSync(followsFile)) return;
+    const raw = fs.readFileSync(followsFile, "utf8").trim();
+    if (!raw) return;
+    const parsed = JSON.parse(raw) as Record<string, string[]>;
+    for (const [k, v] of Object.entries(parsed)) {
+      if (Array.isArray(v)) followsMap.set(k, new Set(v));
+    }
+  } catch { /* ignore */ }
+}
+
+function saveFollowsToDisk(): void {
+  try {
+    const obj: Record<string, string[]> = {};
+    for (const [k, v] of followsMap) obj[k] = [...v];
+    const dir = path.dirname(followsFile);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(followsFile, JSON.stringify(obj, null, 2), "utf8");
+  } catch { /* ignore */ }
+}
+
+loadFollowsFromDisk();
+
+export function getFollowingIds(userId: string): string[] {
+  return [...(followsMap.get(userId) ?? [])];
+}
+
+export function isFollowing(followerId: string, targetId: string): boolean {
+  return followsMap.get(followerId)?.has(targetId) ?? false;
+}
 
 function readUsersFromDisk(): StoredUserRow[] {
   try {
-    const __filename = fileURLToPath(import.meta.url);
-    const __dirname = path.dirname(__filename);
-    const usersFile = path.join(__dirname, "..", "data", "users.json");
+    const usersFile = path.join(__dirname_p, "..", "data", "users.json");
     if (!fs.existsSync(usersFile)) return [];
     const raw = fs.readFileSync(usersFile, "utf8");
     if (!raw.trim()) return [];
@@ -122,14 +159,19 @@ export function handleListProfiles(_req: Request, res: Response): void {
 export function handleGetFollowers(req: Request, res: Response): void {
   const userId = req.params.userId;
   const profile = getOrCreateProfile(userId);
-  res.json({ count: profile.followers, followers: [] });
+  const followerIds: string[] = [];
+  for (const [fid, set] of followsMap) {
+    if (set.has(userId)) followerIds.push(fid);
+  }
+  res.json({ count: profile.followers, followers: followerIds });
 }
 
 /** GET /api/profiles/:userId/following */
 export function handleGetFollowing(req: Request, res: Response): void {
   const userId = req.params.userId;
   const profile = getOrCreateProfile(userId);
-  res.json({ count: profile.following, following: [] });
+  const followingIds = getFollowingIds(userId);
+  res.json({ count: profile.following, following: followingIds });
 }
 
 /** PATCH /api/profiles/:userId — auth required, own profile only */
@@ -171,12 +213,21 @@ export function handleFollow(req: Request, res: Response): void {
     return;
   }
 
+  const myFollows = followsMap.get(jwtUser.sub) ?? new Set<string>();
+  if (myFollows.has(userId)) {
+    res.json({ success: true, already: true, followers: getOrCreateProfile(userId).followers });
+    return;
+  }
+  myFollows.add(userId);
+  followsMap.set(jwtUser.sub, myFollows);
+
   const target = getOrCreateProfile(userId);
   const follower = getOrCreateProfile(jwtUser.sub);
   target.followers = Math.max(0, target.followers + 1);
   follower.following = Math.max(0, follower.following + 1);
   profiles.set(userId, target);
   profiles.set(jwtUser.sub, follower);
+  saveFollowsToDisk();
   res.json({ success: true, followers: target.followers });
 }
 
@@ -191,12 +242,21 @@ export function handleUnfollow(req: Request, res: Response): void {
     return;
   }
 
+  const myFollows = followsMap.get(jwtUser.sub);
+  if (!myFollows || !myFollows.has(userId)) {
+    res.json({ success: true, already: true, followers: getOrCreateProfile(userId).followers });
+    return;
+  }
+  myFollows.delete(userId);
+  followsMap.set(jwtUser.sub, myFollows);
+
   const target = getOrCreateProfile(userId);
   const follower = getOrCreateProfile(jwtUser.sub);
   target.followers = Math.max(0, target.followers - 1);
   follower.following = Math.max(0, follower.following - 1);
   profiles.set(userId, target);
   profiles.set(jwtUser.sub, follower);
+  saveFollowsToDisk();
   res.json({ success: true, followers: target.followers });
 }
 

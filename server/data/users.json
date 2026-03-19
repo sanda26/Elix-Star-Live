@@ -1,3 +1,22 @@
 {
-  "users": []
+  "users": [
+    {
+      "id": "726399f1-5727-4d17-8eb7-10fab59caa9f",
+      "email": "test@elixstar.com",
+      "passwordHash": "6iR5S0MAN55tBk45pAASeg==:Wylrbn/vsoZGn4lZmJ0eIBU0FlF8P2swmGzCH2de96m97xofNxVz37mZ9wDHaPvgvpbxpPbc+NxVPi4s8wAWmQ==",
+      "username": "testuser",
+      "display_name": "Test User",
+      "avatar_url": "https://ui-avatars.com/api/?name=Test%20User&background=random",
+      "created_at": "2026-03-19T02:51:43.010Z"
+    },
+    {
+      "id": "8c406ffb-77c1-4e06-a8bb-ed8b1e4a9d0b",
+      "email": "bericaandrei1@gmail.com",
+      "passwordHash": "EYWccNERMQzZrDUPtmzxSQ==:ag9pCND0hVZ5QASY2h9uaYUB/wmBHDDIXNESwwDncxAeK6KjSGv6gjmSp+v2Fz2lYzjzxOmeeBk5w8jyoWITTg==",
+      "username": "Andrei Ionut Berica",
+      "display_name": "Andrei Ionut Berica",
+      "avatar_url": "https://ui-avatars.com/api/?name=Andrei%20Ionut%20Berica&background=random",
+      "created_at": "2026-03-19T02:52:08.853Z"
+    }
+  ]
 }

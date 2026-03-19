@@ -1,5 +1,6 @@
 import React from 'react';
 import { apiStub } from '../lib/apiStub';
+import { nativeConfirm } from '../components/NativeDialog';
 import {
   ChevronRight,
   User,
@@ -31,13 +32,15 @@ export default function Settings() {
   };
 
   const handleDeleteAccount = async () => {
-    const confirmed = window.confirm(
-      'Are you sure you want to delete your account? This action is permanent and cannot be undone. All your data, videos, and coins will be lost.'
+    const confirmed = await nativeConfirm(
+      'Are you sure you want to delete your account? This action is permanent and cannot be undone. All your data, videos, and coins will be lost.',
+      'Delete Account'
     );
     if (!confirmed) return;
 
-    const doubleConfirm = window.confirm(
-      'This is your last chance. Delete your account permanently?'
+    const doubleConfirm = await nativeConfirm(
+      'This is your last chance. Delete your account permanently?',
+      'Final Confirmation'
     );
     if (!doubleConfirm) return;
 

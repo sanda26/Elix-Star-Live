@@ -24,6 +24,7 @@ import { useAuthStore } from '../store/useAuthStore';
 import { setCachedCameraStream } from '../lib/cameraStream';
 import { type SoundTrack, fetchSoundTracksFromDatabase } from '../lib/soundLibrary';
 import { apiStub } from '../lib/apiStub';
+import { nativePrompt } from '../components/NativeDialog';
 import ElixCameraLayout from '../components/ElixCameraLayout';
 
 type CreateMode = 'upload' | 'post' | 'create' | 'live';
@@ -127,10 +128,10 @@ function SoundPickerModal({
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => {
-                const url = window.prompt('Paste audio URL (mp3/ogg):');
+              onClick={async () => {
+                const url = await nativePrompt('Paste audio URL (mp3/ogg):', '', 'Add Sound');
                 if (!url) return;
-                const title = window.prompt('Sound name:') ?? 'Custom sound';
+                const title = (await nativePrompt('Sound name:', 'Custom sound', 'Sound Name')) ?? 'Custom sound';
                 const next: Sound = {
                   id: Date.now(),
                   title: title.trim() || 'Custom sound',

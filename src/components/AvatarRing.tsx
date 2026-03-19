@@ -8,7 +8,7 @@ interface AvatarRingProps {
 
 export function AvatarRing({ src, alt = '', size, className = '', onClick }: AvatarRingProps) {
   const innerSize = size * 0.65;
-  const safeSrc = typeof src === 'string' ? src : '';
+  const safeSrc = (typeof src === 'string' && src.length > 0) ? src : '/Icons/Profile icon.png';
   const safeAlt = typeof alt === 'string' ? alt : '';
   return (
     <div

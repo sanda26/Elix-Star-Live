@@ -10,10 +10,12 @@ import { trackEvent } from '../lib/analytics';
 import ReportModal from '../components/ReportModal';
 import PromotePanel from '../components/PromotePanel';
 import { useVideoStore } from '../store/useVideoStore';
+import { apiUrl } from '../lib/api';
 
 interface Video {
   id: string;
   thumbnail_url: string;
+  url?: string;
   views: number;
   is_public: boolean;
 }
@@ -71,26 +73,28 @@ export default function Profile() {
     setShareSent(new Set());
     if (!user?.id) return;
     try {
-      const { data: followData } = await apiStub
-        .from('followers')
-        .select('follower_id')
-        .eq('following_id', user.id)
-        .limit(50);
-      const { data: followingData } = await apiStub
-        .from('followers')
-        .select('following_id')
-        .eq('follower_id', user.id)
-        .limit(50);
-      const ids = new Set<string>();
-      (followData || []).forEach((f: any) => ids.add(f.follower_id));
-      (followingData || []).forEach((f: any) => ids.add(f.following_id));
+      const session = useAuthStore.getState().session;
+      const headers: Record<string, string> = {};
+      if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
+
+      const [followersRes, followingRes] = await Promise.all([
+        fetch(apiUrl(`/api/profiles/${user.id}/followers`), { credentials: 'include', headers }),
+        fetch(apiUrl(`/api/profiles/${user.id}/following`), { credentials: 'include', headers }),
+      ]);
+      const followerIds: string[] = followersRes.ok ? (await followersRes.json().catch(() => ({ followers: [] }))).followers || [] : [];
+      const followingIds: string[] = followingRes.ok ? (await followingRes.json().catch(() => ({ following: [] }))).following || [] : [];
+      const ids = new Set<string>([...followerIds, ...followingIds]);
       ids.delete(user.id);
       if (ids.size === 0) { setShareFollowers([]); return; }
-      const { data: profiles } = await apiStub
-        .from('profiles')
-        .select('user_id, username, avatar_url')
-        .in('user_id', Array.from(ids));
-      setShareFollowers(profiles || []);
+
+      const profilesRes = await fetch(apiUrl('/api/profiles'), { credentials: 'include', headers });
+      if (profilesRes.ok) {
+        const allProfiles = (await profilesRes.json()).profiles || [];
+        const filtered = allProfiles.filter((p: any) => ids.has(p.user_id));
+        setShareFollowers(filtered);
+      } else {
+        setShareFollowers([]);
+      }
     } catch { setShareFollowers([]); }
   };
 
@@ -126,7 +130,7 @@ export default function Profile() {
     ? (user?.name || profileData?.display_name || profileData?.username || user?.email?.split('@')[0] || 'User')
     : (profileData?.display_name || profileData?.username || displayUserId || 'User');
   const rawUsername = isOwnProfile
-    ? (profileData?.username || user?.email?.split('@')[0] || 'user')
+    ? (user?.email?.split('@')[0] || profileData?.username || 'user')
     : (profileData?.username || 'user');
   const displayUsername = (rawUsername || '').replace(/^@+/, '');
   const localAvatar = isOwnProfile && user?.id ? localStorage.getItem('elix_avatar_' + user.id) : null;
@@ -145,13 +149,11 @@ export default function Profile() {
       return;
     }
     const usernameClean = (displayUserId || '').replace(/^@+/, '');
-    apiStub
-      .from('profiles')
-      .select('user_id')
-      .eq('username', usernameClean)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data?.user_id) setResolvedUserId(data.user_id);
+    fetch(apiUrl(`/api/profiles/by-username/${encodeURIComponent(usernameClean)}`), { credentials: 'include' })
+      .then(r => r.ok ? r.json() : null)
+      .then((body) => {
+        const uid = body?.profile?.userId || body?.user_id;
+        if (uid) setResolvedUserId(uid);
         else {
           setResolvedUserId(null);
           setProfileData(null);
@@ -178,74 +180,61 @@ export default function Profile() {
     if (!effectiveUserId) { setLoading(false); return; }
 
     try {
-      const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000));
-      
-      const fetchProfile = async () => {
-        const { data, error } = await apiStub
-          .from('profiles')
-          .select('*')
-          .eq('user_id', effectiveUserId)
-          .single();
+      const session = useAuthStore.getState().session;
+      const headers: Record<string, string> = {};
+      if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
 
-        if (error || !data) {
-          if (effectiveUserId !== user?.id) {
-            return null;
-          }
-          return {
-            user_id: effectiveUserId,
-            username: user?.username || user?.email?.split('@')[0] || 'user',
-            display_name: user?.name || user?.email?.split('@')[0] || 'User',
-            avatar_url: user?.avatar || null,
-            bio: null,
-            followers_count: 0,
-            following_count: 0,
-            likes_count: 0,
-            is_creator: false,
-          } as ProfileData;
-        }
-
-        data.followers_count = 0;
-        data.following_count = 0;
-        try {
-          const [{ count: followersCount }, { count: followingCount }] = await Promise.all([
-            apiStub.from('followers').select('*', { count: 'exact', head: true }).eq('following_id', effectiveUserId),
-            apiStub.from('followers').select('*', { count: 'exact', head: true }).eq('follower_id', effectiveUserId),
-          ]);
-          data.followers_count = followersCount ?? 0;
-          data.following_count = followingCount ?? 0;
-        } catch (_) {}
-
-        data.likes_count = 0;
-        try {
-          const { data: userVideos } = await apiStub
-            .from('videos')
-            .select('id')
-            .eq('user_id', effectiveUserId);
-          if (userVideos && userVideos.length > 0) {
-            const videoIds = userVideos.map(v => v.id);
-            const { count: totalLikes } = await apiStub
-              .from('likes')
-              .select('*', { count: 'exact', head: true })
-              .in('video_id', videoIds);
-            data.likes_count = totalLikes ?? 0;
-          }
-        } catch (_) {}
-
-        return data as ProfileData;
+      const fallback: ProfileData = {
+        user_id: effectiveUserId,
+        username: user?.username || user?.email?.split('@')[0] || 'user',
+        display_name: user?.name || user?.email?.split('@')[0] || 'User',
+        avatar_url: user?.avatar || null,
+        bio: null,
+        followers_count: 0,
+        following_count: 0,
+        likes_count: 0,
+        is_creator: false,
       };
 
-      const data = await Promise.race([fetchProfile(), timeout]);
-      setProfileData(data ?? null);
-      trackEvent('profile_view', { user_id: effectiveUserId, is_own: isOwnProfile });
-
-      if (data?.is_creator) {
-        apiStub.rpc('get_weekly_creator_ranking', { p_limit: 99 }).then(({ data: rankingData }) => {
-          if (rankingData) {
-            const myRank = rankingData.find((r: any) => r.user_id === effectiveUserId);
-            if (myRank) setRanking(myRank.rank);
-          }
-        }).catch(() => {});
+      const res = await fetch(apiUrl(`/api/profiles/${effectiveUserId}`), { credentials: 'include', headers });
+      if (!res.ok) {
+        setProfileData(effectiveUserId === user?.id ? fallback : null);
+        setLoading(false);
+        return;
       }
+
+      const body = await res.json();
+      const p = body?.profile;
+      if (!p) {
+        setProfileData(effectiveUserId === user?.id ? fallback : null);
+        setLoading(false);
+        return;
+      }
+
+      const data: ProfileData = {
+        user_id: p.userId || effectiveUserId,
+        username: p.username || fallback.username,
+        display_name: p.displayName || fallback.display_name,
+        avatar_url: p.avatarUrl || fallback.avatar_url,
+        bio: p.bio || null,
+        followers_count: p.followers || 0,
+        following_count: p.following || 0,
+        likes_count: 0,
+        is_creator: p.isVerified || false,
+      };
+
+      // Calculate likes from the user's videos
+      try {
+        const vidsRes = await fetch(apiUrl(`/api/videos/user/${effectiveUserId}`), { credentials: 'include', headers });
+        if (vidsRes.ok) {
+          const vidsBody = await vidsRes.json();
+          const vids = Array.isArray(vidsBody?.videos) ? vidsBody.videos : [];
+          data.likes_count = vids.reduce((sum: number, v: any) => sum + (v.likes || 0), 0);
+        }
+      } catch {}
+
+      setProfileData(data);
+      trackEvent('profile_view', { user_id: effectiveUserId, is_own: isOwnProfile });
     } catch (_) {
       if (effectiveUserId === user?.id) {
         setProfileData({
@@ -271,55 +260,59 @@ export default function Profile() {
     if (!effectiveUserId) return;
     setVideosLoading(true);
     try {
-      let query = apiStub.from('videos').select('id, thumbnail_url, views, is_public');
-
-      if (activeTab === 'videos') {
-        query = query.eq('user_id', effectiveUserId).eq('is_public', true);
-      } else if (activeTab === 'private' && isOwnProfile) {
-        query = query.eq('user_id', effectiveUserId).eq('is_public', false);
-      } else if (activeTab === 'liked') {
-        const { data: likes } = await apiStub
-          .from('likes')
-          .select('video_id')
-          .eq('user_id', effectiveUserId);
-        const videoIds = likes?.map(l => l.video_id) || [];
-        if (videoIds.length === 0) { setVideos([]); setVideosLoading(false); return; }
-        query = query.in('id', videoIds);
-      } else if (activeTab === 'saved') {
-        const { data: saved } = await apiStub
-          .from('saved_videos')
-          .select('video_id')
-          .eq('user_id', effectiveUserId);
-        const videoIds = saved?.map(s => s.video_id) || [];
-        if (videoIds.length === 0) { setVideos([]); setVideosLoading(false); return; }
-        query = query.in('id', videoIds);
-      } else if (activeTab === 'reposts') {
-        const { data: shares } = await apiStub
-          .from('shares')
-          .select('video_id')
-          .eq('user_id', effectiveUserId);
-        const videoIds = shares?.map(s => s.video_id) || [];
-        if (videoIds.length === 0) { setVideos([]); setVideosLoading(false); return; }
-        query = query.in('id', videoIds);
-      } else if (activeTab === 'shop') {
-        try {
-          const { data: shopData } = await apiStub
-            .from('shop_items')
-            .select('id, title, price, image_url')
-            .eq('user_id', effectiveUserId)
-            .eq('is_active', true)
-            .order('created_at', { ascending: false });
-          setShopItems(shopData || []);
-        } catch { setShopItems([]); }
+      if (activeTab === 'shop') {
+        setShopItems([]);
         setVideos([]);
         setVideosLoading(false);
         return;
       }
 
-      const { data, error } = await query.order('created_at', { ascending: false }).limit(50);
+      // Fetch user's videos from real backend API
+      const session = useAuthStore.getState().session;
+      const headers: Record<string, string> = {};
+      if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
 
-      if (error) throw error;
-      setVideos(data || []);
+      if (activeTab === 'videos' || activeTab === 'private') {
+        const res = await fetch(apiUrl(`/api/videos/user/${effectiveUserId}`), { credentials: 'include', headers });
+        if (!res.ok) { setVideos([]); setVideosLoading(false); return; }
+        const body = await res.json().catch(() => ({ videos: [] }));
+        const allVids = Array.isArray(body?.videos) ? body.videos : [];
+        const filtered = activeTab === 'private'
+          ? allVids.filter((v: any) => v.privacy === 'private')
+          : allVids.filter((v: any) => v.privacy !== 'private');
+        const mapped = filtered.map((v: any) => ({
+          id: v.id,
+          thumbnail_url: v.thumbnail || v.thumbnail_url || v.url || '',
+          url: v.url || '',
+          views: v.views || 0,
+          is_public: v.privacy !== 'private',
+        }));
+        setVideos(mapped);
+      } else if (activeTab === 'liked') {
+        const { likedVideos, videos: storeVideos } = useVideoStore.getState();
+        const likedSet = new Set(likedVideos);
+        const liked = storeVideos.filter(v => likedSet.has(v.id)).map(v => ({
+          id: v.id,
+          thumbnail_url: v.thumbnail || v.url || '',
+          url: v.url || '',
+          views: v.stats?.views || 0,
+          is_public: true,
+        }));
+        setVideos(liked);
+      } else if (activeTab === 'saved') {
+        const { savedVideos, videos: storeVideos } = useVideoStore.getState();
+        const savedSet = new Set(savedVideos);
+        const saved = storeVideos.filter(v => savedSet.has(v.id)).map(v => ({
+          id: v.id,
+          thumbnail_url: v.thumbnail || v.url || '',
+          url: v.url || '',
+          views: v.stats?.views || 0,
+          is_public: true,
+        }));
+        setVideos(saved);
+      } else {
+        setVideos([]);
+      }
     } catch {
       setVideos([]);
     } finally {
@@ -330,14 +323,18 @@ export default function Profile() {
   const checkFollowing = async () => {
     if (!user?.id || !effectiveUserId || isOwnProfile) return;
 
-    const { data } = await apiStub
-      .from('followers')
-      .select('id')
-      .eq('follower_id', user.id)
-      .eq('following_id', effectiveUserId)
-      .single();
-
-    setIsFollowing(!!data);
+    try {
+      const session = useAuthStore.getState().session;
+      const headers: Record<string, string> = {};
+      if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
+      const res = await fetch(apiUrl(`/api/profiles/${user.id}/following`), { credentials: 'include', headers });
+      if (res.ok) {
+        const body = await res.json();
+        const ids: string[] = Array.isArray(body?.following) ? body.following : (Array.isArray(body) ? body : []);
+        setIsFollowing(ids.includes(effectiveUserId));
+      }
+    } catch {}
+    
   };
 
   const toggleFollow = async () => {
@@ -346,18 +343,18 @@ export default function Profile() {
     const wasFollowing = isFollowing;
     setIsFollowing(!wasFollowing);
     try {
-      if (wasFollowing) {
-        const { error } = await apiStub
-          .from('followers')
-          .delete()
-          .eq('follower_id', user.id)
-          .eq('following_id', effectiveUserId);
-        if (error) throw error;
-      } else {
-        const { error } = await apiStub
-          .from('followers')
-          .insert({ follower_id: user.id, following_id: effectiveUserId });
-        if (error && error.code !== '23505') throw error;
+      const session = useAuthStore.getState().session;
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
+
+      const endpoint = wasFollowing
+        ? apiUrl(`/api/profiles/${effectiveUserId}/unfollow`)
+        : apiUrl(`/api/profiles/${effectiveUserId}/follow`);
+
+      const res = await fetch(endpoint, { method: 'POST', credentials: 'include', headers });
+      if (!res.ok) throw new Error('Follow action failed');
+
+      if (!wasFollowing) {
         trackEvent('user_follow', { target_user_id: effectiveUserId });
       }
 
@@ -411,28 +408,17 @@ export default function Profile() {
       setProfileData(prev => prev ? { ...prev, avatar_url: compressed } : prev);
       setIsUploadingAvatar(false);
 
-      const { data: { user: authUser } } = await apiStub.auth.getUser();
-      if (!authUser) return;
-
-      const fileExt = file.name.split('.').pop()?.toLowerCase() || 'jpg';
-      const filePath = `${authUser.id}/${Date.now()}.${fileExt}`;
-
-      const { error: upErr } = await apiStub.storage
-        .from('avatars')
-        .upload(filePath, file, { cacheControl: '3600', upsert: true, contentType: file.type });
-
-      let savedUrl = compressed;
-      if (!upErr) {
-        const pub = apiStub.storage.from('avatars').getPublicUrl(filePath).data?.publicUrl;
-        if (pub) {
-          savedUrl = pub;
-          localStorage.setItem('elix_avatar_' + user.id, savedUrl);
-        }
+      // Update profile avatar on server
+      const session = useAuthStore.getState().session;
+      if (session?.access_token) {
+        fetch(apiUrl(`/api/profiles/${user.id}`), {
+          method: 'PATCH',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+          body: JSON.stringify({ avatarUrl: compressed }),
+        }).catch(() => {});
       }
-
-      apiStub.auth.updateUser({ data: { avatar_url: savedUrl } }).catch(() => {});
-      apiStub.from('profiles').update({ avatar_url: savedUrl }).eq('user_id', authUser.id).then(() => {});
-      apiStub.from('profiles').upsert({ user_id: authUser.id, avatar_url: savedUrl, username: authUser.email?.split('@')[0] || 'user' }, { onConflict: 'user_id' }).then(() => {});
+      const savedUrl = compressed;
 
       updateUser({ avatar: savedUrl });
       setProfileData(prev => prev ? { ...prev, avatar_url: savedUrl } : prev);
@@ -822,10 +808,13 @@ export default function Profile() {
                   onClick={() => navigate(`/video/${video.id}`)}
                   className="aspect-[3/4] bg-[#1C1E24] relative group text-left rounded-xl overflow-hidden"
                 >
-                  <img 
-                    src={video.thumbnail_url || `https://ui-avatars.com/api/?name=Video&background=1C1E24&color=C9A96E&size=200`} 
-                    alt="Video" 
-                    className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition" 
+                  <video
+                    src={video.url || ''}
+                    poster={video.thumbnail_url || undefined}
+                    className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition"
+                    muted
+                    playsInline
+                    preload="metadata"
                   />
                   {!video.is_public && (
                     <div className="absolute top-2 right-2">

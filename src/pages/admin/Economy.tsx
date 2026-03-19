@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { apiStub } from '../../lib/apiStub';
+import { nativePrompt } from '../../components/NativeDialog';
 import { DollarSign, Gift, Zap, Package } from 'lucide-react';
 import { showToast } from '../../lib/toast';
 
@@ -119,8 +120,8 @@ export default function AdminEconomy() {
                     </td>
                     <td className="px-4 py-3 text-right">
                       <button
-                        onClick={() => {
-                          const newPrice = prompt(`New price for ${gift.name}:`, String(gift.coin_cost));
+                        onClick={async () => {
+                          const newPrice = await nativePrompt(`New price for ${gift.name}:`, String(gift.coin_cost), 'Edit Price');
                           if (newPrice) updateGiftPrice(gift.id, parseInt(newPrice));
                         }}
                         className="px-3 py-1 bg-[#C9A96E] text-black rounded hover:bg-[#C9A96E]/90 text-sm"

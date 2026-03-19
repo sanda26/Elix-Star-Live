@@ -126,15 +126,13 @@ export default function FriendsFeed() {
               className="flex-shrink-0 flex flex-col items-center gap-1" style={{ width: 95, minWidth: 95 }}
             >
               <div className="relative" style={{ width: 85, height: 85 }}>
-                <img src="/Icons/Profile icon.png" alt="" className="w-full h-full object-contain" />
-                {(user?.avatar || (user?.id && typeof localStorage !== 'undefined' ? localStorage.getItem('elix_avatar_' + user.id) : null)) && (
-                  <img
-                    src={user?.avatar || (user?.id && typeof localStorage !== 'undefined' ? localStorage.getItem('elix_avatar_' + user.id) : null) || ''}
-                    alt="You"
-                    className="absolute rounded-full object-cover"
-                    style={{ width: 52, height: 52, top: '45%', left: '51%', transform: 'translate(-50%, -50%)', zIndex: -1 }}
-                  />
-                )}
+                <img src="/Icons/Profile icon.png" alt="" className="w-full h-full object-contain" style={{ position: 'relative', zIndex: 1 }} />
+                <img
+                  src={user?.avatar || (user?.id && typeof localStorage !== 'undefined' ? localStorage.getItem('elix_avatar_' + user.id) : null) || '/Icons/Profile icon.png'}
+                  alt="You"
+                  className="absolute rounded-full object-cover"
+                  style={{ width: 52, height: 52, top: '45%', left: '51%', transform: 'translate(-50%, -50%)', zIndex: 0 }}
+                />
               </div>
               <div className="text-[11px] text-white/80 truncate w-full text-center">Create</div>
             </button>
@@ -150,50 +148,44 @@ export default function FriendsFeed() {
                 <div className="relative flex items-center justify-center" style={{ width: 85, height: 85 }}>
                   {u.is_live ? (
                     <>
-                      <div className="absolute inset-0 rounded-full border-4 border-red-500" style={{ width: 85, height: 85 }} />
-                      <div className="relative rounded-full overflow-hidden flex items-center justify-center" style={{ width: 85, height: 85 }}>
-                        <img
-                          src="/Icons/Profile icon.png"
-                          alt=""
-                          className="w-full h-full object-contain"
-                        />
-                        {u.avatar_url ? (
-                          <img
-                            src={u.avatar_url}
-                            alt={u.name || u.username}
-                            className="absolute rounded-full object-cover"
-                            style={{ width: 52, height: 52, top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 1 }}
-                          />
-                        ) : (
-                          <span className="absolute text-[#C9A96E] font-bold text-lg z-10" style={{ top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}>
-                            {(u.name || u.username || 'U').charAt(0).toUpperCase()}
-                          </span>
-                        )}
-                      </div>
+                      {/* Live: red/orange gradient ring + real avatar + LIVE badge */}
+                      <div
+                        className="absolute inset-0 rounded-full"
+                        style={{
+                          width: 85,
+                          height: 85,
+                          background: 'conic-gradient(#ff0040, #ff6a00, #ff0040, #ff6a00, #ff0040)',
+                          padding: 3,
+                          WebkitMask: 'radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 4px))',
+                          mask: 'radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 4px))',
+                        }}
+                      />
+                      <img
+                        src={u.avatar_url || '/Icons/Profile icon.png'}
+                        alt={u.name || u.username}
+                        className="rounded-full object-cover"
+                        style={{ width: 52, height: 52, zIndex: 1 }}
+                      />
                       <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 bg-red-500 text-white text-[9px] font-bold px-2 py-0.5 rounded z-20 whitespace-nowrap">
                         LIVE
                       </div>
                     </>
                   ) : (
                     <>
+                      {/* Not live: golden Profile icon.png frame + real avatar behind frame center */}
                       <div className="relative" style={{ width: 85, height: 85 }}>
                         <img
                           src="/Icons/Profile icon.png"
                           alt=""
                           className="w-full h-full object-contain"
+                          style={{ position: 'relative', zIndex: 1 }}
                         />
-                        {u.avatar_url ? (
-                          <img
-                            src={u.avatar_url}
-                            alt={u.name || u.username}
-                            className="absolute rounded-full object-cover"
-                            style={{ width: 52, height: 52, top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 1 }}
-                          />
-                        ) : (
-                          <span className="absolute text-[#C9A96E] font-bold text-xl z-10" style={{ top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}>
-                            {(u.name || u.username || 'U').charAt(0).toUpperCase()}
-                          </span>
-                        )}
+                        <img
+                          src={u.avatar_url || '/Icons/Profile icon.png'}
+                          alt={u.name || u.username}
+                          className="absolute rounded-full object-cover"
+                          style={{ width: 52, height: 52, top: '45%', left: '51%', transform: 'translate(-50%, -50%)', zIndex: 0 }}
+                        />
                       </div>
                     </>
                   )}

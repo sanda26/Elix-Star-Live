@@ -19,10 +19,10 @@ export default function SearchPage() {
   const location = useLocation();
   const [query, setQuery] = useState('');
   const [matchedUsers, setMatchedUsers] = useState<{ id: string; username: string; name: string; avatar: string }[]>([]);
-  const [matchedVideos, setMatchedVideos] = useState<{ id: string; description: string; thumbnail: string; username: string; hashtags: string[] }[]>([]);
+  const [matchedVideos, setMatchedVideos] = useState<{ id: string; description: string; thumbnail: string; url: string; username: string; hashtags: string[] }[]>([]);
   const [searching, setSearching] = useState(false);
   const [visible, setVisible] = useState(false);
-  const [suggestedUsers, setSuggestedUsers] = useState<{ id: string; username: string; name: string; avatar: string }[]>([]);
+  const [suggestedUsers, setSuggestedUsers] = useState<{ id: string; username: string; name: string; avatar: string; is_live?: boolean }[]>([]);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const panelRef = useRef<HTMLDivElement>(null);
   const touchStart = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -123,6 +123,7 @@ export default function SearchPage() {
             id: v.id,
             description: v.description || '',
             thumbnail: v.thumbnail || '',
+            url: v.url || '',
             username: v.user?.username || 'user',
             hashtags: v.hashtags || [],
           }));
@@ -148,12 +149,21 @@ export default function SearchPage() {
   }, []);
 
   useEffect(() => {
-    // Suggested users for empty state (always show)
+    if (videos.length === 0) fetchVideos();
+  }, [fetchVideos, videos.length]);
+
+  useEffect(() => {
+    // Suggested users for empty state (always show) + live status
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch(apiUrl('/api/profiles'), { credentials: 'include' });
+        const [res, liveRes] = await Promise.all([
+          fetch(apiUrl('/api/profiles'), { credentials: 'include' }),
+          fetch(apiUrl('/api/live/streams'), { credentials: 'include' }).catch(() => null as any),
+        ]);
         const body = await res.json().catch(() => ({ profiles: [] }));
+        const liveBody = liveRes ? await liveRes.json().catch(() => ({ streams: [] })) : { streams: [] };
+        const liveSet = new Set((liveBody?.streams || []).map((s: any) => s.userId || s.user_id).filter(Boolean));
         const profiles = Array.isArray(body?.profiles) ? body.profiles : [];
         const blocklist = new Set(['', 'user', 'demo', 'test', 'unknown', 'anonymous', 'guest']);
         const mapped = profiles
@@ -161,7 +171,8 @@ export default function SearchPage() {
             id: p.user_id || p.userId,
             username: (p.username || 'user') as string,
             name: (p.display_name || p.displayName || p.username || 'User') as string,
-            avatar: (p.avatar_url || p.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.username || 'U')}&background=121212&color=C9A96E`) as string,
+            avatar: (p.avatar_url || p.avatarUrl || '') as string,
+            is_live: liveSet.has(p.user_id || p.userId),
           }))
           .filter((u: any) => !!u.id)
           .filter((u: any) => {
@@ -169,6 +180,7 @@ export default function SearchPage() {
             return n.length >= 2 && !blocklist.has(n);
           })
           .slice(0, 12);
+        mapped.sort((a: any, b: any) => (a.is_live === b.is_live ? 0 : a.is_live ? -1 : 1));
         if (!cancelled) setSuggestedUsers(mapped);
       } catch {
         if (!cancelled) setSuggestedUsers([]);
@@ -300,10 +312,41 @@ export default function SearchPage() {
                       {suggestedUsers.map((u) => (
                         <button
                           key={u.id}
-                          onClick={() => navigate(`/profile/${u.id}`)}
-                          className="flex-shrink-0 flex flex-col items-center gap-1 w-[76px]"
+                          onClick={() => u.is_live ? navigate(`/watch/${u.id}`) : navigate(`/profile/${u.id}`)}
+                          className="flex-shrink-0 flex flex-col items-center gap-1" style={{ width: 85, minWidth: 85 }}
                         >
-                          <AvatarRing src={u.avatar} alt={u.username} size={56} />
+                          <div className="relative flex items-center justify-center" style={{ width: 85, height: 85 }}>
+                            {u.is_live ? (
+                              <>
+                                <div
+                                  className="absolute inset-0 rounded-full"
+                                  style={{
+                                    width: 85, height: 85,
+                                    background: 'conic-gradient(#ff0040, #ff6a00, #ff0040, #ff6a00, #ff0040)',
+                                    WebkitMask: 'radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 4px))',
+                                    mask: 'radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 4px))',
+                                  }}
+                                />
+                                <img
+                                  src={u.avatar || '/Icons/Profile icon.png'}
+                                  alt={u.name || u.username}
+                                  className="rounded-full object-cover"
+                                  style={{ width: 52, height: 52, zIndex: 1 }}
+                                />
+                                <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 bg-red-500 text-white text-[9px] font-bold px-2 py-0.5 rounded z-20 whitespace-nowrap">LIVE</div>
+                              </>
+                            ) : (
+                              <div className="relative" style={{ width: 85, height: 85 }}>
+                                <img src="/Icons/Profile icon.png" alt="" className="w-full h-full object-contain" style={{ position: 'relative', zIndex: 1 }} />
+                                <img
+                                  src={u.avatar || '/Icons/Profile icon.png'}
+                                  alt={u.name || u.username}
+                                  className="absolute rounded-full object-cover"
+                                  style={{ width: 52, height: 52, top: '45%', left: '51%', transform: 'translate(-50%, -50%)', zIndex: 0 }}
+                                />
+                              </div>
+                            )}
+                          </div>
                           <div className="text-[10px] text-white/80 truncate w-full text-center">
                             {u.name || u.username}
                           </div>
@@ -323,10 +366,13 @@ export default function SearchPage() {
                         onClick={() => navigate(`/video/${v.id}`)}
                         className="relative aspect-[9/16] rounded-xl overflow-hidden bg-[#1C1E24] border border-white/10"
                       >
-                        <img
-                          src={v.thumbnail || ''}
-                          alt=""
+                        <video
+                          src={v.url}
+                          poster={v.thumbnail || undefined}
                           className="absolute inset-0 w-full h-full object-cover"
+                          muted
+                          playsInline
+                          preload="metadata"
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
                         <div className="absolute bottom-2 left-2 right-2 text-left">
@@ -382,10 +428,13 @@ export default function SearchPage() {
                           onClick={() => navigate(`/video/${v.id}`)}
                           className="w-full flex gap-3 p-2 rounded-xl hover:bg-white/5 transition"
                         >
-                          <img
-                            src={v.thumbnail || ''}
-                            alt={v.description}
+                          <video
+                            src={v.url}
+                            poster={v.thumbnail || undefined}
                             className="w-16 h-22 rounded-lg object-cover bg-[#1C1E24] border border-[#C9A96E]/20"
+                            muted
+                            playsInline
+                            preload="metadata"
                           />
                           <div className="text-left flex-1">
                             <div className="text-xs font-semibold line-clamp-2">{v.description}</div>

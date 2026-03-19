@@ -18,6 +18,7 @@ import { apiStub } from '../lib/apiStub';
 import { useAuthStore } from '../store/useAuthStore';
 import { AvatarRing } from './AvatarRing';
 import PromotePanel from './PromotePanel';
+import { nativeConfirm } from './NativeDialog';
 
 interface ShareModalProps {
   isOpen: boolean;
@@ -118,7 +119,7 @@ export default function ShareModal({ isOpen, onClose, video, onReport, onJoin, i
     { name: 'Share', icon: <Share2 size={22} className="text-white" />, action: () => { if (navigator.share) { navigator.share({ title: `Video by @${video.user.username}`, text: shareText, url: videoUrl }).then(() => onClose()).catch(() => {}); } else { handleCopyLink(); } } },
     { name: 'Download', icon: <Download size={22} className="text-white" />, action: async () => { try { const res = await fetch(video.url, { mode: 'cors' }); const blob = await res.blob(); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `video_${video.id}.mp4`; a.click(); URL.revokeObjectURL(url); } catch { const a = document.createElement('a'); a.href = video.url; a.download = `video_${video.id}.mp4`; a.target = '_blank'; a.click(); } } },
     { name: 'QR Code', icon: <QrCode size={22} className="text-white" />, action: () => setShowQrCode(true) },
-    ...(isOwnVideo && onDeleteVideo ? [{ name: 'Delete video', icon: <Trash2 size={22} className="text-red-400" />, action: () => { if (window.confirm('Delete this video? This cannot be undone.')) { onDeleteVideo(); onClose(); } }, isRed: true }] : []),
+    ...(isOwnVideo && onDeleteVideo ? [{ name: 'Delete video', icon: <Trash2 size={22} className="text-red-400" />, action: async () => { const ok = await nativeConfirm('Delete this video? This cannot be undone.', 'Delete Video'); if (ok) { onDeleteVideo(); onClose(); } }, isRed: true }] : []),
   ];
 
   return (
@@ -157,7 +158,7 @@ export default function ShareModal({ isOpen, onClose, video, onReport, onJoin, i
               style={{ marginTop: '6mm' }}
               onClick={() => sendShareTo(f.user_id)}
             >
-              <AvatarRing src={f.avatar_url || ''} alt={f.username} size={56} />
+              <AvatarRing src={f.avatar_url || '/Icons/Profile icon.png'} alt={f.username} size={56} />
               <span className="text-white/60 text-[10px] font-medium truncate w-16 text-center">
                 {sentTo.has(f.user_id) ? 'Sent' : f.username || 'User'}
               </span>

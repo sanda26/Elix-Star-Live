@@ -4,7 +4,8 @@
  */
 
 import { platform } from './platform';
-import { apiStub } from './apiStub';
+import { useAuthStore } from '../store/useAuthStore';
+import { apiUrl } from './api';
 
 // Product IDs — must match App Store Connect / Google Play Console
 export const IAP_PRODUCTS = {
@@ -205,19 +206,19 @@ async function verifyAndCreditPurchase(
   receipt: string,
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const { data: { session } } = await apiStub.auth.getSession();
-    if (!session) return { success: false, error: 'Not authenticated' };
+    const { session, user } = useAuthStore.getState();
+    if (!session?.access_token || !user?.id) return { success: false, error: 'Not authenticated' };
 
     const provider = platform.isIOS ? 'apple' : 'google';
 
-    const res = await fetch('/api/verify-purchase', {
+    const res = await fetch(apiUrl('/api/verify-purchase'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${session.access_token}`,
       },
       body: JSON.stringify({
-        userId: session.user.id,
+        userId: user.id,
         packageId,
         provider,
         receipt,

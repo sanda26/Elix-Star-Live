@@ -276,27 +276,25 @@ export default function Shop() {
                   type="button"
                   onClick={() => navigate(`/watch/${u.streamKey}`)}
                   className="flex-shrink-0 flex flex-col items-center gap-1 active:scale-95 transition-transform"
-                  style={{ width: 58, minWidth: 58 }}
+                  style={{ width: 85, minWidth: 85 }}
                   title={u.name}
                 >
-                  {/* Keep the golden frame; just add a red LIVE ring on top */}
                   <div className="relative flex items-center justify-center" style={{ width: 85, height: 85 }}>
-                    <div className="absolute inset-0 rounded-full border-4 border-red-500" style={{ width: 85, height: 85 }} />
-                    <div className="relative" style={{ width: 85, height: 85 }}>
-                      <img src="/Icons/Profile icon.png" alt="" className="w-full h-full object-contain" />
-                      {u.avatar ? (
-                        <img
-                          src={u.avatar}
-                          alt={u.name}
-                          className="absolute rounded-full object-cover"
-                          style={{ width: 52, height: 52, top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 1 }}
-                        />
-                      ) : (
-                        <span className="absolute text-[#C9A96E] font-bold text-xl z-10" style={{ top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}>
-                          {(u.name || 'U').charAt(0).toUpperCase()}
-                        </span>
-                      )}
-                    </div>
+                    <div
+                      className="absolute inset-0 rounded-full"
+                      style={{
+                        width: 85, height: 85,
+                        background: 'conic-gradient(#ff0040, #ff6a00, #ff0040, #ff6a00, #ff0040)',
+                        WebkitMask: 'radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 4px))',
+                        mask: 'radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 4px))',
+                      }}
+                    />
+                    <img
+                      src={u.avatar || '/Icons/Profile icon.png'}
+                      alt={u.name}
+                      className="rounded-full object-cover"
+                      style={{ width: 52, height: 52, zIndex: 1 }}
+                    />
                     <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 bg-red-500 text-white text-[9px] font-bold px-2 py-0.5 rounded z-20 whitespace-nowrap">
                       LIVE
                     </div>

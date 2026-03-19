@@ -1,53 +1,56 @@
-// Deep Link Handler
+// Deep Link & Back Button Handler
 
 import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { App as CapacitorApp } from '@capacitor/app';
+import { Capacitor } from '@capacitor/core';
+
+const ROOT_PATHS = new Set(['/', '/feed', '/friends', '/inbox', '/profile', '/login']);
 
 export const useDeepLinks = () => {
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     // Handle app:// deep links
     CapacitorApp.addListener('appUrlOpen', (event: { url: string }) => {
       const url = event.url;
       
-      // Parse elixstar://video/123 or app://video/123
       const videoMatch = url.match(/(?:elixstar|app):\/\/video\/([^?]+)/);
-      if (videoMatch) {
-        navigate(`/video/${videoMatch[1]}`);
-        return;
-      }
+      if (videoMatch) { navigate(`/video/${videoMatch[1]}`); return; }
       
-      // Parse elixstar://user/username
       const userMatch = url.match(/(?:elixstar|app):\/\/user\/([^?]+)/);
-      if (userMatch) {
-        navigate(`/profile/${userMatch[1]}`);
-        return;
-      }
+      if (userMatch) { navigate(`/profile/${userMatch[1]}`); return; }
       
-      // Parse elixstar://live/roomId
       const liveMatch = url.match(/(?:elixstar|app):\/\/live\/([^?]+)/);
-      if (liveMatch) {
-        navigate(`/live/${liveMatch[1]}`);
-        return;
-      }
+      if (liveMatch) { navigate(`/live/${liveMatch[1]}`); return; }
       
-      // Parse elixstar://hashtag/tag
       const hashtagMatch = url.match(/(?:elixstar|app):\/\/hashtag\/([^?]+)/);
-      if (hashtagMatch) {
-        navigate(`/hashtag/${hashtagMatch[1]}`);
-        return;
-      }
+      if (hashtagMatch) { navigate(`/hashtag/${hashtagMatch[1]}`); return; }
       
-      // Default: go to feed
       navigate('/feed');
     });
+
+    // Android hardware back button handler
+    if (Capacitor.isNativePlatform()) {
+      CapacitorApp.addListener('backButton', ({ canGoBack }) => {
+        // Close any open modals/overlays by dispatching a custom event
+        const modalEvent = new CustomEvent('app:back-button');
+        const handled = !document.dispatchEvent(modalEvent);
+        if (handled) return;
+
+        if (canGoBack && !ROOT_PATHS.has(window.location.pathname)) {
+          window.history.back();
+        } else {
+          CapacitorApp.minimizeApp();
+        }
+      });
+    }
 
     return () => {
       CapacitorApp.removeAllListeners();
     };
-  }, [navigate]);
+  }, [navigate, location]);
 };
 
 // Generate shareable deep link

@@ -62,6 +62,7 @@ export default function Profile() {
   const [ranking, setRanking] = useState<number | null>(null);
   const [resolvedUserId, setResolvedUserId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const headerCenterLabelRef = useRef<HTMLDivElement | null>(null);
 
   const isUuid = (s: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
   const isOwnProfile = !routeUserId || routeUserId === user?.id;
@@ -166,6 +167,25 @@ export default function Profile() {
         setLoading(false);
       });
   }, [displayUserId]);
+
+  useEffect(() => {
+    // #region agent log
+    try {
+      const label = headerCenterLabelRef.current?.innerText?.trim() || '';
+      fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          location: 'Profile.tsx:headerCenterLabel',
+          message: 'Header-center label rendered text',
+          timestamp: Date.now(),
+          hypothesisId: 'P1',
+          data: { label },
+        }),
+      }).catch(() => {});
+    } catch {}
+    // #endregion
+  }, []);
 
   useEffect(() => {
     if (!effectiveUserId) return;
@@ -473,8 +493,11 @@ export default function Profile() {
           </button>
           <div className="flex-1 flex items-center justify-center min-w-0 px-2">
             <div className="min-w-0 text-center">
-              <div className="text-[12px] font-bold text-gold-metallic truncate">
-                {displayName}
+              <div
+                ref={headerCenterLabelRef}
+                className="text-[12px] font-bold text-gold-metallic truncate"
+              >
+                Profile
               </div>
             </div>
           </div>
@@ -505,7 +528,7 @@ export default function Profile() {
                 <AvatarRing src={displayAvatar} alt="Avatar" size={40} />
                 <div>
                   <p className="text-gold-metallic font-semibold text-sm">{displayName}</p>
-                  <p className="text-white text-xs">{user?.email || '@' + displayUsername}</p>
+                  <p className="text-white text-xs">{displayUsername}</p>
                 </div>
               </div>
               <div className="py-2">
@@ -649,7 +672,7 @@ export default function Profile() {
               </span>
             )}
           </div>
-          <span className="text-[13px] text-white/80 font-medium">@{displayUsername}</span>
+          <span className="text-[13px] text-white/80 font-medium">{displayUsername}</span>
         </div>
 
 

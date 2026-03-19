@@ -6,10 +6,33 @@
 import pg from "pg";
 import type { Video } from "./videoStore";
 import { logger } from "./logger";
+import { appendFile } from "fs/promises";
 
 const { Pool } = pg;
 
 let pool: pg.Pool | null = null;
+const DEBUG_LOG_PATH =
+  "c:\\Users\\Sanda\\Desktop\\Elix Star Live\\.cursor\\debug.log";
+
+async function debugNDJSON(payload: Record<string, unknown>) {
+  // #region agent log
+  try {
+    await appendFile(DEBUG_LOG_PATH, JSON.stringify(payload) + "\n", "utf8");
+  } catch {
+    // ignore
+  }
+  // #endregion
+}
+
+function firstNonEmptyString(
+  ...values: Array<unknown>
+): string {
+  for (const v of values) {
+    if (typeof v === "string" && v.trim().length > 0) return v;
+    if (v instanceof Date) return v.toISOString();
+  }
+  return "";
+}
 
 export function getPool(): pg.Pool | null {
   return pool;
@@ -101,6 +124,24 @@ export async function initPostgres(): Promise<void> {
     for (const [col, def] of commentCols) {
       await pool.query(`ALTER TABLE comments ADD COLUMN IF NOT EXISTS ${col} ${def}`).catch(() => {});
     }
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS likes (
+        user_id TEXT NOT NULL,
+        video_id TEXT NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        PRIMARY KEY (user_id, video_id)
+      )
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS saves (
+        user_id TEXT NOT NULL,
+        video_id TEXT NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        PRIMARY KEY (user_id, video_id)
+      )
+    `);
   } catch (err) {
     logger.error({ err }, "Postgres init failed");
     pool = null;
@@ -111,19 +152,38 @@ export async function loadVideosFromDb(): Promise<Video[]> {
   if (!pool) return [];
   try {
     const res = await pool.query(
-      `SELECT id, url, thumbnail, duration, user_id AS "userId", username, display_name AS "displayName",
-              avatar, description, hashtags, music, views, likes, comments, shares, saves,
-              created_at AS "createdAt", privacy
+      `SELECT *
        FROM videos ORDER BY created_at DESC`
     );
+    // #region agent log
+    await debugNDJSON({
+      location: "postgres.ts:loadVideosFromDb",
+      message: "Raw DB video row sample",
+      hypothesisId: "DB1",
+      runId: "pre-fix",
+      timestamp: Date.now(),
+      data: {
+        totalRows: res.rows?.length || 0,
+        first: res.rows?.[0]
+          ? {
+              id: String(res.rows[0].id ?? ""),
+              url: String(res.rows[0].url ?? ""),
+              video_url: String((res.rows[0] as Record<string, unknown>).video_url ?? ""),
+              thumbnail: String(res.rows[0].thumbnail ?? ""),
+              thumbnail_url: String((res.rows[0] as Record<string, unknown>).thumbnail_url ?? ""),
+            }
+          : null,
+      },
+    });
+    // #endregion
     return (res.rows || []).map((row: Record<string, unknown>) => ({
       id: String(row.id),
-      url: String(row.url),
-      thumbnail: String(row.thumbnail ?? ""),
+      url: firstNonEmptyString(row.url, row.video_url),
+      thumbnail: firstNonEmptyString(row.thumbnail, row.thumbnail_url),
       duration: Number(row.duration ?? 0),
-      userId: String(row.userId),
+      userId: String(row.userId ?? row.user_id ?? ""),
       username: String(row.username ?? ""),
-      displayName: String(row.displayName ?? ""),
+      displayName: String(row.displayName ?? row.display_name ?? ""),
       avatar: String(row.avatar ?? ""),
       description: String(row.description ?? ""),
       hashtags: Array.isArray(row.hashtags) ? row.hashtags : [],
@@ -133,7 +193,7 @@ export async function loadVideosFromDb(): Promise<Video[]> {
       comments: Number(row.comments ?? 0),
       shares: Number(row.shares ?? 0),
       saves: Number(row.saves ?? 0),
-      createdAt: row.createdAt instanceof Date ? row.createdAt.toISOString() : String(row.createdAt ?? ""),
+      createdAt: firstNonEmptyString(row.createdAt, row.created_at),
       privacy: String(row.privacy ?? "public"),
     }));
   } catch (err) {

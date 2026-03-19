@@ -10,6 +10,7 @@ import { getTokenFromRequest, verifyAuthToken } from "./auth";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { getPool } from "../lib/postgres";
 
 export interface Profile {
   userId: string;
@@ -84,6 +85,26 @@ function readUsersFromDisk(): StoredUserRow[] {
   }
 }
 
+async function readUsersFromDb(): Promise<StoredUserRow[]> {
+  const db = getPool();
+  if (!db) return [];
+  try {
+    const res = await db.query(`
+      SELECT id, email, username, display_name, avatar_url
+      FROM auth_users
+    `);
+    return (res.rows || []).map((r: any) => ({
+      id: String(r.id),
+      email: String(r.email || ""),
+      username: String(r.username || ""),
+      avatar_url: String(r.avatar_url || ""),
+      display_name: String(r.display_name || ""),
+    }));
+  } catch {
+    return [];
+  }
+}
+
 export function getOrCreateProfile(userId: string, seed?: Partial<Profile>): Profile {
   const existing = profiles.get(userId);
   if (existing) return existing;
@@ -118,17 +139,21 @@ export function handleGetProfile(req: Request, res: Response): void {
     res.status(400).json({ error: "userId is required" });
     return;
   }
+  const hadExisting = profiles.has(userId);
   const profile = getOrCreateProfile(userId);
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'profiles.ts:handleGetProfile',message:'Profile response source details',runId:'pre-fix',hypothesisId:'H2_PROFILE_FALLBACK_NAME',data:{userId,hadExisting,username:profile.username,displayName:profile.displayName,isFallbackName:profile.displayName.startsWith('User ')||profile.username.startsWith('user_')},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
   res.json({ profile });
 }
 
 /** GET /api/profiles — list all known users/profiles */
-export function handleListProfiles(_req: Request, res: Response): void {
+export async function handleListProfiles(_req: Request, res: Response): Promise<void> {
   // Merge in-memory profiles + persisted auth users
   const merged = new Map<string, Profile>();
   for (const p of profiles.values()) merged.set(p.userId, p);
 
-  const users = readUsersFromDisk();
+  const users = [...readUsersFromDisk(), ...(await readUsersFromDb())];
   for (const u of users) {
     if (!u?.id) continue;
     const username =

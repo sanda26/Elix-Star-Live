@@ -69,9 +69,6 @@ export default function CommentsModal({ isOpen, onClose, videoId }: CommentsModa
 
   const handleAddComment = async (parentComment?: Comment) => {
     const commentText = newComment.trim();
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'EnhancedCommentsModal.tsx:handleAddComment',message:'Comment submit attempt',data:{hasText:!!commentText,hasUserId:!!user?.id,hasToken:!!token,videoId},timestamp:Date.now(),hypothesisId:'C1'})}).catch(()=>{});
-    // #endregion
     if (!commentText || !user?.id) return;
 
     try {
@@ -82,9 +79,6 @@ export default function CommentsModal({ isOpen, onClose, videoId }: CommentsModa
         body: JSON.stringify({ text: commentText, parentId: parentComment?.id || null }),
       });
       const body = await res.json().catch(() => ({}));
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'EnhancedCommentsModal.tsx:handleAddComment:response',message:'Comment API response',data:{ok:res.ok,status:res.status,hasComment:!!body?.comment,error:body?.error},timestamp:Date.now(),hypothesisId:'C2'})}).catch(()=>{});
-      // #endregion
       if (!res.ok) throw new Error(body?.error || `Failed to add comment (${res.status})`);
       const newCommentFormatted: any = body.comment;
 

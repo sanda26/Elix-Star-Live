@@ -101,6 +101,20 @@ import {
 } from "./routes/profiles";
 import { addFeedSubscriber, removeFeedSubscriber, broadcastToFeedSubscribers } from "./feedBroadcast";
 import { logger } from "./lib/logger";
+import { appendFile } from "fs/promises";
+
+const DEBUG_LOG_PATH =
+  "c:\\Users\\Sanda\\Desktop\\Elix Star Live\\.cursor\\debug.log";
+
+async function debugNDJSON(payload: Record<string, any>) {
+  // #region agent log
+  try {
+    await appendFile(DEBUG_LOG_PATH, JSON.stringify(payload) + "\n", "utf8");
+  } catch {
+    // ignore logging errors
+  }
+  // #endregion
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -299,6 +313,9 @@ app.post("/api/videos/:id/like", (req, res) => {
   const set = likesMap.get(videoId)!;
   if (set.has(userId)) return res.json({ liked: true, likes: getVideo(videoId)?.likes || 0 });
   set.add(userId);
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.ts:/api/videos/:id/like',message:'Like stored in process memory map',runId:'pre-fix',hypothesisId:'H4_LIKES_SAVES_MEMORY_ONLY',data:{videoId,likesMapUsers:set.size},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
   incrementStat(videoId, "likes");
   const video = getVideo(videoId);
   return res.json({ liked: true, likes: video?.likes || 0 });
@@ -332,6 +349,9 @@ app.post("/api/videos/:id/save", (req, res) => {
   const set = savesMap.get(videoId)!;
   if (set.has(userId)) return res.json({ saved: true, saves: getVideo(videoId)?.saves || 0 });
   set.add(userId);
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.ts:/api/videos/:id/save',message:'Save stored in process memory map',runId:'pre-fix',hypothesisId:'H4_LIKES_SAVES_MEMORY_ONLY',data:{videoId,savesMapUsers:set.size},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
   incrementStat(videoId, "saves");
   const video = getVideo(videoId);
   return res.json({ saved: true, saves: video?.saves || 0 });
@@ -1882,6 +1902,34 @@ try {
       replaceVideos(dbVideos);
       logger.info({ count: dbVideos.length }, "Videos loaded from database");
     }
+
+      // #region agent log
+      try {
+        const memAll = getAllVideos();
+        const memWithNonEmptyUrl = memAll.filter(
+          (v) => v.url && String(v.url).trim().length > 0,
+        );
+        const dbWithNonEmptyUrl = dbVideos.filter(
+          (v) => v.url && String(v.url).trim().length > 0,
+        );
+        await debugNDJSON({
+          location: "index.ts:startupVideoLoad",
+          message: "Startup video counts (db -> memory -> feed filter)",
+          hypothesisId: "FY2",
+          timestamp: Date.now(),
+          runId: "pre-fix",
+          data: {
+            dbVideosCount: dbVideos.length,
+            dbVideosWithNonEmptyUrl: dbWithNonEmptyUrl.length,
+            memAllCount: memAll.length,
+            memWithNonEmptyUrl: memWithNonEmptyUrl.length,
+            memFirstVideoId: memWithNonEmptyUrl[0]?.id ?? null,
+          },
+        });
+      } catch {
+        // ignore
+      }
+      // #endregion
 
     // Remove any leftover demo/seed videos
     const allVids = getAllVideos();

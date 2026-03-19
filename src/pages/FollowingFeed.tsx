@@ -97,7 +97,8 @@ export default function FollowingFeed() {
 
       const liveFollowers = followingUsersList.filter((u) => u.is_live);
       const nonLiveFollowers = followingUsersList.filter((u) => !u.is_live);
-      setFollowingUsers([...liveFollowers, ...otherLiveUsers, ...nonLiveFollowers]);
+      const finalList = [...liveFollowers, ...otherLiveUsers, ...nonLiveFollowers];
+      setFollowingUsers(finalList);
     } catch {
       setFollowingUsers([]);
     }

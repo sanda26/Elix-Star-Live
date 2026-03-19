@@ -344,7 +344,7 @@
   to { opacity: 0; transform: translateY(-10px); }
 }
 
-/* Floating Heart Animation - TikTok-style flying hearts */
+/* Floating Heart Animation - Clean flying hearts */
 @keyframes elix-heart-float {
   0% {
     transform: translate(-50%, -50%) translateY(0) translateX(0) rotate(0deg) scale(0.6);

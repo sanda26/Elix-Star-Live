@@ -13,7 +13,7 @@ svg[stroke="currentColor"][fill="none"] > ellipse {
   stroke: url(#rg) !important;
 }
 
-/* UI POLISH IMPROVEMENTS - TikTok Style Clean & Consistent */
+/* UI POLISH IMPROVEMENTS - Clean & Consistent */
 
 /* Consistent button sizes across the app */
 .btn-consistent {

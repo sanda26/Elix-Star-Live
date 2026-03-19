@@ -1,4 +1,4 @@
-# 🌟 Elix Star - TikTok-Style Live Streaming & Video Platform
+# 🌟 Elix Star - Live Streaming & Video Platform
 
 A full-featured social video platform with live streaming, battles, virtual gifts, and more.
 
@@ -10,7 +10,7 @@ A full-featured social video platform with live streaming, battles, virtual gift
 ## ✨ Features
 
 ### 🎥 Core Features
-- **Short-Form Videos** - TikTok-style vertical video feed
+- **Short-Form Videos** - vertical video feed
 - **Live Streaming** - Real-time broadcasting with chat
 - **Live Battles** - Head-to-head gift battles between streamers
 - **Virtual Gifts** - Send animated gifts during streams

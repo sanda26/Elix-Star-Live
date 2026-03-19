@@ -1,6 +1,6 @@
 import React from 'react';
 
-/** Small "LIVE" badge to overlay on avatars when the user is live (TikTok-style). */
+/** Small "LIVE" badge to overlay on avatars when the user is live (clean style). */
 export function LiveBadge({
   className = '',
   size = 'sm',

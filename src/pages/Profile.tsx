@@ -750,7 +750,7 @@ export default function Profile() {
           </div>
         </div>
 
-        {/* ═══ CONTENT TABS (6 icons) — matches TikTok ═══ */}
+        {/* ═══ CONTENT TABS (6 icons) ═══ */}
         <div className="border-b border-white/10 flex">
           <button
             type="button"

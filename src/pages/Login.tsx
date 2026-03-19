@@ -113,15 +113,15 @@ export default function Login() {
 
         <form onSubmit={onSubmit} className="space-y-4 xs:space-y-3 sm:space-y-4">
           <div className="space-y-2">
-            <label className="text-fluid-sm text-white/70">Email</label>
+            <label className="text-fluid-sm text-white/70">Email or Username</label>
             <div className="relative">
               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 xs:w-3.5 xs:h-3.5 text-white/50" />
               <input
-                type="email"
+                type="text"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full bg-white/10 border border-white/10 rounded-xl pl-10 xs:pl-9 pr-3 py-3 xs:py-2.5 text-fluid-sm text-white outline-none focus:border-[#C9A96E]/50 placeholder:text-white/40"
-                placeholder="you@email.com"
+                placeholder="bericaandrei1 or you@email.com"
                 autoComplete="email"
                 required
               />

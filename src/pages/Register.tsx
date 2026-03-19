@@ -9,6 +9,7 @@ export default function Register() {
   const signUpWithPassword = useAuthStore((state) => state.signUpWithPassword);
   
   const [email, setEmail] = useState('');
+  const [fullName, setFullName] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -47,6 +48,10 @@ export default function Register() {
       setError('Passwords do not match.');
       return;
     }
+    if (!fullName.trim()) {
+      setError('Full name is required.');
+      return;
+    }
     if (!email.trim()) {
       setError('Email is required.');
       return;
@@ -55,7 +60,7 @@ export default function Register() {
     setIsSubmitting(true);
 
     try {
-      const res = await signUpWithPassword(email.trim(), password, username.trim() || undefined);
+      const res = await signUpWithPassword(email.trim(), password, username.trim() || undefined, fullName.trim());
       
       if (!isMounted.current) return;
 
@@ -116,6 +121,22 @@ export default function Register() {
         <h1 className="text-fluid-xl font-bold mb-6 xs:mb-4 sm:mb-5 text-center">Create Account</h1>
 
         <form onSubmit={onSubmit} className="space-y-4 xs:space-y-3 sm:space-y-4">
+          <div className="space-y-2">
+            <label className="text-fluid-sm text-white/70">Full Name</label>
+            <div className="relative">
+              <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 xs:w-3.5 xs:h-3.5 text-white/50" />
+              <input
+                type="text"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                className="w-full bg-white/10 border border-white/10 rounded-xl pl-10 xs:pl-9 pr-3 py-3 xs:py-2.5 text-fluid-sm text-white outline-none focus:border-[#C9A96E]/50 placeholder:text-white/40"
+                placeholder="Your real name"
+                autoComplete="name"
+                required
+              />
+            </div>
+          </div>
+
           <div className="space-y-2">
             <label className="text-fluid-sm text-white/70">Username (optional)</label>
             <div className="relative">

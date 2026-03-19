@@ -27,6 +27,7 @@ import {
   handleTrackView,
   handleTrackInteraction,
   handleGetVideoScore,
+  invalidateFeedCache,
 } from "./routes/feed";
 import {
   handleGetVideoComments,
@@ -315,6 +316,7 @@ app.post("/api/videos", async (req, res) => {
 
     addVideo(video);
     await saveVideoToDb(video);
+    invalidateFeedCache();
     logger.info({ videoId: id, total: getAllVideos().length }, "Video created");
 
     return res.status(201).json(video);
@@ -351,6 +353,7 @@ app.delete("/api/videos/:id", (req, res) => {
   if (video.userId !== payload.sub) return res.status(403).json({ error: "You can only delete your own videos." });
 
   deleteVideo(req.params.id);
+  invalidateFeedCache();
   res.json({ ok: true });
 });
 

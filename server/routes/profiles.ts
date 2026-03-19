@@ -247,8 +247,8 @@ export function handleAddTestCoins(req: Request, res: Response): void {
 
 /** POST /api/profiles — seed/upsert (e.g. after auth); no auth required */
 export function handleSeedProfile(req: Request, res: Response): void {
-  const body = req.body as { userId?: string; username?: string; email?: string; avatarUrl?: string };
-  const { userId, username, email, avatarUrl } = body ?? {};
+  const body = req.body as { userId?: string; username?: string; displayName?: string; email?: string; avatarUrl?: string };
+  const { userId, username, displayName, email, avatarUrl } = body ?? {};
 
   if (!userId) {
     res.status(400).json({ error: "userId is required" });
@@ -258,7 +258,7 @@ export function handleSeedProfile(req: Request, res: Response): void {
   const fallbackUsername = username ?? (email ? email.split("@")[0] : undefined);
   const profile = getOrCreateProfile(userId, {
     username: fallbackUsername,
-    displayName: fallbackUsername,
+    displayName: displayName || fallbackUsername,
     avatarUrl,
   });
   res.status(201).json({ profile });

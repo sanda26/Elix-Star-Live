@@ -97,6 +97,7 @@ interface StoredUser {
   email: string;
   passwordHash: string;
   username: string;
+  display_name: string;
   avatar_url: string;
   created_at: string;
 }
@@ -118,6 +119,7 @@ function loadUsersFromDisk() {
     usersById.clear();
     for (const u of parsed.users) {
       if (!u || !u.email || !u.id) continue;
+      if (!u.display_name) u.display_name = u.username || u.email.split('@')[0];
       usersByEmail.set(u.email.toLowerCase(), u);
       usersById.set(u.id, u);
     }
@@ -144,7 +146,11 @@ function toAuthUser(u: StoredUser): { id: string; email?: string; user_metadata?
   return {
     id: u.id,
     email: u.email,
-    user_metadata: { username: u.username, full_name: u.username, avatar_url: u.avatar_url },
+    user_metadata: {
+      username: u.username,
+      full_name: u.display_name || u.username,
+      avatar_url: u.avatar_url,
+    },
     email_confirmed_at: new Date().toISOString(),
     created_at: u.created_at,
   };
@@ -157,7 +163,20 @@ export async function handleLogin(req: Request, res: Response) {
   if (!e || !password) {
     return res.status(400).json({ error: 'Please enter both email and password.' });
   }
-  const user = usersByEmail.get(e.toLowerCase());
+
+  let user = usersByEmail.get(e.toLowerCase());
+
+  // Allow signing in with just the email prefix (e.g. "bericaandrei1" matches "bericaandrei1@gmail.com")
+  if (!user && !e.includes('@')) {
+    const prefix = e.toLowerCase();
+    for (const [storedEmail, storedUser] of usersByEmail) {
+      if (storedEmail.split('@')[0] === prefix) {
+        user = storedUser;
+        break;
+      }
+    }
+  }
+
   if (!user || !verifyPassword(password, user.passwordHash)) {
     return res.status(401).json({ error: 'Invalid login credentials.' });
   }
@@ -188,6 +207,7 @@ export async function handleGuestLogin(_req: Request, res: Response) {
       email: 'guest@example.com',
       passwordHash: hashPassword(crypto.randomUUID()),
       username: uname,
+      display_name: uname,
       avatar_url,
       created_at,
     };
@@ -206,7 +226,7 @@ export async function handleGuestLogin(_req: Request, res: Response) {
 
 export async function handleRegister(req: Request, res: Response) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-  const { email, password, username } = req.body ?? {};
+  const { email, password, username, displayName, name: bodyName } = req.body ?? {};
   const e = typeof email === 'string' ? email.trim() : '';
   if (!e || !password) {
     return res.status(400).json({ error: 'Email and password are required.' });
@@ -217,13 +237,16 @@ export async function handleRegister(req: Request, res: Response) {
   }
   const id = crypto.randomUUID();
   const uname = typeof username === 'string' && username.trim() ? username.trim() : e.split('@')[0];
-  const avatar_url = `https://ui-avatars.com/api/?name=${encodeURIComponent(uname)}&background=random`;
+  const rawDisplayName = displayName || bodyName;
+  const dname = typeof rawDisplayName === 'string' && rawDisplayName.trim() ? rawDisplayName.trim() : uname;
+  const avatar_url = `https://ui-avatars.com/api/?name=${encodeURIComponent(dname)}&background=random`;
   const created_at = new Date().toISOString();
   const stored: StoredUser = {
     id,
     email: e,
     passwordHash: hashPassword(password),
     username: uname,
+    display_name: dname,
     avatar_url,
     created_at,
   };

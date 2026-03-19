@@ -212,7 +212,7 @@ export const useVideoStore = create<VideoStore>()(
 
           set({ videos: mappedVideos, loading: false });
         } catch (err) {
-          set({ videos: [], loading: false });
+          set({ loading: false });
         }
       },
 
@@ -742,8 +742,9 @@ export const useVideoStore = create<VideoStore>()(
       }
     }),
     {
-      name: 'video-store-v4',
+      name: 'video-store-v5',
       partialize: (state) => ({
+        videos: state.videos,
         likedVideos: state.likedVideos,
         savedVideos: state.savedVideos,
         followingUsers: state.followingUsers

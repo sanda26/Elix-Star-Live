@@ -669,7 +669,7 @@ export default function Upload() {
                   {/* AI Studio (moved up) */}
                   <button
                     onClick={() => setShowAITools(true)}
-                    className="absolute right-[5%] bottom-[26%] flex flex-col items-center gap-1 z-30 pointer-events-auto group translate-x-[10mm]"
+                    className="absolute right-[5%] bottom-[26%] flex flex-col items-center gap-1 z-30 pointer-events-auto group"
                     title="AI Studio"
                   >
                     <div className="flex items-center justify-center group-hover:scale-110 transition-transform">
@@ -804,7 +804,7 @@ export default function Upload() {
               {/* Interactive Hitboxes Layer */}
               <div className="absolute inset-0 z-20 w-full h-full pointer-events-auto">
                   {/* Right side - all controls except Upload (no round containers) */}
-                  <div className="absolute top-0 right-[10%] bottom-0 flex flex-col items-center gap-4 py-2 translate-x-[10mm]" style={{ paddingTop: 'max(0.5rem, env(safe-area-inset-top))' }}>
+                  <div className="absolute top-0 right-[5%] bottom-0 flex flex-col items-center gap-4 py-2" style={{ paddingTop: 'max(0.5rem, env(safe-area-inset-top))' }}>
                     <button onClick={() => navigate('/feed')} className="flex items-center justify-center relative" title="Close">
                       <img src="/Icons/Gold power buton.png" alt="Close" className="w-5 h-5" />
                     </button>

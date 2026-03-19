@@ -145,13 +145,14 @@ export async function loadVideosFromDb(): Promise<Video[]> {
 export async function saveVideoToDb(video: Video): Promise<void> {
   if (!pool) return;
   try {
+    const hashtags = Array.isArray(video.hashtags) ? video.hashtags : [];
     await pool.query(
       `INSERT INTO videos (id, url, thumbnail, duration, user_id, username, display_name, avatar, description, hashtags, music, views, likes, comments, shares, saves, created_at, privacy)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
-       ON CONFLICT (id) DO UPDATE SET url=$2, thumbnail=$3, duration=$4, username=$6, display_name=$7, avatar=$8, description=$9, hashtags=$10, music=$11, views=$12, likes=$13, comments=$14, shares=$15, saves=$16, privacy=$18`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11::jsonb, $12, $13, $14, $15, $16, $17, $18)
+       ON CONFLICT (id) DO UPDATE SET url=$2, thumbnail=$3, duration=$4, username=$6, display_name=$7, avatar=$8, description=$9, hashtags=$10::jsonb, music=$11::jsonb, views=$12, likes=$13, comments=$14, shares=$15, saves=$16, privacy=$18`,
       [
         video.id,
-        video.url,
+        video.url || "",
         video.thumbnail ?? "",
         video.duration ?? 0,
         video.userId,
@@ -159,7 +160,7 @@ export async function saveVideoToDb(video: Video): Promise<void> {
         video.displayName ?? "",
         video.avatar ?? "",
         video.description ?? "",
-        JSON.stringify(video.hashtags ?? []),
+        JSON.stringify(hashtags),
         video.music ? JSON.stringify(video.music) : null,
         video.views ?? 0,
         video.likes ?? 0,
@@ -170,8 +171,9 @@ export async function saveVideoToDb(video: Video): Promise<void> {
         video.privacy ?? "public",
       ]
     );
+    logger.info({ videoId: video.id, url: video.url?.slice(0, 50) }, "Video saved to Postgres");
   } catch (err) {
-    logger.error({ err }, "Postgres save video failed");
+    logger.error({ err, videoId: video.id }, "Postgres save video failed");
   }
 }
 

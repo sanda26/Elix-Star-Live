@@ -368,19 +368,22 @@ export async function handleForYouFeed(req: Request, res: Response) {
         privacy: String(v.privacy ?? "public"),
       }));
 
-      feedCache.set(cacheKey, { data: formatted, ts: Date.now() });
-
-      return res.json({
-        videos: formatted,
-        page,
-        limit,
-        hasMore: total > offset + limit,
-        total,
-        source: "postgres",
-      });
+      // If Postgres has videos, serve them; otherwise fall through to in-memory
+      if (formatted.length > 0) {
+        feedCache.set(cacheKey, { data: formatted, ts: Date.now() });
+        return res.json({
+          videos: formatted,
+          page,
+          limit,
+          hasMore: total > offset + limit,
+          total,
+          source: "postgres",
+        });
+      }
+      // Postgres empty — fall through to in-memory store
     }
 
-    // ── No DB: serve from in-memory videoStore ──
+    // ── Serve from in-memory videoStore ──
     const memVideos = getAllVideos().filter(v => v.url && v.url.trim());
     const total = memVideos.length;
     const paginated = memVideos.slice(offset, offset + limit);

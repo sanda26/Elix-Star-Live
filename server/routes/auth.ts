@@ -289,14 +289,11 @@ export async function handleDeleteAccount(req: Request, res: Response) {
   if (!payload) return res.status(401).json({ error: 'Invalid or expired session.' });
 
   const user = usersById.get(payload.sub);
-  if (!user) {
-    return res.status(404).json({ error: 'User not found.' });
+  if (user) {
+    usersById.delete(user.id);
+    usersByEmail.delete(user.email.toLowerCase());
+    saveUsersToDisk();
   }
-
-  // Remove from in-memory stores
-  usersById.delete(user.id);
-  usersByEmail.delete(user.email.toLowerCase());
-  saveUsersToDisk();
 
   clearAuthCookie(res);
   return res.status(200).json({ ok: true });

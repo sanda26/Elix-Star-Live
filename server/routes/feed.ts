@@ -305,85 +305,21 @@ export async function handleForYouFeed(req: Request, res: Response) {
     );
     const offset = (page - 1) * limit;
 
-    const db = getPool();
-    if (db) {
-      // Postgres Pool is configured: serve from our `videos` table.
-      // This keeps uploads persistent across refresh/reload.
-      const cacheKey = `pg:${page}:${limit}`;
-      const cached = feedCache.get(cacheKey);
-      if (cached && Date.now() - cached.ts < CACHE_TTL) {
-        return res.json({
-          videos: cached.data,
-          page,
-          limit,
-          hasMore: true,
-          total: cached.data.length,
-          source: "cache",
-        });
-      }
-
-      const totalRes = await db.query(`SELECT COUNT(*)::int AS count FROM videos WHERE COALESCE(url, '') != ''`);
-      const total = Number(totalRes.rows?.[0]?.count ?? 0) || 0;
-
-      const listRes = await db.query(
-        `SELECT id, url, thumbnail, duration, user_id, username, display_name, avatar,
-                description, hashtags, music, views, likes, comments, shares, saves,
-                created_at, privacy
-         FROM videos
-         WHERE COALESCE(url, '') != ''
-         ORDER BY created_at DESC
-         LIMIT $1 OFFSET $2`,
-        [limit, offset],
-      );
-
-      const formatted = (listRes.rows || []).map((v: any) => ({
-        id: String(v.id),
-        url: String(v.url),
-        thumbnail: String(v.thumbnail ?? ""),
-        duration: Number(v.duration ?? 0),
-        user: {
-          id: String(v.user_id ?? "unknown"),
-          username: String(v.username ?? "user"),
-          name: String(v.display_name ?? v.username ?? "User"),
-          avatar: String(v.avatar ?? ""),
-          level: 1,
-          isVerified: false,
-          followers: 0,
-          following: 0,
-        },
-        description: String(v.description ?? ""),
-        hashtags: Array.isArray(v.hashtags) ? v.hashtags : [],
-        music: v.music && typeof v.music === "object" ? v.music : null,
-        stats: {
-          views: Number(v.views ?? 0),
-          likes: Number(v.likes ?? 0),
-          comments: Number(v.comments ?? 0),
-          shares: Number(v.shares ?? 0),
-          saves: Number(v.saves ?? 0),
-        },
-        created_at:
-          v.created_at instanceof Date ? v.created_at.toISOString() : String(v.created_at ?? ""),
-        createdAt:
-          v.created_at instanceof Date ? v.created_at.toISOString() : String(v.created_at ?? ""),
-        privacy: String(v.privacy ?? "public"),
-      }));
-
-      // If Postgres has videos, serve them; otherwise fall through to in-memory
-      if (formatted.length > 0) {
-        feedCache.set(cacheKey, { data: formatted, ts: Date.now() });
-        return res.json({
-          videos: formatted,
-          page,
-          limit,
-          hasMore: total > offset + limit,
-          total,
-          source: "postgres",
-        });
-      }
-      // Postgres empty — fall through to in-memory store
+    // Always serve from in-memory store (source of truth during runtime).
+    // Postgres is used only for persistence across server restarts.
+    const cacheKey = `mem:${page}:${limit}`;
+    const cached = feedCache.get(cacheKey);
+    if (cached && Date.now() - cached.ts < CACHE_TTL) {
+      return res.json({
+        videos: cached.data,
+        page,
+        limit,
+        hasMore: true,
+        total: cached.data.length,
+        source: "cache",
+      });
     }
 
-    // ── Serve from in-memory videoStore ──
     const memVideos = getAllVideos().filter(v => v.url && v.url.trim());
     const total = memVideos.length;
     const paginated = memVideos.slice(offset, offset + limit);
@@ -411,6 +347,10 @@ export async function handleForYouFeed(req: Request, res: Response) {
       },
       createdAt: v.createdAt,
     }));
+
+    if (formatted.length > 0) {
+      feedCache.set(cacheKey, { data: formatted, ts: Date.now() });
+    }
 
     res.json({
       videos: formatted,

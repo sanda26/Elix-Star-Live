@@ -46,7 +46,7 @@ import {
   decrementStat,
   type Video,
 } from "./lib/videoStore";
-import { initPostgres, loadVideosFromDb, saveVideoToDb, dbUpdateViewerCount } from "./lib/postgres";
+import { initPostgres, loadVideosFromDb, saveVideoToDb, dbUpdateViewerCount, getPool, isPostgresConfigured } from "./lib/postgres";
 import {
   handleGetCreatorBalance,
   handleGetCreatorEarnings,
@@ -301,33 +301,71 @@ app.delete("/api/videos/:id/comments/:commentId", handleDeleteVideoComment);
 const likesMap = new Map<string, Set<string>>(); // videoId → Set<userId>
 const savesMap = new Map<string, Set<string>>(); // videoId → Set<userId>
 
-app.post("/api/videos/:id/like", (req, res) => {
+app.post("/api/videos/:id/like", async (req, res) => {
   const videoId = req.params.id;
   const token = getTokenFromRequest(req);
   if (!token) return res.status(401).json({ error: "Not authenticated." });
   const payload = verifyAuthToken(token);
   if (!payload) return res.status(401).json({ error: "Invalid session." });
   const userId = payload.sub;
+
+  const db = getPool();
+  if (db) {
+    try {
+      await db.query(
+        `INSERT INTO likes (user_id, video_id, created_at)
+         VALUES ($1, $2, NOW())
+         ON CONFLICT (user_id, video_id) DO NOTHING`,
+        [userId, videoId],
+      );
+      const countRes = await db.query<{ count: string }>(
+        `SELECT COUNT(*)::text AS count FROM likes WHERE video_id = $1`,
+        [videoId],
+      );
+      const likes = Number(countRes.rows?.[0]?.count || 0);
+      await db.query(`UPDATE videos SET likes = $2 WHERE id = $1`, [videoId, likes]).catch(() => {});
+      const v = getVideo(videoId);
+      if (v) v.likes = likes;
+      return res.json({ liked: true, likes });
+    } catch {
+      return res.status(500).json({ error: "Failed to persist like" });
+    }
+  }
 
   if (!likesMap.has(videoId)) likesMap.set(videoId, new Set());
   const set = likesMap.get(videoId)!;
   if (set.has(userId)) return res.json({ liked: true, likes: getVideo(videoId)?.likes || 0 });
   set.add(userId);
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.ts:/api/videos/:id/like',message:'Like stored in process memory map',runId:'pre-fix',hypothesisId:'H4_LIKES_SAVES_MEMORY_ONLY',data:{videoId,likesMapUsers:set.size},timestamp:Date.now()})}).catch(()=>{});
-  // #endregion
   incrementStat(videoId, "likes");
   const video = getVideo(videoId);
   return res.json({ liked: true, likes: video?.likes || 0 });
 });
 
-app.post("/api/videos/:id/unlike", (req, res) => {
+app.post("/api/videos/:id/unlike", async (req, res) => {
   const videoId = req.params.id;
   const token = getTokenFromRequest(req);
   if (!token) return res.status(401).json({ error: "Not authenticated." });
   const payload = verifyAuthToken(token);
   if (!payload) return res.status(401).json({ error: "Invalid session." });
   const userId = payload.sub;
+
+  const db = getPool();
+  if (db) {
+    try {
+      await db.query(`DELETE FROM likes WHERE user_id = $1 AND video_id = $2`, [userId, videoId]);
+      const countRes = await db.query<{ count: string }>(
+        `SELECT COUNT(*)::text AS count FROM likes WHERE video_id = $1`,
+        [videoId],
+      );
+      const likes = Number(countRes.rows?.[0]?.count || 0);
+      await db.query(`UPDATE videos SET likes = $2 WHERE id = $1`, [videoId, likes]).catch(() => {});
+      const v = getVideo(videoId);
+      if (v) v.likes = likes;
+      return res.json({ liked: false, likes });
+    } catch {
+      return res.status(500).json({ error: "Failed to persist unlike" });
+    }
+  }
 
   const set = likesMap.get(videoId);
   if (!set || !set.has(userId)) return res.json({ liked: false, likes: getVideo(videoId)?.likes || 0 });
@@ -337,33 +375,71 @@ app.post("/api/videos/:id/unlike", (req, res) => {
   return res.json({ liked: false, likes: video?.likes || 0 });
 });
 
-app.post("/api/videos/:id/save", (req, res) => {
+app.post("/api/videos/:id/save", async (req, res) => {
   const videoId = req.params.id;
   const token = getTokenFromRequest(req);
   if (!token) return res.status(401).json({ error: "Not authenticated." });
   const payload = verifyAuthToken(token);
   if (!payload) return res.status(401).json({ error: "Invalid session." });
   const userId = payload.sub;
+
+  const db = getPool();
+  if (db) {
+    try {
+      await db.query(
+        `INSERT INTO saves (user_id, video_id, created_at)
+         VALUES ($1, $2, NOW())
+         ON CONFLICT (user_id, video_id) DO NOTHING`,
+        [userId, videoId],
+      );
+      const countRes = await db.query<{ count: string }>(
+        `SELECT COUNT(*)::text AS count FROM saves WHERE video_id = $1`,
+        [videoId],
+      );
+      const saves = Number(countRes.rows?.[0]?.count || 0);
+      await db.query(`UPDATE videos SET saves = $2 WHERE id = $1`, [videoId, saves]).catch(() => {});
+      const v = getVideo(videoId);
+      if (v) v.saves = saves;
+      return res.json({ saved: true, saves });
+    } catch {
+      return res.status(500).json({ error: "Failed to persist save" });
+    }
+  }
 
   if (!savesMap.has(videoId)) savesMap.set(videoId, new Set());
   const set = savesMap.get(videoId)!;
   if (set.has(userId)) return res.json({ saved: true, saves: getVideo(videoId)?.saves || 0 });
   set.add(userId);
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.ts:/api/videos/:id/save',message:'Save stored in process memory map',runId:'pre-fix',hypothesisId:'H4_LIKES_SAVES_MEMORY_ONLY',data:{videoId,savesMapUsers:set.size},timestamp:Date.now()})}).catch(()=>{});
-  // #endregion
   incrementStat(videoId, "saves");
   const video = getVideo(videoId);
   return res.json({ saved: true, saves: video?.saves || 0 });
 });
 
-app.post("/api/videos/:id/unsave", (req, res) => {
+app.post("/api/videos/:id/unsave", async (req, res) => {
   const videoId = req.params.id;
   const token = getTokenFromRequest(req);
   if (!token) return res.status(401).json({ error: "Not authenticated." });
   const payload = verifyAuthToken(token);
   if (!payload) return res.status(401).json({ error: "Invalid session." });
   const userId = payload.sub;
+
+  const db = getPool();
+  if (db) {
+    try {
+      await db.query(`DELETE FROM saves WHERE user_id = $1 AND video_id = $2`, [userId, videoId]);
+      const countRes = await db.query<{ count: string }>(
+        `SELECT COUNT(*)::text AS count FROM saves WHERE video_id = $1`,
+        [videoId],
+      );
+      const saves = Number(countRes.rows?.[0]?.count || 0);
+      await db.query(`UPDATE videos SET saves = $2 WHERE id = $1`, [videoId, saves]).catch(() => {});
+      const v = getVideo(videoId);
+      if (v) v.saves = saves;
+      return res.json({ saved: false, saves });
+    } catch {
+      return res.status(500).json({ error: "Failed to persist unsave" });
+    }
+  }
 
   const set = savesMap.get(videoId);
   if (!set || !set.has(userId)) return res.json({ saved: false, saves: getVideo(videoId)?.saves || 0 });
@@ -415,7 +491,15 @@ app.post("/api/videos", async (req, res) => {
     };
 
     addVideo(video);
-    await saveVideoToDb(video);
+    if (isPostgresConfigured()) {
+      try {
+        await saveVideoToDb(video);
+      } catch (err: any) {
+        deleteVideo(id);
+        logger.error({ err: err?.message || err, videoId: id }, "POST /api/videos persistence failed");
+        return res.status(503).json({ error: "Video was not saved to database. Please try again." });
+      }
+    }
     invalidateFeedCache();
     logger.info({ videoId: id, total: getAllVideos().length }, "Video created");
 

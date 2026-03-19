@@ -529,12 +529,12 @@ export default function EnhancedVideoPlayer({
                 onClick={handleVideoClick}
                 poster={posterUrl}
                 onError={() => {
-                  if (retryCountRef.current < 2 && video.url) {
+                  if (retryCountRef.current < 5 && video.url) {
                     retryCountRef.current += 1;
                     const el = videoRef.current;
                     if (el) {
                       el.src = '';
-                      setTimeout(() => { el.src = video.url; el.load(); }, 500 * retryCountRef.current);
+                      setTimeout(() => { el.src = video.url; el.load(); }, 2000 * retryCountRef.current);
                     }
                     return;
                   }
@@ -557,12 +557,12 @@ export default function EnhancedVideoPlayer({
           onClick={handleVideoClick}
           poster={posterUrl}
           onError={() => {
-            if (retryCountRef.current < 2 && video.url) {
+            if (retryCountRef.current < 5 && video.url) {
               retryCountRef.current += 1;
               const el = videoRef.current;
               if (el) {
                 el.src = '';
-                setTimeout(() => { el.src = video.url; el.load(); }, 500 * retryCountRef.current);
+                setTimeout(() => { el.src = video.url; el.load(); }, 2000 * retryCountRef.current);
               }
               return;
             }
@@ -575,8 +575,9 @@ export default function EnhancedVideoPlayer({
 
 
         {videoError && (
-          <div className="absolute inset-0 flex items-center justify-center bg-[#13151A] z-10">
-            <span className="text-white/50 text-sm">Video unavailable</span>
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#13151A] z-10 gap-3">
+            <span className="text-white/50 text-sm">Video processing...</span>
+            <button onClick={() => { setVideoError(false); retryCountRef.current = 0; const el = videoRef.current; if (el && video.url) { el.src = video.url; el.load(); el.play().catch(() => {}); } }} className="px-4 py-1.5 bg-[#C9A96E]/20 border border-[#C9A96E]/40 rounded-lg text-[#C9A96E] text-xs font-medium">Tap to retry</button>
           </div>
         )}
 

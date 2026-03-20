@@ -742,6 +742,9 @@ app.use((req, res) => {
   if (process.env.NODE_ENV !== "production")
     console.log(`Serving fallback for ${req.url}`);
   if (fs.existsSync(indexPath)) {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
     res.sendFile(indexPath);
   } else {
     // Return 200 so deployment succeeds and we can debug

@@ -1589,7 +1589,7 @@ export default function SpectatorPage() {
                   className="relative z-10 flex-shrink-0 cursor-pointer active:scale-95 transition-transform"
                   onClick={() => navigate(`/profile/${hostUserId}`)}
                 >
-                  <AvatarRing src={hostAvatar} alt={hostName} size={44} />
+                  <AvatarRing src={hostAvatar} alt={hostName} size={56} />
                 </div>
                 <div
                   className="flex flex-col justify-center -ml-3 pl-5 pr-16 h-8 rounded-full border border-[#C9A96E]/60 bg-[#13151A]/80 min-w-0 relative"
@@ -1616,10 +1616,19 @@ export default function SpectatorPage() {
 
               {/* Right: viewer count + close */}
               <div className="pointer-events-auto flex items-center gap-2 flex-shrink-0">
-                {/* Viewer count circle with plus icon */}
+                <div className="flex items-center -space-x-1.5 pointer-events-auto">
+                  {[0, 1, 2].map((i) => (
+                    <div key={`spectator-top-mvp-${i}`} style={{ zIndex: 3 - i }} className="relative">
+                      <GoldProfileFrame size={36}>
+                        <Plus className="text-[#C9A96E]" size={16} strokeWidth={2.5} />
+                      </GoldProfileFrame>
+                    </div>
+                  ))}
+                </div>
+                {/* Viewer count */}
                 <button
                   type="button"
-                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#13151A]/70 border border-white/10 active:scale-95 transition-transform"
+                  className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-transparent border-0 active:scale-95 transition-transform"
                   onClick={() => {
                     const list: { id: string; name: string; avatar: string; level?: number }[] = [];
                     const hid = hostUserIdRef.current || hostUserId || effectiveStreamId;
@@ -1646,9 +1655,9 @@ export default function SpectatorPage() {
                     if (coHostStream) { coHostStream.getTracks().forEach(t => t.stop()); setCoHostStream(null); }
                     navigate('/feed', { replace: true });
                   }}
-                  className="w-8 h-8 rounded-full bg-[#13151A]/60 border border-white/10 flex items-center justify-center active:scale-90 transition-transform"
+                  className="w-8 h-8 rounded-full bg-transparent border-0 flex items-center justify-center active:scale-90 transition-transform"
                 >
-                  <X size={16} className="text-white/80" />
+                  <img src="/Icons/Gold power buton.png" alt="Leave stream" className="w-5 h-5 object-contain" />
                 </button>
               </div>
             </div>
@@ -1752,7 +1761,10 @@ export default function SpectatorPage() {
             onClick={() => setShowGiftPanel(true)}
             className="flex flex-col items-center justify-center w-12 active:scale-95 transition-transform select-none"
           >
-            <Gift size={20} className="text-[#C9A96E]" />
+            <div className="relative w-10 h-10 flex items-center justify-center">
+              <Gift size={20} className="text-[#C9A96E] relative z-[2]" />
+              <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[1] scale-125 translate-y-0.5" />
+            </div>
             <span className="text-[10px] font-semibold text-[#C9A96E] mt-0.5">Gift</span>
           </button>
 
@@ -1763,7 +1775,10 @@ export default function SpectatorPage() {
             onClick={() => setShowSharePanel(true)}
             className="flex flex-col items-center justify-center w-12 active:scale-95 transition-transform select-none"
           >
-            <Share2 size={20} className="text-[#C9A96E]" />
+            <div className="relative w-10 h-10 flex items-center justify-center">
+              <Share2 size={20} className="text-[#C9A96E] relative z-[2]" />
+              <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[1] scale-125 translate-y-0.5" />
+            </div>
             <span className="text-[10px] font-semibold text-[#C9A96E] mt-0.5">Share</span>
           </button>
 
@@ -1774,7 +1789,10 @@ export default function SpectatorPage() {
             onClick={() => setIsMoreMenuOpen(true)}
             className="flex flex-col items-center justify-center w-12 active:scale-95 transition-transform select-none"
           >
-            <MoreVertical size={20} className="text-[#C9A96E]" />
+            <div className="relative w-10 h-10 flex items-center justify-center">
+              <MoreVertical size={20} className="text-[#C9A96E] relative z-[2]" />
+              <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[1] scale-125 translate-y-0.5" />
+            </div>
             <span className="text-[10px] font-semibold text-[#C9A96E] mt-0.5">More</span>
           </button>
           </div>

@@ -127,7 +127,12 @@ function GiftGridItem({
             transition: "opacity 0.25s ease",
           }}
           draggable={false}
-          onError={() => setImgError(true)}
+          onError={() => {
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'gift-icons-debug',hypothesisId:'H1',location:'src/components/GiftPanel.tsx:130',message:'Gift icon failed to load',data:{giftId:gift.id,pngUrl,displayIcon},timestamp:Date.now()})}).catch(()=>{});
+            // #endregion
+            setImgError(true);
+          }}
         />
 
         {/* Video – loads in background, visible only on hover once ready */}

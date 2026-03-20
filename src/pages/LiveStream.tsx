@@ -3237,10 +3237,7 @@ export default function LiveStream() {
                             title="Remove opponent"
                             className="flex items-center justify-center border-0 bg-transparent p-0 hover:opacity-90 active:scale-95"
                           >
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#FF4D6A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]" aria-hidden>
-                              <path d="M18.36 6.64a9 9 0 1 1-12.73 0" />
-                              <line x1="12" y1="2" x2="12" y2="12" />
-                            </svg>
+                            <img src="/Icons/Gold power buton.png" alt="" className="h-3 w-3 object-contain drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]" />
                           </button>
                         </div>
                       )}

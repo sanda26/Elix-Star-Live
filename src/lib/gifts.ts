@@ -3,7 +3,8 @@ function getGiftAssetBase(): string {
   const runtimeEnv = (window as any).__ENV;
   const base =
     (import.meta.env.VITE_GIFT_ASSET_BASE_URL || runtimeEnv?.VITE_GIFT_ASSET_BASE_URL ||
-     import.meta.env.VITE_BUNNY_CDN_HOSTNAME || runtimeEnv?.VITE_BUNNY_CDN_HOSTNAME) as string | undefined;
+     import.meta.env.VITE_BUNNY_CDN_HOSTNAME || runtimeEnv?.VITE_BUNNY_CDN_HOSTNAME ||
+     import.meta.env.VITE_CDN_URL || runtimeEnv?.VITE_CDN_URL) as string | undefined;
   if (!base || !String(base).trim()) return '';
   let url = String(base).trim().replace(/\/+$/, '');
   if (url && !url.startsWith('http://') && !url.startsWith('https://')) url = `https://${url}`;

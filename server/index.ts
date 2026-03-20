@@ -527,8 +527,43 @@ app.delete("/api/videos/:id", (req, res) => {
   const video = getVideo(req.params.id);
   if (!video) return res.status(404).json({ error: "Video not found" });
   if (video.userId !== payload.sub) return res.status(403).json({ error: "You can only delete your own videos." });
+  // #region agent log
+  fetch("http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      runId: "pre-fix",
+      hypothesisId: "H1-H2",
+      location: "server/index.ts:/api/videos/:id",
+      message: "Delete video request accepted",
+      data: {
+        videoId: req.params.id,
+        actorUserId: payload.sub,
+        ownerUserId: video.userId,
+      },
+      timestamp: Date.now(),
+    }),
+  }).catch(() => {});
+  // #endregion
 
   deleteVideo(req.params.id);
+  // #region agent log
+  fetch("http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      runId: "pre-fix",
+      hypothesisId: "H1-H2",
+      location: "server/index.ts:/api/videos/:id",
+      message: "Video deleted from in-memory store only",
+      data: {
+        videoId: req.params.id,
+        hasDbPool: Boolean(getPool()),
+      },
+      timestamp: Date.now(),
+    }),
+  }).catch(() => {});
+  // #endregion
   invalidateFeedCache();
   res.json({ ok: true });
 });
@@ -1977,6 +2012,23 @@ try {
   server.listen(PORT, "0.0.0.0", async () => {
     await initPostgres();
     const dbVideos = await loadVideosFromDb();
+    // #region agent log
+    fetch("http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        runId: "pre-fix",
+        hypothesisId: "H1-H4",
+        location: "server/index.ts:startup",
+        message: "Videos loaded from database on startup",
+        data: {
+          dbVideoCount: dbVideos.length,
+          sampleVideoIds: dbVideos.slice(0, 5).map((v) => v.id),
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
     if (dbVideos.length > 0) {
       replaceVideos(dbVideos);
       logger.info({ count: dbVideos.length }, "Videos loaded from database");

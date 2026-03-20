@@ -469,7 +469,7 @@ export default function Profile() {
   }
 
   return (
-    <div className="fixed inset-0 bg-[#13151A] text-white flex justify-center px-2 pt-[calc(var(--safe-top)+46px)] pb-[calc(var(--safe-bottom)+110px)]">
+    <div className="fixed inset-0 bg-[#13151A] text-white flex justify-center px-2 pt-[calc(var(--safe-top)+46px)] pb-[calc(var(--safe-bottom)+var(--nav-height))]">
       <div
         className="w-full max-w-[480px] h-full flex flex-col bg-[#13151A] rounded-3xl overflow-hidden"
         style={{ marginTop: '-3cm' }}

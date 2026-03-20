@@ -10,7 +10,7 @@ export default function SafetyCenter() {
   return (
     <div className="min-h-[100dvh] bg-[#13151A] text-white flex justify-center px-2">
       {toast && <div className="fixed top-16 left-1/2 -translate-x-1/2 bg-white/10 backdrop-blur-md text-white text-sm px-4 py-2 rounded-xl z-[9999]">{toast}</div>}
-      <div className="w-full max-w-[480px] h-[100dvh] rounded-3xl overflow-hidden bg-[#13151A] flex flex-col pt-[calc(var(--safe-top)+46px)] pb-[calc(var(--safe-bottom)+110px)]">
+      <div className="w-full max-w-[480px] h-[100dvh] rounded-3xl overflow-hidden bg-[#13151A] flex flex-col pt-[calc(var(--safe-top)+46px)] pb-[calc(var(--safe-bottom)+var(--nav-height))]">
         {/* Header */}
         <div className="sticky top-0 bg-[#13151A] z-10 px-4 py-4 border-b border-transparent flex items-center gap-3">
         <button onClick={() => navigate(-1)} className="p-2 hover:brightness-125 rounded-full transition">

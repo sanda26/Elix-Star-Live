@@ -61,8 +61,8 @@
     --space-lg: clamp(12px, 3vw, 24px);
     --space-xl: clamp(16px, 4vw, 32px);
 
-    /* Bottom nav height (responsive) */
-    --nav-height: 110px;
+    /* Bottom nav zone (matches bar art + tap area; 3mm less than prior 110px) */
+    --nav-height: calc(110px - 3mm);
     /* Top bar height (responsive) */
     --topbar-height: clamp(40px, 10vw, 56px);
     /* Total top offset so content stays below top bar (feed spacer, etc.) */

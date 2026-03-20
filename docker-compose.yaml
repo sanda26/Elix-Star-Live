@@ -5,13 +5,13 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-elix_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in Coolify}
-      POSTGRES_DB: ${POSTGRES_DB:-elix}
+      POSTGRES_USER: elix_user
+      POSTGRES_PASSWORD: ElixStrongPass123
+      POSTGRES_DB: elix
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-elix_user} -d ${POSTGRES_DB:-elix}"]
+      test: ["CMD-SHELL", "pg_isready -U elix_user -d elix"]
       interval: 5s
       timeout: 3s
       retries: 5
@@ -27,25 +27,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: 8080
-      DATABASE_URL: postgresql://${POSTGRES_USER:-elix_user}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-elix}
-      BUNNY_STORAGE_ZONE: ${BUNNY_STORAGE_ZONE:-elix-storage}
-      BUNNY_STORAGE_API_KEY: ${BUNNY_STORAGE_API_KEY:?Set BUNNY_STORAGE_API_KEY in Coolify}
-      BUNNY_STORAGE_HOSTNAME: ${BUNNY_STORAGE_HOSTNAME:-storage.bunnycdn.com}
-      BUNNY_STORAGE_REGION: ${BUNNY_STORAGE_REGION:-de}
-      BUNNY_LIBRARY_ID: ${BUNNY_LIBRARY_ID:-}
-      BUNNY_LIBRARY_API_KEY: ${BUNNY_LIBRARY_API_KEY:-}
-      VITE_BUNNY_CDN_HOSTNAME: ${VITE_BUNNY_CDN_HOSTNAME:-}
-      VITE_BUNNY_STORAGE_ZONE: ${VITE_BUNNY_STORAGE_ZONE:-elix-storage}
-      VITE_CDN_URL: ${VITE_CDN_URL:-}
-      LIVEKIT_URL: ${LIVEKIT_URL:-}
-      LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:-}
-      LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET:-}
-      VITE_LIVEKIT_URL: ${VITE_LIVEKIT_URL:-}
-      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in Coolify}
-      CLIENT_URL: ${CLIENT_URL:-}
-      VITE_API_URL: ${VITE_API_URL:-}
-      VITE_WS_URL: ${VITE_WS_URL:-}
-      VITE_APP_NAME: ${VITE_APP_NAME:-AnberLive}
+      DATABASE_URL: postgresql://elix_user:ElixStrongPass123@db:5432/elix
 
 volumes:
   pgdata:

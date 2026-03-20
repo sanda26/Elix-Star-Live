@@ -2,7 +2,7 @@
  * Profile API for Express backend.
  * GET /api/profiles/:userId, PATCH /api/profiles/:userId, POST /api/profiles (seed),
  * GET followers/following, POST follow/unfollow.
- * In-memory store; replace with DB when ready.
+ * Persists to PostgreSQL when DATABASE_URL is configured; falls back to in-memory.
  */
 
 import { Request, Response } from "express";
@@ -30,6 +30,7 @@ export interface Profile {
 }
 
 const profiles = new Map<string, Profile>();
+let profilesTableReady = false;
 
 type StoredUserRow = { id: string; email?: string; username?: string; avatar_url?: string; display_name?: string };
 
@@ -37,7 +38,6 @@ const __filename_p = fileURLToPath(import.meta.url);
 const __dirname_p = path.dirname(__filename_p);
 const followsFile = path.join(__dirname_p, "..", "data", "follows.json");
 
-// followsMap: key = follower_id, value = Set of following_ids
 const followsMap = new Map<string, Set<string>>();
 
 function loadFollowsFromDisk(): void {
@@ -72,6 +72,124 @@ export function isFollowing(followerId: string, targetId: string): boolean {
   return followsMap.get(followerId)?.has(targetId) ?? false;
 }
 
+// ── PostgreSQL profile persistence ──────────────────────────────────────────
+
+async function ensureProfilesTable(): Promise<void> {
+  if (profilesTableReady) return;
+  const db = getPool();
+  if (!db) return;
+  try {
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS profiles (
+        user_id TEXT PRIMARY KEY,
+        username TEXT DEFAULT '',
+        display_name TEXT DEFAULT '',
+        avatar_url TEXT DEFAULT '',
+        bio TEXT DEFAULT '',
+        website TEXT DEFAULT '',
+        followers INT DEFAULT 0,
+        following INT DEFAULT 0,
+        video_count INT DEFAULT 0,
+        coins INT DEFAULT 0,
+        level INT DEFAULT 1,
+        is_verified BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+    profilesTableReady = true;
+  } catch {
+    // Table creation failed; continue with in-memory only
+  }
+}
+
+async function saveProfileToDb(p: Profile): Promise<void> {
+  const db = getPool();
+  if (!db) return;
+  await ensureProfilesTable();
+  if (!profilesTableReady) return;
+  try {
+    await db.query(
+      `INSERT INTO profiles (user_id, username, display_name, avatar_url, bio, website,
+                             followers, following, video_count, coins, level, is_verified,
+                             created_at, updated_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+       ON CONFLICT (user_id) DO UPDATE SET
+         username = EXCLUDED.username,
+         display_name = EXCLUDED.display_name,
+         avatar_url = EXCLUDED.avatar_url,
+         bio = EXCLUDED.bio,
+         website = EXCLUDED.website,
+         followers = EXCLUDED.followers,
+         following = EXCLUDED.following,
+         video_count = EXCLUDED.video_count,
+         coins = EXCLUDED.coins,
+         level = EXCLUDED.level,
+         is_verified = EXCLUDED.is_verified,
+         updated_at = EXCLUDED.updated_at`,
+      [
+        p.userId, p.username, p.displayName, p.avatarUrl, p.bio, p.website,
+        p.followers, p.following, p.videoCount, p.coins, p.level, p.isVerified,
+        p.createdAt, p.updatedAt,
+      ],
+    );
+  } catch { /* non-fatal */ }
+}
+
+async function loadProfileFromDb(userId: string): Promise<Profile | null> {
+  const db = getPool();
+  if (!db) return null;
+  await ensureProfilesTable();
+  if (!profilesTableReady) return null;
+  try {
+    const res = await db.query(`SELECT * FROM profiles WHERE user_id = $1`, [userId]);
+    const r = res.rows?.[0];
+    if (!r) return null;
+    return {
+      userId: String(r.user_id),
+      username: String(r.username || ""),
+      displayName: String(r.display_name || ""),
+      avatarUrl: String(r.avatar_url || ""),
+      bio: String(r.bio || ""),
+      website: String(r.website || ""),
+      followers: Number(r.followers) || 0,
+      following: Number(r.following) || 0,
+      videoCount: Number(r.video_count) || 0,
+      coins: Number(r.coins) || 0,
+      level: Number(r.level) || 1,
+      isVerified: Boolean(r.is_verified),
+      createdAt: String(r.created_at || ""),
+      updatedAt: String(r.updated_at || ""),
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function lookupAuthUser(userId: string): Promise<StoredUserRow | null> {
+  const db = getPool();
+  if (!db) return null;
+  try {
+    const res = await db.query(
+      `SELECT id, email, username, display_name, avatar_url FROM auth_users WHERE id = $1`,
+      [userId],
+    );
+    const r = res.rows?.[0];
+    if (!r) return null;
+    return {
+      id: String(r.id),
+      email: String(r.email || ""),
+      username: String(r.username || ""),
+      display_name: String(r.display_name || ""),
+      avatar_url: String(r.avatar_url || ""),
+    };
+  } catch {
+    return null;
+  }
+}
+
+// ── Disk-based user lookup (fallback when no DB) ────────────────────────────
+
 function readUsersFromDisk(): StoredUserRow[] {
   try {
     const usersFile = path.join(__dirname_p, "..", "data", "users.json");
@@ -83,6 +201,11 @@ function readUsersFromDisk(): StoredUserRow[] {
   } catch {
     return [];
   }
+}
+
+function lookupAuthUserFromDisk(userId: string): StoredUserRow | null {
+  const users = readUsersFromDisk();
+  return users.find((u) => u.id === userId) ?? null;
 }
 
 async function readUsersFromDb(): Promise<StoredUserRow[]> {
@@ -105,9 +228,33 @@ async function readUsersFromDb(): Promise<StoredUserRow[]> {
   }
 }
 
+// ── Core profile getter (sync, in-memory only) ─────────────────────────────
+
 export function getOrCreateProfile(userId: string, seed?: Partial<Profile>): Profile {
   const existing = profiles.get(userId);
-  if (existing) return existing;
+  if (existing) {
+    if (seed) {
+      let changed = false;
+      if (seed.username && existing.username.startsWith("user_")) {
+        existing.username = seed.username;
+        changed = true;
+      }
+      if (seed.displayName && existing.displayName.startsWith("User ")) {
+        existing.displayName = seed.displayName;
+        changed = true;
+      }
+      if (seed.avatarUrl && !existing.avatarUrl.includes("ui-avatars") === false) {
+        existing.avatarUrl = seed.avatarUrl;
+        changed = true;
+      }
+      if (changed) {
+        existing.updatedAt = new Date().toISOString();
+        profiles.set(userId, existing);
+        saveProfileToDb(existing).catch(() => {});
+      }
+    }
+    return existing;
+  }
 
   const now = new Date().toISOString();
   const profile: Profile = {
@@ -129,27 +276,82 @@ export function getOrCreateProfile(userId: string, seed?: Partial<Profile>): Pro
     updatedAt: now,
   };
   profiles.set(userId, profile);
+  saveProfileToDb(profile).catch(() => {});
   return profile;
 }
 
+/**
+ * Async profile getter: tries in-memory -> DB profiles table -> auth_users table -> fallback.
+ * This ensures the user's real name is used even after a server restart.
+ */
+async function getOrCreateProfileAsync(userId: string, seed?: Partial<Profile>): Promise<Profile> {
+  const existing = profiles.get(userId);
+  if (existing) return existing;
+
+  // Try loading from the profiles DB table
+  const fromDb = await loadProfileFromDb(userId);
+  if (fromDb && fromDb.username && !fromDb.username.startsWith("user_")) {
+    profiles.set(userId, fromDb);
+    return fromDb;
+  }
+
+  // Look up the user's real name from auth_users
+  const authUser = (await lookupAuthUser(userId)) ?? lookupAuthUserFromDisk(userId);
+  if (authUser) {
+    const username =
+      (authUser.username?.trim()) ||
+      (authUser.display_name?.trim()) ||
+      (authUser.email?.includes("@") ? authUser.email.split("@")[0] : "") ||
+      `user_${userId.slice(0, 8)}`;
+    const displayName =
+      (authUser.display_name?.trim()) ||
+      (authUser.username?.trim()) ||
+      username;
+    const avatarUrl =
+      (authUser.avatar_url?.trim()) ||
+      `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=random`;
+
+    const mergedSeed: Partial<Profile> = {
+      username,
+      displayName,
+      avatarUrl,
+      ...seed,
+    };
+
+    if (fromDb) {
+      fromDb.username = mergedSeed.username ?? fromDb.username;
+      fromDb.displayName = mergedSeed.displayName ?? fromDb.displayName;
+      fromDb.avatarUrl = mergedSeed.avatarUrl ?? fromDb.avatarUrl;
+      fromDb.updatedAt = new Date().toISOString();
+      profiles.set(userId, fromDb);
+      saveProfileToDb(fromDb).catch(() => {});
+      return fromDb;
+    }
+
+    return getOrCreateProfile(userId, mergedSeed);
+  }
+
+  if (fromDb) {
+    profiles.set(userId, fromDb);
+    return fromDb;
+  }
+
+  return getOrCreateProfile(userId, seed);
+}
+
 /** GET /api/profiles/:userId */
-export function handleGetProfile(req: Request, res: Response): void {
+export async function handleGetProfile(req: Request, res: Response): Promise<void> {
   const userId = req.params.userId;
   if (!userId) {
     res.status(400).json({ error: "userId is required" });
     return;
   }
-  const hadExisting = profiles.has(userId);
-  const profile = getOrCreateProfile(userId);
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'profiles.ts:handleGetProfile',message:'Profile response source details',runId:'pre-fix',hypothesisId:'H2_PROFILE_FALLBACK_NAME',data:{userId,hadExisting,username:profile.username,displayName:profile.displayName,isFallbackName:profile.displayName.startsWith('User ')||profile.username.startsWith('user_')},timestamp:Date.now()})}).catch(()=>{});
-  // #endregion
+  const profile = await getOrCreateProfileAsync(userId);
   res.json({ profile });
 }
 
 /** GET /api/profiles — list all known users/profiles */
 export async function handleListProfiles(_req: Request, res: Response): Promise<void> {
-  // Merge in-memory profiles + persisted auth users
   const merged = new Map<string, Profile>();
   for (const p of profiles.values()) merged.set(p.userId, p);
 
@@ -158,12 +360,16 @@ export async function handleListProfiles(_req: Request, res: Response): Promise<
     if (!u?.id) continue;
     const username =
       (typeof u.username === "string" && u.username.trim()) ||
+      (typeof u.display_name === "string" && u.display_name.trim()) ||
       (typeof u.email === "string" && u.email.includes("@") ? u.email.split("@")[0] : "") ||
       `user_${u.id.slice(0, 8)}`;
+    const displayName =
+      (typeof u.display_name === "string" && u.display_name.trim()) ||
+      username;
     const avatarUrl =
       (typeof u.avatar_url === "string" && u.avatar_url.trim()) ||
-      `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=random`;
-    const p = getOrCreateProfile(u.id, { username, displayName: username, avatarUrl });
+      `https://ui-avatars.com/api/?name=${encodeURIComponent(String(username))}&background=random`;
+    const p = getOrCreateProfile(u.id, { username: String(username), displayName: String(displayName), avatarUrl: String(avatarUrl) });
     merged.set(p.userId, p);
   }
 
@@ -181,9 +387,9 @@ export async function handleListProfiles(_req: Request, res: Response): Promise<
 }
 
 /** GET /api/profiles/:userId/followers */
-export function handleGetFollowers(req: Request, res: Response): void {
+export async function handleGetFollowers(req: Request, res: Response): Promise<void> {
   const userId = req.params.userId;
-  const profile = getOrCreateProfile(userId);
+  const profile = await getOrCreateProfileAsync(userId);
   const followerIds: string[] = [];
   for (const [fid, set] of followsMap) {
     if (set.has(userId)) followerIds.push(fid);
@@ -192,15 +398,15 @@ export function handleGetFollowers(req: Request, res: Response): void {
 }
 
 /** GET /api/profiles/:userId/following */
-export function handleGetFollowing(req: Request, res: Response): void {
+export async function handleGetFollowing(req: Request, res: Response): Promise<void> {
   const userId = req.params.userId;
-  const profile = getOrCreateProfile(userId);
+  const profile = await getOrCreateProfileAsync(userId);
   const followingIds = getFollowingIds(userId);
   res.json({ count: profile.following, following: followingIds });
 }
 
 /** PATCH /api/profiles/:userId — auth required, own profile only */
-export function handlePatchProfile(req: Request, res: Response): void {
+export async function handlePatchProfile(req: Request, res: Response): Promise<void> {
   const userId = req.params.userId;
   const token = getTokenFromRequest(req);
   const jwtUser = token ? verifyAuthToken(token) : null;
@@ -210,7 +416,7 @@ export function handlePatchProfile(req: Request, res: Response): void {
     return;
   }
 
-  const profile = getOrCreateProfile(userId);
+  const profile = await getOrCreateProfileAsync(userId);
   const allowed = ["username", "displayName", "avatarUrl", "bio", "website", "level", "coins"] as const;
   for (const key of allowed) {
     const val = (req.body as Record<string, unknown>)[key];
@@ -220,11 +426,12 @@ export function handlePatchProfile(req: Request, res: Response): void {
   }
   profile.updatedAt = new Date().toISOString();
   profiles.set(userId, profile);
+  saveProfileToDb(profile).catch(() => {});
   res.json({ profile });
 }
 
 /** POST /api/profiles/:userId/follow — auth required */
-export function handleFollow(req: Request, res: Response): void {
+export async function handleFollow(req: Request, res: Response): Promise<void> {
   const userId = req.params.userId;
   const token = getTokenFromRequest(req);
   const jwtUser = token ? verifyAuthToken(token) : null;
@@ -240,24 +447,27 @@ export function handleFollow(req: Request, res: Response): void {
 
   const myFollows = followsMap.get(jwtUser.sub) ?? new Set<string>();
   if (myFollows.has(userId)) {
-    res.json({ success: true, already: true, followers: getOrCreateProfile(userId).followers });
+    const p = await getOrCreateProfileAsync(userId);
+    res.json({ success: true, already: true, followers: p.followers });
     return;
   }
   myFollows.add(userId);
   followsMap.set(jwtUser.sub, myFollows);
 
-  const target = getOrCreateProfile(userId);
-  const follower = getOrCreateProfile(jwtUser.sub);
+  const target = await getOrCreateProfileAsync(userId);
+  const follower = await getOrCreateProfileAsync(jwtUser.sub);
   target.followers = Math.max(0, target.followers + 1);
   follower.following = Math.max(0, follower.following + 1);
   profiles.set(userId, target);
   profiles.set(jwtUser.sub, follower);
+  saveProfileToDb(target).catch(() => {});
+  saveProfileToDb(follower).catch(() => {});
   saveFollowsToDisk();
   res.json({ success: true, followers: target.followers });
 }
 
 /** POST /api/profiles/:userId/unfollow — auth required */
-export function handleUnfollow(req: Request, res: Response): void {
+export async function handleUnfollow(req: Request, res: Response): Promise<void> {
   const userId = req.params.userId;
   const token = getTokenFromRequest(req);
   const jwtUser = token ? verifyAuthToken(token) : null;
@@ -269,29 +479,33 @@ export function handleUnfollow(req: Request, res: Response): void {
 
   const myFollows = followsMap.get(jwtUser.sub);
   if (!myFollows || !myFollows.has(userId)) {
-    res.json({ success: true, already: true, followers: getOrCreateProfile(userId).followers });
+    const p = await getOrCreateProfileAsync(userId);
+    res.json({ success: true, already: true, followers: p.followers });
     return;
   }
   myFollows.delete(userId);
   followsMap.set(jwtUser.sub, myFollows);
 
-  const target = getOrCreateProfile(userId);
-  const follower = getOrCreateProfile(jwtUser.sub);
+  const target = await getOrCreateProfileAsync(userId);
+  const follower = await getOrCreateProfileAsync(jwtUser.sub);
   target.followers = Math.max(0, target.followers - 1);
   follower.following = Math.max(0, follower.following - 1);
   profiles.set(userId, target);
   profiles.set(jwtUser.sub, follower);
+  saveProfileToDb(target).catch(() => {});
+  saveProfileToDb(follower).catch(() => {});
   saveFollowsToDisk();
   res.json({ success: true, followers: target.followers });
 }
 
 /** GET /api/profiles/by-username/:username */
-export function handleGetProfileByUsername(req: Request, res: Response): void {
+export async function handleGetProfileByUsername(req: Request, res: Response): Promise<void> {
   const username = req.params.username;
   if (!username) {
     res.status(400).json({ error: "username is required" });
     return;
   }
+
   for (const profile of profiles.values()) {
     if (profile.username === username || profile.displayName === username) {
       res.json({
@@ -307,11 +521,38 @@ export function handleGetProfileByUsername(req: Request, res: Response): void {
       return;
     }
   }
+
+  // Try DB if not in memory
+  const db = getPool();
+  if (db) {
+    try {
+      const res2 = await db.query(
+        `SELECT user_id, username, display_name, avatar_url, bio, level, followers, following
+         FROM profiles WHERE username = $1 OR display_name = $1 LIMIT 1`,
+        [username],
+      );
+      if (res2.rows?.[0]) {
+        const r = res2.rows[0];
+        res.json({
+          user_id: r.user_id,
+          username: r.username,
+          display_name: r.display_name,
+          avatar_url: r.avatar_url,
+          bio: r.bio || "",
+          level: Number(r.level) || 1,
+          followers_count: Number(r.followers) || 0,
+          following_count: Number(r.following) || 0,
+        });
+        return;
+      }
+    } catch { /* fall through */ }
+  }
+
   res.status(404).json({ error: "Profile not found" });
 }
 
 /** POST /api/test-coins — add test coins to current user */
-export function handleAddTestCoins(req: Request, res: Response): void {
+export async function handleAddTestCoins(req: Request, res: Response): Promise<void> {
   const token = getTokenFromRequest(req);
   const jwtUser = token ? verifyAuthToken(token) : null;
   if (!jwtUser) {
@@ -324,14 +565,15 @@ export function handleAddTestCoins(req: Request, res: Response): void {
     res.status(400).json({ error: "Invalid amount" });
     return;
   }
-  const profile = getOrCreateProfile(jwtUser.sub);
+  const profile = await getOrCreateProfileAsync(jwtUser.sub);
   profile.coins += numAmount;
   profiles.set(jwtUser.sub, profile);
+  saveProfileToDb(profile).catch(() => {});
   res.json({ success: true, coins: profile.coins });
 }
 
 /** POST /api/profiles — seed/upsert (e.g. after auth); no auth required */
-export function handleSeedProfile(req: Request, res: Response): void {
+export async function handleSeedProfile(req: Request, res: Response): Promise<void> {
   const body = req.body as { userId?: string; username?: string; displayName?: string; email?: string; avatarUrl?: string };
   const { userId, username, displayName, email, avatarUrl } = body ?? {};
 
@@ -341,6 +583,28 @@ export function handleSeedProfile(req: Request, res: Response): void {
   }
 
   const fallbackUsername = username ?? (email ? email.split("@")[0] : undefined);
+  const existing = profiles.get(userId);
+
+  if (existing) {
+    if (fallbackUsername && existing.username.startsWith("user_")) {
+      existing.username = fallbackUsername;
+    }
+    if (displayName && existing.displayName.startsWith("User ")) {
+      existing.displayName = displayName;
+    }
+    if (fallbackUsername && !existing.username.startsWith("user_")) {
+      // Already has a real name, allow update
+    }
+    if (displayName) existing.displayName = displayName;
+    if (fallbackUsername) existing.username = fallbackUsername;
+    if (avatarUrl) existing.avatarUrl = avatarUrl;
+    existing.updatedAt = new Date().toISOString();
+    profiles.set(userId, existing);
+    saveProfileToDb(existing).catch(() => {});
+    res.status(201).json({ profile: existing });
+    return;
+  }
+
   const profile = getOrCreateProfile(userId, {
     username: fallbackUsername,
     displayName: displayName || fallbackUsername,

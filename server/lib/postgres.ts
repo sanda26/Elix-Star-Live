@@ -6,23 +6,10 @@
 import pg from "pg";
 import type { Video } from "./videoStore";
 import { logger } from "./logger";
-import { appendFile } from "fs/promises";
 
 const { Pool } = pg;
 
 let pool: pg.Pool | null = null;
-const DEBUG_LOG_PATH =
-  "c:\\Users\\Sanda\\Desktop\\Elix Star Live\\.cursor\\debug.log";
-
-async function debugNDJSON(payload: Record<string, unknown>) {
-  // #region agent log
-  try {
-    await appendFile(DEBUG_LOG_PATH, JSON.stringify(payload) + "\n", "utf8");
-  } catch {
-    // ignore
-  }
-  // #endregion
-}
 
 function firstNonEmptyString(
   ...values: Array<unknown>
@@ -147,6 +134,41 @@ export async function initPostgres(): Promise<void> {
         PRIMARY KEY (user_id, video_id)
       )
     `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS auth_users (
+        id TEXT PRIMARY KEY,
+        email TEXT UNIQUE NOT NULL,
+        password_hash TEXT NOT NULL,
+        username TEXT DEFAULT '',
+        display_name TEXT DEFAULT '',
+        avatar_url TEXT DEFAULT '',
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS profiles (
+        user_id TEXT PRIMARY KEY,
+        username TEXT DEFAULT '',
+        display_name TEXT DEFAULT '',
+        avatar_url TEXT DEFAULT '',
+        bio TEXT DEFAULT '',
+        website TEXT DEFAULT '',
+        followers INT DEFAULT 0,
+        following INT DEFAULT 0,
+        video_count INT DEFAULT 0,
+        coins INT DEFAULT 0,
+        level INT DEFAULT 1,
+        is_verified BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+
+    const userCount = await pool.query(`SELECT COUNT(*) as cnt FROM auth_users`);
+    const profileCount = await pool.query(`SELECT COUNT(*) as cnt FROM profiles`);
+    logger.info(`Tables ready — ${userCount.rows[0]?.cnt || 0} auth users, ${profileCount.rows[0]?.cnt || 0} profiles in DB`);
   } catch (err) {
     logger.error({ err }, "PostgreSQL init FAILED — data will NOT persist across restarts. Check DATABASE_URL and ensure PostgreSQL is running.");
     pool = null;
@@ -160,27 +182,6 @@ export async function loadVideosFromDb(): Promise<Video[]> {
       `SELECT *
        FROM videos ORDER BY created_at DESC`
     );
-    // #region agent log
-    await debugNDJSON({
-      location: "postgres.ts:loadVideosFromDb",
-      message: "Raw DB video row sample",
-      hypothesisId: "DB1",
-      runId: "pre-fix",
-      timestamp: Date.now(),
-      data: {
-        totalRows: res.rows?.length || 0,
-        first: res.rows?.[0]
-          ? {
-              id: String(res.rows[0].id ?? ""),
-              url: String(res.rows[0].url ?? ""),
-              video_url: String((res.rows[0] as Record<string, unknown>).video_url ?? ""),
-              thumbnail: String(res.rows[0].thumbnail ?? ""),
-              thumbnail_url: String((res.rows[0] as Record<string, unknown>).thumbnail_url ?? ""),
-            }
-          : null,
-      },
-    });
-    // #endregion
     return (res.rows || []).map((row: Record<string, unknown>) => ({
       id: String(row.id),
       url: firstNonEmptyString(row.url, row.video_url),

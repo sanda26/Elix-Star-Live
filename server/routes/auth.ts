@@ -186,19 +186,21 @@ async function ensureUsersLoaded(): Promise<void> {
     } else {
       source = "db";
     }
-  } catch {
+  } catch (err) {
+    console.error("[AUTH] Failed to load users from DB, falling back to disk:", err);
     loadUsersFromDisk();
     source = "disk_fallback";
   }
   usersLoadedFromStore = true;
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'auth.ts:ensureUsersLoaded',message:'Auth users loaded into memory',runId:'pre-fix',hypothesisId:'H1_AUTH_LOAD_SOURCE',data:{source,userCount:usersById.size,dbConfigured:Boolean(process.env.DATABASE_URL)},timestamp:Date.now()})}).catch(()=>{});
-  // #endregion
+  console.log(`[AUTH] Users loaded from ${source} — ${usersById.size} user(s) in memory, DATABASE_URL configured: ${Boolean(process.env.DATABASE_URL)}`);
 }
 
 async function saveUserToDb(u: StoredUser): Promise<void> {
   const db = getPool();
-  if (!db) return;
+  if (!db) {
+    console.warn("[AUTH] No database pool — user will NOT persist:", u.email);
+    return;
+  }
   await ensureUsersTable();
   await db.query(
     `INSERT INTO auth_users (id, email, password_hash, username, display_name, avatar_url, created_at)
@@ -211,6 +213,7 @@ async function saveUserToDb(u: StoredUser): Promise<void> {
        avatar_url = EXCLUDED.avatar_url`,
     [u.id, u.email, u.passwordHash, u.username, u.display_name, u.avatar_url, u.created_at]
   );
+  console.log("[AUTH] User saved to database:", u.email);
 }
 
 async function deleteUserFromDb(id: string): Promise<void> {
@@ -308,7 +311,11 @@ export async function handleGuestLogin(_req: Request, res: Response) {
     usersByEmail.set('guest@example.com', guest);
     usersById.set(id, guest);
     saveUsersToDisk();
-    await saveUserToDb(guest).catch(() => {});
+    try {
+      await saveUserToDb(guest);
+    } catch (dbErr) {
+      console.error("[AUTH] FAILED to save guest to database:", dbErr);
+    }
   }
 
   const token = signToken({ sub: guest.id, email: guest.email });
@@ -349,7 +356,11 @@ export async function handleRegister(req: Request, res: Response) {
   usersByEmail.set(key, stored);
   usersById.set(id, stored);
   saveUsersToDisk();
-  await saveUserToDb(stored).catch(() => {});
+  try {
+    await saveUserToDb(stored);
+  } catch (dbErr) {
+    console.error("[AUTH] FAILED to save user to database:", e, dbErr);
+  }
   const token = signToken({ sub: id, email: e });
   setAuthCookie(res, token);
   return res.status(201).json({
@@ -392,7 +403,7 @@ export async function handleDeleteAccount(req: Request, res: Response) {
     usersById.delete(user.id);
     usersByEmail.delete(user.email.toLowerCase());
     saveUsersToDisk();
-    await deleteUserFromDb(user.id).catch(() => {});
+    await deleteUserFromDb(user.id).catch((err) => console.error("[AUTH] Failed to delete user from DB:", err));
   }
 
   clearAuthCookie(res);

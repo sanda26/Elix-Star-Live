@@ -45,9 +45,6 @@ export async function handleGetVideoComments(req: Request, res: Response) {
 
   const pool = getPool();
   if (!pool) {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'comments.ts:handleGetVideoComments',message:'Comments served from memory fallback',runId:'pre-fix',hypothesisId:'H3_COMMENTS_NOT_PERSISTED',data:{videoId,hasDb:false},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
     // In-memory fallback
     const sort = getSort(req);
     const all = memComments.get(videoId) || [];
@@ -102,9 +99,6 @@ export async function handleGetVideoComments(req: Request, res: Response) {
       return { ...c, replies, reply_count: replies.length };
     });
 
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'comments.ts:handleGetVideoComments',message:'Comments served from db',runId:'pre-fix',hypothesisId:'H3_COMMENTS_NOT_PERSISTED',data:{videoId,hasDb:true,topLevelCount:top.rows.length},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
     return res.json({ comments, source: "db" });
   } catch (err: any) {
     return res.status(500).json({ error: err?.message || "Failed to load comments" });
@@ -140,9 +134,6 @@ export async function handlePostVideoComment(req: Request, res: Response) {
 
   const pool = getPool();
   if (!pool) {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'comments.ts:handlePostVideoComment',message:'Comment write path: memory fallback',runId:'pre-fix',hypothesisId:'H3_COMMENTS_NOT_PERSISTED',data:{videoId,hasDb:false,isReply:Boolean(parentId)},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
     // In-memory fallback
     if (!memComments.has(videoId)) memComments.set(videoId, []);
     memComments.get(videoId)!.push(row);
@@ -165,9 +156,6 @@ export async function handlePostVideoComment(req: Request, res: Response) {
         .catch(() => {});
     }
 
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'comments.ts:handlePostVideoComment',message:'Comment write path: db',runId:'pre-fix',hypothesisId:'H3_COMMENTS_NOT_PERSISTED',data:{videoId,hasDb:true,isReply:Boolean(parentId)},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
     void getVideo(videoId);
     return res.status(201).json({ comment: formatComment(row) });
   } catch (err: any) {

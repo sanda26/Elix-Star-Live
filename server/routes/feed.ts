@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Request, Response } from "express";
-import { appendFile } from "fs/promises";
 import {
   getAllVideos,
   getVideo,
@@ -9,19 +8,6 @@ import {
 } from "../lib/videoStore";
 import { getPool } from "../lib/postgres";
 import { getTokenFromRequest, verifyAuthToken } from "./auth";
-
-const DEBUG_LOG_PATH =
-  "c:\\Users\\Sanda\\Desktop\\Elix Star Live\\.cursor\\debug.log";
-
-async function debugNDJSON(payload: Record<string, any>) {
-  // #region agent log
-  try {
-    await appendFile(DEBUG_LOG_PATH, JSON.stringify(payload) + "\n", "utf8");
-  } catch {
-    // ignore logging errors; never block requests
-  }
-  // #endregion
-}
 
 const SCORE_WEIGHTS = {
   watch_time: 2,
@@ -343,24 +329,6 @@ export async function handleForYouFeed(req: Request, res: Response) {
     });
     const total = memVideos.length;
     const paginated = memVideos.slice(offset, offset + limit);
-
-    // #region agent log
-    await debugNDJSON({
-      location: "feed.ts:handleForYouFeed",
-      message: "ForYou feed in-memory counts",
-      hypothesisId: "FY1",
-      timestamp: Date.now(),
-      runId: "pre-fix",
-      data: {
-        memAllCount: memAll.length,
-        memWithNonEmptyUrl: memVideos.length,
-        page,
-        limit,
-        offset,
-        firstVideoId: memVideos[0]?.id ?? null,
-      },
-    });
-    // #endregion
 
     const formatted = paginated.map((v) => ({
       id: v.id,

@@ -65,7 +65,10 @@ export async function bunnyUpload(
 
   const res = await fetch(apiUrl(`/api/media/upload-file?${qs}`), {
     method: "POST",
-    headers: { "Content-Type": "application/octet-stream" },
+    headers: {
+      "Content-Type": "application/octet-stream",
+      ...(_token ? { "Authorization": `Bearer ${_token}` } : {}),
+    },
     credentials: "include",
     body: file,
   });

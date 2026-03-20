@@ -133,6 +133,9 @@ async function enrichUserWithProfile(user: User): Promise<User> {
     };
 
     const profile = body.profile;
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useAuthStore.ts:enrichUserWithProfile',message:'Profile API response',hypothesisId:'H4',data:{userId:user.id,profileUsername:profile?.username,profileDisplayName:profile?.displayName,userUsername:user.username,userName:user.name,isFallback:profile?.displayName?.startsWith('User ')},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
     if (!profile) return user;
 
     return {

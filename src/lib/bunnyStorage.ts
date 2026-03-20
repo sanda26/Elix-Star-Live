@@ -57,6 +57,12 @@ export async function bunnyUpload(
 
   const qs = new URLSearchParams({ path: storagePath, ct });
 
+  // #region agent log
+  const _authStore = JSON.parse(localStorage.getItem('elix-auth') || '{}');
+  const _token = _authStore?.state?.session?.access_token || _authStore?.state?.session?.accessToken || null;
+  fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'bunnyStorage.ts:upload',message:'Upload attempt - auth state',hypothesisId:'H1_H2_H3',data:{hasToken:Boolean(_token),tokenFirst20:_token?.slice(0,20),apiUrl:apiUrl('/api/media/upload-file'),fileSize:file.size,storagePath},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
+
   const res = await fetch(apiUrl(`/api/media/upload-file?${qs}`), {
     method: "POST",
     headers: { "Content-Type": "application/octet-stream" },
@@ -65,9 +71,12 @@ export async function bunnyUpload(
   });
 
   if (!res.ok) {
-    const err = (await res.json().catch(() => ({}))) as { error?: string };
+    const err = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'bunnyStorage.ts:uploadFailed',message:'Upload FAILED',hypothesisId:'H1_H2_H3_H5',data:{status:res.status,error:err.error,debug:err.debug,hasToken:Boolean(_token)},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
     throw new Error(
-      err.error ?? `Bunny upload failed (${res.status} ${res.statusText})`,
+      (err.error as string) ?? `Bunny upload failed (${res.status} ${res.statusText})`,
     );
   }
 

@@ -228,6 +228,15 @@ async function readUsersFromDb(): Promise<StoredUserRow[]> {
   }
 }
 
+// ── Helpers ─────────────────────────────────────────────────────────────────
+
+function isFallbackName(name: string): boolean {
+  if (!name) return true;
+  if (/^User [0-9a-f]{8}$/i.test(name)) return true;
+  if (/^user_[0-9a-f]{8}$/i.test(name)) return true;
+  return false;
+}
+
 // ── Core profile getter (sync, in-memory only) ─────────────────────────────
 
 export function getOrCreateProfile(userId: string, seed?: Partial<Profile>): Profile {
@@ -235,15 +244,15 @@ export function getOrCreateProfile(userId: string, seed?: Partial<Profile>): Pro
   if (existing) {
     if (seed) {
       let changed = false;
-      if (seed.username && existing.username.startsWith("user_")) {
+      if (seed.username && isFallbackName(existing.username)) {
         existing.username = seed.username;
         changed = true;
       }
-      if (seed.displayName && existing.displayName.startsWith("User ")) {
+      if (seed.displayName && isFallbackName(existing.displayName)) {
         existing.displayName = seed.displayName;
         changed = true;
       }
-      if (seed.avatarUrl && !existing.avatarUrl.includes("ui-avatars") === false) {
+      if (seed.avatarUrl && existing.avatarUrl.includes("ui-avatars")) {
         existing.avatarUrl = seed.avatarUrl;
         changed = true;
       }
@@ -282,58 +291,51 @@ export function getOrCreateProfile(userId: string, seed?: Partial<Profile>): Pro
 
 /**
  * Async profile getter: tries in-memory -> DB profiles table -> auth_users table -> fallback.
- * This ensures the user's real name is used even after a server restart.
+ * Always checks if the displayName is a fallback and fixes it from auth_users.
  */
 async function getOrCreateProfileAsync(userId: string, seed?: Partial<Profile>): Promise<Profile> {
-  const existing = profiles.get(userId);
-  if (existing) return existing;
+  let profile = profiles.get(userId) ?? await loadProfileFromDb(userId) ?? null;
 
-  // Try loading from the profiles DB table
-  const fromDb = await loadProfileFromDb(userId);
-  if (fromDb && fromDb.username && !fromDb.username.startsWith("user_")) {
-    profiles.set(userId, fromDb);
-    return fromDb;
-  }
+  const needsNameFix = !profile || isFallbackName(profile.displayName) || isFallbackName(profile.username);
 
-  // Look up the user's real name from auth_users
-  const authUser = (await lookupAuthUser(userId)) ?? lookupAuthUserFromDisk(userId);
-  if (authUser) {
-    const username =
-      (authUser.username?.trim()) ||
-      (authUser.display_name?.trim()) ||
-      (authUser.email?.includes("@") ? authUser.email.split("@")[0] : "") ||
-      `user_${userId.slice(0, 8)}`;
-    const displayName =
-      (authUser.display_name?.trim()) ||
-      (authUser.username?.trim()) ||
-      username;
-    const avatarUrl =
-      (authUser.avatar_url?.trim()) ||
-      `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=random`;
+  if (needsNameFix) {
+    const authUser = (await lookupAuthUser(userId)) ?? lookupAuthUserFromDisk(userId);
+    if (authUser) {
+      const realUsername =
+        (authUser.username?.trim()) ||
+        (authUser.display_name?.trim()) ||
+        (authUser.email?.includes("@") ? authUser.email.split("@")[0] : "") ||
+        "";
+      const realDisplayName =
+        (authUser.display_name?.trim()) ||
+        (authUser.username?.trim()) ||
+        realUsername;
+      const realAvatar =
+        (authUser.avatar_url?.trim()) || "";
 
-    const mergedSeed: Partial<Profile> = {
-      username,
-      displayName,
-      avatarUrl,
-      ...seed,
-    };
+      if (profile) {
+        if (realUsername && isFallbackName(profile.username)) profile.username = realUsername;
+        if (realDisplayName && isFallbackName(profile.displayName)) profile.displayName = realDisplayName;
+        if (realAvatar && profile.avatarUrl.includes("ui-avatars")) profile.avatarUrl = realAvatar;
+        profile.updatedAt = new Date().toISOString();
+        profiles.set(userId, profile);
+        saveProfileToDb(profile).catch(() => {});
+        return profile;
+      }
 
-    if (fromDb) {
-      fromDb.username = mergedSeed.username ?? fromDb.username;
-      fromDb.displayName = mergedSeed.displayName ?? fromDb.displayName;
-      fromDb.avatarUrl = mergedSeed.avatarUrl ?? fromDb.avatarUrl;
-      fromDb.updatedAt = new Date().toISOString();
-      profiles.set(userId, fromDb);
-      saveProfileToDb(fromDb).catch(() => {});
-      return fromDb;
+      profile = getOrCreateProfile(userId, {
+        username: realUsername || undefined,
+        displayName: realDisplayName || undefined,
+        avatarUrl: realAvatar || undefined,
+        ...seed,
+      });
+      return profile;
     }
-
-    return getOrCreateProfile(userId, mergedSeed);
   }
 
-  if (fromDb) {
-    profiles.set(userId, fromDb);
-    return fromDb;
+  if (profile) {
+    profiles.set(userId, profile);
+    return profile;
   }
 
   return getOrCreateProfile(userId, seed);
@@ -582,21 +584,13 @@ export async function handleSeedProfile(req: Request, res: Response): Promise<vo
     return;
   }
 
-  const fallbackUsername = username ?? (email ? email.split("@")[0] : undefined);
-  const existing = profiles.get(userId);
+  const realUsername = username ?? (email ? email.split("@")[0] : undefined);
+  const realDisplayName = displayName || realUsername;
+  const existing = profiles.get(userId) ?? await loadProfileFromDb(userId);
 
   if (existing) {
-    if (fallbackUsername && existing.username.startsWith("user_")) {
-      existing.username = fallbackUsername;
-    }
-    if (displayName && existing.displayName.startsWith("User ")) {
-      existing.displayName = displayName;
-    }
-    if (fallbackUsername && !existing.username.startsWith("user_")) {
-      // Already has a real name, allow update
-    }
-    if (displayName) existing.displayName = displayName;
-    if (fallbackUsername) existing.username = fallbackUsername;
+    if (realUsername) existing.username = realUsername;
+    if (realDisplayName) existing.displayName = realDisplayName;
     if (avatarUrl) existing.avatarUrl = avatarUrl;
     existing.updatedAt = new Date().toISOString();
     profiles.set(userId, existing);
@@ -606,8 +600,8 @@ export async function handleSeedProfile(req: Request, res: Response): Promise<vo
   }
 
   const profile = getOrCreateProfile(userId, {
-    username: fallbackUsername,
-    displayName: displayName || fallbackUsername,
+    username: realUsername,
+    displayName: realDisplayName,
     avatarUrl,
   });
   res.status(201).json({ profile });

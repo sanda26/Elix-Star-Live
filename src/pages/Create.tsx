@@ -264,9 +264,14 @@ export default function Create() {
     const start = async () => {
       try {
         setCameraError(null);
-        const isInsecure = typeof window !== 'undefined' && window.location.protocol !== 'https:' && window.location.hostname !== 'localhost';
-        if (isInsecure) { setCameraError('Camera requires HTTPS.'); return; }
-        if (!navigator.mediaDevices?.getUserMedia) { setCameraError('Camera not supported.'); return; }
+        const hostname = window.location.hostname;
+        const isSecureContext = window.isSecureContext
+          || window.location.protocol === 'https:'
+          || hostname === 'localhost'
+          || hostname === '127.0.0.1'
+          || hostname === '[::1]';
+        if (!isSecureContext) { setCameraError('Camera requires HTTPS. Access via https:// or localhost.'); return; }
+        if (!navigator.mediaDevices?.getUserMedia) { setCameraError('Camera not supported on this browser.'); return; }
 
         try {
           const permStatus = await navigator.permissions.query({ name: 'camera' as PermissionName });
@@ -274,28 +279,36 @@ export default function Create() {
         } catch { /* proceed */ }
 
         stopStream();
-        const nextStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: isFrontCamera ? 'user' : 'environment' }, audio: false });
-        if (cancelled) { nextStream.getTracks().forEach((t) => t.stop()); return; }
-        streamRef.current = nextStream;
-
-        const track = nextStream.getVideoTracks()[0];
-        if (track) {
-          const settings = track.getSettings();
-          setIsLandscapeStream((settings.width || 0) > (settings.height || 0));
-          try {
-            const caps = track.getCapabilities?.() as any;
-            if (caps?.zoom) { setHwZoomRange({ min: caps.zoom.min, max: caps.zoom.max }); await track.applyConstraints({ advanced: [{ zoom: caps.zoom.min } as any] }); }
-            else { setHwZoomRange(null); }
-          } catch { setHwZoomRange(null); }
+        let nextStream: MediaStream;
+        try {
+          nextStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: isFrontCamera ? 'user' : 'environment' }, audio: false });
+        } catch {
+          nextStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
         }
+        if (cancelled) { nextStream.getTracks().forEach((t) => t.stop()); return; }
+
+        const videoTracks = nextStream.getVideoTracks();
+        if (videoTracks.length === 0) { setCameraError('Camera returned no video. Try a different browser.'); return; }
+
+        streamRef.current = nextStream;
+        const track = videoTracks[0];
+        const settings = track.getSettings();
+        setIsLandscapeStream((settings.width || 0) > (settings.height || 0));
+        try {
+          const caps = track.getCapabilities?.() as any;
+          if (caps?.zoom) { setHwZoomRange({ min: caps.zoom.min, max: caps.zoom.max }); await track.applyConstraints({ advanced: [{ zoom: caps.zoom.min } as any] }); }
+          else { setHwZoomRange(null); }
+        } catch { setHwZoomRange(null); }
+
         if (videoRef.current) videoRef.current.srcObject = nextStream;
         setZoomLevel(1);
       } catch (e: unknown) {
         if (cancelled) return;
-        const err = e as { name?: string };
-        if (err?.name === 'NotAllowedError') { setCameraError('Camera blocked. Allow in browser settings.'); return; }
-        if (err?.name === 'NotFoundError') { setCameraError('No camera found.'); return; }
-        setCameraError('Camera unavailable.');
+        const err = e as { name?: string; message?: string };
+        if (err?.name === 'NotAllowedError' || err?.name === 'SecurityError') { setCameraError('Camera permission denied. Allow camera access in your browser settings and tap Try Again.'); return; }
+        if (err?.name === 'NotFoundError' || err?.name === 'DevicesNotFoundError') { setCameraError('No camera found on this device.'); return; }
+        if (err?.name === 'NotReadableError' || err?.name === 'TrackStartError') { setCameraError('Camera is in use by another app. Close other apps and tap Try Again.'); return; }
+        setCameraError(`Camera unavailable: ${err?.message || 'Unknown error'}`);
       }
     };
     start();
@@ -598,7 +611,7 @@ export default function Create() {
             <div className="w-full h-full bg-[#13151A] relative flex items-center justify-center" onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
               <video
                 ref={videoRef}
-                className="w-full h-full object-cover"
+                className={`w-full h-full object-cover ${cameraError ? 'hidden' : ''}`}
                 autoPlay muted playsInline
                 style={{
                   transform: isFrontCamera

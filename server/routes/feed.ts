@@ -335,14 +335,11 @@ export async function handleForYouFeed(req: Request, res: Response) {
     }
 
     const memAll = getAllVideos();
-    // Do not drop videos solely because `url` is empty after a restart.
-    // The client already shows a retry/processing state for unavailable videos.
-    // However, we must hide known placeholder URLs that will never play,
-    // otherwise the UI gets stuck on "Video processing..." forever.
     const memVideos = memAll.filter((v) => {
-      const url = v.url;
-      if (!url) return true; // keep empty/unknown for retry UI
-      return !String(url).startsWith("https://example.com/");
+      const url = (v.url || "").trim();
+      if (!url) return false;
+      if (url.startsWith("https://example.com/")) return false;
+      return true;
     });
     const total = memVideos.length;
     const paginated = memVideos.slice(offset, offset + limit);

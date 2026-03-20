@@ -231,12 +231,21 @@ export default function Upload() {
     let cancelled = false;
     async function startCamera() {
       try {
+        const hostname = window.location.hostname;
+        const isSecureContext = window.isSecureContext
+          || window.location.protocol === 'https:'
+          || hostname === 'localhost'
+          || hostname === '127.0.0.1'
+          || hostname === '[::1]';
+        if (!isSecureContext) {
+          setCameraError('Camera requires HTTPS. Access via https:// or localhost.');
+          return;
+        }
         if (!navigator.mediaDevices?.getUserMedia) {
-          setCameraError('Camera not supported on this device.');
+          setCameraError('Camera not supported on this browser.');
           return;
         }
 
-        // Check permission status before requesting
         try {
           const permStatus = await navigator.permissions.query({ name: 'camera' as PermissionName });
           if (permStatus.state === 'denied') {
@@ -247,34 +256,41 @@ export default function Upload() {
           // permissions.query not supported — proceed directly
         }
 
-        // Try video + audio first, fall back to video-only
         let stream: MediaStream;
         try {
           stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: true });
         } catch {
-          stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+          try {
+            stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+          } catch {
+            stream = await navigator.mediaDevices.getUserMedia({ video: true });
+          }
         }
+
+        if (stream.getVideoTracks().length === 0) {
+          setCameraError('Camera returned no video. Try a different browser.');
+          return;
+        }
+
         if (!cancelled && videoRef.current) {
           videoRef.current.srcObject = stream;
           setCachedCameraStream(stream);
         }
         setCameraError(null);
       } catch (err: unknown) {
-
         const error = err as { name?: string };
         if (error?.name === 'NotAllowedError' || error?.name === 'SecurityError') {
-          setCameraError('Camera permission denied. Please allow camera access in your browser and tap Try Again.');
+          setCameraError('Camera permission denied. Allow camera access in your browser and tap Try Again.');
         } else if (error?.name === 'NotFoundError' || error?.name === 'DevicesNotFoundError') {
           setCameraError('No camera found on this device.');
         } else if (error?.name === 'NotReadableError' || error?.name === 'TrackStartError') {
-          setCameraError('Camera is in use by another app. Close other apps using the camera and tap Try Again.');
+          setCameraError('Camera is in use by another app. Close other apps and tap Try Again.');
         } else {
           setCameraError(`Camera error: ${(err as Error)?.message || 'Unknown error'}. Tap Try Again.`);
         }
       }
     }
     
-    // Only start camera if not previewing
     if (!recordedVideoUrl) {
         startCamera();
     }

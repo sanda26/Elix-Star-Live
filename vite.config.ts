@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tsconfigPaths from "vite-tsconfig-paths";
+import basicSsl from '@vitejs/plugin-basic-ssl';
 import path from 'node:path';
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => ({
@@ -32,6 +33,8 @@ export default defineConfig(({ mode }) => ({
     },
   },
   server: {
+    https: true,
+    host: true,
     cors: true,
     proxy: {
       '/api': {
@@ -88,6 +91,7 @@ export default defineConfig(({ mode }) => ({
       }
     }),
     */
-    tsconfigPaths()
+    tsconfigPaths(),
+    basicSsl(),
   ],
 }))

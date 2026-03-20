@@ -44,9 +44,14 @@ export function isPostgresConfigured(): boolean {
 
 export async function initPostgres(): Promise<void> {
   const url = (process.env.DATABASE_URL || "").trim();
-  if (!url) return;
+  if (!url) {
+    logger.warn("DATABASE_URL is not set — all data will be stored in memory only and lost on restart!");
+    return;
+  }
   try {
     pool = new Pool({ connectionString: url });
+    await pool.query("SELECT 1");
+    logger.info("PostgreSQL connected successfully");
     await pool.query(`
       CREATE TABLE IF NOT EXISTS videos (
         id TEXT PRIMARY KEY,
@@ -143,7 +148,7 @@ export async function initPostgres(): Promise<void> {
       )
     `);
   } catch (err) {
-    logger.error({ err }, "Postgres init failed");
+    logger.error({ err }, "PostgreSQL init FAILED — data will NOT persist across restarts. Check DATABASE_URL and ensure PostgreSQL is running.");
     pool = null;
   }
 }

@@ -1755,6 +1755,7 @@ export default function SpectatorPage() {
             aria-label="Request to co-host"
             onClick={() => setShowCoHostPanel(true)}
             className="flex flex-col items-center justify-center w-12 active:scale-95 transition-transform select-none"
+            style={{ transform: 'translateY(3mm)' }}
           >
             <div className="relative w-10 h-10 flex items-center justify-center rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 shadow-lg">
               <span className="flex items-center justify-center w-full h-full relative z-[2]">

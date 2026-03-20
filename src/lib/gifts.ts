@@ -1,19 +1,38 @@
 /** Base URL for gift folder on Bunny CDN (no trailing slash). */
 function getGiftAssetBase(): string {
   const runtimeEnv = (window as any).__ENV;
-  const base =
-    (import.meta.env.VITE_GIFT_ASSET_BASE_URL || runtimeEnv?.VITE_GIFT_ASSET_BASE_URL ||
-     import.meta.env.VITE_BUNNY_CDN_HOSTNAME || runtimeEnv?.VITE_BUNNY_CDN_HOSTNAME ||
-     import.meta.env.VITE_CDN_URL || runtimeEnv?.VITE_CDN_URL) as string | undefined;
-  if (!base || !String(base).trim()) return '';
-  let url = String(base).trim().replace(/\/+$/, '');
-  if (url && !url.startsWith('http://') && !url.startsWith('https://')) url = `https://${url}`;
-  return url;
+  const toAbs = (value?: string): string => {
+    if (!value || !String(value).trim()) return '';
+    let url = String(value).trim().replace(/\/+$/, '');
+    if (!url.startsWith('http://') && !url.startsWith('https://')) url = `https://${url}`;
+    return url;
+  };
+
+  const cdnUrl = toAbs((import.meta.env.VITE_CDN_URL || runtimeEnv?.VITE_CDN_URL) as string | undefined);
+  const bunnyCdn = toAbs((import.meta.env.VITE_BUNNY_CDN_HOSTNAME || runtimeEnv?.VITE_BUNNY_CDN_HOSTNAME) as string | undefined);
+  const bunnyCdnNonVite = toAbs((import.meta.env.BUNNY_CDN_HOSTNAME || runtimeEnv?.BUNNY_CDN_HOSTNAME) as string | undefined);
+  const giftBase = toAbs((import.meta.env.VITE_GIFT_ASSET_BASE_URL || runtimeEnv?.VITE_GIFT_ASSET_BASE_URL) as string | undefined);
+
+  const preferred = cdnUrl || bunnyCdn || bunnyCdnNonVite || 'https://elixstorage.b-cdn.net';
+  if (giftBase && !giftBase.includes('storage.bunnycdn.com')) return giftBase;
+  return preferred;
 }
 
 /** Full URL for a gift asset (PNG icon or MP4/WebM video). Path e.g. "/gifts/Horse.png" or "gifts/Horse.mp4". */
 export function resolveGiftAssetUrl(path: string): string {
-  if (path.startsWith('http://') || path.startsWith('https://')) return path;
+  if (path.startsWith('http://') || path.startsWith('https://')) {
+    try {
+      const parsed = new URL(path);
+      if (parsed.hostname === 'storage.bunnycdn.com') {
+        const base = getGiftAssetBase();
+        const trimmedPath = parsed.pathname.startsWith('/') ? parsed.pathname.slice(1) : parsed.pathname;
+        return `${base}/${trimmedPath}`;
+      }
+    } catch {
+      // keep original if URL parsing fails
+    }
+    return path;
+  }
   const base = getGiftAssetBase();
   if (!base) return path.startsWith('/') ? path : `/${path}`;
   const trimmed = path.startsWith('/') ? path.slice(1) : path;

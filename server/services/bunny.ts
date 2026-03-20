@@ -150,16 +150,8 @@ export async function uploadToBunny(
   }
 
   const bodyBuffer = body instanceof Buffer ? body : Buffer.from(body instanceof ArrayBuffer ? body : await (body as Blob).arrayBuffer());
-  const isVideo = contentType?.startsWith('video/') || /\.(mp4|webm|mov)$/i.test(path);
 
-  // Videos: use Stream Library first (handles transcoding + playable CDN URLs)
-  if (isVideo && STREAM_LIBRARY_ID && STREAM_API_KEY) {
-    const result = await uploadViaStream(path, bodyBuffer, contentType);
-    if (result.success) return result;
-    logger.warn({ error: result.error }, "Stream Library failed, trying Storage fallback");
-  }
-
-  // Non-video files (thumbnails, images) or Stream fallback: use Storage API
+  // All files go to Bunny Storage (served via elix-storage.b-cdn.net pull zone)
   if (ACCESS_KEY && STORAGE_ZONE_NAME) {
     const result = await uploadViaStorage(path, bodyBuffer, contentType);
     if (result.success) return result;

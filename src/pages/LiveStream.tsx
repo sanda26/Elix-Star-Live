@@ -45,6 +45,7 @@ import { ChatOverlay } from '../components/ChatOverlay';
 import { FaceARGift } from '../components/FaceARGift';
 import { useLivePromoStore } from '../store/useLivePromoStore';
 import { AvatarRing } from '../components/AvatarRing';
+import { GoldProfileFrame } from '../components/GoldProfileFrame';
 import { useAuthStore } from '../store/useAuthStore';
 import { clearCachedCameraStream, getCachedCameraStream } from '../lib/cameraStream';
 import { apiUrl, getLiveKitUrl } from '../lib/api';
@@ -3139,32 +3140,42 @@ export default function LiveStream() {
               </div>
             )}
 
-            {/* Overall Top 3 Gifters — above battle grid */}
+            {/* Overall Top 3 Gifters — above battle grid (same gold frame asset as MVP / top viewers) */}
             {(() => {
               const top3 = getTop3GiftersOverall();
-              if (top3.length === 0) return null;
+              const row = [0, 1, 2].map((i) => top3[i]);
               return (
                 <div className="w-full flex justify-center gap-3 py-1.5 pointer-events-none flex-none z-30">
                   {[0, 1, 2].map((i) => {
-                    const g = top3[i];
-                    if (!g) return (
-                      <div key={i} className="flex flex-col items-center">
-                        <div className="w-10 h-10 rounded-full border-2 border-dashed border-white/20 flex items-center justify-center bg-[#13151A]/50">
-                          <span className="text-white/20 text-xs">{i + 1}</span>
-                        </div>
-                      </div>
-                    );
+                    const g = row[i];
                     return (
-                      <div key={i} className="flex flex-col items-center relative">
-                        {g.avatar ? (
-                          <img src={g.avatar} alt={g.name} className="w-10 h-10 rounded-full border-2 border-[#C9A96E] object-cover" />
-                        ) : (
-                          <div className="w-10 h-10 rounded-full border-2 border-[#C9A96E] bg-[#1C1E24] flex items-center justify-center">
-                            <span className="text-[#C9A96E] font-bold text-sm">{(g.name || '?').charAt(0).toUpperCase()}</span>
-                          </div>
-                        )}
-                        <span className="text-[7px] font-bold mt-0.5 text-white/70 truncate max-w-[50px]">{g.name}</span>
-                        <span className="text-[6px] text-[#C9A96E] font-semibold">{formatCoinsShort(g.coins)}</span>
+                      <div key={`gift-top3-${i}`} className="relative flex flex-col items-center">
+                        <GoldProfileFrame size={40}>
+                          {g?.avatar ? (
+                            <img
+                              src={g.avatar}
+                              alt=""
+                              className="h-full w-full rounded-full object-cover object-center"
+                              style={{ objectPosition: 'center center' }}
+                            />
+                          ) : g?.name ? (
+                            <span className="text-center text-[10px] font-black text-[#C9A96E]">
+                              {(g.name || '?').charAt(0).toUpperCase()}
+                            </span>
+                          ) : (
+                            <Plus className="text-[#C9A96E]" size={15} strokeWidth={2.5} />
+                          )}
+                        </GoldProfileFrame>
+                        {g ? (
+                          <>
+                            <span className="mt-0.5 max-w-[50px] truncate text-[7px] font-bold text-white/70">
+                              {g.name}
+                            </span>
+                            <span className="text-[6px] font-semibold text-[#C9A96E]">
+                              {formatCoinsShort(g.coins)}
+                            </span>
+                          </>
+                        ) : null}
                       </div>
                     );
                   })}
@@ -3536,17 +3547,14 @@ export default function LiveStream() {
             );
           })()}
 
-              {/* MVP slots: single gold ring + plus (no inner avatar / duplicate circle) */}
+              {/* MVP slots: gold frame from /Icons/Profile icon.png + plus */}
             <div className="w-full px-3 py-2 flex items-center justify-between flex-none pointer-events-none mt-1 relative z-30">
               <div className="flex items-center gap-1 pointer-events-auto" onClick={() => setShowViewerList(true)}>
                 {[0, 1, 2].map((i) => (
                   <div key={`mvp-l-${i}`} className="relative flex flex-col items-center">
-                    <div
-                      className="flex h-[34px] w-[34px] flex-shrink-0 items-center justify-center rounded-full border-2 border-[#C9A96E] bg-[#13151A] shadow-[0_0_8px_rgba(201,169,110,0.25)]"
-                      aria-hidden
-                    >
-                      <Plus className="text-[#C9A96E]" size={17} strokeWidth={2.5} />
-                    </div>
+                    <GoldProfileFrame size={34}>
+                      <Plus className="text-[#C9A96E]" size={14} strokeWidth={2.5} />
+                    </GoldProfileFrame>
                     <span className={`text-[7px] font-bold mt-0.5 ${i === 0 ? 'text-[#C9A96E]' : 'text-white/50'}`}>MVP</span>
                   </div>
                 ))}
@@ -3566,12 +3574,9 @@ export default function LiveStream() {
               <div className="flex items-center gap-1 pointer-events-auto" onClick={() => setShowViewerList(true)}>
                 {[0, 1, 2].map((i) => (
                   <div key={`mvp-r-${i}`} className="relative flex flex-col items-center">
-                    <div
-                      className="flex h-[34px] w-[34px] flex-shrink-0 items-center justify-center rounded-full border-2 border-[#C9A96E] bg-[#13151A] shadow-[0_0_8px_rgba(201,169,110,0.25)]"
-                      aria-hidden
-                    >
-                      <Plus className="text-[#C9A96E]" size={17} strokeWidth={2.5} />
-                    </div>
+                    <GoldProfileFrame size={34}>
+                      <Plus className="text-[#C9A96E]" size={14} strokeWidth={2.5} />
+                    </GoldProfileFrame>
                     <span className={`text-[7px] font-bold mt-0.5 ${i === 0 ? 'text-[#C9A96E]' : 'text-white/50'}`}>MVP</span>
                   </div>
                 ))}
@@ -3730,29 +3735,13 @@ export default function LiveStream() {
 
                       <div className="pointer-events-auto flex items-center gap-2 mt-5">
                         <div className="flex items-center -space-x-1.5 pointer-events-auto flex-shrink-0" onClick={() => setShowViewerList(prev => !prev)}>
-                          {isBattleMode ? (
-                            (() => {
-                              const top3 = getTop3GiftersOverall();
-                              if (top3.length === 0) {
-                                return activeViewers.slice(0, 3).map((v, i) => (
-                                  <div key={v.id} style={{ zIndex: 3 - i }} className="relative">
-                                    <AvatarRing src={v.avatar} alt={v.username} size={36} simple />
-                                  </div>
-                                ));
-                              }
-                              return top3.map((g, i) => (
-                                <div key={g.name} style={{ zIndex: 3 - i }} className="relative">
-                                  <AvatarRing src={g.avatar} alt={g.name} size={36} simple />
-                                </div>
-                              ));
-                            })()
-                          ) : (
-                            activeViewers.slice(0, 3).map((v, i) => (
-                              <div key={v.id} style={{ zIndex: 3 - i }} className="relative">
-                                <AvatarRing src={v.avatar} alt={v.username} size={36} simple />
-                              </div>
-                            ))
-                          )}
+                          {[0, 1, 2].map((i) => (
+                            <div key={`top-viewers-${i}`} style={{ zIndex: 3 - i }} className="relative">
+                              <GoldProfileFrame size={36}>
+                                <Plus className="text-[#C9A96E]" size={16} strokeWidth={2.5} />
+                              </GoldProfileFrame>
+                            </div>
+                          ))}
                         </div>
                         <button onClick={() => setShowViewerList(prev => !prev)} className="flex items-center gap-0.5 pointer-events-auto">
                           <span className="text-white text-[9px] font-bold tabular-nums">{formatCountShort(viewerCount)}</span>

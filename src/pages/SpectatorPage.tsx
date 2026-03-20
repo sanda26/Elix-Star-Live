@@ -36,6 +36,7 @@ import { GiftOverlay } from '../components/GiftOverlay';
 import GiftAnimationOverlay from '../components/GiftAnimationOverlay';
 import { ChatOverlay } from '../components/ChatOverlay';
 import { AvatarRing } from '../components/AvatarRing';
+import { GoldProfileFrame } from '../components/GoldProfileFrame';
 import { useAuthStore } from '../store/useAuthStore';
 import { apiUrl, getLiveKitUrl } from '../lib/api';
 import { apiStub } from '../lib/apiStub';
@@ -1359,7 +1360,7 @@ export default function SpectatorPage() {
                   </div>
                 </div>
 
-                {/* 6 MVP slots: gold ring + plus only (matches creator battle UI) */}
+                {/* 6 MVP slots: /Icons/Profile icon.png frame + plus (matches creator) */}
                 <div className="w-full px-3 py-1.5 flex items-center justify-between flex-none z-30">
                   <div
                     className="flex items-center gap-1 pointer-events-auto"
@@ -1367,12 +1368,9 @@ export default function SpectatorPage() {
                   >
                     {[0, 1, 2].map((i) => (
                       <div key={`mvp-l-${i}`} className="flex flex-col items-center">
-                        <div
-                          className="flex h-[28px] w-[28px] flex-shrink-0 items-center justify-center rounded-full border-2 border-[#C9A96E] bg-[#13151A] shadow-[0_0_6px_rgba(201,169,110,0.2)]"
-                          aria-hidden
-                        >
-                          <Plus className="text-[#C9A96E]" size={14} strokeWidth={2.5} />
-                        </div>
+                        <GoldProfileFrame size={28}>
+                          <Plus className="text-[#C9A96E]" size={12} strokeWidth={2.5} />
+                        </GoldProfileFrame>
                         <span className={`text-[7px] font-bold mt-0.5 ${i === 0 ? 'text-[#C9A96E]' : 'text-white/50'}`}>MVP</span>
                       </div>
                     ))}
@@ -1383,12 +1381,9 @@ export default function SpectatorPage() {
                   >
                     {[0, 1, 2].map((i) => (
                       <div key={`mvp-r-${i}`} className="flex flex-col items-center">
-                        <div
-                          className="flex h-[28px] w-[28px] flex-shrink-0 items-center justify-center rounded-full border-2 border-[#C9A96E] bg-[#13151A] shadow-[0_0_6px_rgba(201,169,110,0.2)]"
-                          aria-hidden
-                        >
-                          <Plus className="text-[#C9A96E]" size={14} strokeWidth={2.5} />
-                        </div>
+                        <GoldProfileFrame size={28}>
+                          <Plus className="text-[#C9A96E]" size={12} strokeWidth={2.5} />
+                        </GoldProfileFrame>
                         <span className={`text-[7px] font-bold mt-0.5 ${i === 0 ? 'text-[#C9A96E]' : 'text-white/50'}`}>MVP</span>
                       </div>
                     ))}

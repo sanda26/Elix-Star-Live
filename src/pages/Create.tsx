@@ -629,7 +629,7 @@ export default function Create() {
           }}
         />
 
-        <div className="absolute inset-0">
+        <div className={`absolute inset-0 ${cameraError ? 'z-[200]' : ''}`}>
           {previewUrl ? (
             <video ref={previewVideoRef} src={previewUrl} className="w-full h-full object-cover" autoPlay loop muted playsInline onPlay={() => setIsPreviewPlaying(true)} onPause={() => setIsPreviewPlaying(false)} />
           ) : (

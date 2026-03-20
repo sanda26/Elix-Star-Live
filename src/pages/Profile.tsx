@@ -127,9 +127,14 @@ export default function Profile() {
     } catch {}
   };
   
-  const displayName = isOwnProfile
+  const _isFallback = (n: string | null | undefined) =>
+    !n || /^User [0-9a-f]{8}$/i.test(n) || /^user_[0-9a-f]{8}$/i.test(n);
+  const _rawDisplay = isOwnProfile
     ? (profileData?.display_name || user?.name || profileData?.username || user?.email?.split('@')[0] || 'User')
     : (profileData?.display_name || profileData?.username || displayUserId || 'User');
+  const displayName = _isFallback(_rawDisplay)
+    ? (profileData?.username || user?.username || user?.email?.split('@')[0] || _rawDisplay)
+    : _rawDisplay;
   const rawUsername = isOwnProfile
     ? (user?.email?.split('@')[0] || profileData?.username || 'user')
     : (profileData?.username || 'user');

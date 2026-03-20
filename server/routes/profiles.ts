@@ -301,14 +301,20 @@ async function getOrCreateProfileAsync(userId: string, seed?: Partial<Profile>):
   if (needsNameFix) {
     const authUser = (await lookupAuthUser(userId)) ?? lookupAuthUserFromDisk(userId);
     if (authUser) {
+      const rawUsername = authUser.username?.trim() || "";
+      const rawDisplayName = authUser.display_name?.trim() || "";
+      const emailPrefix = authUser.email?.includes("@") ? authUser.email.split("@")[0] : "";
+
       const realUsername =
-        (authUser.username?.trim()) ||
-        (authUser.display_name?.trim()) ||
-        (authUser.email?.includes("@") ? authUser.email.split("@")[0] : "") ||
+        (rawUsername && !isFallbackName(rawUsername) ? rawUsername : "") ||
+        (rawDisplayName && !isFallbackName(rawDisplayName) ? rawDisplayName : "") ||
+        emailPrefix ||
+        rawUsername ||
         "";
       const realDisplayName =
-        (authUser.display_name?.trim()) ||
-        (authUser.username?.trim()) ||
+        (rawDisplayName && !isFallbackName(rawDisplayName) ? rawDisplayName : "") ||
+        (rawUsername && !isFallbackName(rawUsername) ? rawUsername : "") ||
+        emailPrefix ||
         realUsername;
       const realAvatar =
         (authUser.avatar_url?.trim()) || "";

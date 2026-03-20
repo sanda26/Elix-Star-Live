@@ -59,6 +59,7 @@ export default function Inbox() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [followers, setFollowers] = useState<FollowerProfile[]>([]);
+  const [followersTotalCount, setFollowersTotalCount] = useState(0);
   const [suggestedUsers, setSuggestedUsers] = useState<SuggestedUser[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<'main' | 'requests' | 'unread' | 'starred' | 'activity'>('main');
@@ -164,6 +165,23 @@ export default function Inbox() {
     };
     const fetchFollowers = async () => {
       try {
+        // Source A: backend profile followers count (authoritative)
+        const backendFollowersRes = await fetch(apiUrl(`/api/profiles/${encodeURIComponent(currentUserId)}/followers`), {
+          credentials: 'include',
+        }).catch(() => null as any);
+        if (backendFollowersRes?.ok) {
+          const backendBody = await backendFollowersRes.json().catch(() => ({ count: 0 }));
+          const count = Number(backendBody?.count || 0);
+          setFollowersTotalCount(Number.isFinite(count) ? count : 0);
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'inbox-followers-debug',hypothesisId:'F0',location:'src/pages/Inbox.tsx:175',message:'backend followers count loaded',data:{currentUserId,count},timestamp:Date.now()})}).catch(()=>{});
+          // #endregion
+        } else {
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'inbox-followers-debug',hypothesisId:'F0',location:'src/pages/Inbox.tsx:180',message:'backend followers count request failed',data:{currentUserId,status:backendFollowersRes?.status||0},timestamp:Date.now()})}).catch(()=>{});
+          // #endregion
+        }
+
         const { data } = await apiStub
           .from('followers')
           .select('follower_id')
@@ -240,7 +258,7 @@ export default function Inbox() {
       f.user_id !== currentUserId &&
       !!f.user_id
   );
-  const followersCount = myNewFollowers.length;
+  const followersCount = Math.max(followersTotalCount, myNewFollowers.length);
 
   const followersForCircles: FollowerProfile[] = (() => {
     const map = new Map<string, FollowerProfile>();

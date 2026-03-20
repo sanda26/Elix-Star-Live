@@ -819,8 +819,7 @@ export default function Profile() {
                   className="aspect-[3/4] bg-[#1C1E24] relative group text-left rounded-xl overflow-hidden"
                 >
                   <video
-                    src={video.url || ''}
-                    poster={video.thumbnail_url || undefined}
+                    src={video.url ? `${video.url}#t=0.5` : ''}
                     className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition"
                     muted
                     playsInline

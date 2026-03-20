@@ -170,6 +170,9 @@ export default function Inbox() {
           .eq('following_id', currentUserId)
           .order('created_at', { ascending: false })
           .limit(200);
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'inbox-followers-debug',hypothesisId:'F1',location:'src/pages/Inbox.tsx:173',message:'followers table loaded',data:{currentUserId,rows:Array.isArray(data)?data.length:0},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion
         if (data && data.length > 0) {
           const ids = data.map((f: any) => f.follower_id).filter((id: string) => id !== currentUserId);
           if (ids.length === 0) { setFollowers([]); return; }
@@ -179,13 +182,13 @@ export default function Inbox() {
             .in('user_id', ids);
           if (profiles) {
             const list = (profiles as FollowerProfile[]).filter((p) => p.user_id !== currentUserId);
-            const realOnly = list.filter((p) => {
-              const name = (p.display_name || p.username || '').trim().toLowerCase();
-              const blocklist = ['', 'user', 'demo', 'test', 'unknown', 'anonymous', 'guest'];
-              return name !== '' && !blocklist.includes(name) && name.length >= 2;
-            });
-            setFollowers(realOnly);
+            setFollowers(list);
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'inbox-followers-debug',hypothesisId:'F2',location:'src/pages/Inbox.tsx:187',message:'followers profiles mapped',data:{idsCount:ids.length,profilesCount:profiles.length,finalCount:list.length},timestamp:Date.now()})}).catch(()=>{});
+            // #endregion
           }
+        } else {
+          setFollowers([]);
         }
       } catch { /* ignore */ }
     };
@@ -235,8 +238,32 @@ export default function Inbox() {
     (f) =>
       f.user_id !== user?.id &&
       f.user_id !== currentUserId &&
-      isRealUser(f)
+      !!f.user_id
   );
+  const followersCount = myNewFollowers.length;
+
+  const followersForCircles: FollowerProfile[] = (() => {
+    const map = new Map<string, FollowerProfile>();
+    for (const f of myNewFollowers) {
+      map.set(f.user_id, f);
+    }
+    for (const u of suggestedUsers) {
+      if (!u.id || map.has(u.id)) continue;
+      map.set(u.id, {
+        user_id: u.id,
+        username: u.username || 'user',
+        display_name: u.name || u.username || 'User',
+        avatar_url: u.avatar_url || null,
+      });
+    }
+    return Array.from(map.values());
+  })();
+
+  useEffect(() => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'inbox-followers-debug',hypothesisId:'F3',location:'src/pages/Inbox.tsx:263',message:'inbox followers counts',data:{currentUserId,followersCount,circlesCount:followersForCircles.length},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
+  }, [currentUserId, followersCount, followersForCircles.length]);
 
   return (
     <div className="fixed inset-0 bg-[#13151A] flex justify-center">
@@ -262,22 +289,23 @@ export default function Inbox() {
             <div className="flex gap-3 overflow-x-auto overflow-y-hidden no-scrollbar" style={{ WebkitOverflowScrolling: 'touch' }}>
                 <button
                     type="button"
-                    onClick={() => setShowFollowersPanel(true)}
+                    onClick={() => setShowNewFollowersPanel(true)}
                     className="flex-shrink-0 flex flex-col items-center gap-1" style={{ width: 95, minWidth: 95 }}
                 >
                     <div className="relative" style={{ width: 85, height: 85 }} data-avatar-circle="followers">
                         <img src="/Icons/Profile icon.png" alt="" className="w-full h-full object-contain" style={{ position: 'relative', zIndex: 1 }} />
                         <img
-                            src={myNewFollowers[0]?.avatar_url || user?.avatar || (user?.id && typeof localStorage !== 'undefined' ? localStorage.getItem('elix_avatar_' + user.id) : null) || '/Icons/Profile icon.png'}
+                            src={followersForCircles[0]?.avatar_url || user?.avatar || (user?.id && typeof localStorage !== 'undefined' ? localStorage.getItem('elix_avatar_' + user.id) : null) || '/Icons/Profile icon.png'}
                             alt="Followers"
                             className="absolute rounded-full object-cover"
                             style={{ width: 52, height: 52, top: '45%', left: '51%', transform: 'translate(-50%, -50%)', zIndex: 0 }}
                         />
                     </div>
                     <div className="text-[11px] text-white/80 truncate w-full text-center">Followers</div>
+                    <div className="text-[10px] text-[#C9A96E]/90 truncate w-full text-center">{followersCount}</div>
                 </button>
 
-                {myNewFollowers.map((f) => (
+                {followersForCircles.map((f) => (
                     <button
                         key={f.user_id}
                         type="button"
@@ -395,9 +423,9 @@ export default function Inbox() {
                 <div className="flex-1 min-w-0">
                     <h3 className="font-bold text-sm text-gold-metallic">New followers</h3>
                     <p className="text-white/70 text-xs truncate">
-                        {myNewFollowers.length === 0
+                        {followersCount === 0
                             ? 'No new followers yet'
-                            : `${myNewFollowers.length} people follow you`}
+                            : `${followersCount} people follow you`}
                     </p>
                 </div>
                 <ChevronRight className="w-5 h-5 text-[#C9A96E]/70 flex-shrink-0" />
@@ -592,16 +620,16 @@ export default function Inbox() {
           <div className="fixed left-0 right-0 pointer-events-auto max-w-[480px] mx-auto z-[101]" style={{ bottom: 'calc(8rem - 6mm + env(safe-area-inset-bottom, 0px))' }}>
             <div className="bg-[#1C1E24]/95 backdrop-blur-md rounded-t-2xl p-3 pb-4 overflow-y-scroll shadow-2xl w-full border-t border-[#C9A96E]/20 new-followers-panel-scroll" style={{ minHeight: 'calc(55dvh - 3cm)', maxHeight: 'calc(min(85dvh, 700px) - 3cm)' }}>
               <div className="flex items-center justify-between mb-3">
-                <h2 className="text-lg font-bold text-gold-metallic">New followers</h2>
+                <h2 className="text-lg font-bold text-gold-metallic">Followers ({followersCount})</h2>
                 <button type="button" onClick={() => setShowNewFollowersPanel(false)} className="p-2 rounded-full hover:bg-white/10" title="Close" aria-label="Close">
                   <X size={22} className="text-white" />
                 </button>
               </div>
-              {myNewFollowers.length === 0 ? (
+              {followersForCircles.length === 0 ? (
               <p className="text-white/50 text-sm py-6 text-center">No one follows you yet. When they do, they’ll show here.</p>
             ) : (
               <div className="space-y-0.5 pb-2">
-                {myNewFollowers.map((f) => (
+                {followersForCircles.map((f) => (
                     <button
                       key={f.user_id}
                       type="button"

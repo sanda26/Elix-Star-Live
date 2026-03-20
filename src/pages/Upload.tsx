@@ -513,7 +513,14 @@ export default function Upload() {
       } catch (error: any) {
         const msg = error?.message || error?.error_description || String(error) || 'Unknown error';
 
-        setPostError(msg);
+        if (msg.includes('Invalid or expired session') || msg.includes('Not authenticated')) {
+          const { signOut } = await import('../store/useAuthStore').then(m => ({ signOut: m.useAuthStore.getState().signOut }));
+          await signOut();
+          setPostError('Session expired. Please log in again.');
+          setTimeout(() => navigate('/login'), 1500);
+        } else {
+          setPostError(msg);
+        }
         setIsPosting(false);
         setPostProgress(0);
       }

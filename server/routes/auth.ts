@@ -52,20 +52,29 @@ function signToken(payload: { sub: string; email: string }): string {
   return `${part1}.${part2}.${sig}`;
 }
 
+const LEGACY_SECRETS = [
+  'elix-auth-dev-secret-change-in-production',
+  'elix-prod-jwt-secret-2026',
+  'Set JWT_SECRET in Coolify',
+];
+
 function verifyToken(token: string): { sub: string; email: string } | null {
-  try {
-    const parts = token.split('.');
-    if (parts.length !== 3) return null;
-    const [, payloadB64, sig] = parts;
-    const secret = getSecret();
-    const expectedSig = crypto.createHmac('sha256', secret).update(`${parts[0]}.${payloadB64}`).digest('base64url');
-    if (sig !== expectedSig) return null;
-    const payload = JSON.parse(Buffer.from(payloadB64, 'base64url').toString());
-    if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) return null;
-    return { sub: payload.sub, email: payload.email ?? '' };
-  } catch {
-    return null;
+  const secrets = [getSecret(), ...LEGACY_SECRETS];
+  for (const secret of secrets) {
+    try {
+      const parts = token.split('.');
+      if (parts.length !== 3) return null;
+      const [, payloadB64, sig] = parts;
+      const expectedSig = crypto.createHmac('sha256', secret).update(`${parts[0]}.${payloadB64}`).digest('base64url');
+      if (sig !== expectedSig) continue;
+      const payload = JSON.parse(Buffer.from(payloadB64, 'base64url').toString());
+      if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) return null;
+      return { sub: payload.sub, email: payload.email ?? '' };
+    } catch {
+      continue;
+    }
   }
+  return null;
 }
 
 export function getTokenFromRequest(req: Request): string | null {

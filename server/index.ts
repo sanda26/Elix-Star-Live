@@ -1982,6 +1982,10 @@ try {
       logger.info({ count: dbVideos.length }, "Videos loaded from database");
     }
 
+    const { loadFollowsFromDb } = await import("./routes/profiles");
+    await loadFollowsFromDb();
+    logger.info("Follows loaded from database");
+
     // Remove any leftover demo/seed videos
     const allVids = getAllVideos();
     for (const v of allVids) {

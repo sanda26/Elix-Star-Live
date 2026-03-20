@@ -64,6 +64,19 @@ function saveFollowsToDisk(): void {
 
 loadFollowsFromDisk();
 
+export async function loadFollowsFromDb(): Promise<void> {
+  const db = getPool();
+  if (!db) return;
+  try {
+    const res = await db.query(`SELECT follower_id, following_id FROM follows`);
+    for (const row of res.rows || []) {
+      const set = followsMap.get(row.follower_id) ?? new Set<string>();
+      set.add(row.following_id);
+      followsMap.set(row.follower_id, set);
+    }
+  } catch {}
+}
+
 export function getFollowingIds(userId: string): string[] {
   return [...(followsMap.get(userId) ?? [])];
 }
@@ -462,6 +475,13 @@ export async function handleFollow(req: Request, res: Response): Promise<void> {
   myFollows.add(userId);
   followsMap.set(jwtUser.sub, myFollows);
 
+  const db = getPool();
+  if (db) {
+    try {
+      await db.query(`INSERT INTO follows (follower_id, following_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`, [jwtUser.sub, userId]);
+    } catch {}
+  }
+
   const target = await getOrCreateProfileAsync(userId);
   const follower = await getOrCreateProfileAsync(jwtUser.sub);
   target.followers = Math.max(0, target.followers + 1);
@@ -493,6 +513,13 @@ export async function handleUnfollow(req: Request, res: Response): Promise<void>
   }
   myFollows.delete(userId);
   followsMap.set(jwtUser.sub, myFollows);
+
+  const db = getPool();
+  if (db) {
+    try {
+      await db.query(`DELETE FROM follows WHERE follower_id = $1 AND following_id = $2`, [jwtUser.sub, userId]);
+    } catch {}
+  }
 
   const target = await getOrCreateProfileAsync(userId);
   const follower = await getOrCreateProfileAsync(jwtUser.sub);

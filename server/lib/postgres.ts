@@ -36,7 +36,11 @@ export async function initPostgres(): Promise<void> {
     return;
   }
   try {
-    pool = new Pool({ connectionString: url });
+    const needsSsl = url.includes('neon.tech') || url.includes('sslmode=require');
+    pool = new Pool({
+      connectionString: url,
+      ...(needsSsl ? { ssl: { rejectUnauthorized: false } } : {}),
+    });
     await pool.query("SELECT 1");
     logger.info("PostgreSQL connected successfully");
     await pool.query(`

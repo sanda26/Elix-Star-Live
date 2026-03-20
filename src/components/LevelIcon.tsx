@@ -63,13 +63,24 @@ export const LevelIcon: React.FC<LevelIconProps> = ({
           }}
         >
           {typeof avatarUrl === 'string' && avatarUrl ? (
-            <img src={avatarUrl} alt="" draggable={false} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            <img
+              src={avatarUrl}
+              alt=""
+              draggable={false}
+              style={{
+                width: '100%',
+                height: '100%',
+                display: 'block',
+                objectFit: 'cover',
+                objectPosition: 'center center',
+              }}
+            />
           ) : null}
           <div
             style={{
               position: 'absolute',
               inset: 0,
-              background: 'radial-gradient(circle at 25% 25%, rgba(255,255,255,0.22) 0%, transparent 55%)',
+              background: 'radial-gradient(circle at 50% 50%, rgba(255,255,255,0.18) 0%, transparent 60%)',
               pointerEvents: 'none',
             }}
           />
@@ -77,8 +88,16 @@ export const LevelIcon: React.FC<LevelIconProps> = ({
         <img
           src="/Icons/Profile icon.png"
           alt=""
-          className="absolute object-contain pointer-events-none rounded-full"
-          style={{ top: '50%', left: '50%', width: '100%', height: '100%', transform: `translate(-50%, -50%) scale(${goldScale})`, zIndex: 3 }}
+          className="pointer-events-none absolute rounded-full object-contain"
+          style={{
+            top: '50%',
+            left: '50%',
+            width: '100%',
+            height: '100%',
+            transform: `translate(-50%, -50%) scale(${goldScale})`,
+            objectPosition: 'center center',
+            zIndex: 3,
+          }}
         />
       </div>
 

@@ -29,7 +29,6 @@ import {
   Smile,
   UserPlus,
   X,
-  Crown,
   Sword,
   Coins,
   Lock,
@@ -3157,18 +3156,13 @@ export default function LiveStream() {
                     );
                     return (
                       <div key={i} className="flex flex-col items-center relative">
-                        <div className="relative">
-                          {g.avatar ? (
-                            <img src={g.avatar} alt={g.name} className="w-10 h-10 rounded-full border-2 border-[#C9A96E] object-cover" />
-                          ) : (
-                            <div className="w-10 h-10 rounded-full border-2 border-[#C9A96E] bg-[#1C1E24] flex items-center justify-center">
-                              <span className="text-[#C9A96E] font-bold text-sm">{(g.name || '?').charAt(0).toUpperCase()}</span>
-                            </div>
-                          )}
-                          <div className={`absolute -top-1 -right-1 rounded-full w-4 h-4 flex items-center justify-center border border-black shadow-lg z-10 text-[7px] font-black ${i === 0 ? 'bg-[#C9A96E] text-black' : i === 1 ? 'bg-white/80 text-black' : 'bg-[#CD7F32] text-black'}`}>
-                            {i + 1}
+                        {g.avatar ? (
+                          <img src={g.avatar} alt={g.name} className="w-10 h-10 rounded-full border-2 border-[#C9A96E] object-cover" />
+                        ) : (
+                          <div className="w-10 h-10 rounded-full border-2 border-[#C9A96E] bg-[#1C1E24] flex items-center justify-center">
+                            <span className="text-[#C9A96E] font-bold text-sm">{(g.name || '?').charAt(0).toUpperCase()}</span>
                           </div>
-                        </div>
+                        )}
                         <span className="text-[7px] font-bold mt-0.5 text-white/70 truncate max-w-[50px]">{g.name}</span>
                         <span className="text-[6px] text-[#C9A96E] font-semibold">{formatCoinsShort(g.coins)}</span>
                       </div>
@@ -3553,12 +3547,7 @@ export default function LiveStream() {
                   const alt = g?.name || fallbackViewer?.displayName || '';
                   return (
                     <div key={i} className="relative flex flex-col items-center">
-                      <div className="relative">
-                        <AvatarRing src={src} alt={alt} size={34} />
-                        <div className={`absolute -top-1.5 -right-1 rounded-full w-4 h-4 flex items-center justify-center border border-black shadow-lg z-10 text-[7px] font-black ${i === 0 ? 'bg-[#C9A96E] text-black' : i === 1 ? 'bg-white/80 text-black' : 'bg-[#CD7F32] text-black'}`}>
-                          {i + 1}
-                        </div>
-                      </div>
+                      <AvatarRing src={src} alt={alt} size={34} simple />
                       <span className={`text-[7px] font-bold mt-0.5 ${i === 0 ? 'text-[#C9A96E]' : 'text-white/50'}`}>MVP</span>
                     </div>
                   );
@@ -3585,12 +3574,7 @@ export default function LiveStream() {
                   const alt = g?.name || fallbackViewer?.displayName || '';
                   return (
                     <div key={i} className="relative flex flex-col items-center">
-                      <div className="relative">
-                        <AvatarRing src={src} alt={alt} size={34} />
-                        <div className={`absolute -top-1.5 -right-1 rounded-full w-4 h-4 flex items-center justify-center border border-black shadow-lg z-10 text-[7px] font-black ${i === 0 ? 'bg-[#C9A96E] text-black' : i === 1 ? 'bg-white/80 text-black' : 'bg-[#CD7F32] text-black'}`}>
-                          {i + 1}
-                        </div>
-                      </div>
+                      <AvatarRing src={src} alt={alt} size={34} simple />
                       <span className={`text-[7px] font-bold mt-0.5 ${i === 0 ? 'text-[#C9A96E]' : 'text-white/50'}`}>MVP</span>
                     </div>
                   );
@@ -3756,28 +3740,20 @@ export default function LiveStream() {
                               if (top3.length === 0) {
                                 return activeViewers.slice(0, 3).map((v, i) => (
                                   <div key={v.id} style={{ zIndex: 3 - i }} className="relative">
-                                    <AvatarRing src={v.avatar} alt={v.username} size={36} />
+                                    <AvatarRing src={v.avatar} alt={v.username} size={36} simple />
                                   </div>
                                 ));
                               }
-                              return top3.map((g, i) => {
-                                const isMvp = i === 0;
-                                return (
-                                  <div key={g.name} style={{ zIndex: 3 - i }} className="relative">
-                                    <AvatarRing src={g.avatar} alt={g.name} size={36} />
-                                    {isMvp && (
-                                      <div className="absolute -top-2 -right-1 bg-[#C9A96E] rounded-full w-5 h-5 flex items-center justify-center border border-black shadow-lg z-10">
-                                        <Crown size={10} className="text-black" />
-                                      </div>
-                                    )}
-                                  </div>
-                                );
-                              });
+                              return top3.map((g, i) => (
+                                <div key={g.name} style={{ zIndex: 3 - i }} className="relative">
+                                  <AvatarRing src={g.avatar} alt={g.name} size={36} simple />
+                                </div>
+                              ));
                             })()
                           ) : (
                             activeViewers.slice(0, 3).map((v, i) => (
                               <div key={v.id} style={{ zIndex: 3 - i }} className="relative">
-                                <AvatarRing src={v.avatar} alt={v.username} size={36} />
+                                <AvatarRing src={v.avatar} alt={v.username} size={36} simple />
                               </div>
                             ))
                           )}

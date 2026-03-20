@@ -1382,16 +1382,14 @@ export default function SpectatorPage() {
                       const i = idx + 1;
                       return (
                         <div key={`mvp-l-${u.id}-${i}`} className="flex flex-col items-center">
-                          <div className="relative">
-                            <div className="w-[28px] h-[28px] rounded-full border-2 border-[#C9A96E]/70 bg-[#13151A]/50 overflow-hidden flex items-center justify-center">
-                              {u.avatar ? (
-                                <img src={u.avatar} alt="" className="w-full h-full object-cover" />
-                              ) : u.name ? (
-                                <span className="text-[#C9A96E] text-[10px] font-black">{u.name.slice(0, 1).toUpperCase()}</span>
-                              ) : (
-                                <span className="text-white/20 text-[9px]">{i}</span>
-                              )}
-                            </div>
+                          <div className="w-[28px] h-[28px] rounded-full border-2 border-[#C9A96E]/70 bg-[#13151A]/50 overflow-hidden flex items-center justify-center">
+                            {u.avatar ? (
+                              <img src={u.avatar} alt="" className="w-full h-full object-cover" />
+                            ) : u.name ? (
+                              <span className="text-[#C9A96E] text-[10px] font-black">{u.name.slice(0, 1).toUpperCase()}</span>
+                            ) : (
+                              <span className="text-white/20 text-[9px]">{i}</span>
+                            )}
                           </div>
                           <span className={`text-[7px] font-bold mt-0.5 ${i === 1 ? 'text-[#C9A96E]' : 'text-white/50'}`}>{i} MVP</span>
                         </div>
@@ -1403,16 +1401,14 @@ export default function SpectatorPage() {
                       const i = idx + 1;
                       return (
                         <div key={`mvp-r-${u.id}-${i}`} className="flex flex-col items-center">
-                          <div className="relative">
-                            <div className="w-[28px] h-[28px] rounded-full border-2 border-[#C9A96E]/70 bg-[#13151A]/50 overflow-hidden flex items-center justify-center">
-                              {u.avatar ? (
-                                <img src={u.avatar} alt="" className="w-full h-full object-cover" />
-                              ) : u.name ? (
-                                <span className="text-[#C9A96E] text-[10px] font-black">{u.name.slice(0, 1).toUpperCase()}</span>
-                              ) : (
-                                <span className="text-white/20 text-[9px]">{i}</span>
-                              )}
-                            </div>
+                          <div className="w-[28px] h-[28px] rounded-full border-2 border-[#C9A96E]/70 bg-[#13151A]/50 overflow-hidden flex items-center justify-center">
+                            {u.avatar ? (
+                              <img src={u.avatar} alt="" className="w-full h-full object-cover" />
+                            ) : u.name ? (
+                              <span className="text-[#C9A96E] text-[10px] font-black">{u.name.slice(0, 1).toUpperCase()}</span>
+                            ) : (
+                              <span className="text-white/20 text-[9px]">{i}</span>
+                            )}
                           </div>
                           <span className={`text-[7px] font-bold mt-0.5 ${i === 1 ? 'text-[#C9A96E]' : 'text-white/50'}`}>{i} MVP</span>
                         </div>

@@ -46,7 +46,7 @@ import {
   decrementStat,
   type Video,
 } from "./lib/videoStore";
-import { initPostgres, loadVideosFromDb, saveVideoToDb, dbUpdateViewerCount, getPool, isPostgresConfigured } from "./lib/postgres";
+import { initPostgres, loadVideosFromDb, saveVideoToDb, deleteVideoFromDb, dbUpdateViewerCount, getPool, isPostgresConfigured } from "./lib/postgres";
 import {
   handleGetCreatorBalance,
   handleGetCreatorEarnings,
@@ -518,7 +518,7 @@ app.get("/api/videos/user/:userId", (req, res) => {
   res.json({ videos, total: videos.length });
 });
 
-app.delete("/api/videos/:id", (req, res) => {
+app.delete("/api/videos/:id", async (req, res) => {
   const token = getTokenFromRequest(req);
   if (!token) return res.status(401).json({ error: "Not authenticated." });
   const payload = verifyAuthToken(token);
@@ -532,7 +532,7 @@ app.delete("/api/videos/:id", (req, res) => {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      runId: "pre-fix",
+      runId: "post-fix",
       hypothesisId: "H1-H2",
       location: "server/index.ts:/api/videos/:id",
       message: "Delete video request accepted",
@@ -546,19 +546,41 @@ app.delete("/api/videos/:id", (req, res) => {
   }).catch(() => {});
   // #endregion
 
+  try {
+    await deleteVideoFromDb(req.params.id);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Database delete failed";
+    // #region agent log
+    fetch("http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        runId: "post-fix",
+        hypothesisId: "H1",
+        location: "server/index.ts:/api/videos/:id",
+        message: "deleteVideoFromDb failed — video not removed from memory",
+        data: { videoId: req.params.id, error: msg.slice(0, 120) },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
+    logger.error({ err: msg, videoId: req.params.id }, "DELETE /api/videos/:id DB failed");
+    return res.status(500).json({ error: "Could not delete video from database. Try again." });
+  }
+
   deleteVideo(req.params.id);
   // #region agent log
   fetch("http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      runId: "pre-fix",
-      hypothesisId: "H1-H2",
+      runId: "post-fix",
+      hypothesisId: "H2",
       location: "server/index.ts:/api/videos/:id",
-      message: "Video deleted from in-memory store only",
+      message: "Video removed from DB and in-memory store",
       data: {
         videoId: req.params.id,
-        hasDbPool: Boolean(getPool()),
+        hadDbPool: Boolean(getPool()),
       },
       timestamp: Date.now(),
     }),

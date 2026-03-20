@@ -275,6 +275,31 @@ export async function saveVideoToDb(video: Video): Promise<void> {
   logger.info({ videoId: video.id, url: video.url?.slice(0, 50) }, "Video saved to Postgres");
 }
 
+/** Remove video and related engagement rows so it does not reappear after restart (Neon reload). */
+export async function deleteVideoFromDb(videoId: string): Promise<void> {
+  if (!pool) return;
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query(`DELETE FROM comments WHERE video_id = $1`, [videoId]);
+    await client.query(`DELETE FROM likes WHERE video_id = $1`, [videoId]);
+    await client.query(`DELETE FROM saves WHERE video_id = $1`, [videoId]);
+    const del = await client.query(`DELETE FROM videos WHERE id = $1`, [videoId]);
+    await client.query("COMMIT");
+    logger.info({ videoId, videosDeleted: del.rowCount }, "Video deleted from Postgres");
+  } catch (err) {
+    try {
+      await client.query("ROLLBACK");
+    } catch {
+      /* ignore */
+    }
+    logger.error({ err, videoId }, "Postgres delete video failed");
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
 // ── Live stream persistence ─────────────────────────────────────────
 
 export async function dbInsertLiveStream(

@@ -370,20 +370,6 @@ export const useVideoStore = create<VideoStore>()(
             headers,
             credentials: 'include',
           });
-          // #region agent log
-          fetch("http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              runId: "pre-fix",
-              hypothesisId: "H3",
-              location: "src/store/useVideoStore.ts:deleteVideo",
-              message: "DELETE /api/videos response",
-              data: { videoId, status: res.status, ok: res.ok },
-              timestamp: Date.now(),
-            }),
-          }).catch(() => {});
-          // #endregion
 
           if (!res.ok) {
             const data = await res.json().catch(() => ({}));

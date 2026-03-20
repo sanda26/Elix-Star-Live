@@ -287,10 +287,15 @@ export default function Discover() {
                         <span className="text-[11px] font-bold text-white/80">Trending</span>
                         <span className="text-[10px] text-white/30">Safe</span>
                       </div>
-                      <div className="p-2 grid grid-cols-2 gap-2">
-                        {trendingVideos.filter(v => !isIndecent(v)).slice(0, 8).map(video => (
+                      <div className="p-2">
+                        {trendingVideos.filter(v => !isIndecent(v)).slice(0, 1).map(video => (
                           <VideoThumbnail key={video.id} video={video} />
                         ))}
+                        {trendingVideos.filter(v => !isIndecent(v)).length === 0 && (
+                          <div className="aspect-[9/16] flex items-center justify-center rounded-xl border border-white/10 bg-white/[0.03] text-white/35 text-[11px] text-center px-2">
+                            No clip here
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -299,10 +304,15 @@ export default function Discover() {
                         <span className="text-[11px] font-bold text-white/80">Indecent</span>
                         <span className="text-[10px] text-white/30">Filtered</span>
                       </div>
-                      <div className="p-2 grid grid-cols-2 gap-2">
-                        {trendingVideos.filter(v => isIndecent(v)).slice(0, 8).map(video => (
+                      <div className="p-2">
+                        {trendingVideos.filter(v => isIndecent(v)).slice(0, 1).map(video => (
                           <VideoThumbnail key={video.id} video={video} />
                         ))}
+                        {trendingVideos.filter(v => isIndecent(v)).length === 0 && (
+                          <div className="aspect-[9/16] flex items-center justify-center rounded-xl border border-white/10 bg-white/[0.03] text-white/35 text-[11px] text-center px-2">
+                            No clip here
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>

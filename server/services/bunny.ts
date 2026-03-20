@@ -63,10 +63,8 @@ async function uploadViaStorage(
     return { success: false, path, error: `Bunny API ${res.status}: ${text}` };
   }
 
-  const cdnHost = process.env.VITE_CDN_URL || process.env.VITE_BUNNY_CDN_HOSTNAME;
-  const cdnUrl = cdnHost
-    ? `${cdnHost.replace(/\/$/, '')}/${path.replace(/^\/+/, '')}`
-    : undefined;
+  const storageCdnHost = `https://${STORAGE_ZONE_NAME}.b-cdn.net`;
+  const cdnUrl = `${storageCdnHost}/${path.replace(/^\/+/, '')}`;
 
   return { success: true, path, cdnUrl };
 }

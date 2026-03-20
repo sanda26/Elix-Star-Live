@@ -153,22 +153,6 @@ export default function SpectatorPage() {
   const opponentLkRoomRef = useRef<Room | null>(null);
   const [hasOpponentStream, setHasOpponentStream] = useState(false);
   const [spectatorVoted, setSpectatorVoted] = useState(false);
-  const battleMvp = React.useMemo(() => {
-    // Show real user avatars in MVP circles. We use current viewers list as a best-effort fallback.
-    const hid = hostUserIdRef.current || hostUserId || effectiveStreamId;
-    const viewers = Array.from(actualViewersRef.current.entries())
-      .filter(([id]) => id && id !== user?.id && id !== hid && id !== effectiveStreamId)
-      .map(([id, v]) => ({ id, name: v.name || 'User', avatar: v.avatar || '', level: v.level || 1 }))
-      .sort((a, b) => (b.level ?? 1) - (a.level ?? 1));
-
-    const top = viewers.slice(0, 6);
-    while (top.length < 6) top.push({ id: `empty-${top.length}`, name: '', avatar: '', level: 1 });
-    return {
-      left: top.slice(0, 3),
-      right: top.slice(3, 6),
-    };
-  }, [viewerCount, effectiveStreamId, hostUserId, user?.id]);
-
   const handleSpectatorVote = (target: 'host' | 'opponent') => {
     if (spectatorVoted || !spectatorBattle?.active) return;
     setSpectatorVoted(true);
@@ -1375,45 +1359,39 @@ export default function SpectatorPage() {
                   </div>
                 </div>
 
-                {/* 6 MVP circles: 3 left (host) + 3 right (opponent) */}
-                <div className="w-full px-3 py-1.5 flex items-center justify-between flex-none pointer-events-none z-30">
-                  <div className="flex items-center gap-1">
-                    {battleMvp.left.map((u, idx) => {
-                      const i = idx + 1;
-                      return (
-                        <div key={`mvp-l-${u.id}-${i}`} className="flex flex-col items-center">
-                          <div className="w-[28px] h-[28px] rounded-full border-2 border-[#C9A96E]/70 bg-[#13151A]/50 overflow-hidden flex items-center justify-center">
-                            {u.avatar ? (
-                              <img src={u.avatar} alt="" className="w-full h-full object-cover" />
-                            ) : u.name ? (
-                              <span className="text-[#C9A96E] text-[10px] font-black">{u.name.slice(0, 1).toUpperCase()}</span>
-                            ) : (
-                              <span className="text-white/20 text-[9px]">{i}</span>
-                            )}
-                          </div>
-                          <span className={`text-[7px] font-bold mt-0.5 ${i === 1 ? 'text-[#C9A96E]' : 'text-white/50'}`}>{i} MVP</span>
+                {/* 6 MVP slots: gold ring + plus only (matches creator battle UI) */}
+                <div className="w-full px-3 py-1.5 flex items-center justify-between flex-none z-30">
+                  <div
+                    className="flex items-center gap-1 pointer-events-auto"
+                    onClick={() => setShowViewersPanel(true)}
+                  >
+                    {[0, 1, 2].map((i) => (
+                      <div key={`mvp-l-${i}`} className="flex flex-col items-center">
+                        <div
+                          className="flex h-[28px] w-[28px] flex-shrink-0 items-center justify-center rounded-full border-2 border-[#C9A96E] bg-[#13151A] shadow-[0_0_6px_rgba(201,169,110,0.2)]"
+                          aria-hidden
+                        >
+                          <Plus className="text-[#C9A96E]" size={14} strokeWidth={2.5} />
                         </div>
-                      );
-                    })}
+                        <span className={`text-[7px] font-bold mt-0.5 ${i === 0 ? 'text-[#C9A96E]' : 'text-white/50'}`}>MVP</span>
+                      </div>
+                    ))}
                   </div>
-                  <div className="flex items-center gap-1">
-                    {battleMvp.right.map((u, idx) => {
-                      const i = idx + 1;
-                      return (
-                        <div key={`mvp-r-${u.id}-${i}`} className="flex flex-col items-center">
-                          <div className="w-[28px] h-[28px] rounded-full border-2 border-[#C9A96E]/70 bg-[#13151A]/50 overflow-hidden flex items-center justify-center">
-                            {u.avatar ? (
-                              <img src={u.avatar} alt="" className="w-full h-full object-cover" />
-                            ) : u.name ? (
-                              <span className="text-[#C9A96E] text-[10px] font-black">{u.name.slice(0, 1).toUpperCase()}</span>
-                            ) : (
-                              <span className="text-white/20 text-[9px]">{i}</span>
-                            )}
-                          </div>
-                          <span className={`text-[7px] font-bold mt-0.5 ${i === 1 ? 'text-[#C9A96E]' : 'text-white/50'}`}>{i} MVP</span>
+                  <div
+                    className="flex items-center gap-1 pointer-events-auto"
+                    onClick={() => setShowViewersPanel(true)}
+                  >
+                    {[0, 1, 2].map((i) => (
+                      <div key={`mvp-r-${i}`} className="flex flex-col items-center">
+                        <div
+                          className="flex h-[28px] w-[28px] flex-shrink-0 items-center justify-center rounded-full border-2 border-[#C9A96E] bg-[#13151A] shadow-[0_0_6px_rgba(201,169,110,0.2)]"
+                          aria-hidden
+                        >
+                          <Plus className="text-[#C9A96E]" size={14} strokeWidth={2.5} />
                         </div>
-                      );
-                    })}
+                        <span className={`text-[7px] font-bold mt-0.5 ${i === 0 ? 'text-[#C9A96E]' : 'text-white/50'}`}>MVP</span>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>

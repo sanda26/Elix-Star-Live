@@ -3536,22 +3536,20 @@ export default function LiveStream() {
             );
           })()}
 
-              {/* MVP Circles - outside below battle frame, 3 left + 3 right */}
+              {/* MVP slots: single gold ring + plus (no inner avatar / duplicate circle) */}
             <div className="w-full px-3 py-2 flex items-center justify-between flex-none pointer-events-none mt-1 relative z-30">
-              {/* Left side - MVP 1,2,3 for P1 */}
               <div className="flex items-center gap-1 pointer-events-auto" onClick={() => setShowViewerList(true)}>
-                {[0, 1, 2].map((i) => {
-                  const g = getTopGifters('me')[i];
-                  const fallbackViewer = activeViewers[i];
-                  const src = g?.avatar || fallbackViewer?.avatar || '';
-                  const alt = g?.name || fallbackViewer?.displayName || '';
-                  return (
-                    <div key={i} className="relative flex flex-col items-center">
-                      <AvatarRing src={src} alt={alt} size={34} simple />
-                      <span className={`text-[7px] font-bold mt-0.5 ${i === 0 ? 'text-[#C9A96E]' : 'text-white/50'}`}>MVP</span>
+                {[0, 1, 2].map((i) => (
+                  <div key={`mvp-l-${i}`} className="relative flex flex-col items-center">
+                    <div
+                      className="flex h-[34px] w-[34px] flex-shrink-0 items-center justify-center rounded-full border-2 border-[#C9A96E] bg-[#13151A] shadow-[0_0_8px_rgba(201,169,110,0.25)]"
+                      aria-hidden
+                    >
+                      <Plus className="text-[#C9A96E]" size={17} strokeWidth={2.5} />
                     </div>
-                  );
-                })}
+                    <span className={`text-[7px] font-bold mt-0.5 ${i === 0 ? 'text-[#C9A96E]' : 'text-white/50'}`}>MVP</span>
+                  </div>
+                ))}
               </div>
 
               {/* Speed Challenge Timer - MOVED HERE between circles */}
@@ -3565,20 +3563,18 @@ export default function LiveStream() {
                 </div>
               )}
 
-              {/* Right side - MVP 1,2,3 for P2 */}
               <div className="flex items-center gap-1 pointer-events-auto" onClick={() => setShowViewerList(true)}>
-                {[0, 1, 2].map((i) => {
-                  const g = getTopGifters('opponent')[i];
-                  const fallbackViewer = activeViewers[3 + i];
-                  const src = g?.avatar || fallbackViewer?.avatar || '';
-                  const alt = g?.name || fallbackViewer?.displayName || '';
-                  return (
-                    <div key={i} className="relative flex flex-col items-center">
-                      <AvatarRing src={src} alt={alt} size={34} simple />
-                      <span className={`text-[7px] font-bold mt-0.5 ${i === 0 ? 'text-[#C9A96E]' : 'text-white/50'}`}>MVP</span>
+                {[0, 1, 2].map((i) => (
+                  <div key={`mvp-r-${i}`} className="relative flex flex-col items-center">
+                    <div
+                      className="flex h-[34px] w-[34px] flex-shrink-0 items-center justify-center rounded-full border-2 border-[#C9A96E] bg-[#13151A] shadow-[0_0_8px_rgba(201,169,110,0.25)]"
+                      aria-hidden
+                    >
+                      <Plus className="text-[#C9A96E]" size={17} strokeWidth={2.5} />
                     </div>
-                  );
-                })}
+                    <span className={`text-[7px] font-bold mt-0.5 ${i === 0 ? 'text-[#C9A96E]' : 'text-white/50'}`}>MVP</span>
+                  </div>
+                ))}
               </div>
             </div>
           </div>

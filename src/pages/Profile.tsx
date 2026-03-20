@@ -469,13 +469,13 @@ export default function Profile() {
   }
 
   return (
-    <div className="fixed inset-0 bg-[#13151A] text-white flex justify-center px-2 pt-[calc(var(--safe-top)+46px)] pb-[calc(var(--safe-bottom)+var(--nav-height))]">
+    <div className="fixed inset-0 bg-[#13151A] text-white flex justify-center">
       <div
-        className="w-full max-w-[480px] h-full flex flex-col bg-[#13151A] rounded-3xl overflow-hidden"
-        style={{ marginTop: '-3cm' }}
+        className="w-full max-w-[480px] flex flex-col overflow-hidden bg-[#13151A]"
+        style={{ height: 'calc(100vh - 3.6cm)', marginTop: 0 }}
       >
-        {/* Small top header with Share + Exit buttons */}
-        <header className="flex items-center justify-between px-4 pt-2 pb-2 relative z-10">
+        {/* Small top header with Share + Exit buttons — same panel height as Inbox */}
+        <header className="flex items-center justify-between px-4 pt-[env(safe-area-inset-top,8px)] pb-2 relative z-10">
           <button
             type="button"
             onClick={openSharePanel}
@@ -621,20 +621,7 @@ export default function Profile() {
           </div>
         )}
 
-        <PromotePanel
-          isOpen={showPromotePanel}
-          onClose={() => setShowPromotePanel(false)}
-          contentType="profile"
-          content={{
-            id: effectiveUserId,
-            title: `${displayName} on Elix`,
-            thumbnail: displayAvatar,
-            username: displayName,
-            avatar: displayAvatar,
-            postedAt: new Date().toLocaleDateString(),
-          }}
-        />
-
+        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain">
         {/* ═══ AVATAR ═══ */}
         <div className="flex flex-col items-center mt-2 mb-3">
           <div
@@ -905,6 +892,21 @@ export default function Profile() {
           </div>
         )}
 
+        </div>
+
+        <PromotePanel
+          isOpen={showPromotePanel}
+          onClose={() => setShowPromotePanel(false)}
+          contentType="profile"
+          content={{
+            id: effectiveUserId,
+            title: `${displayName} on Elix`,
+            thumbnail: displayAvatar,
+            username: displayName,
+            avatar: displayAvatar,
+            postedAt: new Date().toLocaleDateString(),
+          }}
+        />
 
       </div>
 

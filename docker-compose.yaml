@@ -1,33 +1,15 @@
 version: "3.8"
 
 services:
-  db:
-    image: postgres:16-alpine
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: elix_user
-      POSTGRES_PASSWORD: ElixStrongPass123
-      POSTGRES_DB: elix
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U elix_user -d elix"]
-      interval: 5s
-      timeout: 3s
-      retries: 5
-
   app:
     build: .
     restart: unless-stopped
     expose:
       - "8080"
-    depends_on:
-      db:
-        condition: service_healthy
     environment:
       NODE_ENV: production
       PORT: 8080
-      DATABASE_URL: postgresql://elix_user:ElixStrongPass123@db:5432/elix
+      DATABASE_URL: postgresql://neondb_owner:npg_Q9RHmBIjWSJ4@ep-broad-flower-alt3ukno-pooler.c-3.eu-central-1.aws.neon.tech/neondb?sslmode=require
       JWT_SECRET: 9f5f8d848f
       BUNNY_STORAGE_ZONE: elix-storage
       BUNNY_STORAGE_API_KEY: 83c69e8d-b5e5-42d2-9942a06d9dee-96ff-456f
@@ -46,6 +28,3 @@ services:
       VITE_API_URL: https://www.elixstarlive.co.uk
       VITE_WS_URL: wss://www.elixstarlive.co.uk
       VITE_APP_NAME: AnberLive
-
-volumes:
-  pgdata:

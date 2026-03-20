@@ -352,6 +352,17 @@ function App() {
           </Suspense>
         </ErrorBoundary>
       </main>
+      {/* Solid strip behind the bottom bar (same height as nav + safe area) so feed/video/UI
+          doesn’t show through under the PNG bar — no guide lines, only background. */}
+      {showBottomNav && (
+        <div
+          aria-hidden
+          className="pointer-events-none fixed bottom-0 left-1/2 z-[9997] w-full max-w-[480px] -translate-x-1/2 bg-background"
+          style={{
+            height: "calc(var(--nav-height) + var(--safe-bottom))",
+          }}
+        />
+      )}
       {showBottomNav && <BottomNav />}
     </div>
   );

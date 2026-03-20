@@ -1616,7 +1616,7 @@ export default function SpectatorPage() {
 
               {/* Right: viewer count + close */}
               <div className="pointer-events-auto flex items-center gap-2 flex-shrink-0">
-                <div className="flex items-center -space-x-1.5 pointer-events-auto">
+                <div className="flex items-center -space-x-1.5 pointer-events-auto" style={{ transform: 'translateX(-5mm)' }}>
                   {[0, 1, 2].map((i) => (
                     <div key={`spectator-top-mvp-${i}`} style={{ zIndex: 3 - i }} className="relative">
                       <GoldProfileFrame size={36}>
@@ -1629,6 +1629,7 @@ export default function SpectatorPage() {
                 <button
                   type="button"
                   className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-transparent border-0 active:scale-95 transition-transform"
+                  style={{ transform: 'translateX(5mm)' }}
                   onClick={() => {
                     const list: { id: string; name: string; avatar: string; level?: number }[] = [];
                     const hid = hostUserIdRef.current || hostUserId || effectiveStreamId;
@@ -1641,7 +1642,6 @@ export default function SpectatorPage() {
                     setShowViewersPanel(true);
                   }}
                 >
-                  <Eye size={12} className="text-white/60" />
                   <span className="text-white text-[11px] font-bold tabular-nums">
                     {viewerCount >= 1000 ? (viewerCount / 1000).toFixed(1) + 'K' : viewerCount}
                   </span>
@@ -1712,7 +1712,7 @@ export default function SpectatorPage() {
         )}
 
         {/* BOTTOM BAR — move closer to the bottom (about 1.5cm from previous position) */}
-        <div className="fixed left-0 right-0 z-[120] pointer-events-auto flex justify-center" style={{ bottom: '3mm' }}>
+        <div className="fixed left-0 right-0 z-[120] pointer-events-auto flex justify-center" style={{ bottom: '0mm' }}>
           <div className="w-full max-w-[480px] px-3 pb-[max(8px,env(safe-area-inset-bottom))] pt-2 bg-transparent">
           <div className="flex items-center gap-2">
           <form
@@ -1742,16 +1742,19 @@ export default function SpectatorPage() {
             title="Request to co-host"
             aria-label="Request to co-host"
             onClick={() => setShowCoHostPanel(true)}
-            className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg relative flex-shrink-0 active:scale-95 transition-transform"
+            className="flex flex-col items-center justify-center w-12 active:scale-95 transition-transform select-none"
           >
-            <span className="flex items-center justify-center w-full h-full relative z-[2]">
-              <UserPlus size={20} className="text-[#C9A96E] shrink-0" strokeWidth={2} />
-            </span>
-            <img
-              src="/Icons/Music Icon.png"
-              alt=""
-              className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-125 translate-y-0.5"
-            />
+            <div className="relative w-10 h-10 flex items-center justify-center rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 shadow-lg">
+              <span className="flex items-center justify-center w-full h-full relative z-[2]">
+                <UserPlus size={20} className="text-[#C9A96E] shrink-0" strokeWidth={2} />
+              </span>
+              <img
+                src="/Icons/Music Icon.png"
+                alt=""
+                className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-125 translate-y-0.5"
+              />
+            </div>
+            <span className="text-[10px] font-semibold text-[#C9A96E] mt-0.5">Invite</span>
           </button>
 
           {/* Gift */}
@@ -1760,8 +1763,9 @@ export default function SpectatorPage() {
             title="Send gift"
             onClick={() => setShowGiftPanel(true)}
             className="flex flex-col items-center justify-center w-12 active:scale-95 transition-transform select-none"
+            style={{ transform: 'translateY(3mm)' }}
           >
-            <div className="relative w-10 h-10 flex items-center justify-center">
+            <div className="relative w-10 h-10 flex items-center justify-center rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 shadow-lg">
               <Gift size={20} className="text-[#C9A96E] relative z-[2]" />
               <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[1] scale-125 translate-y-0.5" />
             </div>
@@ -1774,8 +1778,9 @@ export default function SpectatorPage() {
             title="Share"
             onClick={() => setShowSharePanel(true)}
             className="flex flex-col items-center justify-center w-12 active:scale-95 transition-transform select-none"
+            style={{ transform: 'translateY(3mm)' }}
           >
-            <div className="relative w-10 h-10 flex items-center justify-center">
+            <div className="relative w-10 h-10 flex items-center justify-center rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 shadow-lg">
               <Share2 size={20} className="text-[#C9A96E] relative z-[2]" />
               <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[1] scale-125 translate-y-0.5" />
             </div>
@@ -1788,8 +1793,9 @@ export default function SpectatorPage() {
             title="More options"
             onClick={() => setIsMoreMenuOpen(true)}
             className="flex flex-col items-center justify-center w-12 active:scale-95 transition-transform select-none"
+            style={{ transform: 'translateY(3mm)' }}
           >
-            <div className="relative w-10 h-10 flex items-center justify-center">
+            <div className="relative w-10 h-10 flex items-center justify-center rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 shadow-lg">
               <MoreVertical size={20} className="text-[#C9A96E] relative z-[2]" />
               <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[1] scale-125 translate-y-0.5" />
             </div>

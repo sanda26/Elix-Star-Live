@@ -63,7 +63,9 @@ async function uploadViaStorage(
     return { success: false, path, error: `Bunny API ${res.status}: ${text}` };
   }
 
-  const storageCdnHost = `https://${STORAGE_ZONE_NAME}.b-cdn.net`;
+  const storageCdnHost = process.env.BUNNY_CDN_HOSTNAME
+    ? `https://${process.env.BUNNY_CDN_HOSTNAME}`
+    : `https://elixstorage.b-cdn.net`;
   const cdnUrl = `${storageCdnHost}/${path.replace(/^\/+/, '')}`;
 
   return { success: true, path, cdnUrl };

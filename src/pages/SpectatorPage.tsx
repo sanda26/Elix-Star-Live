@@ -806,12 +806,18 @@ export default function SpectatorPage() {
           isGift: true,
         };
         setMessages(prev => [...prev, msg]);
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'gift-flow-debug',hypothesisId:'H2',location:'src/pages/SpectatorPage.tsx:809',message:'Spectator received gift event',data:{giftId:data.giftId,receivedVideo:data.video ?? null,giftDefVideo:giftDef.video ?? null},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion
         if (giftDef.video && giftDef.video.trim()) {
           const raw = giftDef.video;
           const videoUrl =
             raw.startsWith('http://') || raw.startsWith('https://')
               ? raw
               : resolveGiftAssetUrl(raw.startsWith('/') ? raw : `/${raw}`);
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'gift-flow-debug',hypothesisId:'H3',location:'src/pages/SpectatorPage.tsx:816',message:'Queued gift overlay from giftDef.video',data:{giftId:data.giftId,queuedVideoUrl:videoUrl},timestamp:Date.now()})}).catch(()=>{});
+          // #endregion
           setGiftQueue(prev => [...prev, { video: videoUrl }]);
         }
       }
@@ -1129,6 +1135,9 @@ export default function SpectatorPage() {
         raw.startsWith('http://') || raw.startsWith('https://')
           ? raw
           : resolveGiftAssetUrl(raw.startsWith('/') ? raw : `/${raw}`);
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'gift-flow-debug',hypothesisId:'H4',location:'src/pages/SpectatorPage.tsx:1132',message:'Local spectator queued gift overlay before send',data:{giftId:gift.id,rawGiftVideo:gift.video,queuedVideoUrl:videoUrl},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
       setGiftQueue(prev => [...prev, { video: videoUrl }]);
     }
 
@@ -1154,6 +1163,9 @@ export default function SpectatorPage() {
       creator_name: hostName || 'Creator',
       host_user_id: hostUserId || effectiveStreamId,
     });
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'gift-flow-debug',hypothesisId:'H5',location:'src/pages/SpectatorPage.tsx:1156',message:'Spectator sent gift event',data:{giftId:gift.id,sentVideoField:gift.video ?? null,iconField:gift.icon ?? null},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
 
     setLastSentGift(gift);
     setComboCount(1);

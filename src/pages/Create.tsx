@@ -264,6 +264,10 @@ export default function Create() {
     const start = async () => {
       try {
         setCameraError(null);
+        // #region agent log
+        const _camDebug: Record<string, unknown> = { step: 'start', protocol: window.location.protocol, hostname: window.location.hostname, isSecureContext: window.isSecureContext, hasMediaDevices: Boolean(navigator.mediaDevices), hasGetUserMedia: Boolean(navigator.mediaDevices?.getUserMedia) };
+        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Create.tsx:cameraStart',message:'Camera init starting',hypothesisId:'CAM',data:_camDebug,timestamp:Date.now()})}).catch(()=>{});
+        // #endregion
         const hostname = window.location.hostname;
         const isSecureContext = window.isSecureContext
           || window.location.protocol === 'https:'
@@ -275,6 +279,9 @@ export default function Create() {
 
         try {
           const permStatus = await navigator.permissions.query({ name: 'camera' as PermissionName });
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Create.tsx:permCheck',message:'Permission check result',hypothesisId:'CAM',data:{permState:permStatus.state},timestamp:Date.now()})}).catch(()=>{});
+          // #endregion
           if (permStatus.state === 'denied') { setCameraError('Camera blocked. Allow camera in browser settings.'); return; }
         } catch { /* proceed */ }
 
@@ -282,12 +289,27 @@ export default function Create() {
         let nextStream: MediaStream;
         try {
           nextStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: isFrontCamera ? 'user' : 'environment' }, audio: false });
-        } catch {
-          nextStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        } catch (e1: unknown) {
+          // #region agent log
+          const _e1 = e1 as { name?: string; message?: string };
+          fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Create.tsx:getUserMedia1',message:'First getUserMedia failed, trying fallback',hypothesisId:'CAM',data:{errorName:_e1?.name,errorMsg:_e1?.message},timestamp:Date.now()})}).catch(()=>{});
+          // #endregion
+          try {
+            nextStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+          } catch (e2: unknown) {
+            // #region agent log
+            const _e2 = e2 as { name?: string; message?: string };
+            fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Create.tsx:getUserMedia2',message:'Both getUserMedia calls FAILED',hypothesisId:'CAM',data:{errorName:_e2?.name,errorMsg:_e2?.message},timestamp:Date.now()})}).catch(()=>{});
+            // #endregion
+            throw e2;
+          }
         }
         if (cancelled) { nextStream.getTracks().forEach((t) => t.stop()); return; }
 
         const videoTracks = nextStream.getVideoTracks();
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Create.tsx:gotStream',message:'getUserMedia succeeded',hypothesisId:'CAM',data:{videoTrackCount:videoTracks.length,trackLabel:videoTracks[0]?.label},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion
         if (videoTracks.length === 0) { setCameraError('Camera returned no video. Try a different browser.'); return; }
 
         streamRef.current = nextStream;
@@ -305,6 +327,9 @@ export default function Create() {
       } catch (e: unknown) {
         if (cancelled) return;
         const err = e as { name?: string; message?: string };
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Create.tsx:cameraFailed',message:'Camera FAILED with error',hypothesisId:'CAM',data:{errorName:err?.name,errorMsg:err?.message},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion
         if (err?.name === 'NotAllowedError' || err?.name === 'SecurityError') { setCameraError('Camera permission denied. Allow camera access in your browser settings and tap Try Again.'); return; }
         if (err?.name === 'NotFoundError' || err?.name === 'DevicesNotFoundError') { setCameraError('No camera found on this device.'); return; }
         if (err?.name === 'NotReadableError' || err?.name === 'TrackStartError') { setCameraError('Camera is in use by another app. Close other apps and tap Try Again.'); return; }

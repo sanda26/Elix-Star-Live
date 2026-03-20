@@ -3028,7 +3028,7 @@ export default function LiveStream() {
             }}
           >
             {/* Battle timer — overlay on top of screen/video */}
-            <div className="fixed top-0 left-0 right-0 z-[9999] pointer-events-none flex justify-center max-w-[480px] mx-auto py-1.5 px-2 bg-gradient-to-b from-black/50 to-transparent" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 4cm - 10.5mm)' }}>
+            <div className="fixed top-0 left-0 right-0 z-[9999] pointer-events-none flex justify-center max-w-[480px] mx-auto py-1.5 px-2 bg-gradient-to-b from-black/50 to-transparent" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 4cm - 7.5mm)' }}>
               <div className="flex items-center gap-1 bg-black/40 backdrop-blur-md rounded-full px-2 py-0.5 border border-white/10 shadow-sm">
                 <div className="relative w-[16px] h-[16px] flex items-center justify-center">
                   <svg viewBox="0 0 40 44" className="absolute inset-0 w-full h-full drop-shadow-md">
@@ -3445,6 +3445,30 @@ export default function LiveStream() {
               </div>
             );
           })()}
+
+            <div className="w-full px-3 py-2 flex items-center justify-between flex-none pointer-events-none mt-1 relative z-30">
+              <div className="flex items-center gap-1 pointer-events-auto" onClick={() => setShowViewerList(true)}>
+                {[0, 1, 2].map((i) => (
+                  <div key={`mvp-l-${i}`} className="relative flex flex-col items-center">
+                    <GoldProfileFrame size={34}>
+                      <Plus className="text-[#C9A96E]" size={14} strokeWidth={2.5} />
+                    </GoldProfileFrame>
+                    <span className={`text-[7px] font-bold mt-0.5 ${i === 0 ? 'text-[#C9A96E]' : 'text-white/50'}`}>MVP</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex items-center gap-1 pointer-events-auto" onClick={() => setShowViewerList(true)}>
+                {[0, 1, 2].map((i) => (
+                  <div key={`mvp-r-${i}`} className="relative flex flex-col items-center">
+                    <GoldProfileFrame size={34}>
+                      <Plus className="text-[#C9A96E]" size={14} strokeWidth={2.5} />
+                    </GoldProfileFrame>
+                    <span className={`text-[7px] font-bold mt-0.5 ${i === 0 ? 'text-[#C9A96E]' : 'text-white/50'}`}>MVP</span>
+                  </div>
+                ))}
+              </div>
+            </div>
 
             {SPEED_CHALLENGE_ENABLED && speedChallengeActive && (
               <div className="w-full px-3 py-2 flex items-center justify-center flex-none pointer-events-none mt-1 relative z-30">

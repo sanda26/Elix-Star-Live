@@ -117,7 +117,7 @@ function SoundPickerModal({
   return (
     <div className="fixed inset-0 z-[500] bg-black/40 flex items-end justify-center animate-in fade-in duration-200" onClick={onClose}>
       <div
-        className="bg-background/95 backdrop-blur-md w-full max-w-[480px] rounded-t-2xl overflow-hidden flex flex-col border-t border-[#FFD700]/30 h-[50vh] max-h-[50dvh] shadow-2xl animate-in slide-in-from-bottom duration-300"
+        className="bg-[#1C1E24]/95 backdrop-blur-md w-full max-w-[480px] rounded-t-2xl overflow-hidden flex flex-col border-t border-[#FFD700]/30 h-[50vh] max-h-[50dvh] shadow-2xl animate-in slide-in-from-bottom duration-300"
         onClick={(e) => e.stopPropagation()}
       >
         <audio ref={audioRef} preload="auto" onEnded={() => setPlayingId(null)} className="hidden" />

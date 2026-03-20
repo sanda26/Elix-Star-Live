@@ -357,7 +357,7 @@ function App() {
       {showBottomNav && (
         <div
           aria-hidden
-          className="pointer-events-none fixed bottom-0 left-1/2 z-[9997] w-full max-w-[480px] -translate-x-1/2 bg-background"
+          className="pointer-events-none fixed bottom-0 left-1/2 z-[9997] w-full max-w-[480px] -translate-x-1/2 bg-[#1C1E24]"
           style={{
             height: "calc(var(--nav-height) + var(--safe-bottom))",
           }}

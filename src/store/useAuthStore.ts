@@ -540,13 +540,7 @@ export const useAuthStore = create<AuthStore>()(persist((set, get) => ({
       });
 
       if (!res.ok) {
-        // If cookies are blocked but we still have a persisted session token,
-        // keep the user logged in instead of wiping state on refresh.
-        const st = get();
-        if (st.session?.access_token || (st.session as any)?.accessToken || st.user) {
-          set({ isLoading: false });
-          return;
-        }
+        // Server rejected the token — clear the stale session so user can re-login
         set({
           backendUser: null,
           session: null,
@@ -616,11 +610,6 @@ export const useAuthStore = create<AuthStore>()(persist((set, get) => ({
         authMode: "client",
       });
     } catch {
-      const st = get();
-      if (st.session?.access_token || (st.session as any)?.accessToken || st.user) {
-        set({ isLoading: false });
-        return;
-      }
       set({
         backendUser: null,
         session: null,

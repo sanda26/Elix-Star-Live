@@ -336,20 +336,19 @@ export default function EnhancedVideoPlayer({
 
       return () => {
         clearTimeout(timer);
+        const v = videoRef.current;
+        if (v) { try { v.pause(); v.muted = true; } catch { void 0; } }
+        const a = audioRef.current;
+        if (a) { try { a.pause(); } catch { void 0; } }
+        if (duetOriginalRef.current) { try { duetOriginalRef.current.pause(); } catch { void 0; } }
       };
     } else {
       const v = videoRef.current;
-      if (v?.pause) {
-        try { v.pause(); } catch { void 0; }
-      }
-      if (duetOriginalRef.current?.pause) {
-        try { duetOriginalRef.current.pause(); } catch { void 0; }
-      }
+      if (v) { try { v.pause(); v.muted = true; } catch { void 0; } }
+      if (duetOriginalRef.current) { try { duetOriginalRef.current.pause(); } catch { void 0; } }
       setIsPlaying(false);
       const a = audioRef.current;
-      if (a?.pause) {
-        try { a.pause(); } catch { void 0; }
-      }
+      if (a) { try { a.pause(); } catch { void 0; } }
     }
   }, [incrementViews, isActive, isDuetLayout, muteAllSounds, originalVideo, video?.url, video?.music?.previewUrl, videoId, volume]);
 

@@ -1087,10 +1087,6 @@ export default function LiveStream() {
   const speedChallengeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSpeedChallengeRef = useRef<number>(0);
   const reachedThresholdsRef = useRef<Set<number>>(new Set());
-  const [_battleGifterCoins, setBattleGifterCoins] = useState<Record<string, number>>({});
-  // Track top gifters per player: { 'me': { 'username': coins }, 'opponent': {...}, ... }
-  const [playerGifters, setPlayerGifters] = useState<Record<string, Record<string, number>>>({});
-  const [gifterAvatars, setGifterAvatars] = useState<Record<string, string>>({});
   const [lastGifts, setLastGifts] = useState<{ opponent: string | null; player3: string | null; player4: string | null }>({ opponent: null, player3: null, player4: null });
   const [floatingHearts, setFloatingHearts] = useState<
     Array<{ id: string; x: number; y: number; dx: number; rot: number; size: number; color: string; username?: string; avatar?: string }>
@@ -1212,8 +1208,6 @@ export default function LiveStream() {
     setOpponentIsReady(false);
     setOpponentCreatorName('');
     setGiftTarget('me');
-    setBattleGifterCoins({});
-    setPlayerGifters({});
     setMutedPlayers({});
     reachedThresholdsRef.current.clear();
     battleFreeTapUsedRef.current = false;
@@ -1270,8 +1264,6 @@ export default function LiveStream() {
     setPlayer4Score(0);
     setBattleWinner(null);
     setGiftTarget('me');
-    setBattleGifterCoins({});
-    setPlayerGifters({});
     setBattleCountdown(null);
     setHasOpponentStream(false);
     setOpponentStreamKey(null);
@@ -1332,7 +1324,6 @@ export default function LiveStream() {
       setPlayer4Score(0);
         setBattleWinner(null);
         setGiftTarget('me');
-        setBattleGifterCoins({});
       setBattleCountdown(null);
       const params = new URLSearchParams(location.search);
       params.set('battle', '1');
@@ -1408,51 +1399,6 @@ export default function LiveStream() {
       setPlayer4Score((prev) => prev + finalPoints);
     }
   }, [isBattleMode, battleTime, battleWinner]);
-
-  const addBattleGifterCoins = (username: string, coins: number, target?: string, avatar?: string) => {
-    if (!isBattleMode) return;
-    if (!username || coins <= 0) return;
-    setBattleGifterCoins((prev) => ({ ...prev, [username]: (prev[username] ?? 0) + coins }));
-    if (avatar) setGifterAvatars(prev => ({ ...prev, [username]: avatar }));
-    const playerTarget = target || giftTarget;
-    setPlayerGifters(prev => {
-      const playerRecord = { ...(prev[playerTarget] || {}) };
-      playerRecord[username] = (playerRecord[username] ?? 0) + coins;
-      return { ...prev, [playerTarget]: playerRecord };
-    });
-  };
-
-  // Get top 3 gifters for a player
-  const getTopGifters = (player: string) => {
-    const gifters = playerGifters[player] || {};
-    return Object.entries(gifters)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 3)
-      .map(([name, coins]) => ({
-        name,
-        coins,
-        avatar: gifterAvatars[name] || activeViewers.find(v => v.username === name || v.displayName === name)?.avatar || '',
-      }));
-  };
-
-  // Get overall top 3 gifters (merged across all battle players)
-  const getTop3GiftersOverall = () => {
-    const merged: Record<string, number> = {};
-    (['me', 'opponent', 'player3', 'player4'] as const).forEach((p) => {
-      const gifters = playerGifters[p] || {};
-      Object.entries(gifters).forEach(([name, coins]) => {
-        merged[name] = (merged[name] || 0) + coins;
-      });
-    });
-    return Object.entries(merged)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 3)
-      .map(([name, coins]) => ({
-        name,
-        coins,
-        avatar: gifterAvatars[name] || activeViewers.find(v => v.username === name || v.displayName === name)?.avatar || '',
-      }));
-  };
 
   const formatCoinsShort = (coins: number) => {
     const n = typeof coins === 'number' && Number.isFinite(coins) ? coins : 0;
@@ -2004,7 +1950,6 @@ export default function LiveStream() {
           isGift: true,
         };
         setMessages(prev => [...prev, msg]);
-        addBattleGifterCoins(typeof data.username === 'string' ? data.username : 'User', giftDef.coins, data.battleTarget, typeof data.avatar === 'string' ? data.avatar : '');
 
         const rawVideo = data.video || giftDef.video;
         if (rawVideo && typeof rawVideo === 'string' && rawVideo.trim()) {
@@ -2478,7 +2423,6 @@ export default function LiveStream() {
       setSessionContribution(prev => prev + gift.coins);
 
       maybeEnqueueUniverse(gift.name, viewerName);
-      addBattleGifterCoins(viewerName, gift.coins, undefined, user?.avatar || '');
 
       // Rose trigger for Speed Challenge
       if (gift.name.toLowerCase().includes('rose')) {
@@ -2612,7 +2556,6 @@ export default function LiveStream() {
       setSessionContribution(prev => prev + lastSentGift.coins);
 
       maybeEnqueueUniverse(lastSentGift.name, viewerName);
-      addBattleGifterCoins(viewerName, lastSentGift.coins, undefined, user?.avatar || '');
 
       // Rose trigger for Speed Challenge
       if (lastSentGift.name.toLowerCase().includes('rose')) {
@@ -2811,7 +2754,6 @@ export default function LiveStream() {
     setMyScore(0);
     setOpponentScore(0);
     setBattleWinner(null);
-    setBattleGifterCoins({});
     battleFreeTapUsedRef.current = false;
     spectatorTapPointsRef.current = 0;
     setSpectatorTapsUsed(0);
@@ -3140,49 +3082,6 @@ export default function LiveStream() {
               </div>
             )}
 
-            {/* Overall Top 3 Gifters — above battle grid (same gold frame asset as MVP / top viewers) */}
-            {(() => {
-              const top3 = getTop3GiftersOverall();
-              const row = [0, 1, 2].map((i) => top3[i]);
-              return (
-                <div className="w-full flex justify-center gap-3 py-1.5 pointer-events-none flex-none z-30">
-                  {[0, 1, 2].map((i) => {
-                    const g = row[i];
-                    return (
-                      <div key={`gift-top3-${i}`} className="relative flex flex-col items-center">
-                        <GoldProfileFrame size={40}>
-                          {g?.avatar ? (
-                            <img
-                              src={g.avatar}
-                              alt=""
-                              className="h-full w-full rounded-full object-cover object-center"
-                              style={{ objectPosition: 'center center' }}
-                            />
-                          ) : g?.name ? (
-                            <span className="text-center text-[10px] font-black text-[#C9A96E]">
-                              {(g.name || '?').charAt(0).toUpperCase()}
-                            </span>
-                          ) : (
-                            <Plus className="text-[#C9A96E]" size={15} strokeWidth={2.5} />
-                          )}
-                        </GoldProfileFrame>
-                        {g ? (
-                          <>
-                            <span className="mt-0.5 max-w-[50px] truncate text-[7px] font-bold text-white/70">
-                              {g.name}
-                            </span>
-                            <span className="text-[6px] font-semibold text-[#C9A96E]">
-                              {formatCoinsShort(g.coins)}
-                            </span>
-                          </>
-                        ) : null}
-                      </div>
-                    );
-                  })}
-                </div>
-              );
-            })()}
-
             {/* Dynamic Battle Grid: 2-split or 4-split based on players */}
             {(() => {
               const is4Player = battleSlots[1].status !== 'empty' || battleSlots[2].status !== 'empty';
@@ -3237,25 +3136,25 @@ export default function LiveStream() {
                           <span className="text-white font-bold text-[10px] truncate max-w-full px-1">{creatorName || user?.username || user?.name || 'Me'}</span>
                         </div>
                       )}
-                      {/* P1 mic + exit — bottom of tile (below timer zone), same chrome/colors as battle overlays */}
+                      {/* P1 mic + gold power (public icon) — no background chips */}
                       <div className="absolute bottom-4 right-2 z-10 pointer-events-auto flex items-center gap-1">
                         <button
                           type="button"
                           onClick={(e) => { e.stopPropagation(); togglePlayerMute('me'); }}
                           title={mutedPlayers['me'] ? 'Unmute' : 'Mute'}
-                          className="p-1 rounded-md bg-black/50 backdrop-blur-sm flex items-center justify-center hover:scale-105 active:scale-95 transition-transform"
+                          className="flex items-center justify-center border-0 bg-transparent p-0 hover:opacity-90 active:scale-95"
                         >
                           {mutedPlayers['me']
-                            ? <MicOff className="w-3.5 h-3.5 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={2.5} />
-                            : <Mic className="w-3.5 h-3.5 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={2.5} />}
+                            ? <MicOff className="h-3 w-3 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)]" strokeWidth={2.2} />
+                            : <Mic className="h-3 w-3 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)]" strokeWidth={2.2} />}
                         </button>
                         <button
                           type="button"
-                          className="p-1 rounded-md bg-black/50 backdrop-blur-sm flex items-center justify-center cursor-pointer hover:scale-105 active:scale-95 transition-transform"
+                          className="flex cursor-pointer items-center justify-center border-0 bg-transparent p-0 hover:opacity-90 active:scale-95"
                           onClick={(e) => { e.stopPropagation(); toggleBattle(); }}
                           title="End Battle"
                         >
-                          <img src="/Icons/Gold power buton.png" alt="End Battle" className="w-3.5 h-3.5 object-contain drop-shadow-md" />
+                          <img src="/Icons/Gold power buton.png" alt="" className="h-3 w-3 object-contain drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]" />
                         </button>
                       </div>
 
@@ -3275,7 +3174,7 @@ export default function LiveStream() {
                     >
                       {battleSlots[0].status === 'accepted' ? (
                         <div className="w-full h-full relative bg-[#13151A]">
-                          <video ref={opponentVideoRef} className="w-full h-full object-cover absolute inset-0 z-10" autoPlay playsInline muted={!!mutedPlayers['opponent']} style={cameraOffPlayers['opponent'] ? { display: 'none' } : undefined} />
+                          <video ref={opponentVideoRef} className="w-full h-full object-cover absolute inset-0 z-10" autoPlay playsInline muted={!!mutedPlayers['opponent']} style={{ left: '3px', top: '-3px', ...(cameraOffPlayers['opponent'] ? { display: 'none' } : {}) }} />
                           {cameraOffPlayers['opponent'] && (
                             <div className="absolute inset-0 z-[11] flex flex-col items-center justify-center gap-2 bg-[#13151A]">
                               {battleSlots[0].avatar ? (
@@ -3326,19 +3225,19 @@ export default function LiveStream() {
                             type="button"
                             onClick={(e) => { e.stopPropagation(); togglePlayerMute('opponent'); }}
                             title={mutedPlayers['opponent'] ? 'Unmute opponent' : 'Mute opponent'}
-                            className="p-1 rounded-md bg-black/50 backdrop-blur-sm flex items-center justify-center hover:scale-105 active:scale-95 transition-transform"
+                            className="flex items-center justify-center border-0 bg-transparent p-0 hover:opacity-90 active:scale-95"
                           >
                             {mutedPlayers['opponent']
-                              ? <MicOff className="w-3.5 h-3.5 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={2.5} />
-                              : <Mic className="w-3.5 h-3.5 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={2.5} />}
+                              ? <MicOff className="h-3 w-3 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)]" strokeWidth={2.2} />
+                              : <Mic className="h-3 w-3 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)]" strokeWidth={2.2} />}
                           </button>
                           <button
                             type="button"
                             onClick={(e) => { e.stopPropagation(); removePlayerFromSlot(0); }}
                             title="Remove opponent"
-                            className="p-1 rounded-md bg-black/50 backdrop-blur-sm flex items-center justify-center hover:scale-105 active:scale-95 transition-transform"
+                            className="flex items-center justify-center border-0 bg-transparent p-0 hover:opacity-90 active:scale-95"
                           >
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FF4D6A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]" aria-hidden>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#FF4D6A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]" aria-hidden>
                               <path d="M18.36 6.64a9 9 0 1 1-12.73 0" />
                               <line x1="12" y1="2" x2="12" y2="12" />
                             </svg>
@@ -3422,13 +3321,13 @@ export default function LiveStream() {
                         )}
 
                         {battleSlots[1].status !== 'empty' && (
-                          <div className="absolute top-1 right-1 z-10 pointer-events-auto flex items-center gap-0.5">
-                            <div onClick={(e) => { e.stopPropagation(); togglePlayerMute('player3'); }} title={mutedPlayers['player3'] ? 'Unmute' : 'Mute'}>
-                              {mutedPlayers['player3'] ? <MicOff className="w-3 h-3 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={2.5} /> : <Mic className="w-3 h-3 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={2.5} />}
-                            </div>
-                            <div onClick={(e) => { e.stopPropagation(); removePlayerFromSlot(1); }}>
-                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FF4D6A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
-                            </div>
+                          <div className="absolute top-1 right-1 z-10 pointer-events-auto flex items-center gap-1">
+                            <button type="button" className="border-0 bg-transparent p-0 hover:opacity-90 active:scale-95" onClick={(e) => { e.stopPropagation(); togglePlayerMute('player3'); }} title={mutedPlayers['player3'] ? 'Unmute' : 'Mute'}>
+                              {mutedPlayers['player3'] ? <MicOff className="h-3 w-3 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)]" strokeWidth={2.2} /> : <Mic className="h-3 w-3 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)]" strokeWidth={2.2} />}
+                            </button>
+                            <button type="button" className="border-0 bg-transparent p-0 hover:opacity-90 active:scale-95" onClick={(e) => { e.stopPropagation(); removePlayerFromSlot(1); }} title="Remove player">
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#FF4D6A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
+                            </button>
                         </div>
                       )}
 
@@ -3504,13 +3403,13 @@ export default function LiveStream() {
                         )}
 
                         {battleSlots[2].status !== 'empty' && (
-                          <div className="absolute top-1 right-1 z-10 pointer-events-auto flex items-center gap-0.5">
-                            <div onClick={(e) => { e.stopPropagation(); togglePlayerMute('player4'); }} title={mutedPlayers['player4'] ? 'Unmute' : 'Mute'}>
-                              {mutedPlayers['player4'] ? <MicOff className="w-3 h-3 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={2.5} /> : <Mic className="w-3 h-3 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={2.5} />}
-                            </div>
-                            <div onClick={(e) => { e.stopPropagation(); removePlayerFromSlot(2); }}>
-                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FF4D6A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
-                            </div>
+                          <div className="absolute top-1 right-1 z-10 pointer-events-auto flex items-center gap-1">
+                            <button type="button" className="border-0 bg-transparent p-0 hover:opacity-90 active:scale-95" onClick={(e) => { e.stopPropagation(); togglePlayerMute('player4'); }} title={mutedPlayers['player4'] ? 'Unmute' : 'Mute'}>
+                              {mutedPlayers['player4'] ? <MicOff className="h-3 w-3 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)]" strokeWidth={2.2} /> : <Mic className="h-3 w-3 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)]" strokeWidth={2.2} />}
+                            </button>
+                            <button type="button" className="border-0 bg-transparent p-0 hover:opacity-90 active:scale-95" onClick={(e) => { e.stopPropagation(); removePlayerFromSlot(2); }} title="Remove player">
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#FF4D6A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
+                            </button>
                         </div>
                       )}
 
@@ -3547,21 +3446,8 @@ export default function LiveStream() {
             );
           })()}
 
-              {/* MVP slots: gold frame from /Icons/Profile icon.png + plus */}
-            <div className="w-full px-3 py-2 flex items-center justify-between flex-none pointer-events-none mt-1 relative z-30">
-              <div className="flex items-center gap-1 pointer-events-auto" onClick={() => setShowViewerList(true)}>
-                {[0, 1, 2].map((i) => (
-                  <div key={`mvp-l-${i}`} className="relative flex flex-col items-center">
-                    <GoldProfileFrame size={34}>
-                      <Plus className="text-[#C9A96E]" size={14} strokeWidth={2.5} />
-                    </GoldProfileFrame>
-                    <span className={`text-[7px] font-bold mt-0.5 ${i === 0 ? 'text-[#C9A96E]' : 'text-white/50'}`}>MVP</span>
-                  </div>
-                ))}
-              </div>
-
-              {/* Speed Challenge Timer - MOVED HERE between circles */}
-              {SPEED_CHALLENGE_ENABLED && speedChallengeActive && (
+            {SPEED_CHALLENGE_ENABLED && speedChallengeActive && (
+              <div className="w-full px-3 py-2 flex items-center justify-center flex-none pointer-events-none mt-1 relative z-30">
                 <div className="flex items-center gap-3 px-5 py-1 rounded-full bg-[#13151A]/70 backdrop-blur-md border border-[#C9A96E]/30 shadow-[0_0_15px_rgba(201,169,110,0.3)] animate-luxury-fade-in">
                   <span className="text-white text-[9px] font-bold uppercase tracking-[0.1em]">⚡ Speed</span>
                   <span className="text-white text-[14px] font-black tabular-nums">{speedChallengeTime}s</span>
@@ -3569,19 +3455,8 @@ export default function LiveStream() {
                     <span className="text-white text-[11px] font-black animate-pulse">x{speedMultiplier}</span>
                   )}
                 </div>
-              )}
-
-              <div className="flex items-center gap-1 pointer-events-auto" onClick={() => setShowViewerList(true)}>
-                {[0, 1, 2].map((i) => (
-                  <div key={`mvp-r-${i}`} className="relative flex flex-col items-center">
-                    <GoldProfileFrame size={34}>
-                      <Plus className="text-[#C9A96E]" size={14} strokeWidth={2.5} />
-                    </GoldProfileFrame>
-                    <span className={`text-[7px] font-bold mt-0.5 ${i === 0 ? 'text-[#C9A96E]' : 'text-white/50'}`}>MVP</span>
-                  </div>
-                ))}
               </div>
-            </div>
+            )}
           </div>
         )}
       </div>

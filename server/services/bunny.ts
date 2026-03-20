@@ -152,23 +152,20 @@ export async function uploadToBunny(
   }
 
   const bodyBuffer = body instanceof Buffer ? body : Buffer.from(body instanceof ArrayBuffer ? body : await (body as Blob).arrayBuffer());
+  const isVideo = contentType?.startsWith('video/') || /\.(mp4|webm|mov)$/i.test(path);
 
-  // Try Storage API first
+  // Videos: use Stream Library first (handles transcoding + playable CDN URLs)
+  if (isVideo && STREAM_LIBRARY_ID && STREAM_API_KEY) {
+    const result = await uploadViaStream(path, bodyBuffer, contentType);
+    if (result.success) return result;
+    logger.warn({ error: result.error }, "Stream Library failed, trying Storage fallback");
+  }
+
+  // Non-video files (thumbnails, images) or Stream fallback: use Storage API
   if (ACCESS_KEY && STORAGE_ZONE_NAME) {
     const result = await uploadViaStorage(path, bodyBuffer, contentType);
     if (result.success) return result;
-    logger.warn({ error: result.error }, "Storage API failed, trying Stream Library fallback");
-  }
-
-  // Fallback to Stream Library for video files
-  const isVideo = contentType?.startsWith('video/') || /\.(mp4|webm|mov)$/i.test(path);
-  if (isVideo && STREAM_LIBRARY_ID && STREAM_API_KEY) {
-    return uploadViaStream(path, bodyBuffer, contentType);
-  }
-
-  // For non-video files (thumbnails etc), try Storage only
-  if (!ACCESS_KEY || !STORAGE_ZONE_NAME) {
-    return { success: false, path, error: 'Storage API key invalid and file is not a video (cannot use Stream fallback)' };
+    logger.warn({ error: result.error }, "Storage API failed");
   }
 
   return { success: false, path, error: 'All upload methods failed' };

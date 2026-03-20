@@ -3462,7 +3462,11 @@ export default function LiveStream() {
                 {[0, 1, 2].map((i) => (
                   <div key={`mvp-l-${i}`} className="relative flex flex-col items-center">
                     <GoldProfileFrame size={34}>
-                      <Plus className="text-[#C9A96E]" size={14} strokeWidth={2.5} />
+                      {activeViewers[i]?.avatar ? (
+                        <img src={activeViewers[i].avatar} alt="" className="h-full w-full rounded-full object-cover object-center" />
+                      ) : (
+                        <Plus className="text-[#C9A96E]" size={14} strokeWidth={2.5} />
+                      )}
                     </GoldProfileFrame>
                     <span className={`text-[7px] font-bold mt-0.5 ${i === 0 ? 'text-[#C9A96E]' : 'text-white/50'}`}>MVP</span>
                   </div>
@@ -3473,7 +3477,11 @@ export default function LiveStream() {
                 {[0, 1, 2].map((i) => (
                   <div key={`mvp-r-${i}`} className="relative flex flex-col items-center">
                     <GoldProfileFrame size={34}>
-                      <Plus className="text-[#C9A96E]" size={14} strokeWidth={2.5} />
+                      {activeViewers[i + 3]?.avatar ? (
+                        <img src={activeViewers[i + 3].avatar} alt="" className="h-full w-full rounded-full object-cover object-center" />
+                      ) : (
+                        <Plus className="text-[#C9A96E]" size={14} strokeWidth={2.5} />
+                      )}
                     </GoldProfileFrame>
                     <span className={`text-[7px] font-bold mt-0.5 ${i === 0 ? 'text-[#C9A96E]' : 'text-white/50'}`}>MVP</span>
                   </div>
@@ -3648,7 +3656,11 @@ export default function LiveStream() {
                           {[0, 1, 2].map((i) => (
                             <div key={`top-viewers-${i}`} style={{ zIndex: 3 - i }} className="relative">
                               <GoldProfileFrame size={36}>
-                                <Plus className="text-[#C9A96E]" size={16} strokeWidth={2.5} />
+                                {activeViewers[i]?.avatar ? (
+                                  <img src={activeViewers[i].avatar} alt="" className="h-full w-full rounded-full object-cover object-center" />
+                                ) : (
+                                  <Plus className="text-[#C9A96E]" size={16} strokeWidth={2.5} />
+                                )}
                               </GoldProfileFrame>
                             </div>
                           ))}

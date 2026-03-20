@@ -262,19 +262,19 @@ export default function Inbox() {
             <div className="flex gap-3 overflow-x-auto overflow-y-hidden no-scrollbar" style={{ WebkitOverflowScrolling: 'touch' }}>
                 <button
                     type="button"
-                    onClick={() => navigate('/create')}
+                    onClick={() => setShowFollowersPanel(true)}
                     className="flex-shrink-0 flex flex-col items-center gap-1" style={{ width: 95, minWidth: 95 }}
                 >
-                    <div className="relative" style={{ width: 85, height: 85 }} data-avatar-circle="create">
+                    <div className="relative" style={{ width: 85, height: 85 }} data-avatar-circle="followers">
                         <img src="/Icons/Profile icon.png" alt="" className="w-full h-full object-contain" style={{ position: 'relative', zIndex: 1 }} />
                         <img
-                            src={user?.avatar || (user?.id && typeof localStorage !== 'undefined' ? localStorage.getItem('elix_avatar_' + user.id) : null) || '/Icons/Profile icon.png'}
-                            alt="You"
+                            src={myNewFollowers[0]?.avatar_url || user?.avatar || (user?.id && typeof localStorage !== 'undefined' ? localStorage.getItem('elix_avatar_' + user.id) : null) || '/Icons/Profile icon.png'}
+                            alt="Followers"
                             className="absolute rounded-full object-cover"
                             style={{ width: 52, height: 52, top: '45%', left: '51%', transform: 'translate(-50%, -50%)', zIndex: 0 }}
                         />
                     </div>
-                    <div className="text-[11px] text-white/80 truncate w-full text-center">Create</div>
+                    <div className="text-[11px] text-white/80 truncate w-full text-center">Followers</div>
                 </button>
 
                 {myNewFollowers.map((f) => (

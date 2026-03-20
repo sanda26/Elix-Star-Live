@@ -1628,14 +1628,27 @@ export default function SpectatorPage() {
 
               {/* Right: viewer count + close */}
               <div className="pointer-events-auto flex items-center gap-2 flex-shrink-0">
-                <div className="flex items-center -space-x-1.5 pointer-events-auto" style={{ transform: 'translateX(-5mm)' }}>
-                  {[0, 1, 2].map((i) => (
-                    <div key={`spectator-top-mvp-${i}`} style={{ zIndex: 3 - i }} className="relative">
-                      <GoldProfileFrame size={36}>
-                        <Plus className="text-[#C9A96E]" size={16} strokeWidth={2.5} />
-                      </GoldProfileFrame>
-                    </div>
-                  ))}
+                <div className="flex items-center -space-x-1.5 pointer-events-auto" style={{ transform: 'translateX(5mm)' }}>
+                  {(() => {
+                    const hid = hostUserIdRef.current || hostUserId || effectiveStreamId;
+                    const topSpectators = Array.from(actualViewersRef.current.entries())
+                      .filter(([id]) => id !== hid && id !== effectiveStreamId)
+                      .slice(0, 3);
+                    return [0, 1, 2].map((i) => {
+                      const spectator = topSpectators[i]?.[1];
+                      return (
+                        <div key={`spectator-top-mvp-${i}`} style={{ zIndex: 3 - i }} className="relative">
+                          <GoldProfileFrame size={36}>
+                            {spectator?.avatar ? (
+                              <img src={spectator.avatar} alt="" className="h-full w-full rounded-full object-cover object-center" />
+                            ) : (
+                              <Plus className="text-[#C9A96E]" size={16} strokeWidth={2.5} />
+                            )}
+                          </GoldProfileFrame>
+                        </div>
+                      );
+                    });
+                  })()}
                 </div>
                 {/* Viewer count */}
                 <button

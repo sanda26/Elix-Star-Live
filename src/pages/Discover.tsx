@@ -46,6 +46,7 @@ export default function Discover() {
   const [activeTab, setActiveTab] = useState<'trending' | 'search' | 'hashtags' | 'ranking'>('trending');
   const [searchQuery, setSearchQuery] = useState('');
   const [trendingVideos, setTrendingVideos] = useState<Video[]>([]);
+  const { friendVideos, fetchFriendVideos, friendsLoading } = useVideoStore();
   const [searchResults, setSearchResults] = useState<{ videos: Video[]; users: User[] }>({
     videos: [],
     users: [],
@@ -53,6 +54,7 @@ export default function Discover() {
   const [trendingHashtags, setTrendingHashtags] = useState<Hashtag[]>([]);
   const [rankings, setRankings] = useState<CreatorRanking[]>([]);
   const [loading, setLoading] = useState(false);
+  const user = useAuthStore((s) => s.user);
 
   const isIndecent = (v: Video): boolean => {
     const text = `${v.description || ''}`.toLowerCase();
@@ -93,6 +95,66 @@ export default function Discover() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchQuery]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        await fetchFriendVideos();
+        if (cancelled) return;
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            location: 'src/pages/Discover.tsx',
+            message: 'fetchFriendVideos complete',
+            hypothesisId: 'D1',
+            runId: 'discover-following-debug',
+            timestamp: Date.now(),
+            data: { userId: user.id },
+          }),
+        }).catch(() => {});
+        // #endregion
+      } catch (e: any) {
+        if (cancelled) return;
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            location: 'src/pages/Discover.tsx',
+            message: 'fetchFriendVideos failed',
+            hypothesisId: 'D1',
+            runId: 'discover-following-debug',
+            timestamp: Date.now(),
+            data: { userId: user.id, error: String(e?.message || e) },
+          }),
+        }).catch(() => {});
+        // #endregion
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
+  const followingVideosForUi: Video[] = (friendVideos || []).slice(0, 10).map((v: any) => ({
+    id: String(v.id),
+    user_id: String(v.user?.id ?? v.user_id ?? ''),
+    thumbnail_url: v.thumbnail || v.thumbnail_url || getVideoPosterUrl(v.url || ''),
+    url: v.url || '',
+    description: v.description || '',
+    views: v.stats?.views || 0,
+    likes: v.stats?.likes || 0,
+    engagement_score: 0,
+    creator: {
+      username: v.user?.username || v.user?.name || 'Creator',
+      avatar_url: v.user?.avatar ?? null,
+    },
+  }));
 
   const loadTrending = async () => {
     setLoading(true);
@@ -274,6 +336,34 @@ export default function Discover() {
           {/* TRENDING */}
           {!loading && activeTab === 'trending' && (
             <div className="px-3 pt-3">
+              {/* Following & Friends */}
+              {friendsLoading ? (
+                <div className="flex flex-col items-center justify-center py-6 gap-2">
+                  <div className="w-7 h-7 border-2 border-[#C9A96E]/20 border-t-[#C9A96E] rounded-full animate-spin" />
+                  <p className="text-white/30 text-xs">Loading people you follow...</p>
+                </div>
+              ) : followingVideosForUi.length > 0 ? (
+                <div className="mb-5">
+                  <div className="flex items-center gap-2 mb-2 px-1">
+                    <Users className="w-4 h-4 text-[#C9A96E]" />
+                    <h2 className="text-[14px] font-bold text-gold-metallic">Following & Friends</h2>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {followingVideosForUi.map((video) => (
+                      <VideoThumbnail key={video.id} video={video} />
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="mb-5">
+                  <EmptyState
+                    icon={<Users className="w-10 h-10" />}
+                    text="No videos from people you follow"
+                    sub="Follow people to see their videos here"
+                  />
+                </div>
+              )}
+
               <div className="flex items-center gap-2 mb-3 px-1">
                 <TrendingUp className="w-4 h-4 text-[#C9A96E]" />
                 <h2 className="text-[14px] font-bold text-gold-metallic">Trending Now</h2>

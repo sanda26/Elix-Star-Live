@@ -359,21 +359,28 @@ export default function SearchPage() {
                 {/* Trending videos */}
                 <div className="mt-4">
                   <h2 className="font-bold mb-2 text-gold-metallic text-sm">Trending videos</h2>
-                  <div className="grid grid-cols-2 gap-2">
-                    {(videos || []).slice(0, 8).map((v) => (
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {(videos || []).slice(0, 9).map((v) => (
                       <button
                         key={v.id}
                         onClick={() => navigate(`/video/${v.id}`)}
-                        className="relative aspect-[9/16] rounded-xl overflow-hidden bg-[#1C1E24] border border-white/10"
+                        className="relative aspect-square rounded-lg overflow-hidden bg-[#1C1E24] border border-white/10"
                       >
-                        <video
-                          src={v.url}
-                          poster={v.thumbnail || undefined}
-                          className="absolute inset-0 w-full h-full object-cover"
-                          muted
-                          playsInline
-                          preload="metadata"
-                        />
+                        {v.thumbnail ? (
+                          <img
+                            src={v.thumbnail}
+                            alt=""
+                            className="absolute inset-0 w-full h-full object-cover"
+                          />
+                        ) : (
+                          <video
+                            src={v.url}
+                            className="absolute inset-0 w-full h-full object-cover"
+                            muted
+                            playsInline
+                            preload="metadata"
+                          />
+                        )}
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
                         <div className="absolute bottom-2 left-2 right-2 text-left">
                           <div className="text-[10px] font-bold text-white truncate">

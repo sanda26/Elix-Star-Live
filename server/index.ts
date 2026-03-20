@@ -100,6 +100,7 @@ import {
   handleListProfiles,
 } from "./routes/profiles";
 import { addFeedSubscriber, removeFeedSubscriber, broadcastToFeedSubscribers } from "./feedBroadcast";
+import { handleGetThreads, handleCreateThread, handleGetMessages, handleSendMessage, handleDeleteThread } from "./routes/chat";
 import { logger } from "./lib/logger";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -263,6 +264,13 @@ app.patch("/api/profiles/:userId", handlePatchProfile);
 app.post("/api/profiles/:userId/follow", handleFollow);
 app.post("/api/profiles/:userId/unfollow", handleUnfollow);
 app.post("/api/profiles", handleSeedProfile);
+
+// Chat / Direct Messages
+app.get("/api/chat/threads", handleGetThreads);
+app.post("/api/chat/threads", handleCreateThread);
+app.get("/api/chat/threads/:threadId/messages", handleGetMessages);
+app.post("/api/chat/threads/:threadId/messages", handleSendMessage);
+app.delete("/api/chat/threads/:threadId", handleDeleteThread);
 
 app.post("/api/delete-account", handleDeleteAccount);
 app.post("/api/report", handleReport);

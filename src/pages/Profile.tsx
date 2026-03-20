@@ -103,25 +103,21 @@ export default function Profile() {
     if (!user?.id || shareSent.has(targetUserId)) return;
     const profileUrl = `${window.location.origin}/profile/${effectiveUserId}`;
     const msgText = `Check out this profile: ${displayName} ${profileUrl}`;
+    const token = useAuthStore.getState().session?.access_token;
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (token) headers["Authorization"] = `Bearer ${token}`;
     try {
-      const { data: existing } = await apiStub
-        .from('chat_threads')
-        .select('id')
-        .or(`and(user1_id.eq.${user.id},user2_id.eq.${targetUserId}),and(user1_id.eq.${targetUserId},user2_id.eq.${user.id})`)
-        .limit(1)
-        .single();
-      let threadId = existing?.id;
-      if (!threadId) {
-        const { data: newThread } = await apiStub
-          .from('chat_threads')
-          .insert({ user1_id: user.id, user2_id: targetUserId })
-          .select('id')
-          .single();
-        threadId = newThread?.id;
-      }
-      if (threadId) {
-        await apiStub.from('messages').insert({ thread_id: threadId, sender_id: user.id, text: msgText });
-        await apiStub.from('chat_threads').update({ last_message: msgText, last_at: new Date().toISOString() }).eq('id', threadId);
+      const threadRes = await fetch(apiUrl('/api/chat/threads'), {
+        method: "POST", headers, credentials: "include",
+        body: JSON.stringify({ user2_id: targetUserId }),
+      });
+      if (!threadRes.ok) return;
+      const { data: threadData } = await threadRes.json();
+      if (threadData?.id) {
+        await fetch(apiUrl(`/api/chat/threads/${threadData.id}/messages`), {
+          method: "POST", headers, credentials: "include",
+          body: JSON.stringify({ text: msgText }),
+        });
       }
       setShareSent(prev => new Set(prev).add(targetUserId));
     } catch {}
@@ -698,7 +694,21 @@ export default function Profile() {
               {isFollowing ? 'Following' : 'Follow'}
             </button>
             <button
-              onClick={() => navigate(`/inbox`)}
+              onClick={async () => {
+                const token = useAuthStore.getState().session?.access_token;
+                const headers: Record<string, string> = { "Content-Type": "application/json" };
+                if (token) headers["Authorization"] = `Bearer ${token}`;
+                try {
+                  const res = await fetch(apiUrl('/api/chat/threads'), {
+                    method: "POST", headers, credentials: "include",
+                    body: JSON.stringify({ user2_id: effectiveUserId }),
+                  });
+                  if (res.ok) {
+                    const { data } = await res.json();
+                    if (data?.id) navigate(`/chat/${data.id}`);
+                  }
+                } catch { navigate('/inbox'); }
+              }}
               className="flex-1 max-w-[160px] py-2.5 bg-white/10 border border-white/10 rounded-md text-sm font-bold text-white"
             >
               Message

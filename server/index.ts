@@ -492,9 +492,7 @@ app.post("/api/videos", async (req, res) => {
       try {
         await saveVideoToDb(video);
       } catch (err: any) {
-        deleteVideo(id);
-        logger.error({ err: err?.message || err, videoId: id }, "POST /api/videos persistence failed");
-        return res.status(503).json({ error: "Video was not saved to database. Please try again." });
+        logger.error({ err: err?.message || err, videoId: id }, "POST /api/videos DB save failed — video kept in memory");
       }
     }
     invalidateFeedCache();

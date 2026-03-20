@@ -28,4 +28,4 @@ services:
       CLIENT_URL: https://www.elixstarlive.co.uk
       VITE_API_URL: https://www.elixstarlive.co.uk
       VITE_WS_URL: wss://www.elixstarlive.co.uk
-      VITE_APP_NAME: AnberLive
+      VITE_APP_NAME: Elix Star Live

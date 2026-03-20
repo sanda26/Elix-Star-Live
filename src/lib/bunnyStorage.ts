@@ -63,10 +63,6 @@ export async function bunnyUpload(
     || (_storeState.session as any)?.accessToken
     || null;
 
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'bunnyStorage.ts:upload',message:'Upload attempt',hypothesisId:'UPLOAD',data:{hasToken:Boolean(_token),fileSize:file.size,storagePath},timestamp:Date.now()})}).catch(()=>{});
-  // #endregion
-
   const res = await fetch(apiUrl(`/api/media/upload-file?${qs}`), {
     method: "POST",
     headers: {
@@ -79,9 +75,6 @@ export async function bunnyUpload(
 
   if (!res.ok) {
     const err = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'bunnyStorage.ts:uploadFailed',message:'Upload FAILED',hypothesisId:'UPLOAD',data:{status:res.status,error:err.error,debug:err.debug,hasToken:Boolean(_token)},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
     throw new Error(
       (err.error as string) ?? `Bunny upload failed (${res.status} ${res.statusText})`,
     );

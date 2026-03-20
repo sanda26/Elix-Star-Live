@@ -195,9 +195,6 @@ app.get("/health", (_req, res) => {
   });
 });
 app.get("/api/health", (_req, res) => {
-  // #region agent log
-  const _jwtSecret = (process.env.JWT_SECRET || process.env.AUTH_SECRET || 'elix-auth-dev-secret-change-in-production');
-  // #endregion
   res.status(200).json({
     status: "ok",
     version: BUILD_VERSION,
@@ -211,14 +208,6 @@ app.get("/api/health", (_req, res) => {
       database: Boolean(process.env.DATABASE_URL),
       livekitUrl: Boolean(process.env.LIVEKIT_URL),
       viteEnvCount: Object.keys(process.env).filter(k => k.startsWith("VITE_")).length,
-    },
-    debug: {
-      jwtSecretPrefix: _jwtSecret.slice(0, 8),
-      bunnyStorageZone: Boolean(process.env.BUNNY_STORAGE_ZONE),
-      bunnyStorageKey: Boolean(process.env.BUNNY_STORAGE_API_KEY),
-      bunnyLibraryId: Boolean(process.env.BUNNY_LIBRARY_ID),
-      bunnyLibraryKey: Boolean(process.env.BUNNY_LIBRARY_API_KEY),
-      nodeEnv: process.env.NODE_ENV,
     },
   });
 });
@@ -583,17 +572,11 @@ app.get("/api/shop/purchases", handleShopPurchases);
 
 // ── Bunny Storage media routes (frontend calls these) ──────────────
 app.post("/api/media/upload-file", async (req, res) => {
-  // #region agent log
-  const _hasCookie = Boolean(req.headers.cookie);
-  const _hasAuthHeader = Boolean(req.headers.authorization);
-  const _jwtSecret = (process.env.JWT_SECRET || '').slice(0, 6);
-  console.log(`[DEBUG-UPLOAD] cookie=${_hasCookie} authHeader=${_hasAuthHeader} JWT_SECRET_prefix=${_jwtSecret} BUNNY_KEY=${Boolean(process.env.BUNNY_STORAGE_API_KEY)} BUNNY_LIB=${Boolean(process.env.BUNNY_LIBRARY_ID)}`);
-  // #endregion
   const token = getTokenFromRequest(req);
-  if (!token) return res.status(401).json({ error: "Not authenticated.", debug: { hasCookie: _hasCookie, hasAuthHeader: _hasAuthHeader, jwtSecretPrefix: _jwtSecret } });
+  if (!token) return res.status(401).json({ error: "Not authenticated." });
   const payload = verifyAuthToken(token);
   if (!payload)
-    return res.status(401).json({ error: "Invalid or expired session.", debug: { tokenFirst20: token.slice(0, 20), jwtSecretPrefix: _jwtSecret } });
+    return res.status(401).json({ error: "Invalid or expired session." });
 
   if (!isBunnyConfigured()) {
     return res.status(503).json({ error: "Bunny storage not configured." });

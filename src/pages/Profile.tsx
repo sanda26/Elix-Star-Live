@@ -173,24 +173,6 @@ export default function Profile() {
       });
   }, [displayUserId]);
 
-  useEffect(() => {
-    // #region agent log
-    try {
-      const label = headerCenterLabelRef.current?.innerText?.trim() || '';
-      fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          location: 'Profile.tsx:headerCenterLabel',
-          message: 'Header-center label rendered text',
-          timestamp: Date.now(),
-          hypothesisId: 'P1',
-          data: { label },
-        }),
-      }).catch(() => {});
-    } catch {}
-    // #endregion
-  }, []);
 
   useEffect(() => {
     if (!effectiveUserId) return;

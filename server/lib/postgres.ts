@@ -200,6 +200,21 @@ export async function initPostgres(): Promise<void> {
       )
     `);
 
+    // Older DBs may have follows without PRIMARY KEY — INSERT ... ON CONFLICT / upserts will fail until fixed.
+    const followsPk = await pool.query(`
+      SELECT 1 FROM information_schema.table_constraints
+      WHERE table_schema = 'public' AND table_name = 'follows' AND constraint_type = 'PRIMARY KEY'
+      LIMIT 1
+    `);
+    if (!followsPk.rows?.length) {
+      await pool.query(`ALTER TABLE follows ADD PRIMARY KEY (follower_id, following_id)`).catch((err) => {
+        logger.error(
+          { err: err instanceof Error ? err.message : err },
+          "follows: could not add PRIMARY KEY (fix duplicates in Neon SQL editor). Follow saves may fail.",
+        );
+      });
+    }
+
     const userCount = await pool.query(`SELECT COUNT(*) as cnt FROM auth_users`);
     const profileCount = await pool.query(`SELECT COUNT(*) as cnt FROM profiles`);
     logger.info(`Tables ready — ${userCount.rows[0]?.cnt || 0} auth users, ${profileCount.rows[0]?.cnt || 0} profiles in DB`);

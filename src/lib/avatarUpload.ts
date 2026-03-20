@@ -50,13 +50,17 @@ export async function uploadAvatar(
     });
 
     if (!patchRes.ok) {
-      // Non-fatal: the upload succeeded even if the profile update failed.
-      // The caller can still use cdnUrl locally.
-      console.warn(
-        "[avatarUpload] Profile patch failed:",
-        await patchRes.text().catch(() => ""),
+      const detail = await patchRes.text().catch(() => "");
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'avatarUpload.ts:patch',message:'profile_patch_failed',data:{status:patchRes.status,detailLen:detail?.length??0},timestamp:Date.now(),hypothesisId:'H-avatar-db'})}).catch(()=>{});
+      // #endregion
+      throw new Error(
+        `Profile did not save (${patchRes.status}). Photo uploaded but avatar URL was not stored.`,
       );
     }
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'avatarUpload.ts:patch',message:'profile_patch_ok',data:{status:patchRes.status},timestamp:Date.now(),hypothesisId:'H-avatar-db'})}).catch(()=>{});
+    // #endregion
 
     return cdnUrl;
   } catch (err: any) {

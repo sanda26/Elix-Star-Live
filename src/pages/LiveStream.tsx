@@ -12,7 +12,6 @@ import {
   RefreshCw,
   Mic,
   MicOff,
-  LogOut,
   Volume2,
   VolumeX,
   Gift,
@@ -3233,24 +3232,25 @@ export default function LiveStream() {
                           <span className="text-white font-bold text-[10px] truncate max-w-full px-1">{creatorName || user?.username || user?.name || 'Me'}</span>
                         </div>
                       )}
-                      <div className="absolute bottom-2 right-2 z-10 pointer-events-auto flex items-center gap-1">
+                      {/* P1 mic + exit — bottom of tile (below timer zone), same chrome/colors as battle overlays */}
+                      <div className="absolute bottom-4 right-2 z-10 pointer-events-auto flex items-center gap-1">
                         <button
                           type="button"
                           onClick={(e) => { e.stopPropagation(); togglePlayerMute('me'); }}
                           title={mutedPlayers['me'] ? 'Unmute' : 'Mute'}
-                          className="w-5 h-5 flex items-center justify-center"
+                          className="p-1 rounded-md bg-black/50 backdrop-blur-sm flex items-center justify-center hover:scale-105 active:scale-95 transition-transform"
                         >
                           {mutedPlayers['me']
-                            ? <MicOff className="w-3 h-3 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={2.5} />
-                            : <Mic className="w-3 h-3 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={2.5} />}
+                            ? <MicOff className="w-3.5 h-3.5 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={2.5} />
+                            : <Mic className="w-3.5 h-3.5 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={2.5} />}
                         </button>
                         <button
                           type="button"
-                          className="w-5 h-5 flex items-center justify-center cursor-pointer hover:scale-105 active:scale-95 transition-transform"
+                          className="p-1 rounded-md bg-black/50 backdrop-blur-sm flex items-center justify-center cursor-pointer hover:scale-105 active:scale-95 transition-transform"
                           onClick={(e) => { e.stopPropagation(); toggleBattle(); }}
                           title="End Battle"
                         >
-                          <img src="/Icons/Gold power buton.png" alt="End Battle" className="w-3 h-3 object-contain drop-shadow-md" />
+                          <img src="/Icons/Gold power buton.png" alt="End Battle" className="w-3.5 h-3.5 object-contain drop-shadow-md" />
                         </button>
                       </div>
 
@@ -3316,14 +3316,28 @@ export default function LiveStream() {
                       )}
 
                       {battleSlots[0].status !== 'empty' && (
-                        <div className="absolute top-1 left-1 z-10 pointer-events-auto flex items-center gap-0.5">
-                          <div onClick={(e) => { e.stopPropagation(); togglePlayerMute('opponent'); }} title={mutedPlayers['opponent'] ? 'Unmute' : 'Mute'}>
-                            {mutedPlayers['opponent'] ? <MicOff className="w-3 h-3 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={2.5} /> : <Mic className="w-3 h-3 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={2.5} />}
-                          </div>
-
-                          <div onClick={(e) => { e.stopPropagation(); removePlayerFromSlot(0); }}>
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FF4D6A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
-                          </div>
+                        <div className="absolute bottom-4 left-2 z-10 pointer-events-auto flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); togglePlayerMute('opponent'); }}
+                            title={mutedPlayers['opponent'] ? 'Unmute opponent' : 'Mute opponent'}
+                            className="p-1 rounded-md bg-black/50 backdrop-blur-sm flex items-center justify-center hover:scale-105 active:scale-95 transition-transform"
+                          >
+                            {mutedPlayers['opponent']
+                              ? <MicOff className="w-3.5 h-3.5 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={2.5} />
+                              : <Mic className="w-3.5 h-3.5 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" strokeWidth={2.5} />}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); removePlayerFromSlot(0); }}
+                            title="Remove opponent"
+                            className="p-1 rounded-md bg-black/50 backdrop-blur-sm flex items-center justify-center hover:scale-105 active:scale-95 transition-transform"
+                          >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FF4D6A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]" aria-hidden>
+                              <path d="M18.36 6.64a9 9 0 1 1-12.73 0" />
+                              <line x1="12" y1="2" x2="12" y2="12" />
+                            </svg>
+                          </button>
                         </div>
                       )}
 

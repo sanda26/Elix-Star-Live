@@ -63,9 +63,16 @@ async function uploadViaStorage(
     return { success: false, path, error: `Bunny API ${res.status}: ${text}` };
   }
 
-  const storageCdnHost = process.env.BUNNY_CDN_HOSTNAME
-    ? `https://${process.env.BUNNY_CDN_HOSTNAME}`
-    : `https://elixstorage.b-cdn.net`;
+  // Prefer explicit pull zone; fall back to BUNNY_STORAGE_HOSTNAME (same as env.js / Vite).
+  const rawHost =
+    process.env.BUNNY_CDN_HOSTNAME ||
+    process.env.BUNNY_STORAGE_HOSTNAME ||
+    '';
+  const host = rawHost
+    .trim()
+    .replace(/^https?:\/\//i, '')
+    .split('/')[0] || '';
+  const storageCdnHost = host ? `https://${host}` : `https://elixstorage.b-cdn.net`;
   const cdnUrl = `${storageCdnHost}/${path.replace(/^\/+/, '')}`;
 
   return { success: true, path, cdnUrl };

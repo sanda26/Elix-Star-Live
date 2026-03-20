@@ -11,6 +11,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { getPool } from "../lib/postgres";
+import { logger } from "../lib/logger";
 
 export interface Profile {
   userId: string;
@@ -74,7 +75,10 @@ export async function loadFollowsFromDb(): Promise<void> {
       set.add(row.following_id);
       followsMap.set(row.follower_id, set);
     }
-  } catch {}
+    logger.info({ rows: res.rowCount ?? 0 }, "Follows loaded from Postgres into memory");
+  } catch (err) {
+    logger.error({ err }, "loadFollowsFromDb failed — follow lists may be empty until fixed");
+  }
 }
 
 export function getFollowingIds(userId: string): string[] {
@@ -116,37 +120,50 @@ async function ensureProfilesTable(): Promise<void> {
   }
 }
 
-async function saveProfileToDb(p: Profile): Promise<void> {
+async function saveProfileToDb(p: Profile): Promise<boolean> {
+  const db = getPool();
+  if (!db) return false;
+  await ensureProfilesTable();
+  if (!profilesTableReady) {
+    logger.error({ userId: p.userId }, "saveProfileToDb: profiles table not ready");
+    throw new Error("profiles table not ready");
+  }
+  await db.query(
+    `INSERT INTO profiles (user_id, username, display_name, avatar_url, bio, website,
+                           followers, following, video_count, coins, level, is_verified,
+                           created_at, updated_at)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+     ON CONFLICT (user_id) DO UPDATE SET
+       username = EXCLUDED.username,
+       display_name = EXCLUDED.display_name,
+       avatar_url = EXCLUDED.avatar_url,
+       bio = EXCLUDED.bio,
+       website = EXCLUDED.website,
+       followers = EXCLUDED.followers,
+       following = EXCLUDED.following,
+       video_count = EXCLUDED.video_count,
+       coins = EXCLUDED.coins,
+       level = EXCLUDED.level,
+       is_verified = EXCLUDED.is_verified,
+       updated_at = EXCLUDED.updated_at`,
+    [
+      p.userId, p.username, p.displayName, p.avatarUrl, p.bio, p.website,
+      p.followers, p.following, p.videoCount, p.coins, p.level, p.isVerified,
+      p.createdAt, p.updatedAt,
+    ],
+  );
+  return true;
+}
+
+/** Keep auth_users in sync so login/session and legacy reads see the same avatar as profiles. */
+async function updateAuthUserAvatarUrl(userId: string, avatarUrl: string): Promise<void> {
   const db = getPool();
   if (!db) return;
-  await ensureProfilesTable();
-  if (!profilesTableReady) return;
   try {
-    await db.query(
-      `INSERT INTO profiles (user_id, username, display_name, avatar_url, bio, website,
-                             followers, following, video_count, coins, level, is_verified,
-                             created_at, updated_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
-       ON CONFLICT (user_id) DO UPDATE SET
-         username = EXCLUDED.username,
-         display_name = EXCLUDED.display_name,
-         avatar_url = EXCLUDED.avatar_url,
-         bio = EXCLUDED.bio,
-         website = EXCLUDED.website,
-         followers = EXCLUDED.followers,
-         following = EXCLUDED.following,
-         video_count = EXCLUDED.video_count,
-         coins = EXCLUDED.coins,
-         level = EXCLUDED.level,
-         is_verified = EXCLUDED.is_verified,
-         updated_at = EXCLUDED.updated_at`,
-      [
-        p.userId, p.username, p.displayName, p.avatarUrl, p.bio, p.website,
-        p.followers, p.following, p.videoCount, p.coins, p.level, p.isVerified,
-        p.createdAt, p.updatedAt,
-      ],
-    );
-  } catch { /* non-fatal */ }
+    await db.query(`UPDATE auth_users SET avatar_url = $1 WHERE id = $2`, [avatarUrl, userId]);
+  } catch (err) {
+    logger.error({ err, userId }, "updateAuthUserAvatarUrl failed");
+  }
 }
 
 async function loadProfileFromDb(userId: string): Promise<Profile | null> {
@@ -437,17 +454,42 @@ export async function handlePatchProfile(req: Request, res: Response): Promise<v
     return;
   }
 
+  const body = req.body as Record<string, unknown>;
+  const patchedAvatarRaw = body["avatarUrl"];
+  const patchedAvatar =
+    typeof patchedAvatarRaw === "string" ? patchedAvatarRaw.trim() : "";
+
   const profile = await getOrCreateProfileAsync(userId);
   const allowed = ["username", "displayName", "avatarUrl", "bio", "website", "level", "coins"] as const;
   for (const key of allowed) {
-    const val = (req.body as Record<string, unknown>)[key];
+    const val = body[key];
     if (val !== undefined) {
       (profile as Record<string, unknown>)[key] = val;
     }
   }
   profile.updatedAt = new Date().toISOString();
   profiles.set(userId, profile);
-  saveProfileToDb(profile).catch(() => {});
+
+  try {
+    const persisted = await saveProfileToDb(profile);
+    if (
+      persisted &&
+      patchedAvatar &&
+      !patchedAvatar.startsWith("data:") &&
+      /^https?:\/\//i.test(patchedAvatar)
+    ) {
+      await updateAuthUserAvatarUrl(userId, patchedAvatar);
+    }
+    logger.info(
+      { userId, persisted, avatarLen: profile.avatarUrl?.length ?? 0 },
+      "PATCH profile saved",
+    );
+  } catch (err) {
+    logger.error({ err, userId }, "PATCH profile: database save failed");
+    res.status(500).json({ error: "Could not save profile to database." });
+    return;
+  }
+
   res.json({ profile });
 }
 
@@ -472,15 +514,29 @@ export async function handleFollow(req: Request, res: Response): Promise<void> {
     res.json({ success: true, already: true, followers: p.followers });
     return;
   }
-  myFollows.add(userId);
-  followsMap.set(jwtUser.sub, myFollows);
 
   const db = getPool();
   if (db) {
     try {
-      await db.query(`INSERT INTO follows (follower_id, following_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`, [jwtUser.sub, userId]);
-    } catch {}
+      await db.query(`INSERT INTO follows (follower_id, following_id) VALUES ($1, $2)`, [jwtUser.sub, userId]);
+    } catch (err: unknown) {
+      const code = (err as { code?: string })?.code;
+      if (code === "23505") {
+        myFollows.add(userId);
+        followsMap.set(jwtUser.sub, myFollows);
+        saveFollowsToDisk();
+        const p = await getOrCreateProfileAsync(userId);
+        res.json({ success: true, already: true, followers: p.followers });
+        return;
+      }
+      logger.error({ err, follower: jwtUser.sub, following: userId }, "Follow INSERT failed");
+      res.status(500).json({ error: "Could not save follow. Check database (follows table)." });
+      return;
+    }
   }
+
+  myFollows.add(userId);
+  followsMap.set(jwtUser.sub, myFollows);
 
   const target = await getOrCreateProfileAsync(userId);
   const follower = await getOrCreateProfileAsync(jwtUser.sub);
@@ -518,7 +574,9 @@ export async function handleUnfollow(req: Request, res: Response): Promise<void>
   if (db) {
     try {
       await db.query(`DELETE FROM follows WHERE follower_id = $1 AND following_id = $2`, [jwtUser.sub, userId]);
-    } catch {}
+    } catch (err) {
+      logger.error({ err, follower: jwtUser.sub, following: userId }, "Unfollow DELETE failed");
+    }
   }
 
   const target = await getOrCreateProfileAsync(userId);

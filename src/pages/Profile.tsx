@@ -136,8 +136,18 @@ export default function Profile() {
     : (profileData?.username || 'user');
   const displayUsername = (rawUsername || '').replace(/^@+/, '');
   const localAvatar = isOwnProfile && user?.id ? localStorage.getItem('elix_avatar_' + user.id) : null;
+  const isHttpUrl = (s: string | null | undefined) => !!s && /^https?:\/\//i.test(s.trim());
+  /** Prefer CDN/http URLs from server; avoid stale giant data: URLs in localStorage masking the real profile. */
   const displayAvatar = isOwnProfile
-    ? (localAvatar || profileData?.avatar_url || user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=random`)
+    ? (
+        (isHttpUrl(profileData?.avatar_url) ? profileData!.avatar_url : null) ||
+        (isHttpUrl(user?.avatar) ? user.avatar : null) ||
+        (localAvatar && !localAvatar.startsWith('data:') ? localAvatar : null) ||
+        localAvatar ||
+        profileData?.avatar_url ||
+        user?.avatar ||
+        `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=random`
+      )
     : (profileData?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=random`);
 
   useEffect(() => {
@@ -175,7 +185,6 @@ export default function Profile() {
     setLoading(true);
     loadProfile();
     loadVideos();
-    if (!isOwnProfile && user?.id) checkFollowing();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [effectiveUserId, activeTab]);
 
@@ -238,6 +247,9 @@ export default function Profile() {
 
       setProfileData(data);
       trackEvent('profile_view', { user_id: effectiveUserId, is_own: isOwnProfile });
+      if (!isOwnProfile && user?.id) {
+        await checkFollowing(data.user_id);
+      }
     } catch (_) {
       if (effectiveUserId === user?.id) {
         setProfileData({
@@ -323,8 +335,10 @@ export default function Profile() {
     }
   };
 
-  const checkFollowing = async () => {
-    if (!user?.id || !effectiveUserId || isOwnProfile) return;
+  const checkFollowing = async (profileUserId?: string) => {
+    if (!user?.id || isOwnProfile) return;
+    const idToCheck = profileUserId ?? profileData?.user_id ?? effectiveUserId;
+    if (!idToCheck) return;
 
     try {
       const session = useAuthStore.getState().session;
@@ -334,14 +348,15 @@ export default function Profile() {
       if (res.ok) {
         const body = await res.json();
         const ids: string[] = Array.isArray(body?.following) ? body.following : (Array.isArray(body) ? body : []);
-        setIsFollowing(ids.includes(effectiveUserId));
+        setIsFollowing(ids.includes(idToCheck));
       }
-    } catch {}
-    
+    } catch { /* ignore */ }
   };
 
   const toggleFollow = async () => {
-    if (!user?.id || !effectiveUserId || isOwnProfile) return;
+    if (!user?.id || isOwnProfile) return;
+    const targetProfileId = profileData?.user_id ?? effectiveUserId;
+    if (!targetProfileId) return;
 
     const wasFollowing = isFollowing;
     setIsFollowing(!wasFollowing);
@@ -351,26 +366,26 @@ export default function Profile() {
       if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
 
       const endpoint = wasFollowing
-        ? apiUrl(`/api/profiles/${effectiveUserId}/unfollow`)
-        : apiUrl(`/api/profiles/${effectiveUserId}/follow`);
+        ? apiUrl(`/api/profiles/${targetProfileId}/unfollow`)
+        : apiUrl(`/api/profiles/${targetProfileId}/follow`);
 
       const res = await fetch(endpoint, { method: 'POST', credentials: 'include', headers });
       if (!res.ok) throw new Error('Follow action failed');
 
       if (!wasFollowing) {
-        trackEvent('user_follow', { target_user_id: effectiveUserId });
+        trackEvent('user_follow', { target_user_id: targetProfileId });
       }
 
       // Sync video store so feed reflects the change without refresh
       const videoStore = useVideoStore.getState();
       const currentFollowing = videoStore.followingUsers;
       const updatedFollowing = wasFollowing
-        ? currentFollowing.filter((id: string) => id !== effectiveUserId)
-        : [...currentFollowing, effectiveUserId];
+        ? currentFollowing.filter((id: string) => id !== targetProfileId)
+        : [...currentFollowing, targetProfileId];
       useVideoStore.setState({
         followingUsers: updatedFollowing,
         videos: videoStore.videos.map(v =>
-          v.user.id === effectiveUserId ? { ...v, isFollowing: !wasFollowing } : v
+          v.user.id === targetProfileId ? { ...v, isFollowing: !wasFollowing } : v
         ),
       });
       loadProfile();
@@ -388,45 +403,20 @@ export default function Profile() {
     setIsUploadingAvatar(true);
 
     try {
-      const compressed = await new Promise<string>((resolve, reject) => {
-        const img = new Image();
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          const max = 300;
-          let w = img.width, h = img.height;
-          if (w > h) { if (w > max) { h = h * max / w; w = max; } }
-          else { if (h > max) { w = w * max / h; h = max; } }
-          canvas.width = w;
-          canvas.height = h;
-          canvas.getContext('2d')!.drawImage(img, 0, 0, w, h);
-          resolve(canvas.toDataURL('image/jpeg', 0.7));
-        };
-        img.onerror = () => reject(new Error('Failed to load image'));
-        img.src = URL.createObjectURL(file);
-      });
-
-      localStorage.setItem('elix_avatar_' + user.id, compressed);
-
-      updateUser({ avatar: compressed });
-      setProfileData(prev => prev ? { ...prev, avatar_url: compressed } : prev);
-      setIsUploadingAvatar(false);
-
-      // Update profile avatar on server
-      const session = useAuthStore.getState().session;
-      if (session?.access_token) {
-        fetch(apiUrl(`/api/profiles/${user.id}`), {
-          method: 'PATCH',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
-          body: JSON.stringify({ avatarUrl: compressed }),
-        }).catch(() => {});
-      }
-      const savedUrl = compressed;
-
-      updateUser({ avatar: savedUrl });
-      setProfileData(prev => prev ? { ...prev, avatar_url: savedUrl } : prev);
+      // Persist to Bunny CDN + Neon via uploadAvatar (PATCH with https URL). Never store base64 data URLs in Postgres.
+      const cdnUrl = await uploadAvatar(file, user.id);
+      localStorage.setItem('elix_avatar_' + user.id, cdnUrl);
+      updateUser({ avatar: cdnUrl });
+      setProfileData(prev => (prev ? { ...prev, avatar_url: cdnUrl } : prev));
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Profile.tsx:handleAvatarFile',message:'avatar_upload_ok',data:{cdnHost:cdnUrl?.split('/')[2]??'',urlLen:cdnUrl?.length??0},timestamp:Date.now(),hypothesisId:'H-avatar-cdn'})}).catch(()=>{});
+      // #endregion
     } catch (err: any) {
       setAvatarError(err?.message || 'Failed');
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Profile.tsx:handleAvatarFile',message:'avatar_upload_err',data:{err:String(err?.message||err)},timestamp:Date.now(),hypothesisId:'H-avatar-cdn'})}).catch(()=>{});
+      // #endregion
+    } finally {
       setIsUploadingAvatar(false);
     }
   };

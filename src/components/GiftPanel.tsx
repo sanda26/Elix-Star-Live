@@ -238,7 +238,7 @@ export function GiftPanel({
   return (
     <div
       ref={panelRef}
-      className="bg-[#1a1a1a]/95 rounded-t-2xl p-3 pb-safe max-h-[40dvh] overflow-y-auto no-scrollbar shadow-2xl w-full relative z-[99999]"
+      className="bg-background/95 rounded-t-2xl p-3 pb-safe max-h-[40dvh] overflow-y-auto no-scrollbar shadow-2xl w-full relative z-[99999]"
     >
       {/* Top bar: Weekly Ranking / Membership */}
       {(onWeeklyRanking || onMembership) && (

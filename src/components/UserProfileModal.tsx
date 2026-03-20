@@ -168,12 +168,12 @@ export default function UserProfileModal({ isOpen, onClose, user, onFollow }: Us
   return (
     <div className="fixed inset-0 z-50 bg-black/60 flex items-end justify-center animate-in fade-in duration-200" onClick={onClose}>
       <div 
-        className="w-full max-w-[480px] bg-[#1C1E24] rounded-t-2xl overflow-y-auto animate-in slide-in-from-bottom duration-300 relative border border-b-0 border-[#C9A96E]/30 shadow-2xl"
+        className="w-full max-w-[480px] bg-background rounded-t-2xl overflow-y-auto animate-in slide-in-from-bottom duration-300 relative border border-b-0 border-[#C9A96E]/30 shadow-2xl"
         style={{ marginBottom: '90px', maxHeight: 'calc(100dvh - 90px - 50px)' }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-3 bg-[#1C1E24]/98 backdrop-blur-md border-b border-white/5">
+        <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-3 bg-background/98 backdrop-blur-md border-b border-white/5">
           <button
             onClick={handleShareProfile}
             className="p-2 rounded-full hover:bg-white/5 transition-colors"

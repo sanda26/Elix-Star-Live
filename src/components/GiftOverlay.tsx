@@ -57,13 +57,22 @@ export function GiftOverlay({ videoSrc, previewSrc: _previewSrc, onEnded, isBatt
     }
 
     if (videoCache.has(videoSrc)) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'creator-gift-debug',hypothesisId:'C3',location:'src/components/GiftOverlay.tsx:60',message:'Gift overlay video cache hit',data:{videoSrc},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
       setVideoReady(true);
     } else {
       preloadVideo(videoSrc)
         .then(() => {
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'creator-gift-debug',hypothesisId:'C4',location:'src/components/GiftOverlay.tsx:65',message:'Gift overlay preload success',data:{videoSrc},timestamp:Date.now()})}).catch(()=>{});
+          // #endregion
           setVideoReady(true);
         })
         .catch(() => {
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'creator-gift-debug',hypothesisId:'C5',location:'src/components/GiftOverlay.tsx:69',message:'Gift overlay preload failed',data:{videoSrc},timestamp:Date.now()})}).catch(()=>{});
+          // #endregion
           if (safetyTimerRef.current) clearTimeout(safetyTimerRef.current);
           onEndedRef.current();
         });
@@ -103,6 +112,9 @@ export function GiftOverlay({ videoSrc, previewSrc: _previewSrc, onEnded, isBatt
           onEnded();
         }}
         onError={() => {
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'creator-gift-debug',hypothesisId:'C6',location:'src/components/GiftOverlay.tsx:108',message:'Gift overlay <video> onError',data:{videoSrc},timestamp:Date.now()})}).catch(()=>{});
+          // #endregion
           if (safetyTimerRef.current) clearTimeout(safetyTimerRef.current);
           onEnded();
         }}

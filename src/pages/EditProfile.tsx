@@ -104,9 +104,12 @@ export default function EditProfile() {
 
     setLoading(true);
     try {
+    const token = useAuthStore.getState().session?.access_token;
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
     const res = await fetch(apiUrl(`/api/profiles/${encodeURIComponent(currentUserId)}`), {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       credentials: 'include',
       body: JSON.stringify({
         displayName: profile.display_name,
@@ -117,10 +120,16 @@ export default function EditProfile() {
     });
 
     if (!res.ok) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'profile-persist-debug',hypothesisId:'P5',location:'src/pages/EditProfile.tsx:120',message:'editProfile save failed',data:{status:res.status,currentUserId,hasToken:!!token},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
       showToast('Failed to save profile');
       setLoading(false);
       return;
     }
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'profile-persist-debug',hypothesisId:'P5',location:'src/pages/EditProfile.tsx:126',message:'editProfile save success',data:{status:res.status,currentUserId,hasToken:!!token,avatarLen:(profile.avatar_url||'').length},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
 
     trackEvent('profile_update', {});
     if (user?.id === currentUserId) {

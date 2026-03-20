@@ -1950,12 +1950,26 @@ export default function LiveStream() {
           isGift: true,
         };
         setMessages(prev => [...prev, msg]);
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'creator-gift-debug',hypothesisId:'C1',location:'src/pages/LiveStream.tsx:1952',message:'Creator received gift event',data:{giftId:data.giftId,incomingVideo:data.video ?? null,giftDefVideo:giftDef.video ?? null,incomingGiftName:data.giftName ?? null},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion
 
-        const rawVideo = data.video || giftDef.video;
-        if (rawVideo && typeof rawVideo === 'string' && rawVideo.trim()) {
-          const videoUrl = (rawVideo.startsWith('http://') || rawVideo.startsWith('https://'))
-            ? rawVideo
-            : resolveGiftAssetUrl(rawVideo.startsWith('/') ? rawVideo : `/${rawVideo}`);
+        const isVideoFile = (value: string) => {
+          const p = value.split('?')[0].toLowerCase();
+          return p.endsWith('.mp4') || p.endsWith('.webm');
+        };
+        const incomingVideo = typeof data.video === 'string' ? data.video : '';
+        const defVideo = typeof giftDef.video === 'string' ? giftDef.video : '';
+        const pickedRawVideo = defVideo && isVideoFile(defVideo)
+          ? defVideo
+          : (incomingVideo && isVideoFile(incomingVideo) ? incomingVideo : '');
+        if (pickedRawVideo && pickedRawVideo.trim()) {
+          const videoUrl = (pickedRawVideo.startsWith('http://') || pickedRawVideo.startsWith('https://'))
+            ? pickedRawVideo
+            : resolveGiftAssetUrl(pickedRawVideo.startsWith('/') ? pickedRawVideo : `/${pickedRawVideo}`);
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'creator-gift-debug',hypothesisId:'C2',location:'src/pages/LiveStream.tsx:1965',message:'Creator queued gift overlay url',data:{giftId:data.giftId,incomingVideo,pickedRawVideo,queuedVideoUrl:videoUrl,isMp4:/\\.mp4(\\?|$)/i.test(videoUrl),isWebm:/\\.webm(\\?|$)/i.test(videoUrl),isPng:/\\.png(\\?|$)/i.test(videoUrl)},timestamp:Date.now()})}).catch(()=>{});
+          // #endregion
           setGiftQueue(prev => [...prev, { video: videoUrl }]);
         }
       }

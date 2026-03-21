@@ -44,6 +44,7 @@ import ReportModal from '../components/ReportModal';
 import PromotePanel from '../components/PromotePanel';
 import { RankingPanel } from '../components/RankingPanel';
 import { websocket } from '../lib/websocket';
+import { normalizeBattleGiftTarget } from '../lib/liveBattleGiftTarget';
 import { IS_STORE_BUILD } from '../config/build';
 import { Room, RoomEvent, LocalVideoTrack, LocalAudioTrack } from 'livekit-client';
 
@@ -131,6 +132,47 @@ export default function SpectatorPage() {
   const [showViewersPanel, setShowViewersPanel] = useState(false);
   const [viewersList, setViewersList] = useState<{ id: string; name: string; avatar: string; level?: number }[]>([]);
   const actualViewersRef = useRef<Map<string, { name: string; avatar: string; level: number }>>(new Map());
+  /** Gift coins — global (top bar #1–3), host team, opponent team (battle rows). */
+  const mvpGiftScoresRef = useRef<Record<string, number>>({});
+  const mvpGiftScoresHostRef = useRef<Record<string, number>>({});
+  const mvpGiftScoresOpponentRef = useRef<Record<string, number>>({});
+
+  type MvpSlotRow = { id: string; name: string; avatar: string; level: number };
+  const [mvpSlots, setMvpSlots] = useState<{
+    global: MvpSlotRow[];
+    host: MvpSlotRow[];
+    opponent: MvpSlotRow[];
+  }>({ global: [], host: [], opponent: [] });
+
+  const syncMvpSlots = useCallback(() => {
+    const hid = hostUserIdRef.current || hostUserId || effectiveStreamId || '';
+    const base = Array.from(actualViewersRef.current.entries())
+      .filter(([id]) => id && id !== hid && id !== effectiveStreamId)
+      .map(([id, v]) => ({ id, name: v.name, avatar: v.avatar, level: v.level }));
+
+    const sortBy = (scores: Record<string, number>) => (a: MvpSlotRow, b: MvpSlotRow) => {
+      const sa = scores[a.id] ?? 0;
+      const sb = scores[b.id] ?? 0;
+      if (sb !== sa) return sb - sa;
+      return (b.level ?? 0) - (a.level ?? 0);
+    };
+
+    setMvpSlots({
+      global: [...base].sort(sortBy(mvpGiftScoresRef.current)).slice(0, 3),
+      host: [...base].sort(sortBy(mvpGiftScoresHostRef.current)).slice(0, 3),
+      opponent: [...base].sort(sortBy(mvpGiftScoresOpponentRef.current)).slice(0, 3),
+    });
+  }, [effectiveStreamId, hostUserId]);
+
+  const syncMvpSlotsRef = useRef(syncMvpSlots);
+  syncMvpSlotsRef.current = syncMvpSlots;
+
+  useEffect(() => {
+    mvpGiftScoresRef.current = {};
+    mvpGiftScoresHostRef.current = {};
+    mvpGiftScoresOpponentRef.current = {};
+    syncMvpSlotsRef.current();
+  }, [effectiveStreamId]);
 
   const [joinRequested, setJoinRequested] = useState(false);
 
@@ -150,6 +192,10 @@ export default function SpectatorPage() {
   // BATTLE STATE (spectator sees host's battle status)
   // ═══════════════════════════════════════════════════
   const [spectatorBattle, setSpectatorBattle] = useState<{ active: boolean; hostScore: number; opponentScore: number; timeLeft: number; opponentName?: string; opponentRoomId?: string; winner?: string } | null>(null);
+  const spectatorBattleRef = useRef(spectatorBattle);
+  spectatorBattleRef.current = spectatorBattle;
+  /** When battle is active, gifts credit host (red) or opponent (blue) MVP tallies. */
+  const [spectatorGiftBattleTarget, setSpectatorGiftBattleTarget] = useState<'host' | 'opponent'>('host');
   const opponentVideoRef = useRef<HTMLVideoElement>(null);
   const opponentLkRoomRef = useRef<Room | null>(null);
   const [hasOpponentStream, setHasOpponentStream] = useState(false);
@@ -370,6 +416,7 @@ export default function SpectatorPage() {
           hostUserIdRef.current = uid;
           actualViewersRef.current.delete(uid);
           setViewerCount(stream.viewer_count || 0);
+          syncMvpSlotsRef.current();
 
           // First guess: title from live stream or short id label
           const label = uid.slice(0, 8);
@@ -744,6 +791,7 @@ export default function SpectatorPage() {
         if (!hostFoundInRoom && !hid) {
           hostFoundInRoom = true;
         }
+        syncMvpSlots();
       }
     };
 
@@ -771,12 +819,14 @@ export default function SpectatorPage() {
         avatar: typeof data.avatar_url === 'string' ? data.avatar_url : '',
       }]);
       setViewerCount(prev => prev + 1);
+      syncMvpSlots();
     };
 
     const handleUserLeft = (data: any) => {
       if (!mounted) return;
       if (data.user_id) actualViewersRef.current.delete(data.user_id);
       setViewerCount(prev => Math.max(0, prev - 1));
+      syncMvpSlots();
     };
 
     const handleChatMessage = (data: any) => {
@@ -794,8 +844,24 @@ export default function SpectatorPage() {
 
     const handleGiftSent = (data: any) => {
       if (!mounted) return;
-      if (data.user_id === user?.id) return;
       const giftDef = GIFTS.find(g => g.id === data.giftId);
+      const gifterId = typeof data.user_id === 'string' ? data.user_id : '';
+      const giftCoins =
+        giftDef?.coins ??
+        (typeof data.coins === 'number' && Number.isFinite(data.coins) ? data.coins : 0);
+      if (gifterId && giftCoins > 0) {
+        mvpGiftScoresRef.current[gifterId] = (mvpGiftScoresRef.current[gifterId] || 0) + giftCoins;
+        if (spectatorBattleRef.current?.active) {
+          const side = normalizeBattleGiftTarget(data.battleTarget);
+          if (side === 'host') {
+            mvpGiftScoresHostRef.current[gifterId] = (mvpGiftScoresHostRef.current[gifterId] || 0) + giftCoins;
+          } else if (side === 'opponent') {
+            mvpGiftScoresOpponentRef.current[gifterId] = (mvpGiftScoresOpponentRef.current[gifterId] || 0) + giftCoins;
+          }
+        }
+        syncMvpSlots();
+      }
+      if (data.user_id === user?.id) return;
       if (giftDef) {
         const msg: LiveMessage = {
           id: `gift-ws-${Date.now()}-${Math.random()}`,
@@ -910,6 +976,7 @@ export default function SpectatorPage() {
       if (typeof data.hostUserId === 'string' && data.hostUserId) {
         setHostUserId(data.hostUserId);
         hostUserIdRef.current = data.hostUserId;
+        syncMvpSlots();
       }
     };
 
@@ -1017,7 +1084,7 @@ export default function SpectatorPage() {
       websocket.off('cohost_invite', handleCohostInvite);
       websocket.disconnect();
     };
-  }, [effectiveStreamId, user?.id, streamIsLive]);
+  }, [effectiveStreamId, user?.id, streamIsLive, syncMvpSlots]);
 
   // Share panel contacts: show all platform users (and implicitly followers).
   useEffect(() => {
@@ -1162,6 +1229,9 @@ export default function SpectatorPage() {
       transactionId: `${user?.id || 'anon'}-${Date.now()}`,
       creator_name: hostName || 'Creator',
       host_user_id: hostUserId || effectiveStreamId,
+      ...(spectatorBattle?.active
+        ? { battleTarget: spectatorGiftBattleTarget === 'host' ? 'me' : 'opponent' }
+        : {}),
     });
     // #region agent log
     fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'gift-flow-debug',hypothesisId:'H5',location:'src/pages/SpectatorPage.tsx:1156',message:'Spectator sent gift event',data:{giftId:gift.id,sentVideoField:gift.video ?? null,iconField:gift.icon ?? null},timestamp:Date.now()})}).catch(()=>{});
@@ -1372,33 +1442,64 @@ export default function SpectatorPage() {
                   </div>
                 </div>
 
-                {/* 6 MVP slots: /Icons/Profile icon.png frame + plus (matches creator) */}
-                <div className="w-full px-3 py-1.5 flex items-center justify-between flex-none z-30">
-                  <div
-                    className="flex items-center gap-1 pointer-events-auto"
-                    onClick={() => setShowViewersPanel(true)}
-                  >
-                    {[0, 1, 2].map((i) => (
-                      <div key={`mvp-l-${i}`} className="flex flex-col items-center">
-                        <GoldProfileFrame size={28}>
-                          <Plus className="text-[#C9A96E]" size={12} strokeWidth={2.5} />
-                        </GoldProfileFrame>
-                        <span className={`text-[7px] font-bold mt-0.5 ${i === 0 ? 'text-[#C9A96E]' : 'text-white/50'}`}>MVP</span>
-                      </div>
-                    ))}
+                {/* Battle MVP (team splits) — separate from “Top gifters” in the header */}
+                <div className="w-full px-3 pt-1 flex justify-center flex-none z-30">
+                  <span className="text-[9px] font-bold uppercase tracking-wider text-white/45">Battle MVP</span>
+                </div>
+                <div className="w-full px-3 py-1.5 flex items-end justify-between flex-none z-30 gap-2 mt-0">
+                  <div className="flex flex-col items-center gap-0.5 min-w-0 flex-1">
+                    <span className="text-[8px] font-bold uppercase tracking-wide text-[#FF8A8A]">Host</span>
+                    <div
+                      className="flex items-center gap-1.5 pointer-events-auto"
+                      onClick={() => setShowViewersPanel(true)}
+                    >
+                      {[0, 1, 2].map((i) => {
+                        const slot = mvpSlots.host[i];
+                        return (
+                          <div key={`mvp-l-${i}`} className="flex flex-col items-center">
+                            <GoldProfileFrame size={42}>
+                              {slot?.avatar ? (
+                                <img src={slot.avatar} alt="" className="h-full w-full rounded-full object-cover object-center" />
+                              ) : slot?.name ? (
+                                <div className="h-full w-full rounded-full bg-[#1C1E24] flex items-center justify-center text-[#C9A96E] text-sm font-bold">
+                                  {slot.name.charAt(0).toUpperCase()}
+                                </div>
+                              ) : (
+                                <Plus className="text-[#C9A96E]" size={16} strokeWidth={2.5} />
+                              )}
+                            </GoldProfileFrame>
+                            <span className={`text-[8px] font-bold mt-0.5 tabular-nums ${i === 0 ? 'text-[#FF8A8A]' : 'text-white/50'}`}>{i + 1}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
-                  <div
-                    className="flex items-center gap-1 pointer-events-auto"
-                    onClick={() => setShowViewersPanel(true)}
-                  >
-                    {[0, 1, 2].map((i) => (
-                      <div key={`mvp-r-${i}`} className="flex flex-col items-center">
-                        <GoldProfileFrame size={28}>
-                          <Plus className="text-[#C9A96E]" size={12} strokeWidth={2.5} />
-                        </GoldProfileFrame>
-                        <span className={`text-[7px] font-bold mt-0.5 ${i === 0 ? 'text-[#C9A96E]' : 'text-white/50'}`}>MVP</span>
-                      </div>
-                    ))}
+                  <div className="flex flex-col items-center gap-0.5 min-w-0 flex-1">
+                    <span className="text-[8px] font-bold uppercase tracking-wide text-[#6BB6FF]">Opponent</span>
+                    <div
+                      className="flex items-center gap-1.5 pointer-events-auto"
+                      onClick={() => setShowViewersPanel(true)}
+                    >
+                      {[0, 1, 2].map((i) => {
+                        const slot = mvpSlots.opponent[i];
+                        return (
+                          <div key={`mvp-r-${i}`} className="flex flex-col items-center">
+                            <GoldProfileFrame size={42}>
+                              {slot?.avatar ? (
+                                <img src={slot.avatar} alt="" className="h-full w-full rounded-full object-cover object-center" />
+                              ) : slot?.name ? (
+                                <div className="h-full w-full rounded-full bg-[#1C1E24] flex items-center justify-center text-[#C9A96E] text-sm font-bold">
+                                  {slot.name.charAt(0).toUpperCase()}
+                                </div>
+                              ) : (
+                                <Plus className="text-[#C9A96E]" size={16} strokeWidth={2.5} />
+                              )}
+                            </GoldProfileFrame>
+                            <span className={`text-[8px] font-bold mt-0.5 tabular-nums ${i === 0 ? 'text-[#6BB6FF]' : 'text-white/50'}`}>{i + 1}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1626,29 +1727,44 @@ export default function SpectatorPage() {
                 </div>
               </div>
 
-              {/* Right: viewer count + close */}
-              <div className="pointer-events-auto flex items-center gap-2 flex-shrink-0">
-                <div className="flex items-center -space-x-1.5 pointer-events-auto" style={{ transform: 'translateX(5mm)' }}>
-                  {(() => {
+              {/* Right: session top gifters (total coins) — not the same as Battle MVP under the video */}
+              <div className="pointer-events-auto flex items-end gap-2 flex-shrink-0" style={{ transform: 'translateX(5mm)' }}>
+                <div
+                  className="flex flex-col items-center gap-0.5"
+                  onClick={() => {
+                    const list: { id: string; name: string; avatar: string; level?: number }[] = [];
                     const hid = hostUserIdRef.current || hostUserId || effectiveStreamId;
-                    const topSpectators = Array.from(actualViewersRef.current.entries())
-                      .filter(([id]) => id !== hid && id !== effectiveStreamId)
-                      .slice(0, 3);
-                    return [0, 1, 2].map((i) => {
-                      const spectator = topSpectators[i]?.[1];
+                    actualViewersRef.current.forEach((v, id) => {
+                      if (id !== user?.id && id !== hid && id !== effectiveStreamId) {
+                        list.push({ id, name: v.name, avatar: v.avatar, level: v.level });
+                      }
+                    });
+                    setViewersList(list);
+                    setShowViewersPanel(true);
+                  }}
+                >
+                  <span className="text-[8px] font-bold uppercase tracking-wide text-[#C9A96E]/90">Top gifters</span>
+                  <div className="flex items-center -space-x-1.5 pointer-events-auto">
+                    {[0, 1, 2].map((i) => {
+                      const slot = mvpSlots.global[i];
                       return (
-                        <div key={`spectator-top-mvp-${i}`} style={{ zIndex: 3 - i }} className="relative">
+                        <div key={`spectator-top-mvp-${i}`} style={{ zIndex: 3 - i }} className="relative flex flex-col items-center">
                           <GoldProfileFrame size={36}>
-                            {spectator?.avatar ? (
-                              <img src={spectator.avatar} alt="" className="h-full w-full rounded-full object-cover object-center" />
+                            {slot?.avatar ? (
+                              <img src={slot.avatar} alt="" className="h-full w-full rounded-full object-cover object-center" />
+                            ) : slot?.name ? (
+                              <div className="h-full w-full rounded-full bg-[#1C1E24] flex items-center justify-center text-[#C9A96E] text-sm font-bold">
+                                {slot.name.charAt(0).toUpperCase()}
+                              </div>
                             ) : (
                               <Plus className="text-[#C9A96E]" size={16} strokeWidth={2.5} />
                             )}
                           </GoldProfileFrame>
+                          <span className={`text-[7px] font-bold mt-0.5 tabular-nums ${i === 0 ? 'text-[#C9A96E]' : 'text-white/45'}`}>{i + 1}</span>
                         </div>
                       );
-                    });
-                  })()}
+                    })}
+                  </div>
                 </div>
                 {/* Viewer count */}
                 <button
@@ -2072,6 +2188,27 @@ export default function SpectatorPage() {
               onClick={() => setShowGiftPanel(false)}
             />
             <div className="fixed bottom-0 left-0 right-0 pointer-events-auto max-w-[480px] mx-auto" style={{ zIndex: 201 }}>
+              {spectatorBattle?.active && (
+                <div className="px-3 pb-2 pt-1 flex items-center justify-center gap-2 bg-[#13151A]/95 border-t border-[#C9A96E]/20 rounded-t-xl">
+                  <span className="text-white/60 text-[10px] font-semibold shrink-0">Gift boosts</span>
+                  <div className="flex rounded-full overflow-hidden border border-[#C9A96E]/40">
+                    <button
+                      type="button"
+                      onClick={() => setSpectatorGiftBattleTarget('host')}
+                      className={`px-3 py-1.5 text-[10px] font-bold transition-colors ${spectatorGiftBattleTarget === 'host' ? 'bg-[#DC143C]/90 text-white' : 'bg-[#13151A] text-white/70'}`}
+                    >
+                      Host
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSpectatorGiftBattleTarget('opponent')}
+                      className={`px-3 py-1.5 text-[10px] font-bold transition-colors ${spectatorGiftBattleTarget === 'opponent' ? 'bg-[#1E90FF]/90 text-white' : 'bg-[#13151A] text-white/70'}`}
+                    >
+                      Opponent
+                    </button>
+                  </div>
+                </div>
+              )}
               <GiftPanel
                 onSelectGift={handleSendGift}
                 userCoins={coinBalance}

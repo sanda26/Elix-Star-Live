@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { showToast } from '../lib/toast';
 import { platform } from '../lib/platform';
@@ -56,6 +56,7 @@ import { GiftPanel } from '../components/GiftPanel';
 import { RankingPanel } from '../components/RankingPanel';
 import { websocket } from '../lib/websocket';
 import LiveAIFilters from '../components/LiveAIFilters';
+import { normalizeBattleGiftTarget } from '../lib/liveBattleGiftTarget';
 import { IS_STORE_BUILD } from '../config/build';
 import { Room, RoomEvent, LocalVideoTrack, LocalAudioTrack } from 'livekit-client';
 
@@ -1821,7 +1822,46 @@ export default function LiveStream() {
   }, [isMicMuted]);
 
   const [activeViewers, setActiveViewers] = useState<LiveViewer[]>([]);
+  /** Coin value sent this session — global top gifters (top bar). */
+  const [mvpGiftScores, setMvpGiftScores] = useState<Record<string, number>>({});
+  /** Battle: gifts tagged for host/creator side (red). */
+  const [mvpGiftScoresHost, setMvpGiftScoresHost] = useState<Record<string, number>>({});
+  /** Battle: gifts tagged for opponent side (blue). */
+  const [mvpGiftScoresOpponent, setMvpGiftScoresOpponent] = useState<Record<string, number>>({});
   useEffect(() => { activeViewersRef.current = activeViewers; }, [activeViewers]);
+  useEffect(() => {
+    setMvpGiftScores({});
+    setMvpGiftScoresHost({});
+    setMvpGiftScoresOpponent({});
+  }, [effectiveStreamId]);
+
+  /** Session-wide top 3 by total gift coins (all gifts). Only current `activeViewers`; when someone leaves they drop off. Separate from battle team MVPs below. */
+  const topMvpViewers = useMemo(() => {
+    return [...activeViewers].sort((a, b) => {
+      const sa = mvpGiftScores[a.id] ?? 0;
+      const sb = mvpGiftScores[b.id] ?? 0;
+      if (sb !== sa) return sb - sa;
+      return b.level - a.level;
+    });
+  }, [activeViewers, mvpGiftScores]);
+
+  const topMvpHostBattle = useMemo(() => {
+    return [...activeViewers].sort((a, b) => {
+      const sa = mvpGiftScoresHost[a.id] ?? 0;
+      const sb = mvpGiftScoresHost[b.id] ?? 0;
+      if (sb !== sa) return sb - sa;
+      return b.level - a.level;
+    });
+  }, [activeViewers, mvpGiftScoresHost]);
+
+  const topMvpOpponentBattle = useMemo(() => {
+    return [...activeViewers].sort((a, b) => {
+      const sa = mvpGiftScoresOpponent[a.id] ?? 0;
+      const sb = mvpGiftScoresOpponent[b.id] ?? 0;
+      if (sb !== sa) return sb - sa;
+      return b.level - a.level;
+    });
+  }, [activeViewers, mvpGiftScoresOpponent]);
   useEffect(() => { speedChallengeTapsRef.current = speedChallengeTaps; }, [speedChallengeTaps]);
 
   // WebSocket: connect to room and track viewers
@@ -1940,6 +1980,30 @@ export default function LiveStream() {
     const handleGiftSent = (data: any) => {
       if (!mounted) return;
       const giftDef = GIFTS.find(g => g.id === data.giftId);
+      const gifterId = typeof data.user_id === 'string' ? data.user_id : '';
+      const giftCoins =
+        giftDef?.coins ??
+        (typeof data.coins === 'number' && Number.isFinite(data.coins) ? data.coins : 0);
+      if (gifterId && giftCoins > 0) {
+        setMvpGiftScores((prev) => ({
+          ...prev,
+          [gifterId]: (prev[gifterId] || 0) + giftCoins,
+        }));
+        if (isBattleModeRef.current) {
+          const side = normalizeBattleGiftTarget(data.battleTarget);
+          if (side === 'host') {
+            setMvpGiftScoresHost((prev) => ({
+              ...prev,
+              [gifterId]: (prev[gifterId] || 0) + giftCoins,
+            }));
+          } else if (side === 'opponent') {
+            setMvpGiftScoresOpponent((prev) => ({
+              ...prev,
+              [gifterId]: (prev[gifterId] || 0) + giftCoins,
+            }));
+          }
+        }
+      }
       if (giftDef) {
         const msg: LiveMessage = {
           id: `gift-ws-${Date.now()}-${Math.random()}`,
@@ -3457,35 +3521,53 @@ export default function LiveStream() {
             );
           })()}
 
-            <div className="w-full px-3 py-2 flex items-center justify-between flex-none pointer-events-none mt-1 relative z-30">
-              <div className="flex items-center gap-1 pointer-events-auto" onClick={() => setShowViewerList(true)}>
-                {[0, 1, 2].map((i) => (
-                  <div key={`mvp-l-${i}`} className="relative flex flex-col items-center">
-                    <GoldProfileFrame size={34}>
-                      {activeViewers[i]?.avatar ? (
-                        <img src={activeViewers[i].avatar} alt="" className="h-full w-full rounded-full object-cover object-center" />
-                      ) : (
-                        <Plus className="text-[#C9A96E]" size={14} strokeWidth={2.5} />
-                      )}
-                    </GoldProfileFrame>
-                    <span className={`text-[7px] font-bold mt-0.5 ${i === 0 ? 'text-[#C9A96E]' : 'text-white/50'}`}>MVP</span>
-                  </div>
-                ))}
+            {/* Battle MVP only (team splits) — different from global “Top gifters” in the main top bar */}
+            <div className="w-full px-3 pt-1 flex justify-center pointer-events-none">
+              <span className="text-[9px] font-bold uppercase tracking-wider text-white/45">Battle MVP</span>
+            </div>
+            <div className="w-full px-3 py-2 flex items-end justify-between flex-none pointer-events-none mt-0 relative z-30 gap-2">
+              <div className="flex flex-col items-center gap-0.5 min-w-0 flex-1">
+                <span className="text-[8px] font-bold uppercase tracking-wide text-[#FF8A8A]">Host</span>
+                <div className="flex items-center gap-1.5 pointer-events-auto" onClick={() => setShowViewerList(true)}>
+                  {[0, 1, 2].map((i) => (
+                    <div key={`mvp-l-${i}`} className="relative flex flex-col items-center">
+                      <GoldProfileFrame size={48}>
+                        {topMvpHostBattle[i]?.avatar ? (
+                          <img src={topMvpHostBattle[i].avatar} alt="" className="h-full w-full rounded-full object-cover object-center" />
+                        ) : topMvpHostBattle[i]?.displayName ? (
+                          <div className="h-full w-full rounded-full bg-[#1C1E24] flex items-center justify-center text-[#C9A96E] text-sm font-bold">
+                            {topMvpHostBattle[i].displayName.charAt(0).toUpperCase()}
+                          </div>
+                        ) : (
+                          <Plus className="text-[#C9A96E]" size={18} strokeWidth={2.5} />
+                        )}
+                      </GoldProfileFrame>
+                      <span className={`text-[8px] font-bold mt-0.5 tabular-nums ${i === 0 ? 'text-[#FF8A8A]' : 'text-white/50'}`}>{i + 1}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
 
-              <div className="flex items-center gap-1 pointer-events-auto" onClick={() => setShowViewerList(true)}>
-                {[0, 1, 2].map((i) => (
-                  <div key={`mvp-r-${i}`} className="relative flex flex-col items-center">
-                    <GoldProfileFrame size={34}>
-                      {activeViewers[i + 3]?.avatar ? (
-                        <img src={activeViewers[i + 3].avatar} alt="" className="h-full w-full rounded-full object-cover object-center" />
-                      ) : (
-                        <Plus className="text-[#C9A96E]" size={14} strokeWidth={2.5} />
-                      )}
-                    </GoldProfileFrame>
-                    <span className={`text-[7px] font-bold mt-0.5 ${i === 0 ? 'text-[#C9A96E]' : 'text-white/50'}`}>MVP</span>
-                  </div>
-                ))}
+              <div className="flex flex-col items-center gap-0.5 min-w-0 flex-1">
+                <span className="text-[8px] font-bold uppercase tracking-wide text-[#6BB6FF]">Opponent</span>
+                <div className="flex items-center gap-1.5 pointer-events-auto" onClick={() => setShowViewerList(true)}>
+                  {[0, 1, 2].map((i) => (
+                    <div key={`mvp-r-${i}`} className="relative flex flex-col items-center">
+                      <GoldProfileFrame size={48}>
+                        {topMvpOpponentBattle[i]?.avatar ? (
+                          <img src={topMvpOpponentBattle[i].avatar} alt="" className="h-full w-full rounded-full object-cover object-center" />
+                        ) : topMvpOpponentBattle[i]?.displayName ? (
+                          <div className="h-full w-full rounded-full bg-[#1C1E24] flex items-center justify-center text-[#C9A96E] text-sm font-bold">
+                            {topMvpOpponentBattle[i].displayName.charAt(0).toUpperCase()}
+                          </div>
+                        ) : (
+                          <Plus className="text-[#C9A96E]" size={18} strokeWidth={2.5} />
+                        )}
+                      </GoldProfileFrame>
+                      <span className={`text-[8px] font-bold mt-0.5 tabular-nums ${i === 0 ? 'text-[#6BB6FF]' : 'text-white/50'}`}>{i + 1}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
 
@@ -3651,19 +3733,27 @@ export default function LiveStream() {
                         </div>
                       </div>
 
-                      <div className="pointer-events-auto flex items-center gap-2 mt-5">
-                        <div className="flex items-center -space-x-1.5 pointer-events-auto flex-shrink-0" onClick={() => setShowViewerList(prev => !prev)}>
-                          {[0, 1, 2].map((i) => (
-                            <div key={`top-viewers-${i}`} style={{ zIndex: 3 - i }} className="relative">
-                              <GoldProfileFrame size={36}>
-                                {activeViewers[i]?.avatar ? (
-                                  <img src={activeViewers[i].avatar} alt="" className="h-full w-full rounded-full object-cover object-center" />
-                                ) : (
-                                  <Plus className="text-[#C9A96E]" size={16} strokeWidth={2.5} />
-                                )}
-                              </GoldProfileFrame>
-                            </div>
-                          ))}
+                      <div className="pointer-events-auto flex items-end gap-2 mt-5">
+                        <div className="flex flex-col items-center gap-0.5 flex-shrink-0" onClick={() => setShowViewerList(prev => !prev)}>
+                          <span className="text-[8px] font-bold uppercase tracking-wide text-[#C9A96E]/90">Top gifters</span>
+                          <div className="flex items-center -space-x-1.5 pointer-events-auto">
+                            {[0, 1, 2].map((i) => (
+                              <div key={`top-viewers-${i}`} style={{ zIndex: 3 - i }} className="relative flex flex-col items-center">
+                                <GoldProfileFrame size={36}>
+                                  {topMvpViewers[i]?.avatar ? (
+                                    <img src={topMvpViewers[i].avatar} alt="" className="h-full w-full rounded-full object-cover object-center" />
+                                  ) : topMvpViewers[i]?.displayName ? (
+                                    <div className="h-full w-full rounded-full bg-[#1C1E24] flex items-center justify-center text-[#C9A96E] text-sm font-bold">
+                                      {topMvpViewers[i].displayName.charAt(0).toUpperCase()}
+                                    </div>
+                                  ) : (
+                                    <Plus className="text-[#C9A96E]" size={16} strokeWidth={2.5} />
+                                  )}
+                                </GoldProfileFrame>
+                                <span className={`text-[7px] font-bold mt-0.5 tabular-nums ${i === 0 ? 'text-[#C9A96E]' : 'text-white/45'}`}>{i + 1}</span>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                         <button onClick={() => setShowViewerList(prev => !prev)} className="flex items-center gap-0.5 pointer-events-auto">
                           <span className="text-white text-[9px] font-bold tabular-nums">{formatCountShort(viewerCount)}</span>

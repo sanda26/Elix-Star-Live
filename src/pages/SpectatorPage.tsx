@@ -861,30 +861,46 @@ export default function SpectatorPage() {
         }
         syncMvpSlots();
       }
-      if (data.user_id === user?.id) return;
       if (giftDef) {
-        const msg: LiveMessage = {
-          id: `gift-ws-${Date.now()}-${Math.random()}`,
-          username: typeof data.username === 'string' ? data.username : 'User',
-          text: `sent ${giftDef.name}`,
-          level: typeof data.level === 'number' && Number.isFinite(data.level) ? data.level : 1,
-          avatar: typeof data.avatar === 'string' ? data.avatar : '',
-          isGift: true,
-        };
-        setMessages(prev => [...prev, msg]);
+        if (data.user_id !== user?.id) {
+          const msg: LiveMessage = {
+            id: `gift-ws-${Date.now()}-${Math.random()}`,
+            username: typeof data.username === 'string' ? data.username : 'User',
+            text: `sent ${giftDef.name}`,
+            level: typeof data.level === 'number' && Number.isFinite(data.level) ? data.level : 1,
+            avatar: typeof data.avatar === 'string' ? data.avatar : '',
+            isGift: true,
+          };
+          setMessages(prev => [...prev, msg]);
+        }
         // #region agent log
         fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'gift-flow-debug',hypothesisId:'H2',location:'src/pages/SpectatorPage.tsx:809',message:'Spectator received gift event',data:{giftId:data.giftId,receivedVideo:data.video ?? null,giftDefVideo:giftDef.video ?? null},timestamp:Date.now()})}).catch(()=>{});
         // #endregion
-        if (giftDef.video && giftDef.video.trim()) {
-          const raw = giftDef.video;
-          const videoUrl =
-            raw.startsWith('http://') || raw.startsWith('https://')
-              ? raw
-              : resolveGiftAssetUrl(raw.startsWith('/') ? raw : `/${raw}`);
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'gift-flow-debug',hypothesisId:'H3',location:'src/pages/SpectatorPage.tsx:816',message:'Queued gift overlay from giftDef.video',data:{giftId:data.giftId,queuedVideoUrl:videoUrl},timestamp:Date.now()})}).catch(()=>{});
-          // #endregion
-          setGiftQueue(prev => [...prev, { video: videoUrl }]);
+        // Match creator (LiveStream): only queue real video assets; prefer catalog path, else WS payload.
+        if (data.user_id !== user?.id) {
+          const isVideoFile = (value: string) => {
+            const p = value.split('?')[0].toLowerCase();
+            return p.endsWith('.mp4') || p.endsWith('.webm');
+          };
+          const incomingVideo = typeof data.video === 'string' ? data.video : '';
+          const defVideo = typeof giftDef.video === 'string' ? giftDef.video : '';
+          const pickedRawVideo =
+            defVideo && isVideoFile(defVideo)
+              ? defVideo
+              : incomingVideo && isVideoFile(incomingVideo)
+                ? incomingVideo
+                : '';
+          if (pickedRawVideo && pickedRawVideo.trim()) {
+            const raw = pickedRawVideo;
+            const videoUrl =
+              raw.startsWith('http://') || raw.startsWith('https://')
+                ? raw
+                : resolveGiftAssetUrl(raw.startsWith('/') ? raw : `/${raw}`);
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'gift-flow-debug',hypothesisId:'H3',location:'src/pages/SpectatorPage.tsx:816',message:'Queued gift overlay from picked video',data:{giftId:data.giftId,queuedVideoUrl:videoUrl},timestamp:Date.now()})}).catch(()=>{});
+            // #endregion
+            setGiftQueue(prev => [...prev, { video: videoUrl }]);
+          }
         }
       }
     };
@@ -1152,13 +1168,18 @@ export default function SpectatorPage() {
   // Spectator gift → creator: send to creator's room (broadcast so creator sees it and gets credit)
   const handleSendGift = async (gift: typeof GIFTS[0]) => {
     if (!gift) return;
+    const isGiftVideoFile = (value: string) => {
+      const p = value.split('?')[0].toLowerCase();
+      return p.endsWith('.mp4') || p.endsWith('.webm');
+    };
     if (coinBalance < gift.coins) {
       showToast(`Not enough coins (have ${coinBalance.toLocaleString()}, need ${gift.coins.toLocaleString()})`);
       // In local/dev builds, still preview the gift animation so video gifts can play even without balance.
       if (
         import.meta.env.MODE !== 'production' &&
         gift.video &&
-        gift.video.trim()
+        gift.video.trim() &&
+        isGiftVideoFile(gift.video)
       ) {
         const raw = gift.video;
         const videoUrl =
@@ -1196,7 +1217,7 @@ export default function SpectatorPage() {
 
     setShowGiftPanel(false);
 
-    if (gift.video && gift.video.trim()) {
+    if (gift.video && gift.video.trim() && isGiftVideoFile(gift.video)) {
       const raw = gift.video;
       const videoUrl =
         raw.startsWith('http://') || raw.startsWith('https://')

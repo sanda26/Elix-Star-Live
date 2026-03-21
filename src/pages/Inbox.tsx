@@ -260,28 +260,17 @@ export default function Inbox() {
   );
   const followersCount = Math.max(followersTotalCount, myNewFollowers.length);
 
-  const followersForCircles: FollowerProfile[] = (() => {
-    const map = new Map<string, FollowerProfile>();
-    for (const f of myNewFollowers) {
-      map.set(f.user_id, f);
-    }
-    for (const u of suggestedUsers) {
-      if (!u.id || map.has(u.id)) continue;
-      map.set(u.id, {
-        user_id: u.id,
-        username: u.username || 'user',
-        display_name: u.name || u.username || 'User',
-        avatar_url: u.avatar_url || null,
-      });
-    }
-    return Array.from(map.values());
-  })();
+  /** Real followers only (for list + circles) — never mix in suggested users. */
+  const followersListForUi = myNewFollowers.filter(isRealUser);
+
+  const followerIdSet = new Set(followersListForUi.map((f) => f.user_id));
+  const suggestedUsersNotFollowers = suggestedUsers.filter((u) => u.id && !followerIdSet.has(u.id));
 
   useEffect(() => {
     // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'inbox-followers-debug',hypothesisId:'F3',location:'src/pages/Inbox.tsx:263',message:'inbox followers counts',data:{currentUserId,followersCount,circlesCount:followersForCircles.length},timestamp:Date.now()})}).catch(()=>{});
+    fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'inbox-followers-debug',hypothesisId:'F3',location:'src/pages/Inbox.tsx:263',message:'inbox followers counts',data:{currentUserId,followersCount,followersListLen:followersListForUi.length},timestamp:Date.now()})}).catch(()=>{});
     // #endregion
-  }, [currentUserId, followersCount, followersForCircles.length]);
+  }, [currentUserId, followersCount, followersListForUi.length]);
 
   return (
     <div className="fixed inset-0 bg-[#13151A] flex justify-center">
@@ -302,49 +291,11 @@ export default function Inbox() {
           </button>
         </div>
 
-        {/* Circles — Create first, then followers (same as Friends) */}
+        {/* Circles — same order idea as Friends: suggested first, then each follower, Followers hub on the right (opens full list) */}
         <div className="px-3 py-2">
             <div className="flex gap-3 overflow-x-auto overflow-y-hidden no-scrollbar" style={{ WebkitOverflowScrolling: 'touch' }}>
-                <button
-                    type="button"
-                    onClick={() => setShowNewFollowersPanel(true)}
-                    className="flex-shrink-0 flex flex-col items-center gap-1" style={{ width: 95, minWidth: 95 }}
-                >
-                    <div className="relative" style={{ width: 85, height: 85 }} data-avatar-circle="followers">
-                        <img src="/Icons/Profile icon.png" alt="" className="w-full h-full object-contain" style={{ position: 'relative', zIndex: 1 }} />
-                        <img
-                            src={followersForCircles[0]?.avatar_url || user?.avatar || (user?.id && typeof localStorage !== 'undefined' ? localStorage.getItem('elix_avatar_' + user.id) : null) || '/Icons/Profile icon.png'}
-                            alt="Followers"
-                            className="absolute rounded-full object-cover"
-                            style={{ width: 52, height: 52, top: '45%', left: '51%', transform: 'translate(-50%, -50%)', zIndex: 0 }}
-                        />
-                    </div>
-                    <div className="text-[11px] text-white/80 truncate w-full text-center">Followers</div>
-                    <div className="text-[10px] text-[#C9A96E]/90 truncate w-full text-center">{followersCount}</div>
-                </button>
-
-                {followersForCircles.map((f) => (
-                    <button
-                        key={f.user_id}
-                        type="button"
-                        onClick={() => navigate(`/profile/${f.user_id}`)}
-                        className="flex-shrink-0 flex flex-col items-center gap-1" style={{ width: 95, minWidth: 95 }}
-                    >
-                        <div className="relative" style={{ width: 85, height: 85 }}>
-                            <img src="/Icons/Profile icon.png" alt="" className="w-full h-full object-contain" style={{ position: 'relative', zIndex: 1 }} />
-                            <img
-                                src={f.avatar_url || '/Icons/Profile icon.png'}
-                                alt={f.display_name || f.username || 'User'}
-                                className="absolute rounded-full object-cover"
-                                style={{ width: 52, height: 52, top: '45%', left: '51%', transform: 'translate(-50%, -50%)', zIndex: 0 }}
-                            />
-                        </div>
-                        <div className="text-[11px] text-white/80 truncate w-full text-center">{f.display_name || f.username || 'User'}</div>
-                    </button>
-                ))}
-
-                {/* All Elix users (always visible) */}
-                {suggestedUsers.map((u) => (
+                {/* Suggested (Friends-style); skip users already shown as followers */}
+                {suggestedUsersNotFollowers.map((u) => (
                     <button
                         key={u.id}
                         type="button"
@@ -407,6 +358,44 @@ export default function Inbox() {
                         <div className="text-[11px] text-white/80 truncate w-full text-center">{u.name || u.username}</div>
                     </button>
                 ))}
+
+                {followersListForUi.map((f) => (
+                    <button
+                        key={f.user_id}
+                        type="button"
+                        onClick={() => navigate(`/profile/${f.user_id}`)}
+                        className="flex-shrink-0 flex flex-col items-center gap-1" style={{ width: 95, minWidth: 95 }}
+                    >
+                        <div className="relative" style={{ width: 85, height: 85 }}>
+                            <img src="/Icons/Profile icon.png" alt="" className="w-full h-full object-contain" style={{ position: 'relative', zIndex: 1 }} />
+                            <img
+                                src={f.avatar_url || '/Icons/Profile icon.png'}
+                                alt={f.display_name || f.username || 'User'}
+                                className="absolute rounded-full object-cover"
+                                style={{ width: 52, height: 52, top: '45%', left: '51%', transform: 'translate(-50%, -50%)', zIndex: 0 }}
+                            />
+                        </div>
+                        <div className="text-[11px] text-white/80 truncate w-full text-center">{f.display_name || f.username || 'User'}</div>
+                    </button>
+                ))}
+
+                <button
+                    type="button"
+                    onClick={() => setShowNewFollowersPanel(true)}
+                    className="flex-shrink-0 flex flex-col items-center gap-1" style={{ width: 95, minWidth: 95 }}
+                >
+                    <div className="relative" style={{ width: 85, height: 85 }} data-avatar-circle="followers">
+                        <img src="/Icons/Profile icon.png" alt="" className="w-full h-full object-contain" style={{ position: 'relative', zIndex: 1 }} />
+                        <img
+                            src={myNewFollowers[0]?.avatar_url || user?.avatar || (user?.id && typeof localStorage !== 'undefined' ? localStorage.getItem('elix_avatar_' + user.id) : null) || '/Icons/Profile icon.png'}
+                            alt="Followers"
+                            className="absolute rounded-full object-cover"
+                            style={{ width: 52, height: 52, top: '45%', left: '51%', transform: 'translate(-50%, -50%)', zIndex: 0 }}
+                        />
+                    </div>
+                    <div className="text-[11px] text-white/80 truncate w-full text-center">Followers</div>
+                    <div className="text-[10px] text-[#C9A96E]/90 truncate w-full text-center">{followersCount}</div>
+                </button>
             </div>
         </div>
         </div>
@@ -643,11 +632,11 @@ export default function Inbox() {
                   <X size={22} className="text-white" />
                 </button>
               </div>
-              {followersForCircles.length === 0 ? (
+              {myNewFollowers.length === 0 ? (
               <p className="text-white/50 text-sm py-6 text-center">No one follows you yet. When they do, they’ll show here.</p>
             ) : (
               <div className="space-y-0.5 pb-2">
-                {followersForCircles.map((f) => (
+                {myNewFollowers.map((f) => (
                     <button
                       key={f.user_id}
                       type="button"

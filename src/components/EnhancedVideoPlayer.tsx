@@ -125,6 +125,8 @@ export default function EnhancedVideoPlayer({
   const duetOriginalRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const isActiveRef = useRef(isActive);
+  isActiveRef.current = isActive;
   
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
@@ -273,6 +275,15 @@ export default function EnhancedVideoPlayer({
         videoEl.muted = true;
         videoEl.play()
           .then(() => {
+            if (!isActiveRef.current) {
+              try {
+                videoEl.pause();
+                videoEl.muted = true;
+              } catch {
+                void 0;
+              }
+              return;
+            }
             setIsPlaying(true);
             if (!muteAllSounds) {
               videoEl.muted = false;
@@ -286,6 +297,15 @@ export default function EnhancedVideoPlayer({
             // Last resort: stay muted
             videoEl.muted = true;
             videoEl.play().then(() => {
+              if (!isActiveRef.current) {
+                try {
+                  videoEl.pause();
+                  videoEl.muted = true;
+                } catch {
+                  void 0;
+                }
+                return;
+              }
               setIsPlaying(true);
               setIsMuted(true);
             }).catch(() => {});
@@ -294,13 +314,14 @@ export default function EnhancedVideoPlayer({
 
       const tryPlay = () => {
         const el = videoRef.current;
-        if (!el) return;
+        if (!el || !isActiveRef.current) return;
         if (el.readyState >= 2) {
           runPlay(el);
         } else {
           const onReady = () => {
             el.removeEventListener('canplay', onReady);
             el.removeEventListener('loadeddata', onReady);
+            if (!isActiveRef.current) return;
             runPlay(el);
           };
           el.addEventListener('canplay', onReady);
@@ -318,7 +339,16 @@ export default function EnhancedVideoPlayer({
       const duetEl = duetOriginalRef.current;
       if (duetEl && isDuetLayout && duetOriginalSrc) {
         duetEl.muted = true;
-        duetEl.play().catch(() => {});
+        void duetEl.play().then(() => {
+          if (!isActiveRef.current) {
+            try {
+              duetEl.pause();
+              duetEl.muted = true;
+            } catch {
+              void 0;
+            }
+          }
+        });
       }
 
       const audio = audioRef.current;
@@ -330,7 +360,17 @@ export default function EnhancedVideoPlayer({
         audio.muted = muteAllSounds;
         audio.volume = volume;
         if (!muteAllSounds) {
-          audio.play().catch(() => {});
+          void audio.play().then(() => {
+            if (!isActiveRef.current) {
+              try {
+                audio.pause();
+                audio.muted = true;
+                audio.currentTime = 0;
+              } catch {
+                void 0;
+              }
+            }
+          });
         }
       }
 
@@ -339,16 +379,46 @@ export default function EnhancedVideoPlayer({
         const v = videoRef.current;
         if (v) { try { v.pause(); v.muted = true; } catch { void 0; } }
         const a = audioRef.current;
-        if (a) { try { a.pause(); } catch { void 0; } }
-        if (duetOriginalRef.current) { try { duetOriginalRef.current.pause(); } catch { void 0; } }
+        if (a) {
+          try {
+            a.pause();
+            a.muted = true;
+            a.currentTime = 0;
+          } catch {
+            void 0;
+          }
+        }
+        if (duetOriginalRef.current) {
+          try {
+            duetOriginalRef.current.pause();
+            duetOriginalRef.current.muted = true;
+          } catch {
+            void 0;
+          }
+        }
       };
     } else {
       const v = videoRef.current;
       if (v) { try { v.pause(); v.muted = true; } catch { void 0; } }
-      if (duetOriginalRef.current) { try { duetOriginalRef.current.pause(); } catch { void 0; } }
+      if (duetOriginalRef.current) {
+        try {
+          duetOriginalRef.current.pause();
+          duetOriginalRef.current.muted = true;
+        } catch {
+          void 0;
+        }
+      }
       setIsPlaying(false);
       const a = audioRef.current;
-      if (a) { try { a.pause(); } catch { void 0; } }
+      if (a) {
+        try {
+          a.pause();
+          a.muted = true;
+          a.currentTime = 0;
+        } catch {
+          void 0;
+        }
+      }
     }
   }, [incrementViews, isActive, isDuetLayout, muteAllSounds, originalVideo, video?.url, video?.music?.previewUrl, videoId, volume]);
 

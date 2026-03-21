@@ -88,7 +88,7 @@ export function GiftOverlay({ videoSrc, previewSrc: _previewSrc, onEnded, isBatt
       className="absolute left-0 right-0 bottom-0 pointer-events-none overflow-hidden"
       style={{
         height: '70%',
-        zIndex: 30,
+        zIndex: 95,
         WebkitMaskImage: 'linear-gradient(to top, black 0%, black 60%, transparent 100%)',
         maskImage: 'linear-gradient(to top, black 0%, black 60%, transparent 100%)',
       }}

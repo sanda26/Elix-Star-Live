@@ -18,20 +18,39 @@ export async function handleGetThreads(req: Request, res: Response): Promise<voi
   if (!db) { res.json({ data: [] }); return; }
 
   const result = await db.query(
-    `SELECT t.*, 
-      CASE WHEN t.user1_id = $1 THEN t.user2_id ELSE t.user1_id END AS other_user_id
-     FROM chat_threads t 
+    `SELECT t.*,
+      CASE WHEN t.user1_id = $1 THEN t.user2_id ELSE t.user1_id END AS other_user_id,
+      COALESCE((
+        SELECT COUNT(*)::int FROM messages msg
+        WHERE msg.thread_id = t.id
+          AND msg.sender_id <> $1
+          AND COALESCE(msg.read, false) = false
+      ), 0) AS unread_count
+     FROM chat_threads t
      WHERE t.user1_id = $1 OR t.user2_id = $1
      ORDER BY t.last_at DESC`,
-    [userId]
+    [userId],
   );
 
   const threads = await Promise.all(result.rows.map(async (t: any) => {
     const otherUserId = t.other_user_id;
     let otherUser = { username: "User", display_name: "User", avatar_url: "" };
     try {
-      const u = await db.query(`SELECT username, display_name, avatar_url FROM auth_users WHERE id = $1`, [otherUserId]);
-      if (u.rows[0]) otherUser = u.rows[0];
+      const p = await db.query(
+        `SELECT username, display_name, avatar_url FROM profiles WHERE user_id = $1 LIMIT 1`,
+        [otherUserId],
+      );
+      if (p.rows[0]) {
+        const row = p.rows[0] as { username?: string; display_name?: string; avatar_url?: string };
+        otherUser = {
+          username: row.username || "User",
+          display_name: (row.display_name || row.username || "User") as string,
+          avatar_url: row.avatar_url || "",
+        };
+      } else {
+        const u = await db.query(`SELECT username, display_name, avatar_url FROM auth_users WHERE id = $1`, [otherUserId]);
+        if (u.rows[0]) otherUser = u.rows[0];
+      }
     } catch {}
     return {
       id: t.id,
@@ -96,8 +115,15 @@ export async function handleGetMessages(req: Request, res: Response): Promise<vo
 
   const result = await db.query(
     `SELECT * FROM messages WHERE thread_id = $1 ORDER BY created_at ASC`,
-    [threadId]
+    [threadId],
   );
+
+  await db
+    .query(
+      `UPDATE messages SET read = true WHERE thread_id = $1 AND sender_id <> $2`,
+      [threadId, userId],
+    )
+    .catch(() => {});
 
   res.json({ data: result.rows });
 }
@@ -121,8 +147,8 @@ export async function handleSendMessage(req: Request, res: Response): Promise<vo
 
   const id = crypto.randomUUID();
   await db.query(
-    `INSERT INTO messages (id, thread_id, sender_id, text) VALUES ($1, $2, $3, $4)`,
-    [id, threadId, userId, text.trim()]
+    `INSERT INTO messages (id, thread_id, sender_id, text, read) VALUES ($1, $2, $3, $4, false)`,
+    [id, threadId, userId, text.trim()],
   );
 
   await db.query(

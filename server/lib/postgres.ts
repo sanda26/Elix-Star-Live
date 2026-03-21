@@ -190,6 +190,9 @@ export async function initPostgres(): Promise<void> {
         created_at TIMESTAMPTZ DEFAULT NOW()
       )
     `);
+    await pool
+      .query(`ALTER TABLE messages ADD COLUMN IF NOT EXISTS read BOOLEAN DEFAULT FALSE`)
+      .catch(() => {});
 
     await pool.query(`
       CREATE TABLE IF NOT EXISTS follows (
@@ -214,6 +217,22 @@ export async function initPostgres(): Promise<void> {
         );
       });
     }
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS live_share_inbox (
+        id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+        recipient_id TEXT NOT NULL,
+        sharer_id TEXT NOT NULL,
+        stream_key TEXT NOT NULL,
+        host_user_id TEXT NOT NULL,
+        host_name TEXT DEFAULT '',
+        host_avatar TEXT DEFAULT '',
+        sharer_name TEXT DEFAULT '',
+        sharer_avatar TEXT DEFAULT '',
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        UNIQUE (recipient_id, sharer_id, stream_key)
+      )
+    `);
 
     const userCount = await pool.query(`SELECT COUNT(*) as cnt FROM auth_users`);
     const profileCount = await pool.query(`SELECT COUNT(*) as cnt FROM profiles`);
@@ -375,6 +394,98 @@ export async function dbGetLiveStreams(): Promise<
     return res.rows;
   } catch (err) {
     logger.error({ err }, "Postgres get live_streams failed");
+    return [];
+  }
+}
+
+export type LiveShareInboxRow = {
+  sharer_id: string;
+  stream_key: string;
+  host_user_id: string;
+  host_name: string;
+  host_avatar: string;
+  sharer_name: string;
+  sharer_avatar: string;
+  created_at: string;
+};
+
+/** Someone shared a live with recipient (Inbox → Requests). */
+export async function upsertLiveShareInbox(row: {
+  recipientId: string;
+  sharerId: string;
+  streamKey: string;
+  hostUserId: string;
+  hostName: string;
+  hostAvatar: string;
+  sharerName: string;
+  sharerAvatar: string;
+}): Promise<boolean> {
+  if (!pool) return false;
+  try {
+    await pool.query(
+      `INSERT INTO live_share_inbox (
+         recipient_id, sharer_id, stream_key, host_user_id, host_name, host_avatar, sharer_name, sharer_avatar, created_at
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+       ON CONFLICT (recipient_id, sharer_id, stream_key) DO UPDATE SET
+         host_user_id = EXCLUDED.host_user_id,
+         host_name = EXCLUDED.host_name,
+         host_avatar = EXCLUDED.host_avatar,
+         sharer_name = EXCLUDED.sharer_name,
+         sharer_avatar = EXCLUDED.sharer_avatar,
+         created_at = NOW()`,
+      [
+        row.recipientId,
+        row.sharerId,
+        row.streamKey,
+        row.hostUserId,
+        row.hostName.slice(0, 120),
+        row.hostAvatar.slice(0, 500),
+        row.sharerName.slice(0, 120),
+        row.sharerAvatar.slice(0, 500),
+      ],
+    );
+    return true;
+  } catch (err) {
+    logger.error({ err }, "Postgres upsert live_share_inbox failed");
+    return false;
+  }
+}
+
+/** Shares from people you do not follow — keeps Main chat list uncluttered. */
+export async function listLiveShareRequestsNonFollowing(recipientId: string): Promise<LiveShareInboxRow[]> {
+  if (!pool) return [];
+  try {
+    const res = await pool.query(
+      `SELECT l.sharer_id, l.stream_key, l.host_user_id,
+              COALESCE(l.host_name, '') AS host_name,
+              COALESCE(l.host_avatar, '') AS host_avatar,
+              COALESCE(l.sharer_name, '') AS sharer_name,
+              COALESCE(l.sharer_avatar, '') AS sharer_avatar,
+              l.created_at
+       FROM live_share_inbox l
+       WHERE l.recipient_id = $1
+         AND l.sharer_id <> $1
+         AND NOT EXISTS (
+           SELECT 1 FROM follows f
+           WHERE f.follower_id = $1 AND f.following_id = l.sharer_id
+         )
+       ORDER BY l.created_at DESC
+       LIMIT 80`,
+      [recipientId],
+    );
+    return (res.rows || []).map((r: Record<string, unknown>) => ({
+      sharer_id: String(r.sharer_id ?? ""),
+      stream_key: String(r.stream_key ?? ""),
+      host_user_id: String(r.host_user_id ?? ""),
+      host_name: String(r.host_name ?? ""),
+      host_avatar: String(r.host_avatar ?? ""),
+      sharer_name: String(r.sharer_name ?? ""),
+      sharer_avatar: String(r.sharer_avatar ?? ""),
+      created_at:
+        r.created_at instanceof Date ? (r.created_at as Date).toISOString() : String(r.created_at ?? ""),
+    }));
+  } catch (err) {
+    logger.error({ err, recipientId }, "Postgres list live_share_inbox failed");
     return [];
   }
 }

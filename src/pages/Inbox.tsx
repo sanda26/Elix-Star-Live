@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { apiStub } from '../lib/apiStub';
 import { useAuthStore } from '../store/useAuthStore';
 import { nativeConfirm } from '../components/NativeDialog';
-import { Heart, UserPlus, Search, ShoppingBag, Archive, MicOff, Plus, Sword, X, ChevronRight, Trash2 } from 'lucide-react';
+import { Heart, UserPlus, Search, ShoppingBag, Archive, MicOff, Plus, Sword, X, ChevronRight, Trash2, Bookmark, MessageCircle, AtSign, Share2 } from 'lucide-react';
 import { AvatarRing } from '../components/AvatarRing';
 import { showToast } from '../lib/toast';
 import { apiUrl } from '../lib/api';
@@ -31,6 +31,7 @@ interface Conversation {
   otherUser?: { username: string; display_name: string | null; avatar_url: string | null };
   lastMessage?: string;
   hasUnread?: boolean;
+  unreadCount?: number;
 }
 
 interface FollowerProfile {
@@ -48,6 +49,29 @@ interface SuggestedUser {
   is_live?: boolean;
 }
 
+interface ActivityItem {
+  id: string;
+  kind: 'like' | 'comment' | 'save' | 'mention';
+  video_id: string;
+  actor_user_id: string;
+  actor_username: string;
+  actor_display_name: string | null;
+  actor_avatar_url: string | null;
+  snippet: string | null;
+  created_at: string;
+}
+
+interface LiveShareRequestItem {
+  sharer_id: string;
+  stream_key: string;
+  host_user_id: string;
+  host_name: string;
+  host_avatar: string;
+  sharer_name: string;
+  sharer_avatar: string;
+  created_at: string;
+}
+
 
 
 
@@ -55,6 +79,7 @@ interface SuggestedUser {
 
 export default function Inbox() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuthStore();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -64,6 +89,8 @@ export default function Inbox() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<'main' | 'requests' | 'unread' | 'starred' | 'activity'>('main');
   const [showNewFollowersPanel, setShowNewFollowersPanel] = useState(false);
+  const [activityItems, setActivityItems] = useState<ActivityItem[]>([]);
+  const [liveShareRequests, setLiveShareRequests] = useState<LiveShareRequestItem[]>([]);
   const deletedThreadIdsRef = useRef<Set<string>>(new Set());
 
   const INBOX_DELETED_KEY = () => `elix_inbox_deleted_${currentUserId || ''}`;
@@ -117,46 +144,46 @@ export default function Inbox() {
     };
     const fetchConversations = async () => {
       try {
-        const { data } = await apiStub
-          .from('chat_threads')
-          .select('*')
-          .or(`user1_id.eq.${currentUserId},user2_id.eq.${currentUserId}`)
-          .order('last_at', { ascending: false })
-          .limit(50);
-        if (data) {
-          const mapped = await Promise.all(data.map(async (t: any) => {
-            const otherId = t.user1_id === currentUserId ? t.user2_id : t.user1_id;
-            const { data: profile } = await apiStub
-              .from('profiles')
-              .select('username, display_name, avatar_url')
-              .eq('user_id', otherId)
-              .single();
-            const otherUser = profile ? { username: profile.username || 'User', display_name: profile.display_name || null, avatar_url: profile.avatar_url } : { username: 'User', display_name: null, avatar_url: null };
-            const { count } = await apiStub
-              .from('messages')
-              .select('*', { count: 'exact', head: true })
-              .eq('thread_id', t.id)
-              .neq('sender_id', currentUserId)
-              .eq('read', false);
-            return {
-              id: t.id,
-              user1_id: t.user1_id,
-              user2_id: t.user2_id,
-              last_at: t.last_at || t.created_at,
-              otherUser,
-              lastMessage: t.last_message || '',
-              hasUnread: (count ?? 0) > 0,
-            };
-          }));
-          const filtered = mapped.filter((c: any) => {
-            const name = (c.otherUser?.display_name || c.otherUser?.username || '').trim().toLowerCase();
-            if (name === 'user' || name === '') return false;
-            if (getDeletedThreadIds().has(c.id)) return false;
-            return true;
-          });
-          setConversations(filtered);
+        const session = useAuthStore.getState().session;
+        const headers: Record<string, string> = {};
+        if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+        const res = await fetch(apiUrl('/api/chat/threads'), { credentials: 'include', headers });
+        if (!res.ok) {
+          setConversations([]);
+          return;
         }
-      } catch { /* ignore */ }
+        const body = await res.json().catch(() => ({ data: [] }));
+        const rows = Array.isArray(body?.data) ? body.data : [];
+        const mapped: Conversation[] = rows.map((t: Record<string, unknown>) => {
+          const un = Number(t.unread_count ?? 0);
+          const display =
+            String(t.other_username ?? '')
+              .trim() || 'User';
+          return {
+            id: String(t.id ?? ''),
+            user1_id: String(t.user1_id ?? ''),
+            user2_id: String(t.user2_id ?? ''),
+            last_at: String(t.last_at ?? t.created_at ?? ''),
+            otherUser: {
+              username: display,
+              display_name: display,
+              avatar_url: (t.other_avatar != null ? String(t.other_avatar) : null) as string | null,
+            },
+            lastMessage: String(t.last_message ?? ''),
+            hasUnread: un > 0,
+            unreadCount: un,
+          };
+        });
+        const filtered = mapped.filter((c) => {
+          const name = (c.otherUser?.display_name || c.otherUser?.username || '').trim().toLowerCase();
+          if (name === 'user' || name === '') return false;
+          if (getDeletedThreadIds().has(c.id)) return false;
+          return true;
+        });
+        setConversations(filtered);
+      } catch {
+        setConversations([]);
+      }
     };
     const fetchFollowers = async () => {
       try {
@@ -220,11 +247,71 @@ export default function Inbox() {
         setSuggestedUsers(mapped);
       } catch {}
     };
+    const fetchActivity = async () => {
+      try {
+        const session = useAuthStore.getState().session;
+        const headers: Record<string, string> = {};
+        if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+        const res = await fetch(apiUrl('/api/activity'), { credentials: 'include', headers });
+        if (!res.ok) {
+          setActivityItems([]);
+          return;
+        }
+        const body = await res.json().catch(() => ({ activities: [] }));
+        const raw = Array.isArray(body?.activities) ? body.activities : [];
+        const list: ActivityItem[] = raw
+          .filter((a: any) => a && (a.kind === 'like' || a.kind === 'comment' || a.kind === 'save' || a.kind === 'mention'))
+          .map((a: any) => ({
+            id: String(a.id || ''),
+            kind: a.kind as ActivityItem['kind'],
+            video_id: String(a.video_id || ''),
+            actor_user_id: String(a.actor_user_id || ''),
+            actor_username: String(a.actor_username || 'user'),
+            actor_display_name: a.actor_display_name ?? null,
+            actor_avatar_url: a.actor_avatar_url ?? null,
+            snippet: a.snippet ?? null,
+            created_at: String(a.created_at || ''),
+          }));
+        setActivityItems(list);
+      } catch {
+        setActivityItems([]);
+      }
+    };
+    const fetchLiveShareRequests = async () => {
+      try {
+        const session = useAuthStore.getState().session;
+        const headers: Record<string, string> = {};
+        if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+        const res = await fetch(apiUrl('/api/inbox/live-share-requests'), { credentials: 'include', headers });
+        if (!res.ok) {
+          setLiveShareRequests([]);
+          return;
+        }
+        const body = await res.json().catch(() => ({ items: [] }));
+        const raw = Array.isArray(body?.items) ? body.items : [];
+        setLiveShareRequests(
+          raw.map((row: Record<string, unknown>) => ({
+            sharer_id: String(row.sharer_id ?? ''),
+            stream_key: String(row.stream_key ?? ''),
+            host_user_id: String(row.host_user_id ?? ''),
+            host_name: String(row.host_name ?? ''),
+            host_avatar: String(row.host_avatar ?? ''),
+            sharer_name: String(row.sharer_name ?? ''),
+            sharer_avatar: String(row.sharer_avatar ?? ''),
+            created_at: String(row.created_at ?? ''),
+          })),
+        );
+      } catch {
+        setLiveShareRequests([]);
+      }
+    };
     fetchNotifications();
     fetchConversations();
     fetchFollowers();
     fetchSuggestedUsers();
-  }, [currentUserId]);
+    fetchActivity();
+    fetchLiveShareRequests();
+  }, [currentUserId, location.pathname]);
 
   const isRealUser = (f: FollowerProfile) => {
     const name = (f.display_name || f.username || '').trim().toLowerCase();
@@ -245,6 +332,28 @@ export default function Inbox() {
 
   const followerIdSet = new Set(followersListForUi.map((f) => f.user_id));
   const suggestedUsersNotFollowers = suggestedUsers.filter((u) => u.id && !followerIdSet.has(u.id));
+
+  const activitySummaryCount =
+    activityItems.length > 0
+      ? activityItems.length
+      : notifications.filter((n) => n.type === 'like' || n.type === 'comment').length;
+
+  const activityLine = (a: ActivityItem): string => {
+    if (a.kind === 'like') return 'Liked your video';
+    if (a.kind === 'save') return 'Saved your video';
+    if (a.kind === 'mention') {
+      if (a.snippet?.trim()) {
+        const t = a.snippet.trim();
+        return t.length > 80 ? `Mentioned you: "${t.slice(0, 80)}…"` : `Mentioned you: "${t}"`;
+      }
+      return 'Mentioned you in a comment';
+    }
+    if (a.snippet?.trim()) {
+      const t = a.snippet.trim();
+      return t.length > 90 ? `Commented: "${t.slice(0, 90)}…"` : `Commented: "${t}"`;
+    }
+    return 'Commented on your video';
+  };
 
   useEffect(() => {
     // #region agent log
@@ -271,9 +380,27 @@ export default function Inbox() {
           </button>
         </div>
 
-        {/* Circles — same order idea as Friends: suggested first, then each follower, Followers hub on the right (opens full list) */}
+        {/* Circles — Followers hub first; suggested + per-follower avatars scroll to the right */}
         <div className="px-3 py-2">
             <div className="flex gap-3 overflow-x-auto overflow-y-hidden no-scrollbar" style={{ WebkitOverflowScrolling: 'touch' }}>
+                <button
+                    type="button"
+                    onClick={() => setShowNewFollowersPanel(true)}
+                    className="flex-shrink-0 flex flex-col items-center gap-1" style={{ width: 95, minWidth: 95 }}
+                >
+                    <div className="relative" style={{ width: 85, height: 85 }} data-avatar-circle="followers">
+                        <img src="/Icons/Profile icon.png" alt="" className="w-full h-full object-contain" style={{ position: 'relative', zIndex: 1 }} />
+                        <img
+                            src={myNewFollowers[0]?.avatar_url || user?.avatar || (user?.id && typeof localStorage !== 'undefined' ? localStorage.getItem('elix_avatar_' + user.id) : null) || '/Icons/Profile icon.png'}
+                            alt="Followers"
+                            className="absolute rounded-full object-cover"
+                            style={{ width: 52, height: 52, top: '45%', left: '51%', transform: 'translate(-50%, -50%)', zIndex: 0 }}
+                        />
+                    </div>
+                    <div className="text-[11px] text-white/80 truncate w-full text-center">Followers</div>
+                    <div className="text-[10px] text-[#C9A96E]/90 truncate w-full text-center">{followersCount}</div>
+                </button>
+
                 {/* Suggested (Friends-style); skip users already shown as followers */}
                 {suggestedUsersNotFollowers.map((u) => (
                     <button
@@ -358,24 +485,6 @@ export default function Inbox() {
                         <div className="text-[11px] text-white/80 truncate w-full text-center">{f.display_name || f.username || 'User'}</div>
                     </button>
                 ))}
-
-                <button
-                    type="button"
-                    onClick={() => setShowNewFollowersPanel(true)}
-                    className="flex-shrink-0 flex flex-col items-center gap-1" style={{ width: 95, minWidth: 95 }}
-                >
-                    <div className="relative" style={{ width: 85, height: 85 }} data-avatar-circle="followers">
-                        <img src="/Icons/Profile icon.png" alt="" className="w-full h-full object-contain" style={{ position: 'relative', zIndex: 1 }} />
-                        <img
-                            src={myNewFollowers[0]?.avatar_url || user?.avatar || (user?.id && typeof localStorage !== 'undefined' ? localStorage.getItem('elix_avatar_' + user.id) : null) || '/Icons/Profile icon.png'}
-                            alt="Followers"
-                            className="absolute rounded-full object-cover"
-                            style={{ width: 52, height: 52, top: '45%', left: '51%', transform: 'translate(-50%, -50%)', zIndex: 0 }}
-                        />
-                    </div>
-                    <div className="text-[11px] text-white/80 truncate w-full text-center">Followers</div>
-                    <div className="text-[10px] text-[#C9A96E]/90 truncate w-full text-center">{followersCount}</div>
-                </button>
             </div>
         </div>
         </div>
@@ -427,8 +536,8 @@ export default function Inbox() {
                 <div className="flex-1 min-w-0">
                     <h3 className="font-bold text-sm text-gold-metallic">Activity</h3>
                     <p className="text-white text-xs truncate">
-                      {notifications.filter(n => n.type === 'like' || n.type === 'comment').length
-                        ? `${notifications.filter(n => n.type === 'like' || n.type === 'comment').length} likes & comments`
+                      {activitySummaryCount > 0
+                        ? `${activitySummaryCount} likes, comments & saves`
                         : 'No recent activity'}
                     </p>
                 </div>
@@ -445,7 +554,12 @@ export default function Inbox() {
                             <div className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer" onClick={() => navigate(`/inbox/${conv.id}`)}>
                                 <AvatarRing src={conv.otherUser?.avatar_url || ''} alt={conv.otherUser?.display_name || conv.otherUser?.username || 'User'} size={48} />
                                 <div className="flex-1 min-w-0">
-                                    <p className="font-semibold text-sm text-white truncate">{conv.otherUser?.display_name || conv.otherUser?.username || 'User'}</p>
+                                    <p className="font-semibold text-sm text-white truncate flex items-center gap-1.5">
+                                      {conv.otherUser?.display_name || conv.otherUser?.username || 'User'}
+                                      {conv.hasUnread ? (
+                                        <span className="inline-block w-2 h-2 rounded-full bg-[#C9A96E] flex-shrink-0" title="Unread" aria-label="Unread messages" />
+                                      ) : null}
+                                    </p>
                                     <p className="text-white/60 text-xs truncate">{conv.lastMessage || 'No messages yet'}</p>
                                 </div>
                             </div>
@@ -455,13 +569,23 @@ export default function Inbox() {
                                     e.stopPropagation();
                                     const ok = await nativeConfirm('Delete this conversation? Messages will be removed.', 'Delete Conversation');
                                     if (!ok) return;
-                                    apiStub.from('chat_threads').delete().eq('id', conv.id).then(({ error }) => {
-                                        if (error) showToast('Could not delete');
-                                        else {
-                                          addDeletedThreadId(conv.id);
-                                          setConversations((prev) => prev.filter((c) => c.id !== conv.id));
-                                        }
-                                    });
+                                    try {
+                                      const session = useAuthStore.getState().session;
+                                      const headers: Record<string, string> = {};
+                                      if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+                                      const delRes = await fetch(apiUrl(`/api/chat/threads/${encodeURIComponent(conv.id)}`), {
+                                        method: 'DELETE',
+                                        credentials: 'include',
+                                        headers,
+                                      });
+                                      if (!delRes.ok) showToast('Could not delete');
+                                      else {
+                                        addDeletedThreadId(conv.id);
+                                        setConversations((prev) => prev.filter((c) => c.id !== conv.id));
+                                      }
+                                    } catch {
+                                      showToast('Could not delete');
+                                    }
                                 }}
                                 className="w-10 h-10 rounded-full bg-[#13151A] border border-[#C9A96E]/40 flex items-center justify-center flex-shrink-0 active:scale-95 transition-transform hover:border-red-500/50 hover:bg-red-500/10"
                                 title="Delete conversation"
@@ -476,12 +600,15 @@ export default function Inbox() {
             </>
             )}
 
-            {/* Unread — only conversations with unread messages */}
+            {/* Unread — chats with messages you haven’t opened yet (server tracks read state) */}
             {activeFilter === 'unread' && (
             <div className="space-y-1 pt-2">
                 <h3 className="font-bold text-sm text-gold-metallic px-1 pb-2">Unread messages</h3>
+                <p className="text-white/45 text-[11px] px-1 pb-3 leading-snug">
+                  Chats appear here when someone messaged you and you haven’t opened the conversation yet. Opening a chat marks those messages as read.
+                </p>
                 {conversations.filter((c) => c.hasUnread).length === 0 ? (
-                    <p className="text-white/50 text-xs px-1 py-2">No unread messages</p>
+                    <p className="text-white/50 text-xs px-1 py-2">You’re all caught up.</p>
                 ) : (
                     conversations.filter((c) => c.hasUnread).map((conv) => (
                         <div key={conv.id} className="flex items-center gap-3 py-2 px-2 rounded-lg hover:bg-white/5 active:bg-white/10 group">
@@ -489,7 +616,13 @@ export default function Inbox() {
                                 <AvatarRing src={conv.otherUser?.avatar_url || ''} alt={conv.otherUser?.display_name || conv.otherUser?.username || 'User'} size={48} />
                                 <div className="flex-1 min-w-0">
                                     <p className="font-semibold text-sm text-white truncate">{conv.otherUser?.display_name || conv.otherUser?.username || 'User'}</p>
-                                    <p className="text-white/60 text-xs truncate">{conv.lastMessage || 'No messages yet'}</p>
+                                    <p className="text-white/60 text-xs truncate">
+                                      {(conv.unreadCount ?? 0) > 1
+                                        ? `${conv.unreadCount} unread · ${conv.lastMessage || 'Tap to open'}`
+                                        : conv.lastMessage
+                                          ? `Unread · ${conv.lastMessage}`
+                                          : 'Unread — tap to open'}
+                                    </p>
                                 </div>
                             </div>
                             <button
@@ -498,13 +631,23 @@ export default function Inbox() {
                                     e.stopPropagation();
                                     const ok = await nativeConfirm('Delete this conversation? Messages will be removed.', 'Delete Conversation');
                                     if (!ok) return;
-                                    apiStub.from('chat_threads').delete().eq('id', conv.id).then(({ error }) => {
-                                        if (error) showToast('Could not delete');
-                                        else {
-                                          addDeletedThreadId(conv.id);
-                                          setConversations((prev) => prev.filter((c) => c.id !== conv.id));
-                                        }
-                                    });
+                                    try {
+                                      const session = useAuthStore.getState().session;
+                                      const headers: Record<string, string> = {};
+                                      if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+                                      const delRes = await fetch(apiUrl(`/api/chat/threads/${encodeURIComponent(conv.id)}`), {
+                                        method: 'DELETE',
+                                        credentials: 'include',
+                                        headers,
+                                      });
+                                      if (!delRes.ok) showToast('Could not delete');
+                                      else {
+                                        addDeletedThreadId(conv.id);
+                                        setConversations((prev) => prev.filter((c) => c.id !== conv.id));
+                                      }
+                                    } catch {
+                                      showToast('Could not delete');
+                                    }
                                 }}
                                 className="w-10 h-10 rounded-full bg-[#13151A] border border-[#C9A96E]/40 flex items-center justify-center flex-shrink-0 active:scale-95 transition-transform hover:border-red-500/50 hover:bg-red-500/10"
                                 title="Delete conversation"
@@ -518,39 +661,132 @@ export default function Inbox() {
             </div>
             )}
 
-            {/* Activity list — people who liked or commented on your videos; tap opens that video */}
-            {activeFilter === 'activity' && (
-              <>
-                {notifications.filter(n => n.type === 'like' || n.type === 'comment').length === 0 ? (
-                  <div className="py-8 text-center text-white/50 text-sm">No likes or comments yet. When someone likes or comments on your video, they’ll show here.</div>
+            {/* Requests — live shares from people you don’t follow (Main stays for people you follow / DMs) */}
+            {activeFilter === 'requests' && (
+            <div className="space-y-1 pt-2">
+                <h3 className="font-bold text-sm text-gold-metallic px-1 pb-2">Requests</h3>
+                <p className="text-white/45 text-[11px] px-1 pb-3 leading-snug">
+                  People who shared a live with you show here when you don’t follow them yet, so your main inbox stays clear.
+                </p>
+                {liveShareRequests.length === 0 ? (
+                    <p className="text-white/50 text-xs px-1 py-2">No live shares right now.</p>
                 ) : (
-                  <div className="space-y-1 pb-4">
-                    {notifications.filter(n => n.type === 'like' || n.type === 'comment').map(notif => {
-                      const actorName = notif.rawData?.actor_display_name || (notif.rawData?.actor_username ? `@${notif.rawData.actor_username}` : null) || notif.title || 'Someone';
-                      const actionUrl = notif.action_url || notif.rawData?.action_url;
+                    liveShareRequests.map((row) => {
+                      const who = row.sharer_name?.trim() || 'Someone';
+                      const hostLabel = row.host_name?.trim() || 'a creator';
                       return (
                         <button
-                          key={notif.id}
-                          onClick={() => { if (actionUrl) navigate(actionUrl); }}
+                          key={`${row.sharer_id}_${row.stream_key}`}
+                          type="button"
+                          onClick={() => {
+                            if (row.stream_key) navigate(`/watch/${encodeURIComponent(row.stream_key)}`);
+                          }}
                           className="flex items-center gap-3 w-full text-left py-2.5 px-2 rounded-lg hover:bg-white/5 active:bg-white/10"
                         >
-                          <div className="w-12 h-12 rounded-full bg-[#13151A] border border-[#C9A96E]/40 flex items-center justify-center flex-shrink-0 overflow-hidden">
-                            {(notif.image_url || notif.rawData?.avatar_url) ? (
-                              <img src={notif.image_url || notif.rawData?.avatar_url} alt="" className="w-full h-full object-cover" />
+                          <div className="w-12 h-12 rounded-full bg-[#13151A] border border-[#C9A96E]/40 flex items-center justify-center flex-shrink-0 overflow-hidden relative">
+                            {row.sharer_avatar ? (
+                              <img src={row.sharer_avatar} alt="" className="w-full h-full object-cover" />
                             ) : (
-                              <span className="text-[#C9A96E] font-bold text-lg">{(actorName || '?').replace('@', '').charAt(0).toUpperCase()}</span>
+                              <span className="text-[#C9A96E] font-bold text-lg">{who.replace('@', '').charAt(0).toUpperCase()}</span>
                             )}
+                            <span className="absolute bottom-0 right-0 w-5 h-5 rounded-full bg-[#13151A] border border-[#C9A96E]/50 flex items-center justify-center">
+                              <Share2 className="w-2.5 h-2.5 text-[#C9A96E]" strokeWidth={2.5} />
+                            </span>
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-sm text-white truncate">{actorName}</p>
+                            <p className="font-semibold text-sm text-white truncate">{who}</p>
                             <p className="text-white/70 text-xs truncate">
-                              {notif.type === 'like' ? 'liked your video' : 'commented on your video'}
-                              {actionUrl && ' · Tap to view'}
+                              Shared {hostLabel}&apos;s live with you · Tap to watch
                             </p>
                           </div>
                         </button>
                       );
+                    })
+                )}
+            </div>
+            )}
+
+            {/* Activity — likes, comments, saves on your videos (API); legacy notifications as fallback */}
+            {activeFilter === 'activity' && (
+              <>
+                {activityItems.length === 0 && notifications.filter((n) => n.type === 'like' || n.type === 'comment').length === 0 ? (
+                  <div className="py-8 text-center text-white/50 text-sm px-2">
+                    No activity yet. When someone likes, comments on, saves your video, or @mentions you, it will show here.
+                  </div>
+                ) : (
+                  <div className="space-y-1 pb-4">
+                    {activityItems.map((a) => {
+                      const actorName = (a.actor_display_name?.trim() || a.actor_username || 'Someone').trim();
+                      return (
+                        <button
+                          key={a.id}
+                          type="button"
+                          onClick={() => {
+                            if (a.video_id) navigate(`/video/${encodeURIComponent(a.video_id)}`);
+                          }}
+                          className="flex items-center gap-3 w-full text-left py-2.5 px-2 rounded-lg hover:bg-white/5 active:bg-white/10"
+                        >
+                          <div className="w-12 h-12 rounded-full bg-[#13151A] border border-[#C9A96E]/40 flex items-center justify-center flex-shrink-0 overflow-hidden relative">
+                            {a.actor_avatar_url ? (
+                              <img src={a.actor_avatar_url} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                              <span className="text-[#C9A96E] font-bold text-lg">{actorName.replace('@', '').charAt(0).toUpperCase()}</span>
+                            )}
+                            <span className="absolute bottom-0 right-0 w-5 h-5 rounded-full bg-[#13151A] border border-[#C9A96E]/50 flex items-center justify-center">
+                              {a.kind === 'save' ? (
+                                <Bookmark className="w-2.5 h-2.5 text-[#C9A96E]" strokeWidth={2.5} />
+                              ) : a.kind === 'comment' ? (
+                                <MessageCircle className="w-2.5 h-2.5 text-[#C9A96E]" strokeWidth={2.5} />
+                              ) : a.kind === 'mention' ? (
+                                <AtSign className="w-2.5 h-2.5 text-[#C9A96E]" strokeWidth={2.5} />
+                              ) : (
+                                <Heart className="w-2.5 h-2.5 text-[#C9A96E]" fill="currentColor" strokeWidth={0} />
+                              )}
+                            </span>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-sm text-white truncate">{actorName}</p>
+                            <p className="text-white/70 text-xs truncate">{activityLine(a)}{a.video_id ? ' · Tap to view' : ''}</p>
+                          </div>
+                        </button>
+                      );
                     })}
+                    {activityItems.length === 0 &&
+                      notifications
+                        .filter((n) => n.type === 'like' || n.type === 'comment')
+                        .map((notif) => {
+                          const actorName =
+                            notif.rawData?.actor_display_name ||
+                            (notif.rawData?.actor_username ? `@${notif.rawData.actor_username}` : null) ||
+                            notif.title ||
+                            'Someone';
+                          const actionUrl = notif.action_url || notif.rawData?.action_url;
+                          return (
+                            <button
+                              key={notif.id}
+                              type="button"
+                              onClick={() => {
+                                if (actionUrl) navigate(actionUrl);
+                              }}
+                              className="flex items-center gap-3 w-full text-left py-2.5 px-2 rounded-lg hover:bg-white/5 active:bg-white/10"
+                            >
+                              <div className="w-12 h-12 rounded-full bg-[#13151A] border border-[#C9A96E]/40 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                                {notif.image_url || notif.rawData?.avatar_url ? (
+                                  <img src={notif.image_url || notif.rawData?.avatar_url} alt="" className="w-full h-full object-cover" />
+                                ) : (
+                                  <span className="text-[#C9A96E] font-bold text-lg">{(actorName || '?').replace('@', '').charAt(0).toUpperCase()}</span>
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-semibold text-sm text-white truncate">{actorName}</p>
+                                <p className="text-white/70 text-xs truncate">
+                                  {notif.type === 'like' ? 'liked your video' : 'commented on your video'}
+                                  {actionUrl && ' · Tap to view'}
+                                </p>
+                              </div>
+                            </button>
+                          );
+                        })}
                   </div>
                 )}
               </>

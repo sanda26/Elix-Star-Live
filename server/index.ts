@@ -35,6 +35,13 @@ import {
   handlePostVideoComment,
   handleDeleteVideoComment,
 } from "./routes/comments";
+import { handleGetMyActivity } from "./routes/activity";
+import {
+  handlePostLiveShare,
+  handleGetLiveShareRequests,
+} from "./routes/liveShareInbox";
+import { setLiveShareNotifier } from "./lib/liveShareNotify";
+import { executeLiveShareSend } from "./lib/liveShareOps";
 import {
   addVideo,
   getVideo,
@@ -264,6 +271,10 @@ app.patch("/api/profiles/:userId", handlePatchProfile);
 app.post("/api/profiles/:userId/follow", handleFollow);
 app.post("/api/profiles/:userId/unfollow", handleUnfollow);
 app.post("/api/profiles", handleSeedProfile);
+
+app.get("/api/activity", handleGetMyActivity);
+app.post("/api/live-share", handlePostLiveShare);
+app.get("/api/inbox/live-share-requests", handleGetLiveShareRequests);
 
 // Chat / Direct Messages
 app.get("/api/chat/threads", handleGetThreads);
@@ -1780,6 +1791,41 @@ async function handleMessage(client: Client, event: string, data: any) {
         break;
       }
 
+      case "live_share_send": {
+        if (!wsRateCheck(client.userId, "live_share_send", 60, 60_000)) break;
+        const targetUserId =
+          typeof data.targetUserId === "string" ? data.targetUserId.trim() : "";
+        const streamKeyRaw =
+          typeof data.streamKey === "string" && data.streamKey.trim()
+            ? data.streamKey.trim()
+            : client.roomId;
+        const hostUserId =
+          typeof data.hostUserId === "string" ? data.hostUserId.trim() : "";
+        void executeLiveShareSend({
+          sharerId: client.userId,
+          sharerName:
+            (typeof data.sharerName === "string" && data.sharerName) ||
+            client.displayName ||
+            client.username ||
+            "Someone",
+          sharerAvatar:
+            (typeof data.sharerAvatar === "string" && data.sharerAvatar) ||
+            client.avatarUrl ||
+            "",
+          targetUserId,
+          streamKey: streamKeyRaw,
+          hostUserId,
+          hostName: typeof data.hostName === "string" ? data.hostName : "",
+          hostAvatar: typeof data.hostAvatar === "string" ? data.hostAvatar : "",
+        }).then((r) => {
+          sendToClient(client, "live_share_ack", {
+            ok: r.ok,
+            persisted: r.persisted,
+          });
+        });
+        break;
+      }
+
       case "cohost_layout_sync": {
         const roomId = typeof data.roomId === "string" ? data.roomId : client.roomId;
         const rawCoHosts = Array.isArray(data.coHosts) ? data.coHosts : [];
@@ -1897,6 +1943,8 @@ function sendToUserGlobal(userId: string, event: string, data: any): number {
   }
   return sent;
 }
+
+setLiveShareNotifier(sendToUserGlobal);
 
  
 function broadcastToRoom(

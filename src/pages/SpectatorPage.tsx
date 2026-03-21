@@ -2366,7 +2366,42 @@ export default function SpectatorPage() {
                         key={u.id}
                         className="flex flex-col items-center gap-1 min-w-[64px] active:scale-95 transition-transform"
                         style={{ marginTop: '6mm' }}
-                        onClick={() => { setShowSharePanel(false); navigate(`/profile/${u.id}`); }}
+                        onClick={async () => {
+                          setShowSharePanel(false);
+                          if (!user?.id) {
+                            showToast('Log in to share');
+                            navigate('/login', { state: { from: location.pathname } });
+                            return;
+                          }
+                          const hid = hostUserIdRef.current || hostUserId || effectiveStreamId;
+                          try {
+                            const session = useAuthStore.getState().session;
+                            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+                            if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+                            const res = await fetch(apiUrl('/api/live-share'), {
+                              method: 'POST',
+                              credentials: 'include',
+                              headers,
+                              body: JSON.stringify({
+                                targetUserId: u.id,
+                                streamKey: effectiveStreamId,
+                                hostUserId: hid,
+                                hostName,
+                                hostAvatar,
+                                sharerName: user?.username || user?.name || 'Someone',
+                                sharerAvatar: user?.avatar || '',
+                              }),
+                            });
+                            const j = await res.json().catch(() => ({} as Record<string, unknown>));
+                            if (!res.ok) {
+                              showToast(typeof j?.error === 'string' ? j.error : 'Could not share');
+                              return;
+                            }
+                            showToast(`Shared live with ${u.name}`);
+                          } catch {
+                            showToast('Could not share');
+                          }
+                        }}
                       >
                         <AvatarRing src={u.avatar || '/Icons/Profile icon.png'} alt={u.name} size={56} />
                         <span className="text-white/60 text-[10px] font-medium truncate w-16 text-center">{u.name}</span>

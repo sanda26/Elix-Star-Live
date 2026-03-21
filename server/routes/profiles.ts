@@ -424,7 +424,7 @@ export async function handleListProfiles(_req: Request, res: Response): Promise<
   res.json({ profiles: list });
 }
 
-/** GET /api/profiles/:userId/followers */
+/** GET /api/profiles/:userId/followers — ids from follows graph; profiles from Neon when available */
 export async function handleGetFollowers(req: Request, res: Response): Promise<void> {
   const userId = req.params.userId;
   const profile = await getOrCreateProfileAsync(userId);
@@ -432,7 +432,54 @@ export async function handleGetFollowers(req: Request, res: Response): Promise<v
   for (const [fid, set] of followsMap) {
     if (set.has(userId)) followerIds.push(fid);
   }
-  res.json({ count: profile.followers, followers: followerIds });
+
+  type Row = { user_id: string; username: string; display_name: string | null; avatar_url: string | null };
+  let follower_profiles: Row[] = [];
+
+  const db = getPool();
+  if (db && followerIds.length > 0) {
+    try {
+      await ensureProfilesTable();
+      const r = await db.query(
+        `SELECT user_id, username, display_name, avatar_url FROM profiles WHERE user_id = ANY($1::text[])`,
+        [followerIds],
+      );
+      const byId = new Map<string, Row>();
+      for (const row of r.rows || []) {
+        byId.set(String(row.user_id), {
+          user_id: String(row.user_id),
+          username: String(row.username || "user"),
+          display_name: row.display_name != null ? String(row.display_name) : null,
+          avatar_url: row.avatar_url != null ? String(row.avatar_url) : null,
+        });
+      }
+      follower_profiles = followerIds.map((id) => {
+        const hit = byId.get(id);
+        if (hit) return hit;
+        return { user_id: id, username: "user", display_name: null, avatar_url: null };
+      });
+    } catch (err) {
+      logger.error({ err, userId }, "handleGetFollowers: profile query failed");
+      follower_profiles = [];
+    }
+  }
+
+  if (follower_profiles.length === 0 && followerIds.length > 0) {
+    follower_profiles = await Promise.all(
+      followerIds.map(async (id) => {
+        const p = await getOrCreateProfileAsync(id);
+        return {
+          user_id: p.userId,
+          username: p.username,
+          display_name: p.displayName || null,
+          avatar_url: p.avatarUrl || null,
+        };
+      }),
+    );
+  }
+
+  const count = Math.max(followerIds.length, profile.followers);
+  res.json({ count, followers: followerIds, follower_profiles });
 }
 
 /** GET /api/profiles/:userId/following */

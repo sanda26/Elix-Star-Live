@@ -84,14 +84,9 @@ export default function Inbox() {
   };
   const isThreadDeleted = (id: string): boolean => deletedThreadIdsRef.current.has(id) || getDeletedThreadIds().has(id);
 
-  const loadCurrentUser = async () => {
-    const { data } = await apiStub.auth.getUser();
-    setCurrentUserId(data.user?.id || null);
-  };
-
   useEffect(() => {
-    loadCurrentUser();
-  }, []);
+    setCurrentUserId(user?.id ?? null);
+  }, [user?.id]);
 
   useEffect(() => {
     if (!currentUserId) return;
@@ -165,50 +160,35 @@ export default function Inbox() {
     };
     const fetchFollowers = async () => {
       try {
-        // Source A: backend profile followers count (authoritative)
-        const backendFollowersRes = await fetch(apiUrl(`/api/profiles/${encodeURIComponent(currentUserId)}/followers`), {
-          credentials: 'include',
-        }).catch(() => null as any);
-        if (backendFollowersRes?.ok) {
-          const backendBody = await backendFollowersRes.json().catch(() => ({ count: 0 }));
-          const count = Number(backendBody?.count || 0);
-          setFollowersTotalCount(Number.isFinite(count) ? count : 0);
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'inbox-followers-debug',hypothesisId:'F0',location:'src/pages/Inbox.tsx:175',message:'backend followers count loaded',data:{currentUserId,count},timestamp:Date.now()})}).catch(()=>{});
-          // #endregion
-        } else {
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'inbox-followers-debug',hypothesisId:'F0',location:'src/pages/Inbox.tsx:180',message:'backend followers count request failed',data:{currentUserId,status:backendFollowersRes?.status||0},timestamp:Date.now()})}).catch(()=>{});
-          // #endregion
-        }
-
-        const { data } = await apiStub
-          .from('followers')
-          .select('follower_id')
-          .eq('following_id', currentUserId)
-          .order('created_at', { ascending: false })
-          .limit(200);
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'inbox-followers-debug',hypothesisId:'F1',location:'src/pages/Inbox.tsx:173',message:'followers table loaded',data:{currentUserId,rows:Array.isArray(data)?data.length:0},timestamp:Date.now()})}).catch(()=>{});
-        // #endregion
-        if (data && data.length > 0) {
-          const ids = data.map((f: any) => f.follower_id).filter((id: string) => id !== currentUserId);
-          if (ids.length === 0) { setFollowers([]); return; }
-          const { data: profiles } = await apiStub
-            .from('profiles')
-            .select('user_id, username, display_name, avatar_url')
-            .in('user_id', ids);
-          if (profiles) {
-            const list = (profiles as FollowerProfile[]).filter((p) => p.user_id !== currentUserId);
-            setFollowers(list);
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'inbox-followers-debug',hypothesisId:'F2',location:'src/pages/Inbox.tsx:187',message:'followers profiles mapped',data:{idsCount:ids.length,profilesCount:profiles.length,finalCount:list.length},timestamp:Date.now()})}).catch(()=>{});
-            // #endregion
-          }
-        } else {
+        const session = useAuthStore.getState().session;
+        const headers: Record<string, string> = {};
+        if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+        const backendFollowersRes = await fetch(
+          apiUrl(`/api/profiles/${encodeURIComponent(currentUserId)}/followers`),
+          { credentials: 'include', headers },
+        ).catch(() => null as Response | null);
+        if (!backendFollowersRes?.ok) {
           setFollowers([]);
+          setFollowersTotalCount(0);
+          return;
         }
-      } catch { /* ignore */ }
+        const backendBody = await backendFollowersRes.json().catch(() => ({} as Record<string, unknown>));
+        const ids: string[] = Array.isArray(backendBody?.followers) ? backendBody.followers : [];
+        const count = Number(backendBody?.count ?? ids.length);
+        setFollowersTotalCount(Number.isFinite(count) ? count : ids.length);
+        const profilesRaw = Array.isArray(backendBody?.follower_profiles) ? backendBody.follower_profiles : [];
+        const list: FollowerProfile[] = profilesRaw
+          .map((p: Record<string, unknown>) => ({
+            user_id: String(p.user_id ?? ''),
+            username: String(p.username ?? 'user'),
+            display_name: (p.display_name != null ? String(p.display_name) : null) as string | null,
+            avatar_url: (p.avatar_url != null ? String(p.avatar_url) : null) as string | null,
+          }))
+          .filter((p) => p.user_id && p.user_id !== currentUserId);
+        setFollowers(list.length > 0 ? list : ids.filter((id) => id !== currentUserId).map((user_id) => ({ user_id, username: 'user', display_name: null, avatar_url: null })));
+      } catch {
+        setFollowers([]);
+      }
     };
     const fetchSuggestedUsers = async () => {
       try {

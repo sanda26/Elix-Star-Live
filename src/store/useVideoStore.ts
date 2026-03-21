@@ -164,6 +164,26 @@ export const useVideoStore = create<VideoStore>()(
         set({ loading: true });
         try {
           const { videos: apiVideos } = await withRetry(() => fetchForYouFeed(1, 50));
+          const authUser = useAuthStore.getState().user;
+          const session = useAuthStore.getState().session;
+          if (authUser?.id) {
+            try {
+              const headers: Record<string, string> = {};
+              if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+              const followRes = await fetch(apiUrl(`/api/profiles/${encodeURIComponent(authUser.id)}/following`), {
+                credentials: 'include',
+                headers,
+              });
+              if (followRes.ok) {
+                const followBody = await followRes.json().catch(() => ({ following: [] }));
+                const ids: string[] = Array.isArray(followBody?.following) ? followBody.following : [];
+                set({ followingUsers: ids });
+              }
+            } catch {
+              /* keep persisted followingUsers */
+            }
+          }
+
           const { likedVideos, savedVideos, followingUsers } = get();
           const likedSet = new Set(likedVideos);
           const savedSet = new Set(savedVideos);
@@ -266,9 +286,7 @@ export const useVideoStore = create<VideoStore>()(
           if (followRes.ok) {
             const followBody = await followRes.json().catch(() => ({ following: [] }));
             const ids: string[] = Array.isArray(followBody?.following) ? followBody.following : [];
-            if (ids.length > 0) {
-              set({ followingUsers: ids });
-            }
+            set({ followingUsers: ids });
           }
 
           const { followingUsers } = get();

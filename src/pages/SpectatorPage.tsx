@@ -38,6 +38,7 @@ import { ChatOverlay } from '../components/ChatOverlay';
 import { AvatarRing } from '../components/AvatarRing';
 import { GoldProfileFrame } from '../components/GoldProfileFrame';
 import { useAuthStore } from '../store/useAuthStore';
+import { useVideoStore } from '../store/useVideoStore';
 import { apiUrl, getLiveKitUrl } from '../lib/api';
 import { apiStub } from '../lib/apiStub';
 import ReportModal from '../components/ReportModal';
@@ -1144,6 +1145,67 @@ export default function SpectatorPage() {
     setCurrentGift(null);
   }, []);
 
+  useEffect(() => {
+    if (!user?.id || !hostUserId) return;
+    if (hostUserId === user.id) {
+      setIsFollowing(false);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const session = useAuthStore.getState().session;
+        const headers: Record<string, string> = {};
+        if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+        const res = await fetch(apiUrl(`/api/profiles/${encodeURIComponent(user.id)}/following`), {
+          credentials: 'include',
+          headers,
+        });
+        if (!res.ok || cancelled) return;
+        const body = await res.json().catch(() => ({ following: [] }));
+        const ids: string[] = Array.isArray(body?.following) ? body.following : [];
+        if (!cancelled) setIsFollowing(ids.includes(hostUserId));
+      } catch {
+        if (!cancelled) setIsFollowing(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, hostUserId]);
+
+  const followHost = useCallback(
+    async (e?: React.MouseEvent) => {
+      e?.stopPropagation();
+      if (!user?.id) {
+        showToast('Log in to follow');
+        navigate('/login', { state: { from: location.pathname } });
+        return;
+      }
+      const targetId = hostUserIdRef.current || hostUserId;
+      if (!targetId || targetId === user.id) return;
+      try {
+        const session = useAuthStore.getState().session;
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+        const res = await fetch(apiUrl(`/api/profiles/${encodeURIComponent(targetId)}/follow`), {
+          method: 'POST',
+          credentials: 'include',
+          headers,
+        });
+        if (!res.ok) throw new Error('follow failed');
+        setIsFollowing(true);
+        const prev = useVideoStore.getState().followingUsers;
+        if (!prev.includes(targetId)) {
+          useVideoStore.setState({ followingUsers: [...prev, targetId] });
+        }
+      } catch {
+        showToast('Could not follow. Try again.');
+      }
+    },
+    [user?.id, hostUserId, navigate, location.pathname],
+  );
+
   // Spectator keyboard → creator: send chat to creator's room (broadcast so creator and all viewers see it)
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
@@ -1719,7 +1781,7 @@ export default function SpectatorPage() {
                     <button
                       type="button"
                       className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center justify-center gap-0.5 bg-[#FF2D55] rounded-full px-1.5 py-0.5 shadow-sm border border-white/20 w-[58px] h-5 z-20"
-                      onClick={(e) => { e.stopPropagation(); setIsFollowing(true); }}
+                      onClick={followHost}
                     >
                       <Plus size={10} className="text-white" strokeWidth={3} />
                       <span className="text-white text-[9px] font-bold">Follow</span>

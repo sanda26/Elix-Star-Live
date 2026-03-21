@@ -1442,64 +1442,44 @@ export default function SpectatorPage() {
                   </div>
                 </div>
 
-                {/* Battle MVP (team splits) — separate from “Top gifters” in the header */}
-                <div className="w-full px-3 pt-1 flex justify-center flex-none z-30">
-                  <span className="text-[9px] font-bold uppercase tracking-wider text-white/45">Battle MVP</span>
-                </div>
-                <div className="w-full px-3 py-1.5 flex items-end justify-between flex-none z-30 gap-2 mt-0">
-                  <div className="flex flex-col items-center gap-0.5 min-w-0 flex-1">
-                    <span className="text-[8px] font-bold uppercase tracking-wide text-[#FF8A8A]">Host</span>
-                    <div
-                      className="flex items-center gap-1.5 pointer-events-auto"
-                      onClick={() => setShowViewersPanel(true)}
-                    >
-                      {[0, 1, 2].map((i) => {
-                        const slot = mvpSlots.host[i];
-                        return (
-                          <div key={`mvp-l-${i}`} className="flex flex-col items-center">
-                            <GoldProfileFrame size={42}>
-                              {slot?.avatar ? (
-                                <img src={slot.avatar} alt="" className="h-full w-full rounded-full object-cover object-center" />
-                              ) : slot?.name ? (
-                                <div className="h-full w-full rounded-full bg-[#1C1E24] flex items-center justify-center text-[#C9A96E] text-sm font-bold">
-                                  {slot.name.charAt(0).toUpperCase()}
-                                </div>
-                              ) : (
-                                <Plus className="text-[#C9A96E]" size={16} strokeWidth={2.5} />
-                              )}
-                            </GoldProfileFrame>
-                            <span className={`text-[8px] font-bold mt-0.5 tabular-nums ${i === 0 ? 'text-[#FF8A8A]' : 'text-white/50'}`}>{i + 1}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
+                <div className="w-full px-3 py-1.5 flex items-center justify-between flex-none z-30 gap-2">
+                  <div
+                    className="flex items-center justify-center gap-1.5 min-w-0 flex-1 pointer-events-auto"
+                    onClick={() => setShowViewersPanel(true)}
+                  >
+                    {[0, 1, 2].map((i) => {
+                      const slot = mvpSlots.host[i];
+                      return (
+                        <div key={`mvp-l-${i}`} className="flex flex-col items-center">
+                          <GoldProfileFrame size={42}>
+                            {slot?.avatar ? (
+                              <img src={slot.avatar} alt="" className="h-full w-full rounded-full object-cover object-center" />
+                            ) : (
+                              <Plus className="text-[#C9A96E]" size={16} strokeWidth={2.5} />
+                            )}
+                          </GoldProfileFrame>
+                        </div>
+                      );
+                    })}
                   </div>
-                  <div className="flex flex-col items-center gap-0.5 min-w-0 flex-1">
-                    <span className="text-[8px] font-bold uppercase tracking-wide text-[#6BB6FF]">Opponent</span>
-                    <div
-                      className="flex items-center gap-1.5 pointer-events-auto"
-                      onClick={() => setShowViewersPanel(true)}
-                    >
-                      {[0, 1, 2].map((i) => {
-                        const slot = mvpSlots.opponent[i];
-                        return (
-                          <div key={`mvp-r-${i}`} className="flex flex-col items-center">
-                            <GoldProfileFrame size={42}>
-                              {slot?.avatar ? (
-                                <img src={slot.avatar} alt="" className="h-full w-full rounded-full object-cover object-center" />
-                              ) : slot?.name ? (
-                                <div className="h-full w-full rounded-full bg-[#1C1E24] flex items-center justify-center text-[#C9A96E] text-sm font-bold">
-                                  {slot.name.charAt(0).toUpperCase()}
-                                </div>
-                              ) : (
-                                <Plus className="text-[#C9A96E]" size={16} strokeWidth={2.5} />
-                              )}
-                            </GoldProfileFrame>
-                            <span className={`text-[8px] font-bold mt-0.5 tabular-nums ${i === 0 ? 'text-[#6BB6FF]' : 'text-white/50'}`}>{i + 1}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
+                  <div
+                    className="flex items-center justify-center gap-1.5 min-w-0 flex-1 pointer-events-auto"
+                    onClick={() => setShowViewersPanel(true)}
+                  >
+                    {[0, 1, 2].map((i) => {
+                      const slot = mvpSlots.opponent[i];
+                      return (
+                        <div key={`mvp-r-${i}`} className="flex flex-col items-center">
+                          <GoldProfileFrame size={42}>
+                            {slot?.avatar ? (
+                              <img src={slot.avatar} alt="" className="h-full w-full rounded-full object-cover object-center" />
+                            ) : (
+                              <Plus className="text-[#C9A96E]" size={16} strokeWidth={2.5} />
+                            )}
+                          </GoldProfileFrame>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
@@ -1727,10 +1707,9 @@ export default function SpectatorPage() {
                 </div>
               </div>
 
-              {/* Right: session top gifters (total coins) — not the same as Battle MVP under the video */}
-              <div className="pointer-events-auto flex items-end gap-2 flex-shrink-0" style={{ transform: 'translateX(5mm)' }}>
+              <div className="pointer-events-auto flex items-center gap-2 flex-shrink-0" style={{ transform: 'translateX(5mm)' }}>
                 <div
-                  className="flex flex-col items-center gap-0.5"
+                  className="flex items-center -space-x-1.5 pointer-events-auto"
                   onClick={() => {
                     const list: { id: string; name: string; avatar: string; level?: number }[] = [];
                     const hid = hostUserIdRef.current || hostUserId || effectiveStreamId;
@@ -1743,28 +1722,20 @@ export default function SpectatorPage() {
                     setShowViewersPanel(true);
                   }}
                 >
-                  <span className="text-[8px] font-bold uppercase tracking-wide text-[#C9A96E]/90">Top gifters</span>
-                  <div className="flex items-center -space-x-1.5 pointer-events-auto">
-                    {[0, 1, 2].map((i) => {
-                      const slot = mvpSlots.global[i];
-                      return (
-                        <div key={`spectator-top-mvp-${i}`} style={{ zIndex: 3 - i }} className="relative flex flex-col items-center">
-                          <GoldProfileFrame size={36}>
-                            {slot?.avatar ? (
-                              <img src={slot.avatar} alt="" className="h-full w-full rounded-full object-cover object-center" />
-                            ) : slot?.name ? (
-                              <div className="h-full w-full rounded-full bg-[#1C1E24] flex items-center justify-center text-[#C9A96E] text-sm font-bold">
-                                {slot.name.charAt(0).toUpperCase()}
-                              </div>
-                            ) : (
-                              <Plus className="text-[#C9A96E]" size={16} strokeWidth={2.5} />
-                            )}
-                          </GoldProfileFrame>
-                          <span className={`text-[7px] font-bold mt-0.5 tabular-nums ${i === 0 ? 'text-[#C9A96E]' : 'text-white/45'}`}>{i + 1}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
+                  {[0, 1, 2].map((i) => {
+                    const slot = mvpSlots.global[i];
+                    return (
+                      <div key={`spectator-top-mvp-${i}`} style={{ zIndex: 3 - i }} className="relative">
+                        <GoldProfileFrame size={36}>
+                          {slot?.avatar ? (
+                            <img src={slot.avatar} alt="" className="h-full w-full rounded-full object-cover object-center" />
+                          ) : (
+                            <Plus className="text-[#C9A96E]" size={16} strokeWidth={2.5} />
+                          )}
+                        </GoldProfileFrame>
+                      </div>
+                    );
+                  })}
                 </div>
                 {/* Viewer count */}
                 <button
@@ -2190,21 +2161,22 @@ export default function SpectatorPage() {
             <div className="fixed bottom-0 left-0 right-0 pointer-events-auto max-w-[480px] mx-auto" style={{ zIndex: 201 }}>
               {spectatorBattle?.active && (
                 <div className="px-3 pb-2 pt-1 flex items-center justify-center gap-2 bg-[#13151A]/95 border-t border-[#C9A96E]/20 rounded-t-xl">
-                  <span className="text-white/60 text-[10px] font-semibold shrink-0">Gift boosts</span>
                   <div className="flex rounded-full overflow-hidden border border-[#C9A96E]/40">
                     <button
                       type="button"
+                      title="Gift left side"
                       onClick={() => setSpectatorGiftBattleTarget('host')}
-                      className={`px-3 py-1.5 text-[10px] font-bold transition-colors ${spectatorGiftBattleTarget === 'host' ? 'bg-[#DC143C]/90 text-white' : 'bg-[#13151A] text-white/70'}`}
+                      className={`px-4 py-1.5 text-[10px] font-bold transition-colors ${spectatorGiftBattleTarget === 'host' ? 'bg-[#DC143C]/90 text-white' : 'bg-[#13151A] text-white/70'}`}
                     >
-                      Host
+                      Left
                     </button>
                     <button
                       type="button"
+                      title="Gift right side"
                       onClick={() => setSpectatorGiftBattleTarget('opponent')}
-                      className={`px-3 py-1.5 text-[10px] font-bold transition-colors ${spectatorGiftBattleTarget === 'opponent' ? 'bg-[#1E90FF]/90 text-white' : 'bg-[#13151A] text-white/70'}`}
+                      className={`px-4 py-1.5 text-[10px] font-bold transition-colors ${spectatorGiftBattleTarget === 'opponent' ? 'bg-[#1E90FF]/90 text-white' : 'bg-[#13151A] text-white/70'}`}
                     >
-                      Opponent
+                      Right
                     </button>
                   </div>
                 </div>

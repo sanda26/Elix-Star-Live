@@ -1442,20 +1442,20 @@ export default function SpectatorPage() {
                   </div>
                 </div>
 
-                <div className="w-full px-3 py-1.5 flex items-center justify-between flex-none z-30 gap-2">
+                <div className="w-full px-3 py-1.5 flex items-center justify-between flex-none z-30">
                   <div
-                    className="flex items-center justify-center gap-1.5 min-w-0 flex-1 pointer-events-auto"
+                    className="flex items-center -space-x-1.5 min-w-0 flex-1 justify-start pointer-events-auto"
                     onClick={() => setShowViewersPanel(true)}
                   >
                     {[0, 1, 2].map((i) => {
                       const slot = mvpSlots.host[i];
                       return (
-                        <div key={`mvp-l-${i}`} className="flex flex-col items-center">
-                          <GoldProfileFrame size={42}>
+                        <div key={`mvp-l-${i}`} className="relative flex flex-col items-center" style={{ zIndex: 3 - i }}>
+                          <GoldProfileFrame size={24}>
                             {slot?.avatar ? (
                               <img src={slot.avatar} alt="" className="h-full w-full rounded-full object-cover object-center" />
                             ) : (
-                              <Plus className="text-[#C9A96E]" size={16} strokeWidth={2.5} />
+                              <Plus className="text-[#C9A96E]" size={10} strokeWidth={2.5} />
                             )}
                           </GoldProfileFrame>
                         </div>
@@ -1463,18 +1463,18 @@ export default function SpectatorPage() {
                     })}
                   </div>
                   <div
-                    className="flex items-center justify-center gap-1.5 min-w-0 flex-1 pointer-events-auto"
+                    className="flex items-center -space-x-1.5 min-w-0 flex-1 justify-end pointer-events-auto"
                     onClick={() => setShowViewersPanel(true)}
                   >
                     {[0, 1, 2].map((i) => {
                       const slot = mvpSlots.opponent[i];
                       return (
-                        <div key={`mvp-r-${i}`} className="flex flex-col items-center">
-                          <GoldProfileFrame size={42}>
+                        <div key={`mvp-r-${i}`} className="relative flex flex-col items-center" style={{ zIndex: 3 - i }}>
+                          <GoldProfileFrame size={24}>
                             {slot?.avatar ? (
                               <img src={slot.avatar} alt="" className="h-full w-full rounded-full object-cover object-center" />
                             ) : (
-                              <Plus className="text-[#C9A96E]" size={16} strokeWidth={2.5} />
+                              <Plus className="text-[#C9A96E]" size={10} strokeWidth={2.5} />
                             )}
                           </GoldProfileFrame>
                         </div>
@@ -1592,7 +1592,7 @@ export default function SpectatorPage() {
                   style={{ opacity: hasStream ? 1 : 0, transition: 'opacity 0.4s ease' }}
                 />
                 {!hasStream && (
-                  <div className="w-full h-full flex flex-col items-center justify-center gap-4">
+                  <div className="w-full h-full flex flex-col items-center justify-center gap-4" style={{ transform: 'translateX(15mm)' }}>
                     <div className="w-24 h-24 rounded-full border-[3px] border-red-500/40 overflow-hidden">
                       {hostAvatar ? (
                         <img src={hostAvatar} alt="" className="w-full h-full object-cover" />
@@ -1796,7 +1796,7 @@ export default function SpectatorPage() {
         </div>
 
         {/* CHAT — behind buttons, behind gift overlay, same as creator page */}
-        <div className="chat-zone fixed left-0 right-0 bottom-[calc(58px+max(12px,env(safe-area-inset-bottom)))] z-[5] flex justify-center pointer-events-none">
+        <div className="chat-zone fixed left-0 right-0 bottom-[calc(52px+max(8px,env(safe-area-inset-bottom)))] z-[5] flex justify-center pointer-events-none">
           <div className="w-full max-w-[480px] h-[calc(25dvh-30mm)] max-h-[calc(25dvh-30mm)] overflow-y-auto pointer-events-auto bg-transparent py-[15mm]">
             <ChatOverlay
               messages={messages}
@@ -1823,10 +1823,10 @@ export default function SpectatorPage() {
           </div>
         )}
 
-        {/* BOTTOM BAR — move closer to the bottom (about 1.5cm from previous position) */}
-        <div className="fixed left-0 right-0 z-[120] pointer-events-auto flex justify-center" style={{ bottom: '0mm' }}>
-          <div className="w-full max-w-[480px] px-3 pb-[max(8px,env(safe-area-inset-bottom))] pt-2 bg-transparent">
-          <div className="flex items-center gap-2">
+        {/* Bottom action bar — flush to viewport bottom + safe area */}
+        <div className="fixed left-0 right-0 bottom-0 z-[120] pointer-events-auto flex justify-center">
+          <div className="w-full max-w-[480px] px-3 pb-[max(8px,env(safe-area-inset-bottom))] pt-0 bg-transparent">
+          <div className="flex items-end gap-2">
           <form
             className="flex-1 flex items-center gap-2 bg-black/40 backdrop-blur-sm rounded-full px-3 py-2 border border-white/10 h-10 min-w-0"
             onSubmit={(e) => { handleSendMessage(e); }}
@@ -1855,7 +1855,6 @@ export default function SpectatorPage() {
             aria-label="Request to co-host"
             onClick={() => setShowCoHostPanel(true)}
             className="flex flex-col items-center justify-center w-12 active:scale-95 transition-transform select-none"
-            style={{ transform: 'translateY(3mm)' }}
           >
             <div className="relative w-10 h-10 flex items-center justify-center rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 shadow-lg">
               <span className="flex items-center justify-center w-full h-full relative z-[2]">
@@ -1876,7 +1875,6 @@ export default function SpectatorPage() {
             title="Send gift"
             onClick={() => setShowGiftPanel(true)}
             className="flex flex-col items-center justify-center w-12 active:scale-95 transition-transform select-none"
-            style={{ transform: 'translateY(3mm)' }}
           >
             <div className="relative w-10 h-10 flex items-center justify-center rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 shadow-lg">
               <Gift size={20} className="text-[#C9A96E] relative z-[2]" />
@@ -1891,7 +1889,6 @@ export default function SpectatorPage() {
             title="Share"
             onClick={() => setShowSharePanel(true)}
             className="flex flex-col items-center justify-center w-12 active:scale-95 transition-transform select-none"
-            style={{ transform: 'translateY(3mm)' }}
           >
             <div className="relative w-10 h-10 flex items-center justify-center rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 shadow-lg">
               <Share2 size={20} className="text-[#C9A96E] relative z-[2]" />
@@ -1906,7 +1903,6 @@ export default function SpectatorPage() {
             title="More options"
             onClick={() => setIsMoreMenuOpen(true)}
             className="flex flex-col items-center justify-center w-12 active:scale-95 transition-transform select-none"
-            style={{ transform: 'translateY(3mm)' }}
           >
             <div className="relative w-10 h-10 flex items-center justify-center rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 shadow-lg">
               <MoreVertical size={20} className="text-[#C9A96E] relative z-[2]" />

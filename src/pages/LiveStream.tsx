@@ -3520,28 +3520,28 @@ export default function LiveStream() {
             );
           })()}
 
-            <div className="w-full px-3 py-2 flex items-center justify-between flex-none pointer-events-none mt-1 relative z-30 gap-2">
-              <div className="flex items-center justify-center gap-1.5 min-w-0 flex-1 pointer-events-auto" onClick={() => setShowViewerList(true)}>
+            <div className="w-full px-3 py-2 flex items-center justify-between flex-none pointer-events-none mt-1 relative z-30">
+              <div className="flex items-center -space-x-1.5 min-w-0 flex-1 justify-start pointer-events-auto" onClick={() => setShowViewerList(true)}>
                 {[0, 1, 2].map((i) => (
-                  <div key={`mvp-l-${i}`} className="relative flex flex-col items-center">
-                    <GoldProfileFrame size={48}>
+                  <div key={`mvp-l-${i}`} className="relative flex flex-col items-center" style={{ zIndex: 3 - i }}>
+                    <GoldProfileFrame size={28}>
                       {topMvpHostBattle[i]?.avatar ? (
                         <img src={topMvpHostBattle[i].avatar} alt="" className="h-full w-full rounded-full object-cover object-center" />
                       ) : (
-                        <Plus className="text-[#C9A96E]" size={18} strokeWidth={2.5} />
+                        <Plus className="text-[#C9A96E]" size={12} strokeWidth={2.5} />
                       )}
                     </GoldProfileFrame>
                   </div>
                 ))}
               </div>
-              <div className="flex items-center justify-center gap-1.5 min-w-0 flex-1 pointer-events-auto" onClick={() => setShowViewerList(true)}>
+              <div className="flex items-center -space-x-1.5 min-w-0 flex-1 justify-end pointer-events-auto" onClick={() => setShowViewerList(true)}>
                 {[0, 1, 2].map((i) => (
-                  <div key={`mvp-r-${i}`} className="relative flex flex-col items-center">
-                    <GoldProfileFrame size={48}>
+                  <div key={`mvp-r-${i}`} className="relative flex flex-col items-center" style={{ zIndex: 3 - i }}>
+                    <GoldProfileFrame size={28}>
                       {topMvpOpponentBattle[i]?.avatar ? (
                         <img src={topMvpOpponentBattle[i].avatar} alt="" className="h-full w-full rounded-full object-cover object-center" />
                       ) : (
-                        <Plus className="text-[#C9A96E]" size={18} strokeWidth={2.5} />
+                        <Plus className="text-[#C9A96E]" size={12} strokeWidth={2.5} />
                       )}
                     </GoldProfileFrame>
                   </div>
@@ -3746,7 +3746,7 @@ export default function LiveStream() {
             </div>
 
             {/* MIDDLE ZONE: CHAT (Scrollable) */}
-            <div className="chat-zone fixed left-0 right-0 bottom-[calc(58px+max(12px,env(safe-area-inset-bottom)))] z-[20] flex justify-center pointer-events-none">
+            <div className="chat-zone fixed left-0 right-0 bottom-[calc(52px+max(8px,env(safe-area-inset-bottom)))] z-[20] flex justify-center pointer-events-none">
               <div 
                 className="w-full max-w-[480px] overflow-y-auto pointer-events-auto bg-transparent"
                 style={{ height: 'calc(25dvh + 2cm + 4mm)', maxHeight: 'calc(25dvh + 2cm + 4mm)' }}
@@ -3778,7 +3778,7 @@ export default function LiveStream() {
             </div>
 
       {/* BOTTOM RIGHT: Action buttons (same area as before, aligned right) */}
-      <div className="bottom-zone flex-none pointer-events-auto bg-transparent px-3 pb-[max(16px,calc(env(safe-area-inset-bottom)+8px))] pt-2 min-h-[44px] flex flex-col items-end fixed left-0 right-0 z-[120] justify-end" style={{ bottom: '16px' }}>
+      <div className="bottom-zone flex-none pointer-events-auto bg-transparent px-3 pb-[max(8px,env(safe-area-inset-bottom))] pt-0 min-h-[44px] flex flex-col items-end fixed left-0 right-0 bottom-0 z-[120] justify-end">
         <div className="w-full max-w-[480px] mx-auto flex flex-col items-end gap-0">
         {/* Combo Button - on top of 3 dots, 1cm up */}
         <AnimatePresence>
@@ -3806,7 +3806,7 @@ export default function LiveStream() {
         <div className="flex flex-col items-end">
           {/* Spectator bar only: chat, Co-Host, Gift, Share, More. Shown only when watching (not broadcasting). */}
           {!isBroadcast && !currentGift && (
-            <div className="flex items-center gap-2 w-full max-w-[480px] pointer-events-auto">
+            <div className="flex items-end gap-2 w-full max-w-[480px] pointer-events-auto">
               <form className="flex-1 flex items-center gap-2 bg-black/40 backdrop-blur-sm rounded-full px-3 py-2 border border-white/10 h-10 min-w-0" onSubmit={(e) => { e.preventDefault(); handleSendMessage(e); }}>
                 <input type="text" inputMode="text" enterKeyHint="send" autoComplete="off" placeholder="Say something..." className="bg-transparent text-white text-xs outline-none flex-1 placeholder:text-white/30 min-w-0" value={inputValue} onChange={(e) => setInputValue(e.target.value)} />
                 {inputValue.trim() && <button type="submit" title="Send message" className="text-[#C9A96E] flex-shrink-0"><Send size={16} /></button>}
@@ -3848,8 +3848,8 @@ export default function LiveStream() {
 
           {/* Creator-only bottom bar (Co-Host, Battle, Share, More). No chat, no Gift — creator speaks. Shown only when broadcasting. */}
           {isBroadcast && !currentGift && (
-            <div className="flex items-center gap-2 w-full max-w-[480px] pointer-events-auto">
-              <div className="flex items-center justify-center gap-3 flex-shrink-0 flex-1">
+            <div className="flex items-end gap-2 w-full max-w-[480px] pointer-events-auto">
+              <div className="flex items-end justify-center gap-3 flex-shrink-0 flex-1">
               {isBattleMode && battleWinner && (
                 <button 
                   type="button" 

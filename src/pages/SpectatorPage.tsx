@@ -1253,6 +1253,7 @@ export default function SpectatorPage() {
     if (coinBalance < gift.coins) {
       showToast(`Not enough coins (have ${coinBalance.toLocaleString()}, need ${gift.coins.toLocaleString()})`);
       // In local/dev builds, still preview the gift animation so video gifts can play even without balance.
+      let queuedPreview = false;
       if (
         import.meta.env.MODE !== 'production' &&
         gift.video &&
@@ -1265,6 +1266,11 @@ export default function SpectatorPage() {
             ? raw
             : resolveGiftAssetUrl(raw.startsWith('/') ? raw : `/${raw}`);
         setGiftQueue(prev => [...prev, { video: videoUrl }]);
+        queuedPreview = true;
+      }
+      // Ensure the preview is visible instead of hidden behind the gift panel.
+      if (queuedPreview) {
+        setShowGiftPanel(false);
       }
       return;
     }

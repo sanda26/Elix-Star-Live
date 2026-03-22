@@ -186,6 +186,11 @@ function App() {
   const isInboxRoute =
     location.pathname === "/inbox" || /^\/inbox\/.+/.test(location.pathname);
 
+  const isFriendsFollowingStem =
+    location.pathname === "/friends" ||
+    location.pathname === "/following" ||
+    location.pathname === "/stem";
+
   // Public routes that don't require authentication
   const isPublicRoute =
     location.pathname === "/login" ||
@@ -235,7 +240,9 @@ function App() {
             "pointer-events-none absolute inset-0 mx-auto w-full max-w-[480px] z-0",
             location.pathname === "/feed"
               ? "bg-[#0A0B0E]"
-              : "bg-background",
+              : isFriendsFollowingStem
+                ? "bg-[#13151A]"
+                : "bg-background",
           )}
           aria-hidden
         />
@@ -258,9 +265,16 @@ function App() {
               isFullScreen &&
               "pt-0",
             !showBottomNav && location.pathname !== "/feed" && "pt-[3mm]",
-            showBottomNav && "pb-nav",
-            /* Same tone as chat column so pb-nav band is not a visible “gap” above BottomNav */
-            showBottomNav && isInboxRoute && "bg-[#13151A]",
+            showBottomNav &&
+              location.pathname === "/feed" &&
+              "pb-nav-feed",
+            showBottomNav &&
+              location.pathname !== "/feed" &&
+              "pb-nav",
+            /* Same tone as page so pb-nav band is not a visible “gap” above BottomNav */
+            showBottomNav &&
+              (isInboxRoute || isFriendsFollowingStem) &&
+              "bg-[#13151A]",
           )}
         >
         <ErrorBoundary>

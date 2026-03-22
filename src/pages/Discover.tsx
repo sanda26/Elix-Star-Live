@@ -316,10 +316,8 @@ export default function Discover() {
                       </p>
                     </div>
                   </div>
-                  <div className="p-3 flex flex-col gap-3 max-w-[320px] mx-auto w-full">
-                    {followingVideosForUi.map((video) => (
-                      <VideoThumbnail key={video.id} video={video} />
-                    ))}
+                  <div className="p-3 w-full">
+                    <DiscoverSnapStack videos={followingVideosForUi} />
                   </div>
                 </div>
               ) : (
@@ -343,10 +341,8 @@ export default function Discover() {
                       </p>
                     </div>
                   </div>
-                  <div className="p-3 flex flex-col gap-3 max-w-[320px] mx-auto w-full">
-                    {trendingVideos.map((video) => (
-                      <VideoThumbnail key={video.id} video={video} />
-                    ))}
+                  <div className="p-3 w-full">
+                    <DiscoverSnapStack videos={trendingVideos} />
                   </div>
                 </div>
               ) : (
@@ -490,6 +486,28 @@ export default function Discover() {
   );
 }
 
+/** One full-width portrait slide at a time (snap scroll), not a narrow stack of small tiles. */
+function DiscoverSnapStack({ videos }: { videos: Video[] }) {
+  if (videos.length === 0) return null;
+  const slideH = 'min(72dvh,calc(100vw*16/9))';
+  return (
+    <div
+      className="w-full max-h-[min(78dvh,calc(100dvh-10.5rem))] overflow-y-auto snap-y snap-mandatory flex flex-col gap-2 pb-1 no-scrollbar"
+      style={{ overscrollBehavior: 'contain' }}
+    >
+      {videos.map((video) => (
+        <div
+          key={video.id}
+          className="snap-start shrink-0 w-full rounded-xl overflow-hidden"
+          style={{ height: slideH, maxHeight: '78dvh' }}
+        >
+          <VideoThumbnail video={video} variant="feed" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function TabButton({ active, onClick, icon, label }: { active: boolean; onClick: () => void; icon: React.ReactNode; label: string }) {
   return (
     <button
@@ -506,7 +524,7 @@ function TabButton({ active, onClick, icon, label }: { active: boolean; onClick:
   );
 }
 
-function VideoThumbnail({ video }: { video: Video }) {
+function VideoThumbnail({ video, variant = 'grid' }: { video: Video; variant?: 'grid' | 'feed' }) {
   const navigate = useNavigate();
   const videoRef = React.useRef<HTMLVideoElement>(null);
   const containerRef = React.useRef<HTMLDivElement>(null);
@@ -528,10 +546,14 @@ function VideoThumbnail({ video }: { video: Video }) {
     return () => observer.disconnect();
   }, [video.url]);
 
+  const feed = variant === 'feed';
+
   return (
     <div
       ref={containerRef}
-      className="relative aspect-[9/16] bg-[#1C1E24] rounded-xl overflow-hidden w-full border border-white/10"
+      className={`relative bg-[#1C1E24] overflow-hidden w-full border border-white/10 ${
+        feed ? 'h-full min-h-0 rounded-none border-0' : 'aspect-[9/16] rounded-xl'
+      }`}
     >
       <div className="absolute inset-0 cursor-pointer" onClick={() => navigate(`/video/${video.id}`)}>
         {video.url ? (
@@ -543,13 +565,13 @@ function VideoThumbnail({ video }: { video: Video }) {
             loop
             playsInline
             preload="metadata"
-            className="w-full h-full object-cover"
+            className="video-media-fill absolute inset-0 size-full"
           />
         ) : (
           <img
             src={video.thumbnail_url || getVideoPosterUrl(video.url) || `https://ui-avatars.com/api/?name=Video&background=1C1E24&color=C9A96E&size=200`}
             alt="Video"
-            className="w-full h-full object-cover"
+            className="absolute inset-0 size-full object-cover"
           />
         )}
       </div>

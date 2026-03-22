@@ -2,12 +2,10 @@ import React, { useEffect, useState, useRef } from 'react';
 import { Search as SearchIcon, X } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { AvatarRing } from '../components/AvatarRing';
+import { StoryGoldRingAvatar } from '../components/StoryGoldRingAvatar';
 import { TrendingSnapFeed } from '../components/TrendingSnapFeed';
 import { apiUrl } from '../lib/api';
 import { useVideoStore } from '../store/useVideoStore';
-import { profileRingInnerPx } from '../lib/profileFrame';
-
-const STORY_RING_INNER = profileRingInnerPx(85);
 
 const TRENDING_SEARCHES = [
   'Dance challenge',
@@ -319,54 +317,11 @@ export default function SearchPage() {
                               onClick={() => u.is_live ? navigate(`/watch/${u.id}`) : navigate(`/profile/${u.id}`)}
                               className="flex-shrink-0 flex flex-col items-center gap-1" style={{ width: 85, minWidth: 85 }}
                             >
-                              <div className="relative flex items-center justify-center" style={{ width: 85, height: 85 }}>
-                                {u.is_live ? (
-                                  <>
-                                    <div
-                                      className="absolute inset-0 rounded-full"
-                                      style={{
-                                        width: 85, height: 85,
-                                        background: 'conic-gradient(#ff0040, #ff6a00, #ff0040, #ff6a00, #ff0040)',
-                                        WebkitMask: 'radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 4px))',
-                                        mask: 'radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 4px))',
-                                      }}
-                                    />
-                                    <img
-                                      src={u.avatar || '/Icons/Profile icon.png'}
-                                      alt={u.name || u.username}
-                                      className="absolute rounded-full object-cover"
-                                      style={{
-                                        width: STORY_RING_INNER,
-                                        height: STORY_RING_INNER,
-                                        top: '50%',
-                                        left: '50%',
-                                        transform: 'translate(-50%, -50%)',
-                                        objectPosition: 'center center',
-                                        zIndex: 1,
-                                      }}
-                                    />
-                                    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 bg-red-500 text-white text-[9px] font-bold px-2 py-0.5 rounded z-20 whitespace-nowrap">LIVE</div>
-                                  </>
-                                ) : (
-                                  <div className="relative" style={{ width: 85, height: 85 }}>
-                                    <img src="/Icons/Profile icon.png" alt="" className="w-full h-full object-contain" style={{ position: 'relative', zIndex: 1 }} />
-                                    <img
-                                      src={u.avatar || '/Icons/Profile icon.png'}
-                                      alt={u.name || u.username}
-                                      className="absolute rounded-full object-cover"
-                                      style={{
-                                        width: STORY_RING_INNER,
-                                        height: STORY_RING_INNER,
-                                        top: '50%',
-                                        left: '50%',
-                                        transform: 'translate(-50%, -50%)',
-                                        objectPosition: 'center center',
-                                        zIndex: 0,
-                                      }}
-                                    />
-                                  </div>
-                                )}
-                              </div>
+                              <StoryGoldRingAvatar
+                                live={u.is_live}
+                                src={u.avatar || '/Icons/Profile icon.png'}
+                                alt={u.name || u.username}
+                              />
                               <div className="text-[10px] text-white/80 truncate w-full text-center">
                                 {u.name || u.username}
                               </div>
@@ -442,54 +397,11 @@ export default function SearchPage() {
                             onClick={() => u.is_live ? navigate(`/watch/${u.id}`) : navigate(`/profile/${u.id}`)}
                             className="flex-shrink-0 flex flex-col items-center gap-1" style={{ width: 85, minWidth: 85 }}
                           >
-                            <div className="relative flex items-center justify-center" style={{ width: 85, height: 85 }}>
-                              {u.is_live ? (
-                                <>
-                                  <div
-                                    className="absolute inset-0 rounded-full"
-                                    style={{
-                                      width: 85, height: 85,
-                                      background: 'conic-gradient(#ff0040, #ff6a00, #ff0040, #ff6a00, #ff0040)',
-                                      WebkitMask: 'radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 4px))',
-                                      mask: 'radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 4px))',
-                                    }}
-                                  />
-                                  <img
-                                    src={u.avatar || '/Icons/Profile icon.png'}
-                                    alt={u.name || u.username}
-                                    className="absolute rounded-full object-cover"
-                                    style={{
-                                      width: STORY_RING_INNER,
-                                      height: STORY_RING_INNER,
-                                      top: '50%',
-                                      left: '50%',
-                                      transform: 'translate(-50%, -50%)',
-                                      objectPosition: 'center center',
-                                      zIndex: 1,
-                                    }}
-                                  />
-                                  <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 bg-red-500 text-white text-[9px] font-bold px-2 py-0.5 rounded z-20 whitespace-nowrap">LIVE</div>
-                                </>
-                              ) : (
-                                <div className="relative" style={{ width: 85, height: 85 }}>
-                                  <img src="/Icons/Profile icon.png" alt="" className="w-full h-full object-contain" style={{ position: 'relative', zIndex: 1 }} />
-                                  <img
-                                    src={u.avatar || '/Icons/Profile icon.png'}
-                                    alt={u.name || u.username}
-                                    className="absolute rounded-full object-cover"
-                                    style={{
-                                      width: STORY_RING_INNER,
-                                      height: STORY_RING_INNER,
-                                      top: '50%',
-                                      left: '50%',
-                                      transform: 'translate(-50%, -50%)',
-                                      objectPosition: 'center center',
-                                      zIndex: 0,
-                                    }}
-                                  />
-                                </div>
-                              )}
-                            </div>
+                            <StoryGoldRingAvatar
+                              live={u.is_live}
+                              src={u.avatar || '/Icons/Profile icon.png'}
+                              alt={u.name || u.username}
+                            />
                             <div className="text-[10px] text-white/80 truncate w-full text-center">
                               {u.name || u.username}
                             </div>

@@ -4,11 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
 import { useVideoStore } from '../store/useVideoStore';
 import EnhancedVideoPlayer from '../components/EnhancedVideoPlayer';
+import { StoryGoldRingAvatar } from '../components/StoryGoldRingAvatar';
 import { apiUrl } from '../lib/api';
-import { profileRingInnerPx } from '../lib/profileFrame';
-
-const STORY_RING_OUTER = 85;
-const STORY_RING_INNER = profileRingInnerPx(STORY_RING_OUTER);
 
 interface SuggestedUser {
   id: string;
@@ -128,23 +125,15 @@ export default function FriendsFeed() {
               onClick={() => navigate('/create')}
               className="flex-shrink-0 flex flex-col items-center gap-1" style={{ width: 95, minWidth: 95 }}
             >
-              <div className="relative" style={{ width: 85, height: 85 }} data-avatar-circle="create">
-                <img src="/Icons/Profile icon.png" alt="" className="w-full h-full object-contain" style={{ position: 'relative', zIndex: 1 }} />
-                <img
-                  src={user?.avatar || (user?.id && typeof localStorage !== 'undefined' ? localStorage.getItem('elix_avatar_' + user.id) : null) || '/Icons/Profile icon.png'}
-                  alt="You"
-                  className="absolute rounded-full object-cover"
-                  style={{
-                    width: STORY_RING_INNER,
-                    height: STORY_RING_INNER,
-                    top: '50%',
-                    left: '50%',
-                    transform: 'translate(-50%, -50%)',
-                    objectPosition: 'center center',
-                    zIndex: 0,
-                  }}
-                />
-              </div>
+              <StoryGoldRingAvatar
+                data-avatar-circle="create"
+                alt="You"
+                src={
+                  user?.avatar ||
+                  (user?.id && typeof localStorage !== 'undefined' ? localStorage.getItem('elix_avatar_' + user.id) : null) ||
+                  '/Icons/Profile icon.png'
+                }
+              />
               <div className="text-[11px] text-white/80 truncate w-full text-center">Create</div>
             </button>
 
@@ -156,76 +145,12 @@ export default function FriendsFeed() {
                 onClick={() => u.is_live ? navigate(`/watch/${u.id}`) : navigate(`/profile/${u.id}`)}
                 className="flex-shrink-0 flex flex-col items-center gap-1" style={{ width: 95, minWidth: 95 }}
               >
-                <div className="relative flex items-center justify-center" style={{ width: 85, height: 85 }}>
-                  {u.is_live ? (
-                    <>
-                      {/* Live: match Create circle sizing by using the same frame base */}
-                      <div className="relative" style={{ width: 85, height: 85 }} data-avatar-circle="live">
-                        <img
-                          src="/Icons/Profile icon.png"
-                          alt=""
-                          className="w-full h-full object-contain"
-                          style={{ position: 'absolute', inset: 0, zIndex: 0 }}
-                        />
-                        {/* Red/orange ring overlays the same-sized frame */}
-                        <div
-                          className="absolute inset-0 rounded-full"
-                          style={{
-                            background: 'conic-gradient(#ff0040, #ff6a00, #ff0040, #ff6a00, #ff0040)',
-                            WebkitMask:
-                              'radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 4px))',
-                            mask:
-                              'radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 4px))',
-                            zIndex: 1,
-                          }}
-                        />
-                        <img
-                          src={u.avatar_url || '/Icons/Profile icon.png'}
-                          alt={u.name || u.username}
-                          className="absolute rounded-full object-cover"
-                          style={{
-                            width: STORY_RING_INNER,
-                            height: STORY_RING_INNER,
-                            top: '50%',
-                            left: '50%',
-                            transform: 'translate(-50%, -50%)',
-                            objectPosition: 'center center',
-                            zIndex: 2,
-                          }}
-                        />
-                        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 bg-red-500 text-white text-[9px] font-bold px-2 py-0.5 rounded z-20 whitespace-nowrap">
-                          LIVE
-                        </div>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      {/* Not live: golden Profile icon.png frame + real avatar behind frame center */}
-                      <div className="relative" style={{ width: 85, height: 85 }}>
-                        <img
-                          src="/Icons/Profile icon.png"
-                          alt=""
-                          className="w-full h-full object-contain"
-                          style={{ position: 'relative', zIndex: 1 }}
-                        />
-                        <img
-                          src={u.avatar_url || '/Icons/Profile icon.png'}
-                          alt={u.name || u.username}
-                          className="absolute rounded-full object-cover"
-                          style={{
-                            width: STORY_RING_INNER,
-                            height: STORY_RING_INNER,
-                            top: '50%',
-                            left: '50%',
-                            transform: 'translate(-50%, -50%)',
-                            objectPosition: 'center center',
-                            zIndex: 0,
-                          }}
-                        />
-                      </div>
-                    </>
-                  )}
-                </div>
+                <StoryGoldRingAvatar
+                  live={u.is_live}
+                  data-avatar-circle={u.is_live ? 'live' : undefined}
+                  src={u.avatar_url || '/Icons/Profile icon.png'}
+                  alt={u.name || u.username}
+                />
                 <div className="text-[11px] text-white/80 truncate w-full text-center">{u.name || u.username}</div>
               </button>
             ))}

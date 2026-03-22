@@ -32,7 +32,10 @@ import { LevelBadge } from './LevelBadge';
 import { apiStub } from '../lib/apiStub';
 import { nativeConfirm } from './NativeDialog';
 import { getVideoPosterUrl } from '../lib/bunnyStorage';
-import { PROFILE_RING_INNER_RATIO } from '../lib/profileFrame';
+import { storyRingInnerPx } from '../lib/profileFrame';
+
+const VIDEO_SIDEBAR_AVATAR = 48;
+const VIDEO_SIDEBAR_AVATAR_INNER = storyRingInnerPx(VIDEO_SIDEBAR_AVATAR);
 
 interface EnhancedVideoPlayerProps {
   videoId: string;
@@ -814,32 +817,35 @@ export default function EnhancedVideoPlayer({
         
         {/* Profile Avatar — one gold circle (Profile icon), profile picture inside; no extra circle, no initials */}
         <div className="relative mb-1">
-          <div 
-            className="cursor-pointer hover:scale-105 transition-transform relative flex items-center justify-center overflow-hidden"
-            style={{width:'48px',height:'48px'}}
+          <div
+            className="relative flex cursor-pointer items-center justify-center transition-transform hover:scale-105"
+            style={{ width: VIDEO_SIDEBAR_AVATAR, height: VIDEO_SIDEBAR_AVATAR, isolation: 'isolate' }}
             onClick={handleProfileClick}
           >
-            <img 
-              src="/Icons/Profile icon.png" 
-              alt="" 
-              className="absolute inset-0 w-full h-full object-contain pointer-events-none"
-            />
             {video.user.avatar ? (
-              <img 
-                src={video.user.avatar} 
-                alt={video.user.username} 
-                className="absolute rounded-full object-cover pointer-events-none"
+              <div
+                className="pointer-events-none absolute overflow-hidden rounded-full bg-[#13151A]"
                 style={{
-                  width: `${PROFILE_RING_INNER_RATIO * 100}%`,
-                  height: `${PROFILE_RING_INNER_RATIO * 100}%`,
+                  width: VIDEO_SIDEBAR_AVATAR_INNER,
+                  height: VIDEO_SIDEBAR_AVATAR_INNER,
                   top: '50%',
                   left: '50%',
                   transform: 'translate(-50%, -50%)',
-                  objectFit: 'cover',
-                  objectPosition: 'center center',
+                  zIndex: 1,
                 }}
-              />
+              >
+                <img
+                  src={video.user.avatar}
+                  alt={video.user.username}
+                  className="pointer-events-none h-full w-full object-cover object-center"
+                />
+              </div>
             ) : null}
+            <img
+              src="/Icons/Profile icon.png"
+              alt=""
+              className="pointer-events-none absolute inset-0 z-[2] h-full w-full object-contain"
+            />
           </div>
         </div>
 

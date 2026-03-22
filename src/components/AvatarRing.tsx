@@ -35,12 +35,11 @@ export function AvatarRing({ src, alt = '', size, className = '', onClick, simpl
   return (
     <div
       className={`relative flex flex-shrink-0 items-center justify-center rounded-full ${onClick ? 'cursor-pointer' : ''} ${className}`}
-      style={{ width: size, height: size }}
+      style={{ width: size, height: size, isolation: 'isolate' }}
       onClick={onClick}
     >
-      {/* Inner fill + photo: dead center so the face lines up with the ring mask */}
       <div
-        className="absolute rounded-full bg-[#1a1c22]"
+        className="absolute overflow-hidden rounded-full bg-[#1a1c22]"
         style={{
           width: innerSize,
           height: innerSize,
@@ -49,25 +48,18 @@ export function AvatarRing({ src, alt = '', size, className = '', onClick, simpl
           transform: 'translate(-50%, -50%)',
           zIndex: 1,
         }}
-      />
-      <img
-        src={safeSrc}
-        alt={safeAlt}
-        className="absolute rounded-full object-cover object-center"
-        style={{
-          width: innerSize,
-          height: innerSize,
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          objectPosition: 'center center',
-          zIndex: 2,
-        }}
-      />
+      >
+        <img
+          src={safeSrc}
+          alt={safeAlt}
+          className="h-full w-full object-cover object-center"
+          style={{ objectPosition: 'center center' }}
+        />
+      </div>
       <img
         src="/Icons/Profile icon.png"
         alt=""
-        className="pointer-events-none absolute inset-0 z-[3] h-full w-full rounded-full object-contain"
+        className="pointer-events-none absolute inset-0 z-[2] h-full w-full object-contain"
       />
     </div>
   );

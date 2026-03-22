@@ -6,11 +6,9 @@ import { useAuthStore } from '../store/useAuthStore';
 import { nativeConfirm } from '../components/NativeDialog';
 import { Heart, UserPlus, Search, ShoppingBag, Archive, MicOff, Plus, Sword, X, ChevronRight, Trash2, Bookmark, MessageCircle, AtSign, Share2 } from 'lucide-react';
 import { AvatarRing } from '../components/AvatarRing';
+import { StoryGoldRingAvatar } from '../components/StoryGoldRingAvatar';
 import { showToast } from '../lib/toast';
 import { apiUrl } from '../lib/api';
-import { profileRingInnerPx } from '../lib/profileFrame';
-
-const STORY_RING_INNER = profileRingInnerPx(85);
 
 interface Notification {
   id: string;
@@ -397,23 +395,16 @@ export default function Inbox() {
                     onClick={() => setShowNewFollowersPanel(true)}
                     className="flex-shrink-0 flex flex-col items-center gap-1" style={{ width: 95, minWidth: 95 }}
                 >
-                    <div className="relative" style={{ width: 85, height: 85 }} data-avatar-circle="followers">
-                        <img src="/Icons/Profile icon.png" alt="" className="w-full h-full object-contain" style={{ position: 'relative', zIndex: 1 }} />
-                        <img
-                            src={myNewFollowers[0]?.avatar_url || user?.avatar || (user?.id && typeof localStorage !== 'undefined' ? localStorage.getItem('elix_avatar_' + user.id) : null) || '/Icons/Profile icon.png'}
-                            alt="Followers"
-                            className="absolute rounded-full object-cover"
-                            style={{
-                              width: STORY_RING_INNER,
-                              height: STORY_RING_INNER,
-                              top: '50%',
-                              left: '50%',
-                              transform: 'translate(-50%, -50%)',
-                              objectPosition: 'center center',
-                              zIndex: 0,
-                            }}
-                        />
-                    </div>
+                    <StoryGoldRingAvatar
+                        data-avatar-circle="followers"
+                        alt="Followers"
+                        src={
+                            myNewFollowers[0]?.avatar_url ||
+                            user?.avatar ||
+                            (user?.id && typeof localStorage !== 'undefined' ? localStorage.getItem('elix_avatar_' + user.id) : null) ||
+                            '/Icons/Profile icon.png'
+                        }
+                    />
                     <div className="text-[11px] text-white/80 truncate w-full text-center">Followers</div>
                     <div className="text-[10px] text-[#C9A96E]/90 truncate w-full text-center">{followersCount}</div>
                 </button>
@@ -426,68 +417,12 @@ export default function Inbox() {
                         onClick={() => u.is_live ? navigate(`/watch/${u.id}`) : navigate(`/profile/${u.id}`)}
                         className="flex-shrink-0 flex flex-col items-center gap-1" style={{ width: 95, minWidth: 95 }}
                     >
-                        <div className="relative flex items-center justify-center" style={{ width: 85, height: 85 }}>
-                            {u.is_live ? (
-                                <>
-                                    <div className="relative" style={{ width: 85, height: 85 }} data-avatar-circle="live">
-                                        <img
-                                            src="/Icons/Profile icon.png"
-                                            alt=""
-                                            className="w-full h-full object-contain"
-                                            style={{ position: 'absolute', inset: 0, zIndex: 0 }}
-                                        />
-                                        <div
-                                            className="absolute inset-0 rounded-full"
-                                            style={{
-                                                background: 'conic-gradient(#ff0040, #ff6a00, #ff0040, #ff6a00, #ff0040)',
-                                                WebkitMask:
-                                                  'radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 4px))',
-                                                mask:
-                                                  'radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 4px))',
-                                                zIndex: 1,
-                                            }}
-                                        />
-                                        <img
-                                            src={u.avatar_url || '/Icons/Profile icon.png'}
-                                            alt={u.name || u.username}
-                                            className="absolute rounded-full object-cover"
-                                            style={{
-                                                width: STORY_RING_INNER,
-                                                height: STORY_RING_INNER,
-                                                top: '50%',
-                                                left: '50%',
-                                                transform: 'translate(-50%, -50%)',
-                                                objectPosition: 'center center',
-                                                zIndex: 2,
-                                            }}
-                                        />
-                                        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 bg-red-500 text-white text-[9px] font-bold px-2 py-0.5 rounded z-20 whitespace-nowrap">
-                                          LIVE
-                                        </div>
-                                    </div>
-                                </>
-                            ) : (
-                                <>
-                                    <div className="relative" style={{ width: 85, height: 85 }}>
-                                        <img src="/Icons/Profile icon.png" alt="" className="w-full h-full object-contain" style={{ position: 'relative', zIndex: 1 }} />
-                                        <img
-                                            src={u.avatar_url || '/Icons/Profile icon.png'}
-                                            alt={u.name || u.username}
-                                            className="absolute rounded-full object-cover"
-                                            style={{
-                                                width: STORY_RING_INNER,
-                                                height: STORY_RING_INNER,
-                                                top: '50%',
-                                                left: '50%',
-                                                transform: 'translate(-50%, -50%)',
-                                                objectPosition: 'center center',
-                                                zIndex: 0,
-                                            }}
-                                        />
-                                    </div>
-                                </>
-                            )}
-                        </div>
+                        <StoryGoldRingAvatar
+                            live={u.is_live}
+                            data-avatar-circle={u.is_live ? 'live' : undefined}
+                            src={u.avatar_url || '/Icons/Profile icon.png'}
+                            alt={u.name || u.username}
+                        />
                         <div className="text-[11px] text-white/80 truncate w-full text-center">{u.name || u.username}</div>
                     </button>
                 ))}
@@ -499,23 +434,10 @@ export default function Inbox() {
                         onClick={() => navigate(`/profile/${f.user_id}`)}
                         className="flex-shrink-0 flex flex-col items-center gap-1" style={{ width: 95, minWidth: 95 }}
                     >
-                        <div className="relative" style={{ width: 85, height: 85 }}>
-                            <img src="/Icons/Profile icon.png" alt="" className="w-full h-full object-contain" style={{ position: 'relative', zIndex: 1 }} />
-                            <img
-                                src={f.avatar_url || '/Icons/Profile icon.png'}
-                                alt={f.display_name || f.username || 'User'}
-                                className="absolute rounded-full object-cover"
-                                style={{
-                                    width: STORY_RING_INNER,
-                                    height: STORY_RING_INNER,
-                                    top: '50%',
-                                    left: '50%',
-                                    transform: 'translate(-50%, -50%)',
-                                    objectPosition: 'center center',
-                                    zIndex: 0,
-                                }}
-                            />
-                        </div>
+                        <StoryGoldRingAvatar
+                            src={f.avatar_url || '/Icons/Profile icon.png'}
+                            alt={f.display_name || f.username || 'User'}
+                        />
                         <div className="text-[11px] text-white/80 truncate w-full text-center">{f.display_name || f.username || 'User'}</div>
                     </button>
                 ))}

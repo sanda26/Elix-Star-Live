@@ -812,6 +812,7 @@ export default function EnhancedVideoPlayer({
             : scrubbing
               ? 'max(3.5rem, calc(44px + 10px))'
               : 'max(3.5rem, 1.5rem)',
+          marginBottom: '-8mm',
         }}
       >
         

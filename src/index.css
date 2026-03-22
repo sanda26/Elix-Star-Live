@@ -104,6 +104,8 @@
         ) - 10mm
       )
     );
+    /* Guaranteed extra lift (VideoFeed inner player wrapper) — works even when padding is stuck on safe-area */
+    --feed-video-lift-for-you: 10mm;
     /* For You main: a bit tighter above bottom nav (still clears tap targets) */
     --feed-main-pb: max(0px, calc(var(--bottom-ui-reserve) - 9mm));
     /* Bottom sheets */

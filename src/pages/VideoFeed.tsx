@@ -507,7 +507,12 @@ export default function VideoFeed() {
                 className="h-full w-full shrink-0 snap-start flex flex-col items-center bg-[#0A0B0E]"
                 style={slideStyle}
               >
-                <div className="w-full max-w-[480px] flex-1 min-h-0 relative overflow-hidden bg-[#0A0B0E]">
+                <div
+                  className="w-full max-w-[480px] flex-1 min-h-0 relative overflow-hidden bg-[#0A0B0E]"
+                  style={{
+                    transform: "translateY(calc(-1 * var(--feed-video-lift-for-you)))",
+                  }}
+                >
                   <InlineLiveViewer
                     streamKey={item.stream.streamKey}
                     isActive={activeIndex === index}
@@ -527,7 +532,12 @@ export default function VideoFeed() {
               className="h-full w-full shrink-0 snap-start flex flex-col items-center bg-[#0A0B0E]"
               style={slideStyle}
             >
-              <div className="w-full max-w-[480px] flex-1 min-h-0 relative overflow-hidden bg-[#0A0B0E]">
+              <div
+                className="w-full max-w-[480px] flex-1 min-h-0 relative overflow-hidden bg-[#0A0B0E]"
+                style={{
+                  transform: "translateY(calc(-1 * var(--feed-video-lift-for-you)))",
+                }}
+              >
                 <EnhancedVideoPlayer
                   videoId={item.videoId}
                   isActive={activeIndex === index}

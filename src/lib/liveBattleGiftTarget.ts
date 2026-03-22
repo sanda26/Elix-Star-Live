@@ -1,4 +1,4 @@
-/** Align with server `normalizeBattleTarget` in server/index.ts — maps WS payload to host vs opponent team. */
+/** MVP team side: host+P3 = one team, opponent+P4 = other (server stores four per-player buckets). */
 export type BattleGiftSide = "host" | "opponent";
 
 export function normalizeBattleGiftTarget(raw: unknown): BattleGiftSide | null {

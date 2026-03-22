@@ -955,11 +955,18 @@ function getGiftValue(giftId: string): number {
   return GIFT_VALUES[giftId] || 0;
 }
 
-function normalizeBattleTarget(rawTarget: unknown): "host" | "opponent" | null {
-  if (rawTarget === "host" || rawTarget === "opponent") return rawTarget;
+function normalizeBattleTarget(
+  rawTarget: unknown,
+): "host" | "opponent" | "player3" | "player4" | null {
+  if (
+    rawTarget === "host" ||
+    rawTarget === "opponent" ||
+    rawTarget === "player3" ||
+    rawTarget === "player4"
+  ) {
+    return rawTarget;
+  }
   if (rawTarget === "me") return "host";
-  if (rawTarget === "player4") return "opponent";
-  if (rawTarget === "player3") return "host";
   return null;
 }
 
@@ -1702,23 +1709,40 @@ async function handleMessage(client: Client, event: string, data: any) {
           const serverGiftValue = getGiftValue(data.giftId);
           if (serverGiftValue > 0) {
             let normalizedTarget = normalizeBattleTarget(data.battleTarget);
-            // If gift came from opponent's room and target is 'me'/'host', flip to 'opponent'
-            if (client.roomId === activeBattle.opponentRoomId && client.roomId !== battleRoomId) {
-              if (!normalizedTarget || normalizedTarget === "host") normalizedTarget = "opponent";
-              else if (normalizedTarget === "opponent") normalizedTarget = "host";
+            // Spectators in the opponent's stream see that creator as on-screen "host"; flip host↔opponent for team credit.
+            // Battle participants send absolute host/opponent/player3/player4 — never flip.
+            const inOpponentStreamRoom =
+              client.roomId === activeBattle.opponentRoomId &&
+              client.roomId !== battleRoomId;
+            const isBattleParticipant =
+              client.userId === activeBattle.hostUserId ||
+              client.userId === activeBattle.opponentUserId ||
+              client.userId === activeBattle.player3UserId ||
+              client.userId === activeBattle.player4UserId;
+            if (inOpponentStreamRoom && !isBattleParticipant) {
+              if (!normalizedTarget || normalizedTarget === "host") {
+                normalizedTarget = "opponent";
+              } else if (normalizedTarget === "opponent") {
+                normalizedTarget = "host";
+              }
             }
-            // If sender IS the opponent, 'me' should score opponent
             if (!normalizedTarget && client.userId === activeBattle.opponentUserId) {
               normalizedTarget = "opponent";
+            }
+            if (!normalizedTarget && client.userId === activeBattle.hostUserId) {
+              normalizedTarget = "host";
+            }
+            if (!normalizedTarget) {
+              normalizedTarget =
+                client.roomId === activeBattle.opponentRoomId &&
+                client.roomId !== battleRoomId
+                  ? "opponent"
+                  : "host";
             }
             // #region agent log
             console.log(`[DBG-7a7f0c] gift_sent scoring: userId=${client.userId} roomId=${client.roomId} battleRoomId=${battleRoomId} rawTarget=${data.battleTarget} normalized=${normalizedTarget} value=${serverGiftValue} hostScore=${activeBattle.hostScore} oppScore=${activeBattle.opponentScore}`);
             // #endregion
-            addBattleScoreForTarget(
-              battleRoomId,
-              normalizedTarget || "host",
-              serverGiftValue,
-            );
+            addBattleScoreForTarget(battleRoomId, normalizedTarget, serverGiftValue);
           }
         }
         break;

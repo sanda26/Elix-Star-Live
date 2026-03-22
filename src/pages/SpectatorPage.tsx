@@ -240,7 +240,17 @@ export default function SpectatorPage() {
   // ═══════════════════════════════════════════════════
   // BATTLE STATE (spectator sees host's battle status)
   // ═══════════════════════════════════════════════════
-  const [spectatorBattle, setSpectatorBattle] = useState<{ active: boolean; hostScore: number; opponentScore: number; timeLeft: number; opponentName?: string; opponentRoomId?: string; winner?: string } | null>(null);
+  const [spectatorBattle, setSpectatorBattle] = useState<{
+    active: boolean;
+    hostScore: number;
+    opponentScore: number;
+    player3Score?: number;
+    player4Score?: number;
+    timeLeft: number;
+    opponentName?: string;
+    opponentRoomId?: string;
+    winner?: string;
+  } | null>(null);
   const spectatorBattleRef = useRef(spectatorBattle);
   spectatorBattleRef.current = spectatorBattle;
   /** When battle is active, gifts credit host (red) or opponent (blue) MVP tallies. */
@@ -968,6 +978,8 @@ export default function SpectatorPage() {
           active: true,
           hostScore: toScore(data.hostScore, prev?.hostScore ?? 0),
           opponentScore: toScore(data.opponentScore, prev?.opponentScore ?? 0),
+          player3Score: toScore(data.player3Score ?? data.player3_score, prev?.player3Score ?? 0),
+          player4Score: toScore(data.player4Score ?? data.player4_score, prev?.player4Score ?? 0),
           timeLeft: toScore(data.timeLeft, prev?.timeLeft ?? 300),
           opponentName: data.opponentName || data.opponent_name || prev?.opponentName,
           opponentRoomId: data.opponentRoomId || prev?.opponentRoomId,
@@ -980,6 +992,8 @@ export default function SpectatorPage() {
           active: false,
           hostScore: 0,
           opponentScore: 0,
+          player3Score: 0,
+          player4Score: 0,
           timeLeft: toScore(data.timeLeft, 300),
           opponentName: data.opponentName || prev?.opponentName,
           opponentRoomId: data.opponentRoomId || prev?.opponentRoomId,
@@ -998,6 +1012,8 @@ export default function SpectatorPage() {
         timeLeft: toScore(data.timeLeft, prev?.timeLeft ?? 300),
         hostScore: toScore(data.hostScore, prev?.hostScore ?? 0),
         opponentScore: toScore(data.opponentScore, prev?.opponentScore ?? 0),
+        player3Score: toScore(data.player3Score ?? data.player3_score, prev?.player3Score ?? 0),
+        player4Score: toScore(data.player4Score ?? data.player4_score, prev?.player4Score ?? 0),
         opponentName: (typeof data.opponentName === 'string' && data.opponentName) || prev?.opponentName,
         opponentRoomId: (typeof data.opponentRoomId === 'string' && data.opponentRoomId) || prev?.opponentRoomId,
         winner: prev?.winner,
@@ -1015,6 +1031,8 @@ export default function SpectatorPage() {
         timeLeft: prev?.timeLeft ?? 300,
         hostScore: toScore(data.hostScore, prev?.hostScore ?? 0),
         opponentScore: toScore(data.opponentScore, prev?.opponentScore ?? 0),
+        player3Score: toScore(data.player3Score ?? data.player3_score, prev?.player3Score ?? 0),
+        player4Score: toScore(data.player4Score ?? data.player4_score, prev?.player4Score ?? 0),
         opponentName: (typeof data.opponentName === 'string' && data.opponentName) || prev?.opponentName,
         opponentRoomId: (typeof data.opponentRoomId === 'string' && data.opponentRoomId) || prev?.opponentRoomId,
         winner: prev?.winner,
@@ -1023,13 +1041,31 @@ export default function SpectatorPage() {
 
     const handleBattleEnded = (data: any) => {
       if (!mounted) return;
-      setSpectatorBattle(prev => prev ? {
-        ...prev,
-        active: false,
-        hostScore: data.hostScore ?? prev.hostScore,
-        opponentScore: data.opponentScore ?? prev.opponentScore,
-        winner: data.winner || (data.hostScore > data.opponentScore ? 'host' : data.hostScore < data.opponentScore ? 'opponent' : 'draw'),
-      } : null);
+      const toScore = (value: unknown, fallback = 0) => {
+        const n = Number(value);
+        return Number.isFinite(n) ? n : fallback;
+      };
+      setSpectatorBattle(prev => {
+        if (!prev) return null;
+        const h = toScore(data.hostScore, prev.hostScore);
+        const o = toScore(data.opponentScore, prev.opponentScore);
+        const p3 = toScore(data.player3Score ?? data.player3_score, prev.player3Score ?? 0);
+        const p4 = toScore(data.player4Score ?? data.player4_score, prev.player4Score ?? 0);
+        const teamA = h + p3;
+        const teamB = o + p4;
+        const winner =
+          (typeof data.winner === 'string' && data.winner) ||
+          (teamA > teamB ? 'host' : teamA < teamB ? 'opponent' : 'draw');
+        return {
+          ...prev,
+          active: false,
+          hostScore: h,
+          opponentScore: o,
+          player3Score: p3,
+          player4Score: p4,
+          winner,
+        };
+      });
       setTimeout(() => setSpectatorBattle(null), 5000);
     };
 
@@ -1466,10 +1502,10 @@ export default function SpectatorPage() {
 
           /* ═══ BATTLE MODE: creator-identical 50/50 split layout ═══ */
           if (spectatorBattle?.active) {
-            const total = (spectatorBattle.hostScore || 0) + (spectatorBattle.opponentScore || 0);
-            const leftPct = total > 0 ? Math.max(5, Math.min(95, ((spectatorBattle.hostScore || 0) / total) * 100)) : 50;
-            const redTeamScore = spectatorBattle.hostScore || 0;
-            const blueTeamScore = spectatorBattle.opponentScore || 0;
+            const redTeamScore = (spectatorBattle.hostScore || 0) + (spectatorBattle.player3Score ?? 0);
+            const blueTeamScore = (spectatorBattle.opponentScore || 0) + (spectatorBattle.player4Score ?? 0);
+            const total = redTeamScore + blueTeamScore;
+            const leftPct = total > 0 ? Math.max(5, Math.min(95, (redTeamScore / total) * 100)) : 50;
             return (
               <div
                 className="absolute inset-0 z-[80] flex flex-col"

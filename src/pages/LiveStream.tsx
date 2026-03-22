@@ -1068,6 +1068,9 @@ export default function LiveStream() {
   const [hasOpponentStream, setHasOpponentStream] = useState(false);
   const [opponentStreamKey, setOpponentStreamKey] = useState<string | null>(null);
   const battleRoleRef = useRef<'host' | 'opponent' | null>(null);
+  const [battleUiRole, setBattleUiRole] = useState<'host' | 'opponent'>(() =>
+    isBattleJoiner ? 'opponent' : 'host',
+  );
   const opponentLkRoomRef = useRef<Room | null>(null);
   const [iAmReady, setIAmReady] = useState(false);
   const [hostIsReady, setHostIsReady] = useState(false);
@@ -1284,14 +1287,15 @@ export default function LiveStream() {
     } catch {}
   };
 
-  // 2v2: Red Team (P1+P3) vs Blue Team (P2+P4)
+  // 2v2: team totals = (host + P3) vs (opponent + P4). 1v1: P3/P4 stay 0.
   const determine4PlayerWinner = useCallback(() => {
-    const red = myScore + player3Score;
-    const blue = opponentScore + player4Score;
-    if (red === blue) return 'draw';
-    // 'me' = red team wins, 'opponent' = blue team wins
-    return red > blue ? 'me' : 'opponent';
-  }, [myScore, opponentScore, player3Score, player4Score]);
+    const hostAbs = battleUiRole === 'opponent' ? opponentScore : myScore;
+    const oppAbs = battleUiRole === 'opponent' ? myScore : opponentScore;
+    const teamA = hostAbs + player3Score;
+    const teamB = oppAbs + player4Score;
+    if (teamA === teamB) return 'draw';
+    return teamA > teamB ? 'me' : 'opponent';
+  }, [myScore, opponentScore, player3Score, player4Score, battleUiRole]);
 
   // Timer, scoring, and winner are all server-driven via battle_tick, battle_score, battle_ended
 
@@ -1313,6 +1317,7 @@ export default function LiveStream() {
     setOpponentIsReady(false);
     setOpponentCreatorName('');
     setGiftTarget('me');
+    setBattleUiRole(isBattleJoiner ? 'opponent' : 'host');
     setMutedPlayers({});
     reachedThresholdsRef.current.clear();
     battleFreeTapUsedRef.current = false;
@@ -1345,7 +1350,7 @@ export default function LiveStream() {
     if (player4VideoRef.current) { player4VideoRef.current.srcObject = null; }
     if (battlePeerRef.current) { battlePeerRef.current.close(); battlePeerRef.current = null; }
     // Battle state notified via WebSocket.
-  }, [effectiveStreamId]);
+  }, [effectiveStreamId, isBattleJoiner]);
 
   const toggleBattle = useCallback(() => {
     if (isBattleMode) {
@@ -2238,6 +2243,7 @@ export default function LiveStream() {
       }
       setPlayer3Score(p3);
       setPlayer4Score(p4);
+      setBattleUiRole(role);
     };
 
     const handleBattleStateSync = (data: any) => {
@@ -2631,11 +2637,8 @@ export default function LiveStream() {
     const resolveOutgoingBattleTarget = (target: 'me' | 'opponent' | 'player3' | 'player4') => {
       const role = battleRoleRef.current || (isBattleJoiner ? 'opponent' : (isBroadcast ? 'host' : null));
       if (role !== 'opponent') return target;
-      // Opponent UI keeps self on the left; server scoring uses absolute host/opponent keys.
       if (target === 'me') return 'opponent';
       if (target === 'opponent') return 'me';
-      if (target === 'player3') return 'player4';
-      if (target === 'player4') return 'player3';
       return target;
     };
 
@@ -2797,8 +2800,6 @@ export default function LiveStream() {
         if (role !== 'opponent') return target;
         if (target === 'me') return 'opponent';
         if (target === 'opponent') return 'me';
-        if (target === 'player3') return 'player4';
-        if (target === 'player4') return 'player3';
         return target;
       };
       
@@ -3078,9 +3079,11 @@ export default function LiveStream() {
     setBattleWinner(winner);
   };
 
-  // 2v2 Team Scores: Red Team (P1 + P3) vs Blue Team (P2 + P4)
-  const redTeamScore = myScore + player3Score;
-  const blueTeamScore = opponentScore + player4Score;
+  // Team totals for bar: (absolute host + P3) vs (absolute opponent + P4)
+  const hostScoreAbs = battleUiRole === 'opponent' ? opponentScore : myScore;
+  const oppScoreAbs = battleUiRole === 'opponent' ? myScore : opponentScore;
+  const redTeamScore = hostScoreAbs + player3Score;
+  const blueTeamScore = oppScoreAbs + player4Score;
   const totalScore = redTeamScore + blueTeamScore;
   const leftPctRaw = totalScore > 0 ? (redTeamScore / totalScore) * 100 : 50;
   const leftPct = Math.max(3, Math.min(97, leftPctRaw));

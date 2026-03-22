@@ -13,7 +13,7 @@ const LIVE_RING_STYLE: React.CSSProperties = {
  * Gold `Profile icon.png` on top; avatar clipped to the inner circle behind it (and behind the live gradient ring when live).
  */
 export function StoryGoldRingAvatar({
-  size = 85,
+  size = 56,
   src,
   alt = '',
   live = false,
@@ -66,7 +66,7 @@ export function StoryGoldRingAvatar({
       />
 
       {live && (
-        <div className="pointer-events-none absolute bottom-0 left-1/2 z-[20] -translate-x-1/2 translate-y-1/2 whitespace-nowrap rounded bg-red-500 px-2 py-0.5 text-[9px] font-bold text-white">
+        <div className="pointer-events-none absolute bottom-0 left-1/2 z-[20] -translate-x-1/2 translate-y-1/2 whitespace-nowrap rounded bg-red-500 px-1.5 py-0.5 text-[8px] font-bold text-white">
           LIVE
         </div>
       )}

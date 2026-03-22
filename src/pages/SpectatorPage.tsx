@@ -1806,42 +1806,40 @@ export default function SpectatorPage() {
                 </div>
               </div>
 
-              <div
-                className="pointer-events-auto absolute left-1/2 -translate-x-1/2 flex items-center -space-x-1.5 z-[5]"
-                onClick={() => {
-                  const list: { id: string; name: string; avatar: string; level?: number }[] = [];
-                  const hid = hostUserIdRef.current || hostUserId || effectiveStreamId;
-                  actualViewersRef.current.forEach((v, id) => {
-                    if (id !== user?.id && id !== hid && id !== effectiveStreamId) {
-                      list.push({ id, name: v.name, avatar: v.avatar, level: v.level });
-                    }
-                  });
-                  setViewersList(list);
-                  setShowViewersPanel(true);
-                }}
-              >
-                {[0, 1, 2].map((i) => {
-                  const slot = spectatorTopAvatars[i];
-                  return (
-                    <div key={`spectator-top-mvp-${i}`} style={{ zIndex: 3 - i }} className="relative">
-                      <GoldProfileFrame size={36}>
-                        {slot?.avatar ? (
-                          <img src={slot.avatar} alt={slot.name || ''} className="h-full w-full rounded-full object-cover object-center" />
-                        ) : (
-                          <Plus className="text-[#C9A96E]" size={16} strokeWidth={2.5} />
-                        )}
-                      </GoldProfileFrame>
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div className="pointer-events-auto flex items-center gap-2 flex-shrink-0">
+              <div className="pointer-events-auto flex items-center gap-0.5 flex-shrink-0">
+                <div
+                  className="flex items-center -space-x-3 pointer-events-auto"
+                  onClick={() => {
+                    const list: { id: string; name: string; avatar: string; level?: number }[] = [];
+                    const hid = hostUserIdRef.current || hostUserId || effectiveStreamId;
+                    actualViewersRef.current.forEach((v, id) => {
+                      if (id !== user?.id && id !== hid && id !== effectiveStreamId) {
+                        list.push({ id, name: v.name, avatar: v.avatar, level: v.level });
+                      }
+                    });
+                    setViewersList(list);
+                    setShowViewersPanel(true);
+                  }}
+                >
+                  {[0, 1, 2].map((i) => {
+                    const slot = spectatorTopAvatars[i];
+                    return (
+                      <div key={`spectator-top-mvp-${i}`} style={{ zIndex: 3 - i }} className="relative">
+                        <GoldProfileFrame size={36}>
+                          {slot?.avatar ? (
+                            <img src={slot.avatar} alt={slot.name || ''} className="h-full w-full rounded-full object-cover object-center" />
+                          ) : (
+                            <Plus className="text-[#C9A96E]" size={16} strokeWidth={2.5} />
+                          )}
+                        </GoldProfileFrame>
+                      </div>
+                    );
+                  })}
+                </div>
                 {/* Viewer count */}
                 <button
                   type="button"
                   className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-transparent border-0 active:scale-95 transition-transform"
-                  style={{ transform: 'translateX(-8mm)' }}
                   onClick={() => {
                     const list: { id: string; name: string; avatar: string; level?: number }[] = [];
                     const hid = hostUserIdRef.current || hostUserId || effectiveStreamId;
@@ -1868,7 +1866,6 @@ export default function SpectatorPage() {
                     navigate('/feed', { replace: true });
                   }}
                   className="w-8 h-8 rounded-full bg-transparent border-0 flex items-center justify-center active:scale-90 transition-transform"
-                  style={{ transform: 'translateX(-8mm)' }}
                 >
                   <img src="/Icons/Gold power buton.png" alt="Leave stream" className="w-5 h-5 object-contain" />
                 </button>

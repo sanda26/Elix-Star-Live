@@ -4,12 +4,11 @@ import { apiStub } from '../lib/apiStub';
 import { useAuthStore } from '../store/useAuthStore';
 import { Plus, X, Camera, Tag, MessageCircle, Search } from 'lucide-react';
 import { AvatarRing } from '../components/AvatarRing';
+import { StoryGoldRingAvatar } from '../components/StoryGoldRingAvatar';
 import { showToast } from '../lib/toast';
 import { apiUrl } from '../lib/api';
-import { profileRingInnerPx, PROFILE_RING_IMAGE_LIFT_MM } from '../lib/profileFrame';
 
-const SHOP_LIVE_RING = 85;
-const SHOP_LIVE_INNER = profileRingInnerPx(SHOP_LIVE_RING);
+const SHOP_LIVE_RING = 56;
 
 interface ShopItem {
   id: string;
@@ -280,37 +279,15 @@ export default function Shop() {
                   type="button"
                   onClick={() => navigate(`/watch/${u.streamKey}`)}
                   className="flex-shrink-0 flex flex-col items-center gap-1 active:scale-95 transition-transform"
-                  style={{ width: 85, minWidth: 85 }}
+                  style={{ width: SHOP_LIVE_RING, minWidth: SHOP_LIVE_RING }}
                   title={u.name}
                 >
-                  <div className="relative flex items-center justify-center" style={{ width: 85, height: 85 }}>
-                    <div
-                      className="absolute inset-0 rounded-full"
-                      style={{
-                        width: 85, height: 85,
-                        background: 'conic-gradient(#ff0040, #ff6a00, #ff0040, #ff6a00, #ff0040)',
-                        WebkitMask: 'radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 4px))',
-                        mask: 'radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 4px))',
-                      }}
-                    />
-                    <img
-                      src={u.avatar || '/Icons/Profile icon.png'}
-                      alt={u.name}
-                      className="absolute rounded-full object-cover"
-                      style={{
-                        width: SHOP_LIVE_INNER,
-                        height: SHOP_LIVE_INNER,
-                        top: `calc(50% - ${PROFILE_RING_IMAGE_LIFT_MM}mm)`,
-                        left: '50%',
-                        transform: 'translate(-50%, -50%)',
-                        objectPosition: 'center center',
-                        zIndex: 1,
-                      }}
-                    />
-                    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 bg-red-500 text-white text-[9px] font-bold px-2 py-0.5 rounded z-20 whitespace-nowrap">
-                      LIVE
-                    </div>
-                  </div>
+                  <StoryGoldRingAvatar
+                    size={SHOP_LIVE_RING}
+                    live
+                    src={u.avatar || '/Icons/Profile icon.png'}
+                    alt={u.name}
+                  />
                   <div className="text-[9px] text-white/70 truncate w-full text-center">{u.name}</div>
                 </button>
               ))}

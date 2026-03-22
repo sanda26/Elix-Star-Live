@@ -170,8 +170,8 @@ export default function UserProfileModal({ isOpen, onClose, user, onFollow }: Us
   return (
     <div className="fixed inset-0 z-[10001] bg-black/60 flex items-end justify-center animate-in fade-in duration-200" onClick={onClose}>
       <div 
-        className="w-full max-w-[480px] bg-[#1C1E24] rounded-t-2xl overflow-y-auto animate-in slide-in-from-bottom duration-300 relative border border-b-0 border-[#C9A96E]/30 shadow-2xl"
-        style={{ marginBottom: 'var(--bottom-ui-reserve)', height: 'calc(100dvh - var(--bottom-ui-reserve))' }}
+        className="w-full max-w-[480px] bg-[#1C1E24] overflow-y-auto animate-in slide-in-from-bottom duration-300 relative border border-b-0 border-[#C9A96E]/30 shadow-2xl"
+        style={{ marginBottom: 'calc(var(--nav-height) + var(--safe-bottom))' }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

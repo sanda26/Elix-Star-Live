@@ -63,10 +63,10 @@ function TrendingSlide({ video }: { video: Video }) {
   );
 }
 
-/** Search: full column width, no card frame — sits flush under trending users. */
+/**
+ * Search trending: same snap model as For You — parent must be flex-1 min-h-0 so each slide is one viewport tall.
+ */
 export function TrendingSnapFeed({ videos }: { videos: Video[] }) {
-  const slideH = 'min(78dvh,calc(100vw*16/9))';
-
   if (videos.length === 0) {
     return (
       <div className="text-xs text-white/30 py-3 px-4 text-center w-full">
@@ -76,16 +76,16 @@ export function TrendingSnapFeed({ videos }: { videos: Video[] }) {
   }
 
   return (
-    <div className="w-full bg-black">
+    <div className="flex-1 min-h-0 w-full flex flex-col bg-black">
       <div
-        className="w-full overflow-y-auto snap-y snap-mandatory flex flex-col gap-0 no-scrollbar"
-        style={{ overscrollBehavior: 'contain' }}
+        className="flex-1 min-h-0 w-full overflow-y-scroll snap-y snap-mandatory relative no-scrollbar"
+        style={{ scrollSnapType: 'y mandatory', overscrollBehavior: 'contain' }}
       >
         {videos.map((video) => (
           <div
             key={video.id}
-            className="snap-start shrink-0 w-full overflow-hidden bg-black"
-            style={{ height: slideH, maxHeight: 'min(82dvh, calc(100dvh - 9.5rem))' }}
+            className="h-full w-full shrink-0 snap-start flex flex-col bg-black overflow-hidden"
+            style={{ scrollSnapAlign: 'start', scrollSnapStop: 'always', boxSizing: 'border-box' }}
           >
             <TrendingSlide video={video} />
           </div>

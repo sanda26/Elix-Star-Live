@@ -253,45 +253,140 @@ export default function SearchPage() {
             </div>
           </div>
 
-          {/* Results — px-4 on text blocks; trending feed is full width of column */}
-          <div className="flex-1 min-h-0 overflow-y-auto pb-0">
+          {/* Results: with videos → For You–style snap fills remaining height; otherwise single scroll */}
+          <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
             {!normalizedQuery ? (
-              <>
-                {/* Quick chips */}
-                <div className="mt-2 px-4">
-                  <h2 className="font-bold mb-2 text-gold-metallic text-sm">You may like</h2>
-                  <div className="flex flex-wrap gap-2">
-                    {TRENDING_SEARCHES.map((tag) => (
-                      <button 
-                        key={tag}
-                        onClick={() => {
-                          const params = new URLSearchParams(location.search);
-                          params.set('q', tag);
-                          navigate({ pathname: location.pathname, search: `?${params.toString()}` }, { replace: true });
-                        }}
-                        className="bg-[#1C1E24] px-3 py-1.5 rounded-full text-xs border border-[#C9A96E]/30 text-gold-metallic hover:border-[#C9A96E] transition-colors"
-                      >
-                        {tag}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Recent searches */}
-                {recentSearches.length > 0 && (
-                  <div className="mt-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <h2 className="font-bold text-gold-metallic text-sm">Recent</h2>
-                      <button
-                        type="button"
-                        onClick={() => { try { localStorage.removeItem(RECENT_KEY); } catch {} setRecentSearches([]); }}
-                        className="text-[11px] text-white/40 hover:text-white/70"
-                      >
-                        Clear
-                      </button>
+              (videos || []).length > 0 ? (
+                <>
+                  <div className="shrink-0 overflow-y-auto max-h-[min(42vh,360px)] overscroll-contain border-b border-white/[0.06]">
+                    {/* Quick chips */}
+                    <div className="mt-2 px-4">
+                      <h2 className="font-bold mb-2 text-gold-metallic text-sm">You may like</h2>
+                      <div className="flex flex-wrap gap-2">
+                        {TRENDING_SEARCHES.map((tag) => (
+                          <button
+                            key={tag}
+                            onClick={() => {
+                              const params = new URLSearchParams(location.search);
+                              params.set('q', tag);
+                              navigate({ pathname: location.pathname, search: `?${params.toString()}` }, { replace: true });
+                            }}
+                            className="bg-[#1C1E24] px-3 py-1.5 rounded-full text-xs border border-[#C9A96E]/30 text-gold-metallic hover:border-[#C9A96E] transition-colors"
+                          >
+                            {tag}
+                          </button>
+                        ))}
+                      </div>
                     </div>
+
+                    {recentSearches.length > 0 && (
+                      <div className="mt-4 px-4 pb-2">
+                        <div className="flex items-center justify-between mb-2">
+                          <h2 className="font-bold text-gold-metallic text-sm">Recent</h2>
+                          <button
+                            type="button"
+                            onClick={() => { try { localStorage.removeItem(RECENT_KEY); } catch {} setRecentSearches([]); }}
+                            className="text-[11px] text-white/40 hover:text-white/70"
+                          >
+                            Clear
+                          </button>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {recentSearches.map((tag) => (
+                            <button
+                              key={tag}
+                              onClick={() => {
+                                const params = new URLSearchParams(location.search);
+                                params.set('q', tag);
+                                navigate({ pathname: location.pathname, search: `?${params.toString()}` }, { replace: true });
+                              }}
+                              className="bg-[#13151A] px-3 py-1.5 rounded-full text-xs border border-white/10 text-white/70 hover:border-white/20 transition-colors"
+                            >
+                              {tag}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {suggestedUsers.length > 0 && (
+                      <div className="mt-2 px-4 pb-2">
+                        <h2 className="font-bold mb-1 text-gold-metallic text-sm">Trending users</h2>
+                        <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
+                          {suggestedUsers.map((u) => (
+                            <button
+                              key={u.id}
+                              onClick={() => u.is_live ? navigate(`/watch/${u.id}`) : navigate(`/profile/${u.id}`)}
+                              className="flex-shrink-0 flex flex-col items-center gap-1" style={{ width: 85, minWidth: 85 }}
+                            >
+                              <div className="relative flex items-center justify-center" style={{ width: 85, height: 85 }}>
+                                {u.is_live ? (
+                                  <>
+                                    <div
+                                      className="absolute inset-0 rounded-full"
+                                      style={{
+                                        width: 85, height: 85,
+                                        background: 'conic-gradient(#ff0040, #ff6a00, #ff0040, #ff6a00, #ff0040)',
+                                        WebkitMask: 'radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 4px))',
+                                        mask: 'radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 4px))',
+                                      }}
+                                    />
+                                    <img
+                                      src={u.avatar || '/Icons/Profile icon.png'}
+                                      alt={u.name || u.username}
+                                      className="absolute rounded-full object-cover"
+                                      style={{
+                                        width: STORY_RING_INNER,
+                                        height: STORY_RING_INNER,
+                                        top: '50%',
+                                        left: '50%',
+                                        transform: 'translate(-50%, -50%)',
+                                        objectPosition: 'center center',
+                                        zIndex: 1,
+                                      }}
+                                    />
+                                    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 bg-red-500 text-white text-[9px] font-bold px-2 py-0.5 rounded z-20 whitespace-nowrap">LIVE</div>
+                                  </>
+                                ) : (
+                                  <div className="relative" style={{ width: 85, height: 85 }}>
+                                    <img src="/Icons/Profile icon.png" alt="" className="w-full h-full object-contain" style={{ position: 'relative', zIndex: 1 }} />
+                                    <img
+                                      src={u.avatar || '/Icons/Profile icon.png'}
+                                      alt={u.name || u.username}
+                                      className="absolute rounded-full object-cover"
+                                      style={{
+                                        width: STORY_RING_INNER,
+                                        height: STORY_RING_INNER,
+                                        top: '50%',
+                                        left: '50%',
+                                        transform: 'translate(-50%, -50%)',
+                                        objectPosition: 'center center',
+                                        zIndex: 0,
+                                      }}
+                                    />
+                                  </div>
+                                )}
+                              </div>
+                              <div className="text-[10px] text-white/80 truncate w-full text-center">
+                                {u.name || u.username}
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex-1 min-h-0 w-full flex flex-col bg-black">
+                    <TrendingSnapFeed videos={(videos || []).slice(0, 30)} />
+                  </div>
+                </>
+              ) : (
+                <div className="flex-1 min-h-0 overflow-y-auto pb-0">
+                  <div className="mt-2 px-4">
+                    <h2 className="font-bold mb-2 text-gold-metallic text-sm">You may like</h2>
                     <div className="flex flex-wrap gap-2">
-                      {recentSearches.map((tag) => (
+                      {TRENDING_SEARCHES.map((tag) => (
                         <button
                           key={tag}
                           onClick={() => {
@@ -299,88 +394,116 @@ export default function SearchPage() {
                             params.set('q', tag);
                             navigate({ pathname: location.pathname, search: `?${params.toString()}` }, { replace: true });
                           }}
-                          className="bg-[#13151A] px-3 py-1.5 rounded-full text-xs border border-white/10 text-white/70 hover:border-white/20 transition-colors"
+                          className="bg-[#1C1E24] px-3 py-1.5 rounded-full text-xs border border-[#C9A96E]/30 text-gold-metallic hover:border-[#C9A96E] transition-colors"
                         >
                           {tag}
                         </button>
                       ))}
                     </div>
                   </div>
-                )}
 
-                {/* Trending users */}
-                {suggestedUsers.length > 0 && (
-                  <div className="mt-4 px-4">
-                    <h2 className="font-bold mb-1 text-gold-metallic text-sm">Trending users</h2>
-                    <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
-                      {suggestedUsers.map((u) => (
+                  {recentSearches.length > 0 && (
+                    <div className="mt-4 px-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <h2 className="font-bold text-gold-metallic text-sm">Recent</h2>
                         <button
-                          key={u.id}
-                          onClick={() => u.is_live ? navigate(`/watch/${u.id}`) : navigate(`/profile/${u.id}`)}
-                          className="flex-shrink-0 flex flex-col items-center gap-1" style={{ width: 85, minWidth: 85 }}
+                          type="button"
+                          onClick={() => { try { localStorage.removeItem(RECENT_KEY); } catch {} setRecentSearches([]); }}
+                          className="text-[11px] text-white/40 hover:text-white/70"
                         >
-                          <div className="relative flex items-center justify-center" style={{ width: 85, height: 85 }}>
-                            {u.is_live ? (
-                              <>
-                                <div
-                                  className="absolute inset-0 rounded-full"
-                                  style={{
-                                    width: 85, height: 85,
-                                    background: 'conic-gradient(#ff0040, #ff6a00, #ff0040, #ff6a00, #ff0040)',
-                                    WebkitMask: 'radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 4px))',
-                                    mask: 'radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 4px))',
-                                  }}
-                                />
-                                <img
-                                  src={u.avatar || '/Icons/Profile icon.png'}
-                                  alt={u.name || u.username}
-                                  className="absolute rounded-full object-cover"
-                                  style={{
-                                    width: STORY_RING_INNER,
-                                    height: STORY_RING_INNER,
-                                    top: '50%',
-                                    left: '50%',
-                                    transform: 'translate(-50%, -50%)',
-                                    objectPosition: 'center center',
-                                    zIndex: 1,
-                                  }}
-                                />
-                                <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 bg-red-500 text-white text-[9px] font-bold px-2 py-0.5 rounded z-20 whitespace-nowrap">LIVE</div>
-                              </>
-                            ) : (
-                              <div className="relative" style={{ width: 85, height: 85 }}>
-                                <img src="/Icons/Profile icon.png" alt="" className="w-full h-full object-contain" style={{ position: 'relative', zIndex: 1 }} />
-                                <img
-                                  src={u.avatar || '/Icons/Profile icon.png'}
-                                  alt={u.name || u.username}
-                                  className="absolute rounded-full object-cover"
-                                  style={{
-                                    width: STORY_RING_INNER,
-                                    height: STORY_RING_INNER,
-                                    top: '50%',
-                                    left: '50%',
-                                    transform: 'translate(-50%, -50%)',
-                                    objectPosition: 'center center',
-                                    zIndex: 0,
-                                  }}
-                                />
-                              </div>
-                            )}
-                          </div>
-                          <div className="text-[10px] text-white/80 truncate w-full text-center">
-                            {u.name || u.username}
-                          </div>
+                          Clear
                         </button>
-                      ))}
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {recentSearches.map((tag) => (
+                          <button
+                            key={tag}
+                            onClick={() => {
+                              const params = new URLSearchParams(location.search);
+                              params.set('q', tag);
+                              navigate({ pathname: location.pathname, search: `?${params.toString()}` }, { replace: true });
+                            }}
+                            className="bg-[#13151A] px-3 py-1.5 rounded-full text-xs border border-white/10 text-white/70 hover:border-white/20 transition-colors"
+                          >
+                            {tag}
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {/* Trending videos — full width, directly under names, no card frame */}
-                <div className="mt-1 w-full">
-                  <TrendingSnapFeed videos={(videos || []).slice(0, 30)} />
+                  {suggestedUsers.length > 0 && (
+                    <div className="mt-4 px-4">
+                      <h2 className="font-bold mb-1 text-gold-metallic text-sm">Trending users</h2>
+                      <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
+                        {suggestedUsers.map((u) => (
+                          <button
+                            key={u.id}
+                            onClick={() => u.is_live ? navigate(`/watch/${u.id}`) : navigate(`/profile/${u.id}`)}
+                            className="flex-shrink-0 flex flex-col items-center gap-1" style={{ width: 85, minWidth: 85 }}
+                          >
+                            <div className="relative flex items-center justify-center" style={{ width: 85, height: 85 }}>
+                              {u.is_live ? (
+                                <>
+                                  <div
+                                    className="absolute inset-0 rounded-full"
+                                    style={{
+                                      width: 85, height: 85,
+                                      background: 'conic-gradient(#ff0040, #ff6a00, #ff0040, #ff6a00, #ff0040)',
+                                      WebkitMask: 'radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 4px))',
+                                      mask: 'radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 4px))',
+                                    }}
+                                  />
+                                  <img
+                                    src={u.avatar || '/Icons/Profile icon.png'}
+                                    alt={u.name || u.username}
+                                    className="absolute rounded-full object-cover"
+                                    style={{
+                                      width: STORY_RING_INNER,
+                                      height: STORY_RING_INNER,
+                                      top: '50%',
+                                      left: '50%',
+                                      transform: 'translate(-50%, -50%)',
+                                      objectPosition: 'center center',
+                                      zIndex: 1,
+                                    }}
+                                  />
+                                  <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 bg-red-500 text-white text-[9px] font-bold px-2 py-0.5 rounded z-20 whitespace-nowrap">LIVE</div>
+                                </>
+                              ) : (
+                                <div className="relative" style={{ width: 85, height: 85 }}>
+                                  <img src="/Icons/Profile icon.png" alt="" className="w-full h-full object-contain" style={{ position: 'relative', zIndex: 1 }} />
+                                  <img
+                                    src={u.avatar || '/Icons/Profile icon.png'}
+                                    alt={u.name || u.username}
+                                    className="absolute rounded-full object-cover"
+                                    style={{
+                                      width: STORY_RING_INNER,
+                                      height: STORY_RING_INNER,
+                                      top: '50%',
+                                      left: '50%',
+                                      transform: 'translate(-50%, -50%)',
+                                      objectPosition: 'center center',
+                                      zIndex: 0,
+                                    }}
+                                  />
+                                </div>
+                              )}
+                            </div>
+                            <div className="text-[10px] text-white/80 truncate w-full text-center">
+                              {u.name || u.username}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="mt-1 w-full">
+                    <TrendingSnapFeed videos={(videos || []).slice(0, 30)} />
+                  </div>
                 </div>
-              </>
+              )
             ) : (
               <div className="space-y-4 px-4 pb-4">
                 {searching && <div className="text-xs text-[#C9A96E]/60 text-center py-3">Searching...</div>}

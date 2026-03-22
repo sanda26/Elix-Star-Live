@@ -238,10 +238,10 @@
   .pb-nav { padding-bottom: var(--bottom-ui-reserve); }
   .pb-nav-feed { padding-bottom: var(--feed-main-pb); }
 
-  /* Fixed / full-viewport columns that sit above the bottom nav (replaces ad-hoc 3.6cm) */
+  /* Fixed / full-viewport columns above bottom nav; +3mm eats dead band between content and gold bar */
   .h-above-bottom-nav {
-    height: calc(100dvh - var(--bottom-ui-reserve));
-    max-height: calc(100dvh - var(--bottom-ui-reserve));
+    height: calc(100dvh - var(--bottom-ui-reserve) + 3mm);
+    max-height: calc(100dvh - var(--bottom-ui-reserve) + 3mm);
   }
 
   /* Responsive text that scales with viewport */

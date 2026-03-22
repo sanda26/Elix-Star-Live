@@ -111,6 +111,8 @@ export default function LiveStream() {
   const opponentVideoRef = useRef<HTMLVideoElement>(null);
   const player3VideoRef = useRef<HTMLVideoElement>(null);
   const player4VideoRef = useRef<HTMLVideoElement>(null);
+  const roomRemoteAudioRef = useRef<HTMLAudioElement>(null);
+  const opponentRemoteAudioRef = useRef<HTMLAudioElement>(null);
   const coHostVideoRefs = useRef<Map<string, HTMLVideoElement>>(new Map());
   const battlePeerRef = useRef<{ close: () => void } | null>(null);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -159,6 +161,24 @@ export default function LiveStream() {
   };
   const [showViewerList, setShowViewerList] = useState(false);
   const [moderators, setModerators] = useState<Set<string>>(new Set());
+  const attachRemoteAudio = useCallback((track: import('livekit-client').Track, el: HTMLAudioElement | null) => {
+    if (track.kind !== 'audio') return;
+    if (el) {
+      track.attach(el);
+      el.muted = false;
+      el.volume = 1;
+      el.autoplay = true;
+      el.playsInline = true;
+      void el.play().catch(() => {});
+      return;
+    }
+    const attached = track.attach();
+    if (attached instanceof HTMLMediaElement) {
+      attached.muted = false;
+      attached.volume = 1;
+      void attached.play().catch(() => {});
+    }
+  }, []);
 
   const [isMicMuted, setIsMicMuted] = useState(false);
   const [isCamOff, setIsCamOff] = useState(false);
@@ -400,7 +420,7 @@ export default function LiveStream() {
 
       if (track.kind === 'audio') {
         // Co-host audio must be attached on host side, otherwise host can see but not hear co-hosts.
-        track.attach();
+        attachRemoteAudio(track, roomRemoteAudioRef.current);
         return;
       }
       if (track.kind !== 'video') return;
@@ -434,7 +454,7 @@ export default function LiveStream() {
             if (pub.track && pub.isSubscribed) attachRemoteTrack(pub.track, participant);
           }
           for (const [, pub] of participant.audioTrackPublications) {
-            if (pub.track && pub.isSubscribed) attachRemoteTrack(pub.track, participant);
+            if (pub.track && pub.isSubscribed) attachRemoteAudio(pub.track, roomRemoteAudioRef.current);
           }
         }
         if (videoTrack) {
@@ -936,7 +956,7 @@ export default function LiveStream() {
         room.on(RoomEvent.TrackSubscribed, (track) => {
           if (cancelled) return;
           if (track.kind === 'audio') {
-            track.attach();
+            attachRemoteAudio(track, roomRemoteAudioRef.current);
             return;
           }
           if (track.kind !== 'video') return;
@@ -952,7 +972,7 @@ export default function LiveStream() {
 
         for (const [, participant] of room.remoteParticipants) {
           for (const [, pub] of participant.audioTrackPublications) {
-            if (pub.track && pub.isSubscribed) pub.track.attach();
+            if (pub.track && pub.isSubscribed) attachRemoteAudio(pub.track, roomRemoteAudioRef.current);
           }
         }
 
@@ -1081,7 +1101,7 @@ export default function LiveStream() {
         room.on(RoomEvent.TrackSubscribed, (track) => {
           if (!mounted) return;
           if (track.kind === 'audio') {
-            track.attach();
+            attachRemoteAudio(track, opponentRemoteAudioRef.current);
             return;
           }
           if (track.kind !== 'video') return;
@@ -1103,7 +1123,7 @@ export default function LiveStream() {
             }
           }
           for (const [, pub] of participant.audioTrackPublications) {
-            if (pub.track && pub.isSubscribed) pub.track.attach();
+            if (pub.track && pub.isSubscribed) attachRemoteAudio(pub.track, opponentRemoteAudioRef.current);
           }
         }
       } catch (e) {
@@ -1117,7 +1137,7 @@ export default function LiveStream() {
       opponentLkRoomRef.current = null;
       setHasOpponentStream(false);
     };
-  }, [isBattleMode, opponentStreamKey, isBroadcast, effectiveStreamId]);
+  }, [isBattleMode, opponentStreamKey, isBroadcast, effectiveStreamId, attachRemoteAudio]);
 
   // Speed Challenge State
   // SPEED CHALLENGE
@@ -2988,6 +3008,8 @@ export default function LiveStream() {
     <div className="min-h-[100dvh] h-[100dvh] w-full flex justify-center bg-[#0A0B0E]">
       <div className="relative w-full max-w-[480px] h-full bg-[#13151A] overflow-hidden border-none">
         <div className="h-full w-full relative">
+        <audio ref={roomRemoteAudioRef} autoPlay playsInline className="hidden" />
+        <audio ref={opponentRemoteAudioRef} autoPlay playsInline className="hidden" />
         {/* BACKGROUND: VIDEO AREA (Unified frame) */}
         <div className="absolute inset-0 z-0 bg-[#13151A] overflow-hidden">
           <div className="video-zone relative w-full h-full">

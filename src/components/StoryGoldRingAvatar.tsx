@@ -66,7 +66,7 @@ export function StoryGoldRingAvatar({
       />
 
       {live && (
-        <div className="pointer-events-none absolute bottom-0 left-1/2 z-[20] -translate-x-1/2 translate-y-1/2 whitespace-nowrap rounded bg-red-500 px-1.5 py-0.5 text-[8px] font-bold text-white">
+        <div className="pointer-events-none absolute bottom-[calc(2px+0.5mm)] left-1/2 z-[20] -translate-x-1/2 translate-y-[35%] whitespace-nowrap rounded-full bg-red-500 px-[0.7mm] py-[0.1mm] text-[6px] font-bold leading-none text-white">
           LIVE
         </div>
       )}

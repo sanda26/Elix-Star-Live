@@ -2183,6 +2183,26 @@ export default function LiveStream() {
     };
 
     // Server-controlled battle events — single source of truth
+    const applyBattleScores = (data: any) => {
+      const host = typeof data.hostScore === 'number' && Number.isFinite(data.hostScore) ? data.hostScore : 0;
+      const opponent = typeof data.opponentScore === 'number' && Number.isFinite(data.opponentScore) ? data.opponentScore : 0;
+      const player3 = typeof data.player3Score === 'number' && Number.isFinite(data.player3Score) ? data.player3Score : 0;
+      const player4 = typeof data.player4Score === 'number' && Number.isFinite(data.player4Score) ? data.player4Score : 0;
+      // Host sees host-vs-opponent as-is; invited opponent sees opponent on left (their side).
+      if (isBroadcast) {
+        setMyScore(host);
+        setOpponentScore(opponent);
+      } else if (isBattleJoiner) {
+        setMyScore(opponent);
+        setOpponentScore(host);
+      } else {
+        setMyScore(host);
+        setOpponentScore(opponent);
+      }
+      setPlayer3Score(player3);
+      setPlayer4Score(player4);
+    };
+
     const handleBattleStateSync = (data: any) => {
       if (!mounted) return;
       if (data.status === 'WAITING') {
@@ -2199,10 +2219,7 @@ export default function LiveStream() {
       } else if (data.status === 'ENDED') {
         setBattleState('ENDED');
       }
-      setMyScore(data.hostScore || 0);
-      setOpponentScore(data.opponentScore || 0);
-      setPlayer3Score(data.player3Score || 0);
-      setPlayer4Score(data.player4Score || 0);
+      applyBattleScores(data);
       setBattleTime(data.timeLeft ?? 300);
       if (data.hostReady != null) setHostIsReady(!!data.hostReady);
       if (data.opponentReady != null) setOpponentIsReady(!!data.opponentReady);
@@ -2244,18 +2261,12 @@ export default function LiveStream() {
     const handleBattleTick = (data: any) => {
       if (!mounted) return;
       setBattleTime(data.timeLeft ?? 0);
-      setMyScore(data.hostScore ?? 0);
-      setOpponentScore(data.opponentScore ?? 0);
-      setPlayer3Score(data.player3Score ?? 0);
-      setPlayer4Score(data.player4Score ?? 0);
+      applyBattleScores(data);
     };
 
     const handleBattleScore = (data: any) => {
       if (!mounted) return;
-      setMyScore(data.hostScore ?? 0);
-      setOpponentScore(data.opponentScore ?? 0);
-      setPlayer3Score(data.player3Score ?? 0);
-      setPlayer4Score(data.player4Score ?? 0);
+      applyBattleScores(data);
     };
 
     const handleBattleCountdown = (data: any) => {
@@ -2277,12 +2288,10 @@ export default function LiveStream() {
         battleEndedTimeoutRef.current = null;
       }
       setBattleState('ENDED');
-      setMyScore(data.hostScore ?? 0);
-      setOpponentScore(data.opponentScore ?? 0);
-      setPlayer3Score(data.player3Score ?? 0);
-      setPlayer4Score(data.player4Score ?? 0);
-      if (data.winner === 'host') setBattleWinner('me');
-      else if (data.winner === 'opponent') setBattleWinner('opponent');
+      applyBattleScores(data);
+      const winner = data.winner;
+      if (winner === 'host') setBattleWinner(isBattleJoiner ? 'opponent' : 'me');
+      else if (winner === 'opponent') setBattleWinner(isBattleJoiner ? 'me' : 'opponent');
       else if (data.winner === 'player3') setBattleWinner('player3' as any); // cast for type safety
       else if (data.winner === 'player4') setBattleWinner('player4' as any);
       else setBattleWinner('draw' as any);

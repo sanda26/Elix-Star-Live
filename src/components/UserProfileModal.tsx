@@ -171,7 +171,7 @@ export default function UserProfileModal({ isOpen, onClose, user, onFollow }: Us
     <div className="fixed inset-0 z-50 bg-black/60 flex items-end justify-center animate-in fade-in duration-200" onClick={onClose}>
       <div 
         className="w-full max-w-[480px] bg-[#1C1E24] rounded-t-2xl overflow-y-auto animate-in slide-in-from-bottom duration-300 relative border border-b-0 border-[#C9A96E]/30 shadow-2xl"
-        style={{ marginBottom: 'var(--bottom-ui-reserve)', maxHeight: 'calc(100dvh - var(--bottom-ui-reserve) - 50px)' }}
+        style={{ marginBottom: 'calc(var(--nav-height) + var(--safe-bottom))', height: 'calc(100dvh - var(--nav-height) - var(--safe-bottom))' }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -307,25 +307,30 @@ export default function UserProfileModal({ isOpen, onClose, user, onFollow }: Us
             )}
           </div>
 
-          {/* Video Grid */}
+          {/* Video Feed */}
           <div className="mt-6 pt-4 border-t border-white/5">
             <div className="flex items-center gap-2 mb-3">
               <div className="w-0.5 h-4 rounded-full bg-[#C9A96E]/80" />
               <span className="text-sm font-semibold text-white/90">Videos</span>
             </div>
             {userVideos.length > 0 ? (
-              <div className="grid grid-cols-3 gap-1">
+              <div className="flex flex-col gap-2">
                 {userVideos.map((video) => (
-                  <button key={video.id} onClick={() => { onClose(); navigate(`/video/${video.id}`); }} className="aspect-[3/4] bg-[#13151A] relative">
-                    <img 
-                      src={video.thumbnail || video.url} 
-                      alt={video.description} 
+                  <button key={video.id} onClick={() => { onClose(); navigate(`/video/${video.id}`); }} className="w-full aspect-[9/16] bg-[#0A0B0E] rounded-xl overflow-hidden relative">
+                    <img
+                      src={video.thumbnail || video.url}
+                      alt={video.description}
                       className="w-full h-full object-cover"
                     />
-                    <div className="absolute bottom-1 left-1 text-xs font-bold text-white drop-shadow-md flex items-center gap-1">
-                      <Play size={10} fill="white" />
+                    <div className="absolute bottom-2 left-2 text-xs font-bold text-white drop-shadow-md flex items-center gap-1">
+                      <Play size={12} fill="white" />
                       {formatNumber(video.stats?.views || 0)}
                     </div>
+                    {video.description && (
+                      <div className="absolute bottom-2 right-2 text-[10px] text-white/70 max-w-[60%] truncate drop-shadow-md">
+                        {video.description}
+                      </div>
+                    )}
                   </button>
                 ))}
               </div>

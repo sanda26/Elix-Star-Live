@@ -9,7 +9,7 @@ export const PROFILE_RING_INNER_RATIO = 0.68;
  * match visually across Profile/Friends/Following/Search/Live surfaces.
  */
 export const STORY_RING_INNER_RATIO = PROFILE_RING_INNER_RATIO;
-export const PROFILE_RING_IMAGE_LIFT_MM = 2;
+export const PROFILE_RING_IMAGE_LIFT_MM = 1.6;
 
 export function profileRingInnerPx(outerPx: number): number {
   return Math.max(2, Math.round(outerPx * PROFILE_RING_INNER_RATIO));

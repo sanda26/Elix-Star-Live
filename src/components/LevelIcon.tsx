@@ -1,4 +1,5 @@
 import React from 'react';
+import { PROFILE_RING_IMAGE_LIFT_MM } from '../lib/profileFrame';
 
 export interface LevelIconProps {
   level: number;
@@ -90,7 +91,7 @@ export const LevelIcon: React.FC<LevelIconProps> = ({
           alt=""
           className="pointer-events-none absolute rounded-full object-contain"
           style={{
-            top: '50%',
+            top: `calc(50% - ${PROFILE_RING_IMAGE_LIFT_MM}mm)`,
             left: '50%',
             width: '100%',
             height: '100%',

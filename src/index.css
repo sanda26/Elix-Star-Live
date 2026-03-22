@@ -75,12 +75,17 @@
     --topnav-bar-height: clamp(44px, 12vw, 58px);
     /* For You: no extra band under golden top bar (slide pad = bar bottom only) */
     --topnav-video-gap: 0px;
-    /* Video slides: start content below fixed top bar + gap (solid band uses bg-[#0A0B0E]) */
-    --feed-slide-pad-top: calc(
+    /* Non–For You pages: offset below where the golden bar would sit */
+    --topbar-total: calc(
       var(--topnav-anchor-top) + var(--topnav-bar-height) + var(--topnav-video-gap)
     );
-    /* Same as For You top chrome: all tab pages + main scroller align from here */
-    --topbar-total: var(--feed-slide-pad-top);
+    /* For You slides only: tuck video up to meet scaled topbar (avoids black band under bar) */
+    --feed-slide-pad-top: max(
+      var(--safe-top),
+      calc(
+        var(--topnav-anchor-top) + var(--topnav-bar-height) + var(--topnav-video-gap) - 10px
+      )
+    );
     /* Bottom sheets */
     --sheet-collapsed: 30vh;
     --sheet-half: 50vh;

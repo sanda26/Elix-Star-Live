@@ -231,13 +231,18 @@ function App() {
       {/* Full-height column background (continues behind BottomNav art); main stays scrollable with pb-nav */}
       <div className="flex-1 min-h-0 w-full flex flex-col relative">
         <div
-          className="pointer-events-none absolute inset-0 mx-auto w-full max-w-[480px] bg-background z-0"
+          className={cn(
+            "pointer-events-none absolute inset-0 mx-auto w-full max-w-[480px] z-0",
+            location.pathname === "/feed"
+              ? "bg-[#0A0B0E]"
+              : "bg-background",
+          )}
           aria-hidden
         />
         <main
           className={cn(
             "relative z-[1] flex-1 w-full min-h-0 mx-auto max-w-[480px] overflow-auto bg-transparent",
-            location.pathname === "/feed" && "pt-0",
+            location.pathname === "/feed" && "bg-[#0A0B0E] pt-0",
             showBottomNav &&
               location.pathname !== "/feed" &&
               !isFullScreen &&

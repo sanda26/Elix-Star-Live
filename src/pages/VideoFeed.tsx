@@ -495,7 +495,7 @@ export default function VideoFeed() {
             scrollSnapAlign: "start",
             scrollSnapStop: "always",
             boxSizing: "border-box",
-            paddingTop: "calc(var(--topbar-total) - 8mm)",
+            paddingTop: "calc(var(--topbar-total) - 12mm)",
           };
 
           if (item.kind === "live") {

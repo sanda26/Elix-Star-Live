@@ -314,24 +314,27 @@ export default function UserProfileModal({ isOpen, onClose, user, onFollow }: Us
               <span className="text-sm font-semibold text-white/90">Videos</span>
             </div>
             {userVideos.length > 0 ? (
-              <div className="flex flex-col gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 {userVideos.map((video) => (
-                  <button key={video.id} onClick={() => { onClose(); navigate(`/video/${video.id}`); }} className="w-full aspect-[9/16] bg-[#0A0B0E] rounded-xl overflow-hidden relative">
-                    <img
-                      src={video.thumbnail || video.url}
-                      alt={video.description}
+                  <div key={video.id} onClick={() => { onClose(); navigate(`/video/${video.id}`); }} className="aspect-[3/4] bg-[#0A0B0E] rounded-xl overflow-hidden relative cursor-pointer">
+                    <video
+                      src={video.url}
+                      muted
+                      autoPlay
+                      loop
+                      playsInline
                       className="w-full h-full object-cover"
                     />
-                    <div className="absolute bottom-2 left-2 text-xs font-bold text-white drop-shadow-md flex items-center gap-1">
-                      <Play size={12} fill="white" />
+                    <div className="absolute bottom-1.5 left-1.5 text-[10px] font-bold text-white drop-shadow-md flex items-center gap-0.5">
+                      <Play size={10} fill="white" />
                       {formatNumber(video.stats?.views || 0)}
                     </div>
                     {video.description && (
-                      <div className="absolute bottom-2 right-2 text-[10px] text-white/70 max-w-[60%] truncate drop-shadow-md">
+                      <div className="absolute top-1.5 left-1.5 right-1.5 text-[9px] text-white/80 truncate drop-shadow-md">
                         {video.description}
                       </div>
                     )}
-                  </button>
+                  </div>
                 ))}
               </div>
             ) : (

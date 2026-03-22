@@ -90,15 +90,18 @@
           22mm
       )
     );
-    /* For You only (VideoFeed) — extra trim to pull video up */
+    /* For You only (VideoFeed): inner trim + subtract 10mm from result so lift applies even when max() was stuck on safe-top */
     --feed-slide-pad-top-for-you: max(
-      var(--safe-top),
+      0px,
       calc(
-        var(--topnav-anchor-top) +
-          var(--topnav-bar-height) +
-          var(--topnav-video-gap) -
-          12px -
-          74mm
+        max(
+          var(--safe-top),
+          var(--topnav-anchor-top) +
+            var(--topnav-bar-height) +
+            var(--topnav-video-gap) -
+            12px -
+            84mm
+        ) - 10mm
       )
     );
     /* For You main: a bit tighter above bottom nav (still clears tap targets) */

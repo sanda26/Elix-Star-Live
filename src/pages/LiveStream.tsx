@@ -4934,6 +4934,17 @@ export default function LiveStream() {
 
             {/* Create + Followers row — Create first, then people to share to */}
             <div className="flex gap-3 overflow-x-auto overflow-y-hidden pb-3 flex-shrink-0 px-4 no-scrollbar">
+              {shareFollowers.filter(f => f.username?.toLowerCase().includes(shareQuery.toLowerCase())).map((f) => (
+                <button
+                  key={f.user_id}
+                  className="flex-shrink-0 flex flex-col items-center gap-1 active:scale-95 transition-transform"
+                  style={{ width: 95, minWidth: 95 }}
+                  onClick={() => sendShareToFollower(f.user_id)}
+                >
+                  <StoryGoldRingAvatar size={85} src={f.avatar_url || '/Icons/Profile icon.png'} alt={f.username} />
+                  <span className="text-white/80 text-[11px] font-medium truncate w-full text-center">{shareSentTo.has(f.user_id) ? 'Sent' : f.username || 'User'}</span>
+                </button>
+              ))}
               <button
                 type="button"
                 onClick={() => { navigate('/create'); setShowSharePanel(false); }}
@@ -4946,17 +4957,6 @@ export default function LiveStream() {
                 </div>
                 <span className="text-white/80 text-[11px] font-medium">Create</span>
               </button>
-              {shareFollowers.filter(f => f.username?.toLowerCase().includes(shareQuery.toLowerCase())).map((f) => (
-                <button
-                  key={f.user_id}
-                  className="flex-shrink-0 flex flex-col items-center gap-1 active:scale-95 transition-transform"
-                  style={{ width: 95, minWidth: 95 }}
-                  onClick={() => sendShareToFollower(f.user_id)}
-                >
-                  <StoryGoldRingAvatar size={85} src={f.avatar_url || '/Icons/Profile icon.png'} alt={f.username} />
-                  <span className="text-white/80 text-[11px] font-medium truncate w-full text-center">{shareSentTo.has(f.user_id) ? 'Sent' : f.username || 'User'}</span>
-                </button>
-              ))}
             </div>
 
             {/* Share options — same layout as ShareModal */}

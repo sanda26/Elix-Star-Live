@@ -140,18 +140,6 @@ export default function ShareModal({ isOpen, onClose, video, onReport, onJoin, i
 
         {/* Create + Followers row — same as LiveStream share panel */}
         <div className="flex gap-3 overflow-x-auto overflow-y-hidden pb-3 flex-shrink-0 px-4 no-scrollbar">
-          <button
-            type="button"
-            onClick={() => { onClose(); navigate('/create'); }}
-            className="flex-shrink-0 flex flex-col items-center gap-1 active:scale-95 transition-transform"
-            style={{ width: 95, minWidth: 95 }}
-          >
-            <div className="relative w-[85px] h-[85px] flex items-center justify-center">
-              <StoryGoldRingAvatar size={85} src={user?.avatar || '/Icons/Profile icon.png'} alt="Create" />
-              <Plus size={28} className="text-[#C9A96E] absolute" strokeWidth={2.5} />
-            </div>
-            <span className="text-white/80 text-[11px] font-medium">Create</span>
-          </button>
           {filteredFollowers.length > 0 && filteredFollowers.map((f) => (
             <button
               key={f.user_id}
@@ -165,6 +153,18 @@ export default function ShareModal({ isOpen, onClose, video, onReport, onJoin, i
               </span>
             </button>
           ))}
+          <button
+            type="button"
+            onClick={() => { onClose(); navigate('/create'); }}
+            className="flex-shrink-0 flex flex-col items-center gap-1 active:scale-95 transition-transform"
+            style={{ width: 95, minWidth: 95 }}
+          >
+            <div className="relative w-[85px] h-[85px] flex items-center justify-center">
+              <StoryGoldRingAvatar size={85} src={user?.avatar || '/Icons/Profile icon.png'} alt="Create" />
+              <Plus size={28} className="text-[#C9A96E] absolute" strokeWidth={2.5} />
+            </div>
+            <span className="text-white/80 text-[11px] font-medium">Create</span>
+          </button>
         </div>
 
         {/* All share options — compact grid, scrollable */}

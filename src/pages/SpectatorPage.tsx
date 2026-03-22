@@ -2355,13 +2355,6 @@ export default function SpectatorPage() {
                 </div>
                 <div className="w-full overflow-hidden shrink-0">
                   <div className="flex gap-3 overflow-x-auto pb-3 no-scrollbar items-center px-4">
-                    <button type="button" onClick={() => { setShowSharePanel(false); navigate('/create'); }} className="flex-shrink-0 flex flex-col items-center gap-1 active:scale-95 transition-transform" style={{ width: 95, minWidth: 95 }}>
-                      <div className="relative w-[85px] h-[85px] flex items-center justify-center">
-                        <StoryGoldRingAvatar size={85} src={user?.avatar || '/Icons/Profile icon.png'} alt="Create" />
-                        <Plus size={28} className="text-[#C9A96E] absolute" strokeWidth={2.5} />
-                      </div>
-                      <span className="text-white/80 text-[11px] font-medium">Create</span>
-                    </button>
                     {shareContacts.filter(c => c.name.toLowerCase().includes(shareQuery.toLowerCase())).map((u) => (
                       <button
                         key={u.id}
@@ -2408,6 +2401,13 @@ export default function SpectatorPage() {
                         <span className="text-white/80 text-[11px] font-medium truncate w-full text-center">{u.name}</span>
                       </button>
                     ))}
+                    <button type="button" onClick={() => { setShowSharePanel(false); navigate('/create'); }} className="flex-shrink-0 flex flex-col items-center gap-1 active:scale-95 transition-transform" style={{ width: 95, minWidth: 95 }}>
+                      <div className="relative w-[85px] h-[85px] flex items-center justify-center">
+                        <StoryGoldRingAvatar size={85} src={user?.avatar || '/Icons/Profile icon.png'} alt="Create" />
+                        <Plus size={28} className="text-[#C9A96E] absolute" strokeWidth={2.5} />
+                      </div>
+                      <span className="text-white/80 text-[11px] font-medium">Create</span>
+                    </button>
                   </div>
                 </div>
                 <div className="flex-1 overflow-y-scroll overflow-x-hidden min-h-0 px-4 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-white/5 [&::-webkit-scrollbar-thumb]:bg-[#C9A96E]/60 [&::-webkit-scrollbar-thumb]:rounded-full">

@@ -140,10 +140,8 @@ export default function FollowingFeed() {
 
   return (
     <div className="h-full min-h-0 w-full flex justify-center bg-[#13151A]">
-      <div className="w-full max-w-[480px] h-full min-h-0 flex flex-col overflow-hidden">
-
-        {/* Header + Circles (no golden frame) */}
-        <div className="mx-2 mt-2 rounded-t-2xl bg-[#13151A] z-10 relative">
+      <div className="w-full max-w-[480px] h-full min-h-0 flex flex-col overflow-hidden mx-auto">
+        <div className="w-full shrink-0 bg-[#13151A] z-10 relative">
           <div className="px-3 pt-[calc(env(safe-area-inset-top,8px)+6px)] pb-1 flex items-center justify-between relative">
             <button onClick={() => navigate('/search')} className="p-1 z-10" aria-label="Search"><Search size={18} className="text-white" /></button>
             <h1 className="text-sm font-bold text-white absolute left-1/2 transform -translate-x-1/2">Following</h1>
@@ -226,10 +224,9 @@ export default function FollowingFeed() {
           </div>
         </div>
 
-        {/* Friend video feed — full-height scroll, play when in view */}
         <div
           ref={containerRef}
-          className="flex-1 min-h-0 overflow-y-scroll snap-y snap-mandatory overscroll-none"
+          className="flex-1 min-h-0 w-full overflow-y-scroll snap-y snap-mandatory relative overscroll-none bg-[#0A0B0E]"
           style={{ scrollSnapType: 'y mandatory', WebkitOverflowScrolling: 'touch' }}
           onScroll={handleScroll}
         >
@@ -237,10 +234,14 @@ export default function FollowingFeed() {
             <div
               key={`following-${videoId}-${index}`}
               data-slide-index={index}
-              className="w-full min-h-full snap-start snap-always relative flex justify-center bg-[#13151A] px-2"
-              style={{ height: '100%', minHeight: '100%', scrollSnapAlign: 'start', scrollSnapStop: 'always' }}
+              className="h-full w-full shrink-0 snap-start bg-[#0A0B0E]"
+              style={{
+                height: '100%',
+                scrollSnapAlign: 'start',
+                scrollSnapStop: 'always',
+              }}
             >
-              <div className="w-full h-full relative rounded-b-2xl overflow-hidden bg-[#13151A]">
+              <div className="w-full h-full min-h-0 relative overflow-hidden bg-[#0A0B0E]">
                 <EnhancedVideoPlayer
                   videoId={videoId}
                   isActive={activeIndex === index}
@@ -251,13 +252,13 @@ export default function FollowingFeed() {
           ))}
 
           {loading && friendVideoIds.length === 0 && (
-            <div className="h-full flex items-center justify-center">
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div className="w-8 h-8 border-2 border-[#C9A96E] border-t-transparent rounded-full animate-spin" />
             </div>
           )}
 
           {!loading && friendVideoIds.length === 0 && (
-            <div className="h-full flex flex-col items-center justify-center text-white/50 px-6 text-center">
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-white/50 px-6 text-center">
               <p className="text-base font-semibold mb-1">No videos from people you follow</p>
               <p className="text-xs text-white/30 mb-4">Follow people to see their videos here</p>
               <button
@@ -269,7 +270,6 @@ export default function FollowingFeed() {
             </div>
           )}
         </div>
-
       </div>
     </div>
   );

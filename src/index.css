@@ -79,7 +79,7 @@
     --topbar-total: calc(
       var(--topnav-anchor-top) + var(--topnav-bar-height) + var(--topnav-video-gap)
     );
-    /* For You slides only: tuck video up to meet scaled topbar */
+    /* For You slides only: tuck video up to meet scaled topbar (extra −3mm kills gap under topbar) */
     --feed-slide-pad-top: max(
       var(--safe-top),
       calc(
@@ -87,7 +87,7 @@
           var(--topnav-bar-height) +
           var(--topnav-video-gap) -
           10px -
-          3mm
+          6mm
       )
     );
     /* For You main: trim bottom reserve so video sits lower (clear of BottomNav taps) */

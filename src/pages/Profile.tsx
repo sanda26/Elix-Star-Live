@@ -569,6 +569,17 @@ export default function Profile() {
                 {/* Create + Followers row — same as LiveStream share panel */}
                 <div className="w-full overflow-hidden shrink-0 mb-3">
                   <div className="flex gap-3 overflow-x-auto pb-3 no-scrollbar items-center px-4">
+                    <button type="button" onClick={() => { setShowSharePanel(false); navigate('/create'); }} className="flex-shrink-0 flex flex-col items-center gap-1 active:scale-95 transition-transform" style={{ width: 95, minWidth: 95 }}>
+                      <div className="relative w-[85px] h-[85px] flex items-center justify-center">
+                        <StoryGoldRingAvatar
+                          size={85}
+                          src={displayAvatar || '/Icons/Profile icon.png'}
+                          alt="Create"
+                        />
+                        <Plus size={28} className="text-[#C9A96E] absolute" strokeWidth={2.5} />
+                      </div>
+                      <span className="text-white/80 text-[11px] font-medium">Create</span>
+                    </button>
                     {shareFollowers.map((f) => (
                       <button
                         key={f.user_id}
@@ -591,17 +602,6 @@ export default function Profile() {
                         </div>
                       </button>
                     ))}
-                    <button type="button" onClick={() => { setShowSharePanel(false); navigate('/create'); }} className="flex-shrink-0 flex flex-col items-center gap-1 active:scale-95 transition-transform" style={{ width: 95, minWidth: 95 }}>
-                      <div className="relative w-[85px] h-[85px] flex items-center justify-center">
-                        <StoryGoldRingAvatar
-                          size={85}
-                          src={displayAvatar || '/Icons/Profile icon.png'}
-                          alt="Create"
-                        />
-                        <Plus size={28} className="text-[#C9A96E] absolute" strokeWidth={2.5} />
-                      </div>
-                      <span className="text-white/80 text-[11px] font-medium">Create</span>
-                    </button>
                   </div>
                 </div>
 
@@ -832,16 +832,18 @@ export default function Profile() {
               videos.map((video) => (
                 <button
                   key={video.id}
+                  type="button"
                   onClick={() => navigate(`/video/${video.id}`)}
                   className="aspect-[3/4] bg-[#1C1E24] relative group text-left rounded-xl overflow-hidden"
                 >
                   <video
                     src={video.url ? `${video.url}#t=0.5` : ''}
-                    className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition"
+                    className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition pointer-events-none"
                     muted
                     playsInline
                     preload="metadata"
                   />
+                  <span className="absolute inset-0 z-[1]" aria-hidden />
                   {!video.is_public && (
                     <div className="absolute top-2 right-2">
                       <Lock size={14} className="text-white drop-shadow" />

@@ -182,7 +182,7 @@ export default function ChatThread() {
           })}
         </div>
 
-        <div className="flex-shrink-0 p-4 bg-[#13151A] border-t border-white/10 pb-[max(0.75rem,var(--safe-bottom))]">
+        <div className="flex-shrink-0 p-4 bg-[#13151A] border-t border-white/10 pb-[var(--bottom-ui-reserve)]">
           <form className="flex items-center gap-2 bg-[#222] rounded-full px-4 py-2" onSubmit={handleSend}>
             <input
               value={draft}

@@ -75,8 +75,8 @@
     --topnav-anchor-top: calc(var(--safe-top) + 6mm - 1cm + 10mm);
     /* Approximate height of topbar.png after scaleY(0.80); tune if art changes */
     --topnav-bar-height: clamp(44px, 12vw, 58px);
-    /* Air gap between bottom of top bar and where video content starts */
-    --topnav-video-gap: clamp(10px, 2.8vw, 16px);
+    /* For You: no extra band under golden top bar (slide pad = bar bottom only) */
+    --topnav-video-gap: 0px;
     /* Video slides: start content below fixed top bar + gap (solid band uses bg-[#0A0B0E]) */
     --feed-slide-pad-top: calc(
       var(--topnav-anchor-top) + var(--topnav-bar-height) + var(--topnav-video-gap)

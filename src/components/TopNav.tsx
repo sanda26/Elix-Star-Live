@@ -29,8 +29,8 @@ export const TopNav = () => {
       className="fixed left-0 right-0 z-[9999] flex justify-center pointer-events-none"
       style={{ top: "var(--topnav-anchor-top)" }}
     >
-      {/* Solid backing so video never shows through PNG transparency */}
-      <div className="w-full max-w-[480px] relative bg-[#0A0B0E] shadow-[0_6px_24px_rgba(0,0,0,0.75)] border-b border-[#C9A96E]/25">
+      {/* Solid behind bar art only (PNG may be transparent); no extra height — do not clip taps */}
+      <div className="w-full max-w-[480px] relative bg-[#0A0B0E]">
         <div
           className="relative w-full"
           style={{ transform: "scaleY(0.80)", transformOrigin: "top" }}

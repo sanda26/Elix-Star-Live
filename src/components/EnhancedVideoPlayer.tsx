@@ -627,7 +627,7 @@ export default function EnhancedVideoPlayer({
       className="relative w-full h-full overflow-hidden flex justify-center"
       style={{ margin: 0, padding: 0, gap: 0 }}
     >
-      {/* Video Element - iPhone 14 Pro Max: 6.7" Super Retina XDR, 2796Ãƒâ€”1290px, 19.5:9, ~460ppi */}
+      {/* Video Element - iPhone 14 Pro Max: 6.7" Super Retina XDR, 2796×1290, 19.5:9, ~460ppi */}
       <div
         className="absolute inset-0 flex items-center justify-center bg-[#13151A]"
         style={{ margin: 0, padding: 0, gap: 0 }}
@@ -733,7 +733,7 @@ export default function EnhancedVideoPlayer({
           aria-valuemax={Number.isFinite(duration) && duration > 0 ? Math.round(duration) : 0}
           className="absolute left-3 right-[3.75rem] z-[16] pointer-events-auto flex flex-col justify-end cursor-pointer select-none"
           style={{
-            bottom: 0,
+            bottom: "4mm",
             paddingBottom: 'max(4px, env(safe-area-inset-bottom, 0px))',
             touchAction: 'none',
             minHeight: scrubbing ? 44 : 22,

@@ -1,9 +1,8 @@
-import React, { useEffect, useRef, useCallback, Suspense, lazy } from "react";
+import React, { useEffect, Suspense, lazy } from "react";
 import {
   Routes,
   Route,
   useLocation,
-  useNavigate,
   Navigate,
 } from "react-router-dom";
 import { BottomNav } from "./components/BottomNav";
@@ -108,28 +107,9 @@ function PageLoader() {
   );
 }
 
-const EDGE_SWIPE_WIDTH = 24;
-const SWIPE_THRESHOLD = 60;
-
 function App() {
   const { checkUser, user, isAuthenticated, isLoading } = useAuthStore();
   const location = useLocation();
-  const navigate = useNavigate();
-  const swipeStart = useRef<{ x: number; y: number } | null>(null);
-
-  const handleEdgeTouchStart = useCallback((e: React.TouchEvent) => {
-    swipeStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-  }, []);
-  const handleEdgeTouchEnd = useCallback(
-    (e: React.TouchEvent) => {
-      if (!swipeStart.current) return;
-      const endX = e.changedTouches[0].clientX;
-      const dx = endX - swipeStart.current.x;
-      swipeStart.current = null;
-      if (dx > SWIPE_THRESHOLD) navigate(-1); // swipe right to go back
-    },
-    [navigate],
-  );
 
   // Initialize deep links
   useDeepLinks();
@@ -204,9 +184,7 @@ function App() {
     location.pathname.startsWith("/create/") ||
     location.pathname === "/upload" ||
     location.pathname === "/login" ||
-    location.pathname === "/register" ||
-    location.pathname === "/call" ||
-    location.pathname.startsWith("/inbox/");
+    location.pathname === "/register";
   const showBottomNav = isAuthenticated && !isNavHidden;
 
   // Public routes that don't require authentication
@@ -250,24 +228,17 @@ function App() {
     <div className="fixed inset-0 w-full h-[100dvh] flex flex-col bg-background text-text font-sans overflow-hidden">
       <OfflineBanner />
       <IncomingCallModal />
-      {/* Swipe from left edge to go back on any page */}
-      <div
-        className="fixed left-0 top-0 bottom-0 z-[9998]"
-        style={{ width: EDGE_SWIPE_WIDTH }}
-        onTouchStart={handleEdgeTouchStart}
-        onTouchEnd={handleEdgeTouchEnd}
-        onTouchCancel={() => {
-          swipeStart.current = null;
-        }}
-        aria-hidden
-      />
       <TopNav />
       <main
         className={cn(
           "flex-1 w-full min-h-0 mx-auto max-w-[480px] overflow-auto bg-background",
           showBottomNav && !isFullScreen && "pt-topbar",
-          (!showBottomNav || isFullScreen) && "pt-[3mm]",
-          /* Fullscreen feeds still use fixed BottomNav — pad so video never sits under it */
+          (!showBottomNav || isFullScreen) &&
+            location.pathname !== "/feed" &&
+            "pt-[3mm]",
+          /* For You: flush to shell — slide handles offset below golden top bar */
+          location.pathname === "/feed" && "pt-0",
+          /* Reserve space above fixed BottomNav so routes scroll above the bar (same padding app-wide) */
           showBottomNav && "pb-nav",
         )}
       >

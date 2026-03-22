@@ -1,8 +1,7 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AvatarRing } from '../components/AvatarRing';
 import {
-  Phone,
   PhoneOff,
   Mic,
   MicOff,
@@ -11,7 +10,7 @@ import {
   SwitchCamera,
 } from 'lucide-react';
 import { useCallStore } from '../store/useCallStore';
-import { useAuthStore } from '../store/useAuthStore';
+import { endCall as sendCallEnded } from '../lib/callService';
 
 function formatDuration(ms: number): string {
   const totalSec = Math.floor(ms / 1000);
@@ -22,7 +21,6 @@ function formatDuration(ms: number): string {
 
 export default function VideoCall() {
   const navigate = useNavigate();
-  const user = useAuthStore((s) => s.user);
   const {
     callId,
     status,
@@ -31,20 +29,82 @@ export default function VideoCall() {
     isVideoOff,
     callStartTime,
     endReason,
+    toggleAudio,
+    toggleVideo,
   } = useCallStore();
 
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const [elapsed, setElapsed] = useState(0);
+  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
 
-  // Video calls unavailable (no backend)
-  const localStream: MediaStream | null = null;
+  // Remote video still requires WebRTC / LiveKit signaling from the backend; UI shows avatar until then.
   const remoteStream: MediaStream | null = null;
-  const initCall = () => {};
-  const hangup = async () => {};
-  const switchCamera = () => {};
-  const toggleAudio = () => {};
-  const toggleVideo = () => {};
+
+  const stopLocalMedia = useCallback(() => {
+    setLocalStream((prev) => {
+      prev?.getTracks().forEach((t) => t.stop());
+      return null;
+    });
+    if (localVideoRef.current) {
+      localVideoRef.current.srcObject = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!callId || !remoteUser) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: facingMode } },
+          audio: true,
+        });
+        if (!cancelled) setLocalStream(stream);
+      } catch {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: true,
+          });
+          if (!cancelled) setLocalStream(stream);
+        } catch {
+          /* camera blocked — still show call UI */
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      stopLocalMedia();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- initial capture only; switchCamera replaces stream
+  }, [callId, remoteUser?.id, stopLocalMedia]);
+
+  useEffect(() => {
+    const el = localVideoRef.current;
+    if (!el || !localStream) return;
+    el.srcObject = localStream;
+    return () => {
+      el.srcObject = null;
+    };
+  }, [localStream]);
+
+  useEffect(() => {
+    if (!localStream) return;
+    localStream.getAudioTracks().forEach((t) => {
+      t.enabled = !isAudioMuted;
+    });
+  }, [isAudioMuted, localStream]);
+
+  useEffect(() => {
+    if (!localStream) return;
+    localStream.getVideoTracks().forEach((t) => {
+      t.enabled = !isVideoOff;
+    });
+  }, [isVideoOff, localStream]);
 
   useEffect(() => {
     if (status !== 'connected' || !callStartTime) return;
@@ -57,12 +117,38 @@ export default function VideoCall() {
   useEffect(() => {
     if (status === 'ended') {
       const timer = setTimeout(() => {
+        stopLocalMedia();
         useCallStore.getState().reset();
         navigate(-1);
       }, 3000);
       return () => clearTimeout(timer);
     }
-  }, [status, navigate]);
+  }, [status, navigate, stopLocalMedia]);
+
+  const switchCamera = useCallback(async () => {
+    if (!localStream) return;
+    const next = facingMode === 'user' ? 'environment' : 'user';
+    localStream.getTracks().forEach((t) => t.stop());
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: next } },
+        audio: true,
+      });
+      setFacingMode(next);
+      setLocalStream(stream);
+    } catch {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: true,
+        });
+        setFacingMode(next);
+        setLocalStream(stream);
+      } catch {
+        /* ignore */
+      }
+    }
+  }, [localStream, facingMode]);
 
   if (!callId || !remoteUser) {
     return (
@@ -73,8 +159,13 @@ export default function VideoCall() {
   }
 
   const handleHangup = async () => {
-    await hangup();
-    useCallStore.getState().endCall('You ended the call');
+    stopLocalMedia();
+    if (callId) {
+      await sendCallEnded(callId);
+    } else {
+      useCallStore.getState().reset();
+    }
+    navigate(-1);
   };
 
   const statusLabel =
@@ -91,7 +182,7 @@ export default function VideoCall() {
               : formatDuration(elapsed);
 
   return (
-    <div className="fixed inset-0 bg-[#13151A] z-50 flex flex-col">
+    <div className="fixed inset-0 z-50 flex flex-col bg-[#13151A] pb-[var(--bottom-ui-reserve)]">
       {/* Remote video (full screen) */}
       <div className="flex-1 relative">
         {remoteStream && status === 'connected' ? (
@@ -157,6 +248,7 @@ export default function VideoCall() {
       <div className="bg-[#13151A]/80 backdrop-blur-sm pb-10 pt-6 px-6">
         <div className="flex items-center justify-center gap-6">
           <button
+            type="button"
             onClick={toggleAudio}
             className={`w-14 h-14 rounded-full flex items-center justify-center ${
               isAudioMuted ? 'bg-red-500/80' : 'bg-white/20'
@@ -170,6 +262,7 @@ export default function VideoCall() {
           </button>
 
           <button
+            type="button"
             onClick={toggleVideo}
             className={`w-14 h-14 rounded-full flex items-center justify-center ${
               isVideoOff ? 'bg-red-500/80' : 'bg-white/20'
@@ -183,6 +276,7 @@ export default function VideoCall() {
           </button>
 
           <button
+            type="button"
             onClick={switchCamera}
             title="Switch camera"
             className="w-14 h-14 rounded-full bg-[#13151A] border border-[#C9A96E]/40 flex items-center justify-center"
@@ -191,6 +285,7 @@ export default function VideoCall() {
           </button>
 
           <button
+            type="button"
             onClick={handleHangup}
             title="End call"
             className="w-16 h-16 rounded-full bg-red-500 flex items-center justify-center shadow-lg"

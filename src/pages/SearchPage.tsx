@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { Search as SearchIcon, X } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { AvatarRing } from '../components/AvatarRing';
+import { TrendingSnapFeed } from '../components/TrendingSnapFeed';
 import { apiUrl } from '../lib/api';
 import { useVideoStore } from '../store/useVideoStore';
 
@@ -222,8 +223,8 @@ export default function SearchPage() {
             </button>
           </div>
 
-          {/* Search bar */}
-          <div className="px-4 pb-0.5">
+          {/* Search bar — nudged down from handle row */}
+          <div className="px-4 pb-0.5 mt-[3mm]">
             <div className="flex items-center gap-2">
               <form onSubmit={handleSearch} className="flex-1 relative">
                 <input 
@@ -356,47 +357,8 @@ export default function SearchPage() {
                   </div>
                 )}
 
-                {/* Trending videos */}
-                <div className="mt-4">
-                  <h2 className="font-bold mb-2 text-gold-metallic text-sm">Trending videos</h2>
-                  <div className="grid grid-cols-3 gap-1.5">
-                    {(videos || []).slice(0, 9).map((v) => (
-                      <button
-                        key={v.id}
-                        onClick={() => navigate(`/video/${v.id}`)}
-                        className="relative aspect-square rounded-lg overflow-hidden bg-[#1C1E24] border border-white/10"
-                      >
-                        {v.thumbnail ? (
-                          <img
-                            src={v.thumbnail}
-                            alt=""
-                            className="absolute inset-0 w-full h-full object-cover"
-                          />
-                        ) : (
-                          <video
-                            src={v.url}
-                            className="absolute inset-0 w-full h-full object-cover"
-                            muted
-                            playsInline
-                            preload="metadata"
-                          />
-                        )}
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-                        <div className="absolute bottom-2 left-2 right-2 text-left">
-                          <div className="text-[10px] font-bold text-white truncate">
-                            @{v.user?.username || 'user'}
-                          </div>
-                          <div className="text-[9px] text-white/80 line-clamp-2">
-                            {v.description || ''}
-                          </div>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                  {videos.length === 0 && (
-                    <div className="text-xs text-white/30 py-3">No videos yet.</div>
-                  )}
-                </div>
+                {/* Trending videos — one full-width snap container */}
+                <TrendingSnapFeed videos={(videos || []).slice(0, 30)} />
               </>
             ) : (
               <div className="space-y-4">

@@ -20,21 +20,27 @@ export default function VideoView() {
   }
 
   return (
-    <div className="fixed inset-0 bg-[#13151A] flex justify-center">
+    <div className="fixed inset-0 z-[9990] bg-[#13151A] flex justify-center">
       <div
-        className="w-full max-w-[480px] relative overflow-hidden bg-[#13151A] h-above-bottom-nav"
+        className="w-full max-w-[480px] relative overflow-hidden bg-[#13151A] h-viewport"
         style={{ marginTop: 0 }}
       >
-        <div className="absolute left-3 top-3 z-[250]">
+        <div
+          className="absolute z-[250] pointer-events-auto"
+          style={{
+            top: 'max(0.75rem, env(safe-area-inset-top, 0px))',
+            right: 'max(0.75rem, env(safe-area-inset-right, 0px))',
+          }}
+        >
           <button
             onClick={() => navigate(-1)}
             className="p-2 rounded-full bg-transparent border border-transparent text-white"
             aria-label="Back"
           >
-            <img src="/Icons/Gold power buton.png" alt="Back" className="w-5 h-5" />
+            <img src="/Icons/Gold power buton.png" alt="Close" className="w-5 h-5" />
           </button>
         </div>
-        <EnhancedVideoPlayer videoId={videoId} isActive={true} />
+        <EnhancedVideoPlayer videoId={videoId} isActive={true} edgeToBottomNav />
       </div>
     </div>
   );

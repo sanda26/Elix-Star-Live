@@ -38,6 +38,8 @@ interface EnhancedVideoPlayerProps {
   isActive: boolean;
   onVideoEnd?: () => void;
   onProgress?: (progress: number) => void;
+  /** Full viewport column: video bleeds behind BottomNav; chrome sits above the bar (e.g. /video/:id). */
+  edgeToBottomNav?: boolean;
 }
 
 // Premium Sidebar Button Component
@@ -119,7 +121,8 @@ export default function EnhancedVideoPlayer({
   videoId, 
   isActive, 
   onVideoEnd,
-  onProgress 
+  onProgress,
+  edgeToBottomNav = false,
 }: EnhancedVideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const duetOriginalRef = useRef<HTMLVideoElement>(null);
@@ -620,6 +623,8 @@ export default function EnhancedVideoPlayer({
   if (!video) return null;
 
   const posterUrl = video.thumbnail || getVideoPosterUrl(video.url);
+  /** Sum used inside calc() — avoids nested calc() in inline styles */
+  const navStackExpr = 'var(--nav-height) + var(--safe-bottom)';
 
   return (
     <div 
@@ -733,8 +738,8 @@ export default function EnhancedVideoPlayer({
           aria-valuemax={Number.isFinite(duration) && duration > 0 ? Math.round(duration) : 0}
           className="absolute left-3 right-[3.75rem] z-[16] pointer-events-auto flex flex-col justify-end cursor-pointer select-none"
           style={{
-            bottom: "4mm",
-            paddingBottom: 'max(4px, env(safe-area-inset-bottom, 0px))',
+            bottom: edgeToBottomNav ? `calc(${navStackExpr} + 6px)` : '4mm',
+            paddingBottom: edgeToBottomNav ? 0 : 'max(4px, env(safe-area-inset-bottom, 0px))',
             touchAction: 'none',
             minHeight: scrubbing ? 44 : 22,
             transition: 'min-height 0.12s ease-out',
@@ -796,7 +801,13 @@ export default function EnhancedVideoPlayer({
         style={{
           right: '12px',
           /* Above thin progress line; extra space when user is scrubbing */
-          bottom: scrubbing ? 'max(3.5rem, calc(44px + 10px))' : 'max(3.5rem, 1.5rem)',
+          bottom: edgeToBottomNav
+            ? scrubbing
+              ? `calc(${navStackExpr} + 5.5rem)`
+              : `calc(${navStackExpr} + 3rem)`
+            : scrubbing
+              ? 'max(3.5rem, calc(44px + 10px))'
+              : 'max(3.5rem, 1.5rem)',
         }}
       >
         
@@ -917,7 +928,14 @@ export default function EnhancedVideoPlayer({
       </div>
 
       {/* Bottom Info Area - For You hashtags / username moved down */}
-      <div className="absolute z-[10] left-3 bottom-[15px] md:bottom-[39px] w-[72%] pb-4 pointer-events-none">
+      <div
+        className={`absolute z-[10] left-3 w-[72%] pointer-events-none ${edgeToBottomNav ? 'pb-2' : 'bottom-[15px] md:bottom-[39px] pb-4'}`}
+        style={
+          edgeToBottomNav
+            ? { bottom: `calc(${navStackExpr} + 14px)` }
+            : undefined
+        }
+      >
         <div className="flex items-center gap-2 mb-2">
           <LevelBadge level={video.user.level ?? 1} size={10} layout="fixed" avatar={video.user.avatar} />
           <h3 className="text-white font-bold text-shadow-md">{video.user.name || video.user.username}</h3>

@@ -32,7 +32,7 @@ export const LevelIcon: React.FC<LevelIconProps> = ({
     return 'linear-gradient(180deg, #22c55e 0%, #14532d 55%, #22c55e 100%)';
   };
 
-  const goldScale = (circleSize + 20) / circleSize;
+  const goldScale = (circleSize + 28) / circleSize;
 
   return (
     <div className={className} style={{ display: 'inline-flex', alignItems: 'center', flexShrink: 0, marginLeft: 8 }}>

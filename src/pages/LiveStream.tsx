@@ -2185,10 +2185,14 @@ export default function LiveStream() {
 
     // Server-controlled battle events — single source of truth
     const applyBattleScores = (data: any) => {
-      const host = typeof data.hostScore === 'number' && Number.isFinite(data.hostScore) ? data.hostScore : 0;
-      const opponent = typeof data.opponentScore === 'number' && Number.isFinite(data.opponentScore) ? data.opponentScore : 0;
-      const player3 = typeof data.player3Score === 'number' && Number.isFinite(data.player3Score) ? data.player3Score : 0;
-      const player4 = typeof data.player4Score === 'number' && Number.isFinite(data.player4Score) ? data.player4Score : 0;
+      const toScore = (value: unknown) => {
+        const n = Number(value);
+        return Number.isFinite(n) ? n : 0;
+      };
+      const host = toScore(data.hostScore);
+      const opponent = toScore(data.opponentScore);
+      const player3 = toScore(data.player3Score);
+      const player4 = toScore(data.player4Score);
 
       const selfId = user?.id || '';
       const payloadHostId = typeof data.hostUserId === 'string' ? data.hostUserId : '';

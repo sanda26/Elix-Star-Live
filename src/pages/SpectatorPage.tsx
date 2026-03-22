@@ -933,12 +933,16 @@ export default function SpectatorPage() {
 
     const handleBattleStateSync = (data: any) => {
       if (!mounted) return;
+      const toScore = (value: unknown, fallback = 0) => {
+        const n = Number(value);
+        return Number.isFinite(n) ? n : fallback;
+      };
       if (data.status === 'ACTIVE' || data.status === 'active' || data.status === 'IN_BATTLE') {
         setSpectatorBattle(prev => ({
           active: true,
-          hostScore: data.hostScore ?? prev?.hostScore ?? 0,
-          opponentScore: data.opponentScore ?? prev?.opponentScore ?? 0,
-          timeLeft: data.timeLeft ?? prev?.timeLeft ?? 300,
+          hostScore: toScore(data.hostScore, prev?.hostScore ?? 0),
+          opponentScore: toScore(data.opponentScore, prev?.opponentScore ?? 0),
+          timeLeft: toScore(data.timeLeft, prev?.timeLeft ?? 300),
           opponentName: data.opponentName || data.opponent_name || prev?.opponentName,
           opponentRoomId: data.opponentRoomId || prev?.opponentRoomId,
         }));
@@ -950,7 +954,7 @@ export default function SpectatorPage() {
           active: false,
           hostScore: 0,
           opponentScore: 0,
-          timeLeft: data.timeLeft ?? 300,
+          timeLeft: toScore(data.timeLeft, 300),
           opponentName: data.opponentName || prev?.opponentName,
           opponentRoomId: data.opponentRoomId || prev?.opponentRoomId,
         }));
@@ -959,22 +963,36 @@ export default function SpectatorPage() {
 
     const handleBattleTick = (data: any) => {
       if (!mounted) return;
-      setSpectatorBattle(prev => prev ? {
-        ...prev,
+      const toScore = (value: unknown, fallback = 0) => {
+        const n = Number(value);
+        return Number.isFinite(n) ? n : fallback;
+      };
+      setSpectatorBattle(prev => ({
         active: true,
-        timeLeft: data.timeLeft ?? prev.timeLeft,
-        hostScore: data.hostScore ?? prev.hostScore,
-        opponentScore: data.opponentScore ?? prev.opponentScore,
-      } : null);
+        timeLeft: toScore(data.timeLeft, prev?.timeLeft ?? 300),
+        hostScore: toScore(data.hostScore, prev?.hostScore ?? 0),
+        opponentScore: toScore(data.opponentScore, prev?.opponentScore ?? 0),
+        opponentName: (typeof data.opponentName === 'string' && data.opponentName) || prev?.opponentName,
+        opponentRoomId: (typeof data.opponentRoomId === 'string' && data.opponentRoomId) || prev?.opponentRoomId,
+        winner: prev?.winner,
+      }));
     };
 
     const handleBattleScore = (data: any) => {
       if (!mounted) return;
-      setSpectatorBattle(prev => prev ? {
-        ...prev,
-        hostScore: data.hostScore ?? prev.hostScore,
-        opponentScore: data.opponentScore ?? prev.opponentScore,
-      } : null);
+      const toScore = (value: unknown, fallback = 0) => {
+        const n = Number(value);
+        return Number.isFinite(n) ? n : fallback;
+      };
+      setSpectatorBattle(prev => ({
+        active: prev?.active ?? true,
+        timeLeft: prev?.timeLeft ?? 300,
+        hostScore: toScore(data.hostScore, prev?.hostScore ?? 0),
+        opponentScore: toScore(data.opponentScore, prev?.opponentScore ?? 0),
+        opponentName: (typeof data.opponentName === 'string' && data.opponentName) || prev?.opponentName,
+        opponentRoomId: (typeof data.opponentRoomId === 'string' && data.opponentRoomId) || prev?.opponentRoomId,
+        winner: prev?.winner,
+      }));
     };
 
     const handleBattleEnded = (data: any) => {

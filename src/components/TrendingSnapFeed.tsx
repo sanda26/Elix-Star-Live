@@ -4,6 +4,7 @@ import type { Video } from '../store/useVideoStore';
 import { getVideoPosterUrl } from '../lib/bunnyStorage';
 
 function TrendingSlide({ video }: { video: Video }) {
+  const SEARCH_TRENDING_VIDEO_DOWN_MM = 3;
   const navigate = useNavigate();
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -48,9 +49,15 @@ function TrendingSlide({ video }: { video: Video }) {
           playsInline
           preload="metadata"
           className="video-media-fill absolute inset-0 size-full"
+          style={{ top: `${SEARCH_TRENDING_VIDEO_DOWN_MM}mm` }}
         />
       ) : (
-        <img src={poster} alt="" className="absolute inset-0 size-full object-cover" />
+        <img
+          src={poster}
+          alt=""
+          className="absolute inset-0 size-full object-cover"
+          style={{ top: `${SEARCH_TRENDING_VIDEO_DOWN_MM}mm` }}
+        />
       )}
       <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent pointer-events-none" />
       <div className="absolute bottom-2 left-2 right-2 text-left">

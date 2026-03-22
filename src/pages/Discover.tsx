@@ -452,6 +452,7 @@ function TabButton({ active, onClick, icon, label }: { active: boolean; onClick:
 }
 
 function VideoThumbnail({ video, variant = 'grid' }: { video: Video; variant?: 'grid' | 'feed' }) {
+  const EXPLORE_FEED_VIDEO_DOWN_MM = 3;
   const navigate = useNavigate();
   const videoRef = React.useRef<HTMLVideoElement>(null);
   const containerRef = React.useRef<HTMLDivElement>(null);
@@ -482,7 +483,11 @@ function VideoThumbnail({ video, variant = 'grid' }: { video: Video; variant?: '
         feed ? 'h-full min-h-0 rounded-none border-0 bg-black' : 'aspect-[9/16] rounded-xl bg-[#1C1E24] border border-white/10'
       }`}
     >
-      <div className="absolute inset-0 cursor-pointer" onClick={() => navigate(`/video/${video.id}`)}>
+      <div
+        className="absolute inset-0 cursor-pointer"
+        style={feed ? { top: `${EXPLORE_FEED_VIDEO_DOWN_MM}mm` } : undefined}
+        onClick={() => navigate(`/video/${video.id}`)}
+      >
         {video.url ? (
           <video
             ref={videoRef}
@@ -534,7 +539,9 @@ function VideoThumbnail({ video, variant = 'grid' }: { video: Video; variant?: '
         {video.creator?.username && (
           <div className="flex items-center gap-1.5 mb-1">
             {video.creator.avatar_url && (
-              <img src={video.creator.avatar_url} alt="" className="w-5 h-5 rounded-full object-cover" />
+              <div className="w-5 h-5 rounded-full overflow-hidden shrink-0">
+                <img src={video.creator.avatar_url} alt="" className="w-full h-full object-cover object-center" />
+              </div>
             )}
             <span className="text-white text-[10px] font-bold drop-shadow-md">@{video.creator.username}</span>
           </div>
@@ -554,11 +561,13 @@ function UserSearchResult({ user }: { user: User }) {
       onClick={() => navigate(`/profile/${user.user_id}`)}
       className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-white/5 transition text-left"
     >
-      <img
-        src={user.avatar_url || `https://ui-avatars.com/api/?name=${user.username}&background=222&color=C9A96E`}
-        alt={user.username}
-        className="w-11 h-11 object-cover rounded-full"
-      />
+      <div className="w-11 h-11 rounded-full overflow-hidden shrink-0">
+        <img
+          src={user.avatar_url || `https://ui-avatars.com/api/?name=${user.username}&background=222&color=C9A96E`}
+          alt={user.username}
+          className="w-full h-full object-cover object-center"
+        />
+      </div>
       <div className="flex-1 min-w-0">
         <p className="font-bold text-[13px] truncate">{user.username}</p>
         <p className="text-[11px] text-white/40">{formatNumber(user.followers_count || 0)} followers</p>

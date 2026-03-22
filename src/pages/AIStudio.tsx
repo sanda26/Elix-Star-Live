@@ -81,7 +81,7 @@ export default function AIStudio() {
   };
 
   return (
-    <div className="bg-[#13151A] text-white flex flex-col overflow-hidden">
+    <div className="h-full min-h-0 w-full bg-[#13151A] text-white flex flex-col overflow-hidden">
       {toast && (
         <div className="fixed top-16 left-1/2 -translate-x-1/2 bg-[#C9A96E]/20 backdrop-blur-md text-white text-sm px-4 py-2 rounded-xl z-[9999]">
           {toast}
@@ -93,15 +93,15 @@ export default function AIStudio() {
 
       {/* Header */}
       <header className="flex items-center justify-between px-4 py-3 flex-shrink-0">
-        <button onClick={() => navigate(-1)} className="p-1">
-          <img src="/Icons/Gold power buton.png" alt="Back" className="w-5 h-5" />
+        <button onClick={handleExport} className="p-1" title="Export frame">
+          <Download size={16} className="text-white/70" />
         </button>
         <div className="flex items-center gap-2">
-          <Wand2 size={18} className="text-[#C9A96E]" />
-          <span className="text-white font-bold">AI Studio</span>
+          <Wand2 size={15} className="text-[#C9A96E]" />
+          <span className="text-white font-bold text-sm">AI Studio</span>
         </div>
-        <button onClick={handleExport} className="p-1" title="Export frame">
-          <Download size={20} className="text-white/70" />
+        <button onClick={() => navigate(-1)} className="p-1">
+          <img src="/Icons/Gold power buton.png" alt="Back" className="w-4 h-4" />
         </button>
       </header>
 
@@ -155,28 +155,28 @@ export default function AIStudio() {
           onClick={() => fileInputRef.current?.click()}
           className="flex flex-col items-center gap-1"
         >
-          <Upload size={20} className="text-white/60" />
+          <Upload size={16} className="text-white/60" />
           <span className="text-[10px] text-white/40">Import</span>
         </button>
         <button onClick={handleAutoEnhance} className="flex flex-col items-center gap-1">
-          <Sparkles size={20} className="text-[#C9A96E]" />
+          <Sparkles size={16} className="text-[#C9A96E]" />
           <span className="text-[10px] text-[#C9A96E]">Auto AI</span>
         </button>
         <button
           onClick={() => setShowTools(true)}
           className="flex flex-col items-center gap-1"
         >
-          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#C9A96E] to-[#B8943F] flex items-center justify-center shadow-lg shadow-[#C9A96E]/20">
-            <Wand2 size={22} className="text-black" />
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#C9A96E] to-[#B8943F] flex items-center justify-center shadow-lg shadow-[#C9A96E]/20">
+            <Wand2 size={18} className="text-black" />
           </div>
           <span className="text-[10px] text-white/60">AI Tools</span>
         </button>
         <button onClick={() => { setFilterCss('none'); setEnhanceCss('none'); showToast('Reset'); }} className="flex flex-col items-center gap-1">
-          <ArrowLeft size={20} className="text-white/60 rotate-[135deg]" />
+          <ArrowLeft size={16} className="text-white/60 rotate-[135deg]" />
           <span className="text-[10px] text-white/40">Reset</span>
         </button>
         <button onClick={handleExport} className="flex flex-col items-center gap-1">
-          <Share2 size={20} className="text-white/60" />
+          <Share2 size={16} className="text-white/60" />
           <span className="text-[10px] text-white/40">Export</span>
         </button>
       </div>

@@ -2935,7 +2935,7 @@ export default function LiveStream() {
                 {isCamOff && (
                   <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-[#13151A] z-[5]">
                     {(user?.avatar || myAvatar) ? (
-                      <img src={user?.avatar || myAvatar || ''} alt="" className="w-16 h-16 rounded-full border-2 border-[#C9A96E]/40 object-cover" />
+                      <img src={user?.avatar || myAvatar || ''} alt="" className="w-16 h-16 rounded-full border-2 border-[#C9A96E]/40 object-cover object-center" />
                     ) : (
                       <div className="w-16 h-16 rounded-full border-2 border-[#C9A96E]/40 bg-[#1C1E24] flex items-center justify-center">
                         <span className="text-2xl font-black text-[#C9A96E]/60">{(creatorName || user?.username || 'Me').charAt(0).toUpperCase()}</span>
@@ -2967,7 +2967,7 @@ export default function LiveStream() {
                 {!viewerHasStream && (
                   <div className="w-full h-full bg-[#13151A] flex flex-col items-center justify-center relative">
                     {myAvatar ? (
-                      <img src={myAvatar} alt="" className="w-28 h-28 rounded-full object-cover border-2 border-[#C9A96E]/40 mb-4 opacity-80" />
+                      <img src={myAvatar} alt="" className="w-28 h-28 rounded-full object-cover object-center border-2 border-[#C9A96E]/40 mb-4 opacity-80" />
                     ) : (
                       <div className="w-28 h-28 rounded-full bg-[#1C1E24] border-2 border-[#C9A96E]/30 flex items-center justify-center mb-4">
                         <span className="text-4xl font-black text-[#C9A96E]/60">{creatorName.charAt(0).toUpperCase()}</span>
@@ -3030,7 +3030,7 @@ export default function LiveStream() {
                       />
                       {coHostCameraOff[host.id] && (
                         <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-[#13151A] z-[6] rounded-sm">
-                          {host.avatar ? <img src={host.avatar} alt="" className="w-10 h-10 rounded-full border-2 border-[#C9A96E]/40 object-cover" /> : (
+                          {host.avatar ? <img src={host.avatar} alt="" className="w-10 h-10 rounded-full border-2 border-[#C9A96E]/40 object-cover object-center" /> : (
                             <div className="w-10 h-10 rounded-full border-2 border-[#C9A96E]/40 bg-[#1C1E24] flex items-center justify-center"><span className="text-[#C9A96E]/60 text-sm font-bold">{(host.name || '?').charAt(0)}</span></div>
                           )}
                           <span className="text-white/90 text-[8px] font-bold truncate max-w-full px-1">{host.name}</span>
@@ -3204,7 +3204,7 @@ export default function LiveStream() {
                       {isCamOff && (
                         <div className="absolute inset-0 z-[5] flex flex-col items-center justify-center gap-1 bg-[#13151A]">
                           {(user?.avatar || myAvatar) ? (
-                            <img src={user?.avatar || myAvatar || ''} alt="" className="w-12 h-12 rounded-full border-2 border-[#C9A96E]/40 object-cover" />
+                            <img src={user?.avatar || myAvatar || ''} alt="" className="w-12 h-12 rounded-full border-2 border-[#C9A96E]/40 object-cover object-center" />
                           ) : (
                             <div className="w-12 h-12 rounded-full border-2 border-[#C9A96E]/40 bg-[#1C1E24] flex items-center justify-center">
                               <span className="text-lg font-black text-[#C9A96E]/60">{(creatorName || user?.username || 'Me').charAt(0).toUpperCase()}</span>
@@ -3255,7 +3255,7 @@ export default function LiveStream() {
                           {cameraOffPlayers['opponent'] && (
                             <div className="absolute inset-0 z-[11] flex flex-col items-center justify-center gap-2 bg-[#13151A]">
                               {battleSlots[0].avatar ? (
-                                <img src={battleSlots[0].avatar} alt="" className="w-16 h-16 rounded-full border-2 border-[#C9A96E]/40 object-cover" />
+                                <img src={battleSlots[0].avatar} alt="" className="w-16 h-16 rounded-full border-2 border-[#C9A96E]/40 object-cover object-center" />
                               ) : (
                                 <div className="w-16 h-16 rounded-full border-2 border-[#C9A96E]/40 bg-[#1C1E24] flex items-center justify-center">
                                   <span className="text-2xl font-black text-[#C9A96E]/60">{(battleSlots[0].name || 'P').charAt(0).toUpperCase()}</span>
@@ -3267,7 +3267,7 @@ export default function LiveStream() {
                           {!hasOpponentStream && !cameraOffPlayers['opponent'] && (
                             <div className="absolute inset-0 z-[5] flex flex-col items-center justify-center gap-2 bg-[#13151A]">
                               {battleSlots[0].avatar ? (
-                                <img src={battleSlots[0].avatar} alt={battleSlots[0].name} className="w-16 h-16 rounded-full border-2 border-[#C9A96E] object-cover" />
+                                <img src={battleSlots[0].avatar} alt={battleSlots[0].name} className="w-16 h-16 rounded-full border-2 border-[#C9A96E] object-cover object-center" />
                               ) : (
                                 <div className="w-16 h-16 rounded-full border-2 border-[#C9A96E] bg-[#1C1E24] flex items-center justify-center">
                                   <span className="text-2xl font-black text-[#C9A96E]">{(battleSlots[0].name || 'P').charAt(0).toUpperCase()}</span>
@@ -3283,7 +3283,7 @@ export default function LiveStream() {
                         </div>
                       ) : battleSlots[0].status === 'invited' ? (
                         <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-[#13151A]">
-                          <img src={battleSlots[0].avatar} alt={battleSlots[0].name} className="w-12 h-12 rounded-full border-2 border-[#C9A96E] opacity-60" />
+                          <img src={battleSlots[0].avatar} alt={battleSlots[0].name} className="w-12 h-12 rounded-full border-2 border-[#C9A96E] object-cover object-center opacity-60" />
                           <div className="w-5 h-5 border-2 border-[#C9A96E] border-t-transparent rounded-full animate-spin" />
                           <span className="text-white text-[10px] font-bold">Waiting...</span>
                         </div>
@@ -3359,7 +3359,7 @@ export default function LiveStream() {
                             {cameraOffPlayers['player3'] && (
                               <div className="absolute inset-0 z-[11] flex flex-col items-center justify-center gap-1 bg-[#13151A]">
                                 {battleSlots[1].avatar ? (
-                                  <img src={battleSlots[1].avatar} alt="" className="w-12 h-12 rounded-full border-2 border-[#C9A96E]/40 object-cover" />
+                                  <img src={battleSlots[1].avatar} alt="" className="w-12 h-12 rounded-full border-2 border-[#C9A96E]/40 object-cover object-center" />
                                 ) : (
                                   <div className="w-12 h-12 rounded-full border-2 border-[#C9A96E]/40 bg-[#1C1E24] flex items-center justify-center">
                                     <span className="text-lg font-black text-[#C9A96E]/60">{(battleSlots[1].name || '?').charAt(0).toUpperCase()}</span>
@@ -3370,7 +3370,7 @@ export default function LiveStream() {
                             )}
                             {!player3VideoRef.current?.srcObject && !cameraOffPlayers['player3'] && (
                               <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
-                                <img src={battleSlots[1].avatar} alt={battleSlots[1].name} className="w-12 h-12 rounded-full border-2 border-[#C9A96E] object-cover" />
+                                <img src={battleSlots[1].avatar} alt={battleSlots[1].name} className="w-12 h-12 rounded-full border-2 border-[#C9A96E] object-cover object-center" />
                                 <span className="text-white text-[10px] font-bold">{battleSlots[1].name}</span>
                                 <div className="flex items-center gap-1">
                                   <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
@@ -3381,7 +3381,7 @@ export default function LiveStream() {
                           </div>
                         ) : battleSlots[1].status === 'invited' ? (
                           <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-[#13151A]">
-                            <img src={battleSlots[1].avatar} alt={battleSlots[1].name} className="w-12 h-12 rounded-full border-2 border-[#C9A96E] opacity-60" />
+                            <img src={battleSlots[1].avatar} alt={battleSlots[1].name} className="w-12 h-12 rounded-full border-2 border-[#C9A96E] object-cover object-center opacity-60" />
                             <div className="w-5 h-5 border-2 border-[#C9A96E] border-t-transparent rounded-full animate-spin" />
                             <span className="text-white text-[10px] font-bold">Waiting...</span>
                           </div>
@@ -3441,7 +3441,7 @@ export default function LiveStream() {
                             {cameraOffPlayers['player4'] && (
                               <div className="absolute inset-0 z-[11] flex flex-col items-center justify-center gap-1 bg-[#13151A]">
                                 {battleSlots[2].avatar ? (
-                                  <img src={battleSlots[2].avatar} alt="" className="w-12 h-12 rounded-full border-2 border-[#C9A96E]/40 object-cover" />
+                                  <img src={battleSlots[2].avatar} alt="" className="w-12 h-12 rounded-full border-2 border-[#C9A96E]/40 object-cover object-center" />
                                 ) : (
                                   <div className="w-12 h-12 rounded-full border-2 border-[#C9A96E]/40 bg-[#1C1E24] flex items-center justify-center">
                                     <span className="text-lg font-black text-[#C9A96E]/60">{(battleSlots[2].name || '?').charAt(0).toUpperCase()}</span>
@@ -3452,7 +3452,7 @@ export default function LiveStream() {
                             )}
                             {!player4VideoRef.current?.srcObject && !cameraOffPlayers['player4'] && (
                               <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
-                                <img src={battleSlots[2].avatar} alt={battleSlots[2].name} className="w-12 h-12 rounded-full border-2 border-[#C9A96E] object-cover" />
+                                <img src={battleSlots[2].avatar} alt={battleSlots[2].name} className="w-12 h-12 rounded-full border-2 border-[#C9A96E] object-cover object-center" />
                                 <span className="text-white text-[10px] font-bold">{battleSlots[2].name}</span>
                                 <div className="flex items-center gap-1">
                                   <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
@@ -3463,7 +3463,7 @@ export default function LiveStream() {
                           </div>
                         ) : battleSlots[2].status === 'invited' ? (
                           <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-[#13151A]">
-                            <img src={battleSlots[2].avatar} alt={battleSlots[2].name} className="w-12 h-12 rounded-full border-2 border-[#C9A96E] opacity-60" />
+                            <img src={battleSlots[2].avatar} alt={battleSlots[2].name} className="w-12 h-12 rounded-full border-2 border-[#C9A96E] object-cover object-center opacity-60" />
                             <div className="w-5 h-5 border-2 border-[#C9A96E] border-t-transparent rounded-full animate-spin" />
                             <span className="text-white text-[10px] font-bold">Waiting...</span>
                           </div>
@@ -4416,7 +4416,7 @@ export default function LiveStream() {
                    {hasJoinedToday && (
                      <div className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-[#C9A96E]/5 border border-[#C9A96E]/15">
                         <div className="relative">
-                          <img src={'/Icons/elix-logo.png'} alt="You" className="w-7 h-7 rounded-full object-cover border border-[#C9A96E]/20" />
+                          <img src={'/Icons/elix-logo.png'} alt="You" className="w-7 h-7 rounded-full object-cover object-center border border-[#C9A96E]/20" />
                           <div className="absolute -bottom-0.5 -right-0.5 bg-[#C9A96E] w-3 h-3 rounded-full flex items-center justify-center border border-[#1C1E24]">
                             <Heart size={6} className="text-black fill-black" />
                           </div>

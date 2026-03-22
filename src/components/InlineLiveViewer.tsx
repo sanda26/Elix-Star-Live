@@ -187,11 +187,13 @@ export default function InlineLiveViewer({
       {!hasStream && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#13151A] gap-4 pointer-events-none">
           {creatorAvatar ? (
-            <img
-              src={creatorAvatar}
-              alt=""
-              className="w-24 h-24 rounded-full object-cover border-2 border-[#C9A96E]/50 shrink-0"
-            />
+            <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-[#C9A96E]/50 shrink-0">
+              <img
+                src={creatorAvatar}
+                alt=""
+                className="w-full h-full object-cover object-center"
+              />
+            </div>
           ) : (
             <div className="w-24 h-24 rounded-full bg-[#C9A96E]/20 flex items-center justify-center shrink-0">
               <span className="text-3xl font-bold text-[#C9A96E]/80">

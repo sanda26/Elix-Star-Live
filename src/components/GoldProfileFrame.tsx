@@ -21,7 +21,7 @@ export function GoldProfileFrame({
     >
       {children != null && (
         <div
-          className="pointer-events-none absolute inset-0 z-[0] flex items-center justify-center"
+          className="pointer-events-none absolute inset-0 z-[0] flex items-center justify-center overflow-hidden rounded-full"
           style={{
             width: `${PROFILE_RING_INNER_RATIO * 100}%`,
             height: `${PROFILE_RING_INNER_RATIO * 100}%`,

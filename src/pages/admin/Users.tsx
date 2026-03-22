@@ -107,11 +107,13 @@ export default function AdminUsers() {
                 <tr key={user.id} className="hover:bg-[#2A2D35]/50">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
-                      <img
-                        src={user.avatar_url || `https://ui-avatars.com/api/?name=${user.username}`}
-                        alt={user.username}
-                        className="w-10 h-10 object-cover"
-                      />
+                      <div className="w-10 h-10 rounded-full overflow-hidden shrink-0">
+                        <img
+                          src={user.avatar_url || `https://ui-avatars.com/api/?name=${user.username}`}
+                          alt={user.username}
+                          className="w-full h-full object-cover object-center"
+                        />
+                      </div>
                       <span className="font-semibold">{user.username}</span>
                     </div>
                   </td>

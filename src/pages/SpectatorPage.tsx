@@ -1449,7 +1449,7 @@ export default function SpectatorPage() {
                         {!hasStream && (
                           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-[#13151A]">
                             {hostAvatar ? (
-                              <img src={hostAvatar} alt="" className="w-16 h-16 rounded-full border-2 border-[#C9A96E] object-cover" />
+                              <img src={hostAvatar} alt="" className="w-16 h-16 rounded-full border-2 border-[#C9A96E] object-cover object-center" />
                             ) : (
                               <div className="w-16 h-16 rounded-full border-2 border-[#C9A96E] bg-[#1C1E24] flex items-center justify-center">
                                 <span className="text-2xl font-black text-[#C9A96E]">{(hostName || 'H').charAt(0).toUpperCase()}</span>

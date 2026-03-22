@@ -5,6 +5,7 @@ import EnhancedVideoPlayer from "../components/EnhancedVideoPlayer";
 import { useVideoStore } from "../store/useVideoStore";
 
 export default function StemFeed() {
+  const STEM_VIDEO_DOWN_MM = 3;
   const navigate = useNavigate();
   const location = useLocation();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -105,7 +106,7 @@ export default function StemFeed() {
             scrollSnapAlign: "start",
             scrollSnapStop: "always",
             boxSizing: "border-box",
-            paddingTop: "var(--feed-slide-pad-top)",
+            paddingTop: `calc(var(--feed-slide-pad-top) + ${STEM_VIDEO_DOWN_MM}mm)`,
           }}
         >
           <div className="w-full max-w-[480px] flex-1 min-h-0 relative overflow-hidden bg-[#13151A]">

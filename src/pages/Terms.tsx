@@ -1,24 +1,24 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { platform } from '../lib/platform';
+import SettingsOptionSheet from '../components/SettingsOptionSheet';
 
 export default function Terms() {
   const navigate = useNavigate();
 
   return (
-    <div className="bg-[#13151A] text-white flex justify-center px-2">
-      <div className="w-full max-w-[480px] rounded-3xl overflow-hidden bg-[#13151A] flex flex-col overflow-y-auto p-4 pb-20">
-        <header className="flex items-center justify-between mb-4">
+    <SettingsOptionSheet onClose={() => navigate(-1)}>
+      <div className="w-full h-full overflow-hidden bg-[#13151A] text-white flex flex-col">
+        <header className="flex items-center justify-between mb-4 px-4 pt-4">
           <button onClick={() => navigate(-1)} aria-label="Back" title="Back">
             <img src="/Icons/Gold power buton.png" alt="Back" className="w-5 h-5" />
           </button>
           <h1 className="font-bold text-lg">Terms of Service</h1>
           <div className="w-6" />
         </header>
-
-        <p className="text-xs text-white/40 italic mb-4">Last updated: February 20, 2026</p>
-
-        <div className="text-sm text-white/75 space-y-5 leading-6">
+        <div className="overflow-y-auto min-h-0 px-4 pb-[max(10px,calc(env(safe-area-inset-bottom,0px)+6px))]">
+          <p className="text-xs text-white/40 italic mb-4">Last updated: February 20, 2026</p>
+          <div className="text-sm text-white/75 space-y-5 leading-6">
           <Section title="1. Acceptance of Terms">
             <p>
               By accessing or using Elix Star Live ("the App"), operated by Elix Star Live Ltd,
@@ -192,9 +192,10 @@ export default function Terms() {
             <p>Questions about these terms? Contact us at:</p>
             <p className="text-white font-medium">legal@elixstarlive.com</p>
           </Section>
+          </div>
         </div>
       </div>
-    </div>
+    </SettingsOptionSheet>
   );
 }
 

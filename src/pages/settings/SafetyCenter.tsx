@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Shield, Lock, Eye, AlertTriangle, Ban, Flag, HelpCircle } from 'lucide-react';
+import SettingsOptionSheet from '../../components/SettingsOptionSheet';
 
 export default function SafetyCenter() {
   const navigate = useNavigate();
@@ -8,9 +9,9 @@ export default function SafetyCenter() {
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 2000); };
 
   return (
-    <div className="min-h-[100dvh] bg-[#13151A] text-white flex justify-center px-2">
+    <SettingsOptionSheet onClose={() => navigate(-1)}>
       {toast && <div className="fixed top-16 left-1/2 -translate-x-1/2 bg-white/10 backdrop-blur-md text-white text-sm px-4 py-2 rounded-xl z-[9999]">{toast}</div>}
-      <div className="w-full max-w-[480px] h-[100dvh] rounded-3xl overflow-hidden bg-[#13151A] flex flex-col pt-[calc(var(--safe-top)+46px)] pb-[var(--bottom-ui-reserve)]">
+      <div className="w-full h-full overflow-hidden bg-[#13151A] flex flex-col">
         {/* Header */}
         <div className="sticky top-0 bg-[#13151A] z-10 px-4 py-4 border-b border-transparent flex items-center gap-3">
         <button onClick={() => navigate(-1)} className="p-2 hover:brightness-125 rounded-full transition">
@@ -19,7 +20,7 @@ export default function SafetyCenter() {
         <h1 className="text-xl font-bold">Safety Center</h1>
       </div>
 
-      <div className="px-4 py-6">
+      <div className="px-4 py-6 overflow-y-auto min-h-0">
         {/* Header */}
         <div className="text-center mb-8">
           <div className="w-20 h-20 bg-gradient-to-br from-[#C9A96E] to-[#C9A96E] rounded-full mx-auto mb-4 flex items-center justify-center">
@@ -110,7 +111,7 @@ export default function SafetyCenter() {
         </div>
       </div>
       </div>
-    </div>
+    </SettingsOptionSheet>
   );
 }
 

@@ -79,7 +79,11 @@ export default function Settings() {
   return (
     <div className="fixed inset-0 z-[9999] flex justify-center">
       <div className="absolute inset-0 bg-black/45" onClick={() => navigate(-1)} />
-      <div className="absolute bottom-0 w-full max-w-[480px] h-[50dvh] rounded-t-2xl border-t border-[#C9A96E]/20 bg-[#13151A] text-white shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="absolute w-full max-w-[480px] h-[50dvh] rounded-t-2xl border-t border-[#C9A96E]/20 bg-[#13151A] text-white shadow-2xl overflow-hidden"
+        style={{ bottom: 'max(var(--bottom-ui-reserve), env(safe-area-inset-bottom, 0px))' }}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex-shrink-0 px-3 pt-1.5 pb-1.5">
           <div className="flex items-center justify-center">
             <div className="w-10 h-1 bg-white/20 rounded-full absolute top-2 left-1/2 -translate-x-1/2" />
@@ -87,7 +91,7 @@ export default function Settings() {
           </div>
         </div>
 
-        <div className="h-full min-h-0 overflow-y-auto overscroll-y-contain px-3 pb-[max(4px,env(safe-area-inset-bottom,0px))]">
+        <div className="h-full min-h-0 overflow-y-auto overscroll-y-contain px-3 pb-[max(10px,calc(env(safe-area-inset-bottom,0px)+6px))]">
           <div className="flex flex-col gap-0 max-w-full">
           <S t="Account" />
           <R ic={<User size={14} />} t="Edit Profile" fn={() => navigate('/edit-profile')} />

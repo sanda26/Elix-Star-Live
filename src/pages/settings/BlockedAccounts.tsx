@@ -4,6 +4,7 @@ import { Search, Ban } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { showToast } from '../../lib/toast';
 import { AvatarRing } from '../../components/AvatarRing';
+import SettingsOptionSheet from '../../components/SettingsOptionSheet';
 
 interface BlockedUser {
   id: string;
@@ -74,8 +75,8 @@ export default function BlockedAccounts() {
   );
 
   return (
-    <div className="min-h-[100dvh] bg-[#13151A] text-white flex justify-center px-2">
-      <div className="w-full max-w-[480px] h-[100dvh] rounded-3xl overflow-hidden bg-[#13151A] flex flex-col pt-[calc(var(--safe-top)+46px)] pb-[var(--bottom-ui-reserve)]">
+    <SettingsOptionSheet onClose={() => navigate(-1)}>
+      <div className="w-full h-full overflow-hidden bg-[#13151A] flex flex-col">
         {/* Header */}
         <div className="sticky top-0 bg-[#13151A] z-10 px-4 py-4 border-b border-transparent">
         <div className="flex items-center gap-3 mb-4">
@@ -99,7 +100,7 @@ export default function BlockedAccounts() {
       </div>
 
       {/* Blocked Users List */}
-      <div className="px-4 py-4">
+      <div className="px-4 py-4 overflow-y-auto min-h-0">
         {loading ? (
           <div className="text-center py-12 text-white/40">Loading...</div>
         ) : (
@@ -139,7 +140,7 @@ export default function BlockedAccounts() {
         )}
       </div>
       </div>
-    </div>
+    </SettingsOptionSheet>
   );
 }
 

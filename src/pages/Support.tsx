@@ -4,6 +4,7 @@ import { Book, HelpCircle, Mail, MessageCircle, Send, Shield } from 'lucide-reac
 import { apiStub } from '../lib/apiStub';
 import { trackEvent } from '../lib/analytics';
 import { showToast } from '../lib/toast';
+import SettingsOptionSheet from '../components/SettingsOptionSheet';
 
 const FAQ_ITEMS = [
   {
@@ -82,22 +83,22 @@ export default function Support() {
 
   if (submitted) {
     return (
-      <div className="bg-[#13151A] text-white flex items-center justify-center px-4">
-        <div className="text-center">
+      <SettingsOptionSheet onClose={() => navigate(-1)}>
+        <div className="h-full flex items-center justify-center px-4 text-center">
           <div className="w-20 h-20 bg-[#C9A96E] rounded-full mx-auto mb-4 flex items-center justify-center">
             <Send className="w-10 h-10 text-white" />
           </div>
           <h2 className="text-2xl font-bold mb-2">Message Sent!</h2>
           <p className="text-white/60">We'll get back to you within 24 hours.</p>
         </div>
-      </div>
+      </SettingsOptionSheet>
     );
   }
 
   if (showContactForm) {
     return (
-      <div className="bg-[#13151A] text-white flex justify-center px-2">
-        <div className="w-full max-w-[480px] rounded-3xl overflow-hidden bg-[#13151A] flex flex-col">
+      <SettingsOptionSheet onClose={() => navigate(-1)}>
+        <div className="w-full h-full overflow-hidden bg-[#13151A] flex flex-col">
         {/* Header */}
         <div className="sticky top-0 bg-[#13151A] z-10 px-4 py-4 border-b border-transparent flex items-center justify-between">
           <button
@@ -110,7 +111,7 @@ export default function Support() {
           <div className="w-10"></div>
         </div>
 
-        <div className="px-4 py-6 space-y-4">
+        <div className="px-4 py-6 space-y-4 overflow-y-auto min-h-0">
           <div>
             <label className="block text-sm font-semibold mb-2">Email</label>
             <input
@@ -156,13 +157,13 @@ export default function Support() {
           </button>
         </div>
         </div>
-      </div>
+      </SettingsOptionSheet>
     );
   }
 
   return (
-    <div className="bg-[#13151A] text-white flex justify-center px-2">
-      <div className="w-full max-w-[480px] rounded-3xl overflow-hidden bg-[#13151A] flex flex-col">
+    <SettingsOptionSheet onClose={() => navigate(-1)}>
+      <div className="w-full h-full overflow-hidden bg-[#13151A] flex flex-col">
       {/* Header */}
       <div className="sticky top-0 bg-[#13151A] z-10 px-4 py-4 border-b border-transparent flex items-center gap-3">
         <button onClick={() => navigate(-1)} className="p-2 hover:brightness-125 rounded-full transition">
@@ -223,7 +224,7 @@ export default function Support() {
         </div>
       </div>
       </div>
-    </div>
+    </SettingsOptionSheet>
   );
 }
 

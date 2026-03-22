@@ -1,13 +1,14 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Shield, Users, Heart, AlertTriangle, Eye, Ban } from 'lucide-react';
+import SettingsOptionSheet from '../components/SettingsOptionSheet';
 
 export default function Guidelines() {
   const navigate = useNavigate();
 
   return (
-    <div className="bg-[#13151A] text-white flex justify-center px-2">
-      <div className="w-full max-w-[480px] rounded-3xl overflow-hidden bg-[#13151A] flex flex-col">
+    <SettingsOptionSheet onClose={() => navigate(-1)}>
+      <div className="w-full h-full overflow-hidden bg-[#13151A] flex flex-col">
       {/* Header */}
       <div className="sticky top-0 bg-[#13151A] z-10 px-4 py-4 border-b border-transparent flex items-center gap-3">
         <button onClick={() => navigate(-1)} className="p-2 hover:brightness-125 rounded-full transition">
@@ -129,7 +130,7 @@ export default function Guidelines() {
         </div>
       </div>
       </div>
-    </div>
+    </SettingsOptionSheet>
   );
 }
 

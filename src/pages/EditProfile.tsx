@@ -7,6 +7,7 @@ import { AvatarRing } from '../components/AvatarRing';
 import { avatarUploadService } from '../lib/avatarUploadService';
 import { showToast } from '../lib/toast';
 import { useAuthStore } from '../store/useAuthStore';
+import SettingsOptionSheet from '../components/SettingsOptionSheet';
 
 interface Profile {
   username: string;
@@ -147,8 +148,8 @@ export default function EditProfile() {
   };
 
   return (
-    <div className="bg-[#13151A] text-white flex justify-center px-2">
-      <div className="w-full max-w-[480px] rounded-3xl overflow-hidden bg-[#13151A] flex flex-col">
+    <SettingsOptionSheet onClose={() => navigate(-1)}>
+      <div className="w-full h-full overflow-hidden bg-[#13151A] flex flex-col">
       {/* Header */}
       <div className="sticky top-0 z-10 px-4 py-4 flex items-center justify-between bg-[#13151A]">
         {/* Left: smaller Save button */}
@@ -253,7 +254,7 @@ export default function EditProfile() {
         </div>
       </div>
       </div>
-    </div>
+    </SettingsOptionSheet>
   );
 }
 

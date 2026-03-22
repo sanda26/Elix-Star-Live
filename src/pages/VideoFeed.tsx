@@ -496,6 +496,7 @@ export default function VideoFeed() {
             scrollSnapStop: "always",
             boxSizing: "border-box",
             paddingTop: "0",
+            paddingBottom: "3mm",
           };
 
           if (item.kind === "live") {

@@ -2193,14 +2193,14 @@ export default function LiveStream() {
 
     // Server-controlled battle events — single source of truth
     const applyBattleScores = (data: any) => {
-      const toScore = (value: unknown) => {
+      const toScore = (value: unknown, fallback: number) => {
         const n = Number(value);
-        return Number.isFinite(n) ? n : 0;
+        return Number.isFinite(n) ? n : fallback;
       };
-      const host = toScore(data.hostScore);
-      const opponent = toScore(data.opponentScore);
-      const player3 = toScore(data.player3Score);
-      const player4 = toScore(data.player4Score);
+      const host = toScore(data.hostScore, battleScoresRef.current.myScore);
+      const opponent = toScore(data.opponentScore, battleScoresRef.current.opponentScore);
+      const player3 = toScore(data.player3Score, battleScoresRef.current.player3Score);
+      const player4 = toScore(data.player4Score, battleScoresRef.current.player4Score);
 
       const selfId = user?.id || '';
       const payloadHostId = typeof data.hostUserId === 'string' ? data.hostUserId : '';
@@ -2208,7 +2208,7 @@ export default function LiveStream() {
       if (selfId && payloadHostId && selfId === payloadHostId) battleRoleRef.current = 'host';
       else if (selfId && payloadOpponentId && selfId === payloadOpponentId) battleRoleRef.current = 'opponent';
 
-      const role = battleRoleRef.current || (isBattleJoiner ? 'opponent' : (isBroadcast ? 'host' : null));
+      const role = battleRoleRef.current || (isBattleJoiner ? 'opponent' : (isBroadcast ? 'host' : 'opponent'));
       if (role === 'host') {
         setMyScore(host);
         setOpponentScore(opponent);
@@ -2229,6 +2229,8 @@ export default function LiveStream() {
       const selfId = user?.id || '';
       if (selfId && typeof data.hostUserId === 'string' && data.hostUserId === selfId) battleRoleRef.current = 'host';
       else if (selfId && typeof data.opponentUserId === 'string' && data.opponentUserId === selfId) battleRoleRef.current = 'opponent';
+      else if (effectiveStreamId && typeof data.hostRoomId === 'string' && data.hostRoomId === effectiveStreamId) battleRoleRef.current = 'host';
+      else if (effectiveStreamId && typeof data.opponentRoomId === 'string' && data.opponentRoomId === effectiveStreamId) battleRoleRef.current = 'opponent';
 
       if (data.status === 'WAITING') {
         setIsBattleMode(true);

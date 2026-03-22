@@ -291,7 +291,8 @@ function formatVideoForClient(
     isFollowing: uid !== "unknown" && followingSet.has(uid),
     comments: [],
     quality: "auto",
-    privacy: v.is_public === false ? "private" : "public",
+    privacy:
+      v.privacy === "private" || v.is_public === false ? "private" : "public",
     engagementScore: v.engagement_score || 0,
   };
 }
@@ -787,8 +788,10 @@ export async function handleFriendsFeed(req: Request, res: Response) {
         `SELECT v.*, row_to_json(p) AS user
          FROM videos v
          LEFT JOIN profiles p ON p.user_id = v.user_id
-         WHERE v.user_id = ANY($1) AND v.is_public != false
-         ORDER BY v.created_at DESC
+         WHERE v.user_id = ANY($1::text[])
+           AND (v.privacy IS NULL OR v.privacy <> 'private')
+           AND v.url IS NOT NULL AND btrim(v.url) <> ''
+         ORDER BY v.created_at DESC NULLS LAST
          LIMIT 80`,
         [networkIds],
       );
@@ -800,7 +803,11 @@ export async function handleFriendsFeed(req: Request, res: Response) {
     const networkSet = new Set(networkIds);
     const allVideos = getAllVideos();
     const friendVids = allVideos
-      .filter((v) => networkSet.has(v.user_id) && v.is_public !== false)
+      .filter((v) => {
+        const url = (v.url || "").trim();
+        if (!url) return false;
+        return networkSet.has(v.userId) && v.privacy !== "private";
+      })
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
       .slice(0, 80);
 

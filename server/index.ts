@@ -1086,14 +1086,16 @@ function startBattleTimer(roomId: string) {
     }
     s.timeLeft = Math.max(0, Math.round((s.endsAt - Date.now()) / 1000));
 
-    broadcastToRoom(roomId, "battle_tick", {
+    const tickPayload = {
       timeLeft: s.timeLeft,
       hostScore: s.hostScore,
       opponentScore: s.opponentScore,
       player3Score: s.player3Score,
       player4Score: s.player4Score,
       endsAt: s.endsAt,
-    });
+    };
+    broadcastToRoom(roomId, "battle_tick", tickPayload);
+    broadcastToBattleParticipants(roomId, s, "battle_tick", tickPayload);
 
     if (s.timeLeft <= 0) {
       endBattle(roomId);
@@ -1119,14 +1121,16 @@ function addBattleScoreForTarget(
     session.player4Score += points;
   }
 
-  broadcastToRoom(roomId, "battle_score", {
+  const scorePayload = {
     hostScore: session.hostScore,
     opponentScore: session.opponentScore,
     player3Score: session.player3Score,
     player4Score: session.player4Score,
     lastScorer: target,
     points,
-  });
+  };
+  broadcastToRoom(roomId, "battle_score", scorePayload);
+  broadcastToBattleParticipants(roomId, session, "battle_score", scorePayload);
 }
 
 function endBattle(roomId: string) {
@@ -1150,7 +1154,7 @@ function endBattle(roomId: string) {
     session.winner = "draw";
   }
 
-  broadcastToRoom(roomId, "battle_ended", {
+  const endedPayload = {
     hostScore: session.hostScore,
     opponentScore: session.opponentScore,
     player3Score: session.player3Score,
@@ -1158,7 +1162,9 @@ function endBattle(roomId: string) {
     winner: session.winner,
     hostName: session.hostName,
     opponentName: session.opponentName,
-  });
+  };
+  broadcastToRoom(roomId, "battle_ended", endedPayload);
+  broadcastToBattleParticipants(roomId, session, "battle_ended", endedPayload);
 
   // Cleanup after 10 seconds
   setTimeout(() => {
@@ -1180,7 +1186,7 @@ function broadcastBattleState(roomId: string, session: BattleSession) {
       Math.round((session.endsAt - Date.now()) / 1000),
     );
   }
-  broadcastToRoom(roomId, "battle_state_sync", {
+  const statePayload = {
     id: session.id,
     status: session.status,
     hostUserId: session.hostUserId,
@@ -1202,7 +1208,38 @@ function broadcastBattleState(roomId: string, session: BattleSession) {
     winner: session.winner,
     hostReady: session.hostReady,
     opponentReady: session.opponentReady,
-  });
+  };
+  broadcastToRoom(roomId, "battle_state_sync", statePayload);
+  broadcastToBattleParticipants(roomId, session, "battle_state_sync", statePayload);
+}
+
+function broadcastToBattleParticipants(
+  roomId: string,
+  session: BattleSession,
+  event: string,
+  data: any,
+) {
+  const participantIds = [
+    session.hostUserId,
+    session.opponentUserId,
+    session.player3UserId,
+    session.player4UserId,
+  ].filter((id): id is string => typeof id === "string" && id.length > 0);
+  if (participantIds.length === 0) return;
+
+  const room = rooms.get(roomId);
+  const inRoom = new Set<string>();
+  if (room) {
+    room.forEach((client) => {
+      if (client?.userId) inRoom.add(client.userId);
+    });
+  }
+
+  for (const userId of participantIds) {
+    if (!inRoom.has(userId)) {
+      sendToUserGlobal(userId, event, data);
+    }
+  }
 }
 
 wss.on("connection", async (ws: WebSocket, req) => {

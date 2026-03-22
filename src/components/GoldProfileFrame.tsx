@@ -1,5 +1,5 @@
 import React from 'react';
-import { PROFILE_RING_INNER_RATIO } from '../lib/profileFrame';
+import { PROFILE_RING_INNER_RATIO, PROFILE_RING_IMAGE_LIFT_MM } from '../lib/profileFrame';
 
 /**
  * Golden ring from public asset `/Icons/Profile icon.png`, centered content (e.g. + icon or avatar).
@@ -25,7 +25,7 @@ export function GoldProfileFrame({
           style={{
             width: `${PROFILE_RING_INNER_RATIO * 100}%`,
             height: `${PROFILE_RING_INNER_RATIO * 100}%`,
-            top: '50%',
+            top: `calc(50% - ${PROFILE_RING_IMAGE_LIFT_MM}mm)`,
             left: '50%',
             transform: 'translate(-50%, -50%)',
           }}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { storyRingInnerPx } from '../lib/profileFrame';
+import { storyRingInnerPx, PROFILE_RING_IMAGE_LIFT_MM } from '../lib/profileFrame';
 
 const FRAME_SRC = '/Icons/Profile icon.png';
 
@@ -41,7 +41,7 @@ export function StoryGoldRingAvatar({
         style={{
           width: inner,
           height: inner,
-          top: '50%',
+          top: `calc(50% - ${PROFILE_RING_IMAGE_LIFT_MM}mm)`,
           left: '50%',
           transform: 'translate(-50%, -50%)',
           zIndex: 1,

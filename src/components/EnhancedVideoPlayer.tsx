@@ -32,7 +32,7 @@ import { LevelBadge } from './LevelBadge';
 import { apiStub } from '../lib/apiStub';
 import { nativeConfirm } from './NativeDialog';
 import { getVideoPosterUrl } from '../lib/bunnyStorage';
-import { storyRingInnerPx } from '../lib/profileFrame';
+import { storyRingInnerPx, PROFILE_RING_IMAGE_LIFT_MM } from '../lib/profileFrame';
 
 const VIDEO_SIDEBAR_AVATAR = 48;
 const VIDEO_SIDEBAR_AVATAR_INNER = storyRingInnerPx(VIDEO_SIDEBAR_AVATAR);
@@ -829,7 +829,7 @@ export default function EnhancedVideoPlayer({
                 style={{
                   width: VIDEO_SIDEBAR_AVATAR_INNER,
                   height: VIDEO_SIDEBAR_AVATAR_INNER,
-                  top: '50%',
+                  top: `calc(50% - ${PROFILE_RING_IMAGE_LIFT_MM}mm)`,
                   left: '50%',
                   transform: 'translate(-50%, -50%)',
                   zIndex: 1,

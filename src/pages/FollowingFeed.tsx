@@ -20,7 +20,6 @@ interface FollowingUser {
 }
 
 export default function FollowingFeed() {
-  const FOLLOWING_VIDEO_DOWN_MM = 3;
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const { friendVideos, fetchFriendVideos, friendsLoading: loading } = useVideoStore();
@@ -209,7 +208,6 @@ export default function FollowingFeed() {
                 height: '100%',
                 scrollSnapAlign: 'start',
                 scrollSnapStop: 'always',
-                paddingTop: `${FOLLOWING_VIDEO_DOWN_MM}mm`,
               }}
             >
               <div className="w-full h-full min-h-0 relative overflow-hidden bg-[#0A0B0E]">

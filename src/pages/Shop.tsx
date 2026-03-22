@@ -6,7 +6,7 @@ import { Plus, X, Camera, Tag, MessageCircle, Search } from 'lucide-react';
 import { AvatarRing } from '../components/AvatarRing';
 import { showToast } from '../lib/toast';
 import { apiUrl } from '../lib/api';
-import { profileRingInnerPx } from '../lib/profileFrame';
+import { profileRingInnerPx, PROFILE_RING_IMAGE_LIFT_MM } from '../lib/profileFrame';
 
 const SHOP_LIVE_RING = 85;
 const SHOP_LIVE_INNER = profileRingInnerPx(SHOP_LIVE_RING);
@@ -300,7 +300,7 @@ export default function Shop() {
                       style={{
                         width: SHOP_LIVE_INNER,
                         height: SHOP_LIVE_INNER,
-                        top: '50%',
+                        top: `calc(50% - ${PROFILE_RING_IMAGE_LIFT_MM}mm)`,
                         left: '50%',
                         transform: 'translate(-50%, -50%)',
                         objectPosition: 'center center',

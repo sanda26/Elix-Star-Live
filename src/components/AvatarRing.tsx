@@ -1,4 +1,4 @@
-import { profileRingInnerPx } from '../lib/profileFrame';
+import { profileRingInnerPx, PROFILE_RING_IMAGE_LIFT_MM } from '../lib/profileFrame';
 
 interface AvatarRingProps {
   src: string;
@@ -26,7 +26,7 @@ export function AvatarRing({ src, alt = '', size, className = '', onClick, simpl
           src={safeSrc}
           alt={safeAlt}
           className="h-full w-full object-cover object-center"
-          style={{ objectPosition: 'center center' }}
+          style={{ objectPosition: 'center center', transform: `translateY(-${PROFILE_RING_IMAGE_LIFT_MM}mm)` }}
         />
       </div>
     );
@@ -43,7 +43,7 @@ export function AvatarRing({ src, alt = '', size, className = '', onClick, simpl
         style={{
           width: innerSize,
           height: innerSize,
-          top: '50%',
+          top: `calc(50% - ${PROFILE_RING_IMAGE_LIFT_MM}mm)`,
           left: '50%',
           transform: 'translate(-50%, -50%)',
           zIndex: 1,

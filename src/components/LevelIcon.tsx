@@ -48,11 +48,11 @@ export const LevelIcon: React.FC<LevelIconProps> = ({
         <div
           style={{
             position: 'absolute',
-            top: '50%',
+            top: 'calc(50% - 0.4mm)',
             left: '50%',
             transform: 'translate(-50%, -50%)',
-            width: circleSize - 6,
-            height: circleSize - 6,
+            width: circleSize - 7,
+            height: circleSize - 7,
             borderRadius: 999,
             overflow: 'hidden',
           }}

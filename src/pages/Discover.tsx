@@ -47,7 +47,6 @@ export default function Discover() {
   const [activeTab, setActiveTab] = useState<'trending' | 'search' | 'hashtags' | 'ranking'>('trending');
   const [searchQuery, setSearchQuery] = useState('');
   const [trendingVideos, setTrendingVideos] = useState<Video[]>([]);
-  const { friendVideos, fetchFriendVideos, friendsLoading } = useVideoStore();
   const [searchResults, setSearchResults] = useState<{ videos: Video[]; users: User[] }>({
     videos: [],
     users: [],
@@ -55,7 +54,6 @@ export default function Discover() {
   const [trendingHashtags, setTrendingHashtags] = useState<Hashtag[]>([]);
   const [rankings, setRankings] = useState<CreatorRanking[]>([]);
   const [loading, setLoading] = useState(false);
-  const user = useAuthStore((s) => s.user);
 
   useEffect(() => {
     if (activeTab === 'trending') {
@@ -76,38 +74,6 @@ export default function Discover() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchQuery]);
-
-  useEffect(() => {
-    if (!user?.id) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        await fetchFriendVideos();
-        if (cancelled) return;
-      } catch {
-        if (cancelled) return;
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
-
-  const followingVideosForUi: Video[] = (friendVideos || []).slice(0, 50).map((v: any) => ({
-    id: String(v.id),
-    user_id: String(v.user?.id ?? v.user_id ?? ''),
-    thumbnail_url: v.thumbnail || v.thumbnail_url || getVideoPosterUrl(v.url || ''),
-    url: v.url || '',
-    description: v.description || '',
-    views: v.stats?.views || 0,
-    likes: v.stats?.likes || 0,
-    engagement_score: 0,
-    creator: {
-      username: v.user?.username || v.user?.name || 'Creator',
-      avatar_url: v.user?.avatar ?? null,
-    },
-  }));
 
   const loadTrending = async () => {
     setLoading(true);
@@ -238,8 +204,8 @@ export default function Discover() {
         style={{ marginTop: 0 }}
       >
 
-        {/* ═══ HEADER (like before) ═══ */}
-        <div className="mx-2 mt-2 rounded-t-2xl bg-[#13151A] z-10 shrink-0">
+        {/* ═══ HEADER — full width of column (matches bottom nav max-w-[480px]) ═══ */}
+        <div className="w-full shrink-0 bg-[#13151A] z-10 border-b border-white/[0.06]">
           <div className="px-3 pt-[calc(env(safe-area-inset-top,8px)+4px)] pb-1 flex items-center justify-between relative">
             <button onClick={() => document.getElementById('discover-search')?.focus()} className="p-1 z-10" title="Search">
               <Search className="w-4 h-4 text-[#C9A96E]" />
@@ -251,7 +217,7 @@ export default function Discover() {
           </div>
 
           {/* Search Bar */}
-          <div className="mx-3 mb-2 flex items-center gap-2 bg-white/5 rounded-xl px-3 py-2 border border-white/10">
+          <div className="mx-3 mb-1.5 flex items-center gap-2 bg-white/5 rounded-xl px-3 py-2 border border-white/10">
             <Search className="w-3.5 h-3.5 text-[#C9A96E]/50 shrink-0" />
             <input
               id="discover-search"
@@ -273,7 +239,7 @@ export default function Discover() {
 
           {/* Tabs */}
           {searchQuery.length < 2 && (
-            <div className="flex gap-1.5 px-3 pb-2 no-scrollbar overflow-x-auto">
+            <div className="flex gap-1.5 px-3 pb-1.5 no-scrollbar overflow-x-auto">
               <TabButton active={activeTab === 'trending'} onClick={() => setActiveTab('trending')} icon={<Flame className="w-3 h-3" />} label="Trending" />
               <TabButton active={activeTab === 'ranking'} onClick={() => setActiveTab('ranking')} icon={<Trophy className="w-3 h-3" />} label="Top 99" />
               <TabButton active={activeTab === 'hashtags'} onClick={() => setActiveTab('hashtags')} icon={<Hash className="w-3 h-3" />} label="Tags" />
@@ -285,8 +251,8 @@ export default function Discover() {
           )}
         </div>
 
-        {/* ═══ CONTENT (unchanged) ═══ */}
-        <div className="flex-1 overflow-y-auto mx-2 rounded-b-2xl bg-[#13151A] pb-24">
+        {/* ═══ CONTENT — full width, no card chrome on trending feed ═══ */}
+        <div className="flex-1 min-h-0 overflow-y-auto w-full bg-[#13151A] pb-24">
 
           {/* Loading */}
           {loading && (
@@ -296,61 +262,19 @@ export default function Discover() {
             </div>
           )}
 
-          {/* TRENDING */}
+          {/* TRENDING — full-bleed snap feed directly under tab row */}
           {!loading && activeTab === 'trending' && (
-            <div className="px-3 pt-3">
-              {/* Following & Friends */}
-              {friendsLoading ? (
-                <div className="flex flex-col items-center justify-center py-6 gap-2">
-                  <div className="w-7 h-7 border-2 border-[#C9A96E]/20 border-t-[#C9A96E] rounded-full animate-spin" />
-                  <p className="text-white/30 text-xs">Loading friends & followers...</p>
-                </div>
-              ) : followingVideosForUi.length > 0 ? (
-                <div className="mb-5 rounded-2xl border border-white/10 bg-white/[0.02] overflow-hidden">
-                  <div className="px-3 py-2.5 border-b border-white/10 flex items-center gap-2">
-                    <Users className="w-4 h-4 text-[#C9A96E] shrink-0" />
-                    <div className="min-w-0">
-                      <h2 className="text-[13px] font-bold text-gold-metallic leading-tight">Friends & followers</h2>
-                      <p className="text-[9px] text-white/35 leading-tight mt-0.5">
-                        Following + followers, one vertical feed (like For You)
-                      </p>
-                    </div>
-                  </div>
-                  <div className="p-3 w-full">
-                    <DiscoverSnapStack videos={followingVideosForUi} />
-                  </div>
-                </div>
+            <div className="w-full flex flex-col flex-1 min-h-0 pt-0">
+              {trendingVideos.length > 0 ? (
+                <DiscoverSnapStack videos={trendingVideos} />
               ) : (
-                <div className="mb-5">
+                <div className="px-3 pt-6">
                   <EmptyState
-                    icon={<Users className="w-10 h-10" />}
-                    text="No friends or followers videos yet"
-                    sub="Follow creators or get followers who post — their videos will show here"
+                    icon={<TrendingUp className="w-10 h-10" />}
+                    text="No matching videos yet"
+                    sub="Creators add tags like nsfw, sexy, or 18+ in the caption or hashtags to appear here."
                   />
                 </div>
-              )}
-
-              {trendingVideos.length > 0 ? (
-                <div className="mb-5 rounded-2xl border border-white/10 bg-white/[0.02] overflow-hidden">
-                  <div className="px-3 py-2.5 border-b border-white/10 flex items-center gap-2">
-                    <TrendingUp className="w-4 h-4 text-[#C9A96E] shrink-0" />
-                    <div className="min-w-0">
-                      <h2 className="text-[13px] font-bold text-gold-metallic leading-tight">Indecent (Explore)</h2>
-                      <p className="text-[9px] text-white/35 leading-tight mt-0.5">
-                        Only videos whose caption or hashtags match indecent-style tags (e.g. nsfw, sexy, 18+). Sorted by views.
-                      </p>
-                    </div>
-                  </div>
-                  <div className="p-3 w-full">
-                    <DiscoverSnapStack videos={trendingVideos} />
-                  </div>
-                </div>
-              ) : (
-                <EmptyState
-                  icon={<TrendingUp className="w-10 h-10" />}
-                  text="No indecent-tagged videos yet"
-                  sub="Creators add words like nsfw, sexy, or 18+ in the caption or hashtags to appear here."
-                />
               )}
             </div>
           )}
@@ -486,20 +410,23 @@ export default function Discover() {
   );
 }
 
-/** One full-width portrait slide at a time (snap scroll), not a narrow stack of small tiles. */
+/** Full column width (max-w-[480px] shell), edge-to-edge under tabs — no outer card frame. */
 function DiscoverSnapStack({ videos }: { videos: Video[] }) {
   if (videos.length === 0) return null;
-  const slideH = 'min(72dvh,calc(100vw*16/9))';
+  const slideH = 'min(82dvh,calc(100vw*16/9))';
   return (
     <div
-      className="w-full max-h-[min(78dvh,calc(100dvh-10.5rem))] overflow-y-auto snap-y snap-mandatory flex flex-col gap-2 pb-1 no-scrollbar"
-      style={{ overscrollBehavior: 'contain' }}
+      className="w-full flex-1 min-h-0 overflow-y-auto snap-y snap-mandatory flex flex-col gap-0 pb-0 no-scrollbar"
+      style={{
+        overscrollBehavior: 'contain',
+        maxHeight: 'min(86dvh, calc(100dvh - 9rem))',
+      }}
     >
       {videos.map((video) => (
         <div
           key={video.id}
-          className="snap-start shrink-0 w-full rounded-xl overflow-hidden"
-          style={{ height: slideH, maxHeight: '78dvh' }}
+          className="snap-start shrink-0 w-full overflow-hidden bg-black"
+          style={{ height: slideH, maxHeight: 'min(86dvh, calc(100dvh - 9rem))' }}
         >
           <VideoThumbnail video={video} variant="feed" />
         </div>
@@ -551,8 +478,8 @@ function VideoThumbnail({ video, variant = 'grid' }: { video: Video; variant?: '
   return (
     <div
       ref={containerRef}
-      className={`relative bg-[#1C1E24] overflow-hidden w-full border border-white/10 ${
-        feed ? 'h-full min-h-0 rounded-none border-0' : 'aspect-[9/16] rounded-xl'
+      className={`relative overflow-hidden w-full ${
+        feed ? 'h-full min-h-0 rounded-none border-0 bg-black' : 'aspect-[9/16] rounded-xl bg-[#1C1E24] border border-white/10'
       }`}
     >
       <div className="absolute inset-0 cursor-pointer" onClick={() => navigate(`/video/${video.id}`)}>

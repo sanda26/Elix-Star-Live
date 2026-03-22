@@ -27,7 +27,7 @@ function TrendingSlide({ video }: { video: Video }) {
   return (
     <div
       ref={containerRef}
-      className="relative w-full h-full bg-[#1C1E24] cursor-pointer"
+      className="relative w-full h-full bg-black cursor-pointer"
       onClick={() => navigate(`/video/${video.id}`)}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
@@ -63,37 +63,34 @@ function TrendingSlide({ video }: { video: Video }) {
   );
 }
 
-/** One bordered block with full-width portrait snaps (Search empty state, etc.). */
+/** Search: full column width, no card frame — sits flush under trending users. */
 export function TrendingSnapFeed({ videos }: { videos: Video[] }) {
-  const slideH = 'min(64dvh,calc(100vw*16/9))';
+  const slideH = 'min(78dvh,calc(100vw*16/9))';
+
+  if (videos.length === 0) {
+    return (
+      <div className="text-xs text-white/30 py-3 px-4 text-center w-full">
+        No videos yet.
+      </div>
+    );
+  }
 
   return (
-    <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.02] overflow-hidden">
-      <div className="px-3 py-2.5 border-b border-white/10">
-        <h2 className="text-[13px] font-bold text-gold-metallic">Trending videos</h2>
-        <p className="text-[9px] text-white/35 mt-0.5">Swipe for more</p>
-      </div>
-
-      {videos.length === 0 ? (
-        <div className="text-xs text-white/30 py-6 px-3 text-center">No videos yet.</div>
-      ) : (
-        <div className="p-3 w-full">
+    <div className="w-full bg-black">
+      <div
+        className="w-full overflow-y-auto snap-y snap-mandatory flex flex-col gap-0 no-scrollbar"
+        style={{ overscrollBehavior: 'contain' }}
+      >
+        {videos.map((video) => (
           <div
-            className="w-full max-h-[min(72dvh,calc(100dvh-13rem))] overflow-y-auto snap-y snap-mandatory flex flex-col gap-2 pb-1 no-scrollbar"
-            style={{ overscrollBehavior: 'contain' }}
+            key={video.id}
+            className="snap-start shrink-0 w-full overflow-hidden bg-black"
+            style={{ height: slideH, maxHeight: 'min(82dvh, calc(100dvh - 9.5rem))' }}
           >
-            {videos.map((video) => (
-              <div
-                key={video.id}
-                className="snap-start shrink-0 w-full rounded-xl overflow-hidden border border-white/10"
-                style={{ height: slideH, maxHeight: '78dvh' }}
-              >
-                <TrendingSlide video={video} />
-              </div>
-            ))}
+            <TrendingSlide video={video} />
           </div>
-        </div>
-      )}
+        ))}
+      </div>
     </div>
   );
 }

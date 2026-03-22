@@ -209,7 +209,7 @@ export default function SearchPage() {
         style={{ transform: visible ? 'translateY(0)' : 'translateY(100%)' }}
       >
         <div
-          className="w-full max-w-[480px] bg-[#13151A] border border-white/10 flex flex-col overflow-hidden pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)] h-above-bottom-nav"
+          className="w-full max-w-[480px] bg-[#13151A] flex flex-col overflow-hidden pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)] h-above-bottom-nav"
           style={{ boxShadow: '0 -8px 30px rgba(0,0,0,0.5)', marginTop: 0 }}
         >
           {/* Top: drag handle + power (back) — swipe down here to close */}
@@ -253,12 +253,12 @@ export default function SearchPage() {
             </div>
           </div>
 
-          {/* Results */}
-          <div className="flex-1 overflow-y-auto px-4 pb-4">
+          {/* Results — px-4 on text blocks; trending feed is full width of column */}
+          <div className="flex-1 min-h-0 overflow-y-auto pb-0">
             {!normalizedQuery ? (
               <>
                 {/* Quick chips */}
-                <div className="mt-2">
+                <div className="mt-2 px-4">
                   <h2 className="font-bold mb-2 text-gold-metallic text-sm">You may like</h2>
                   <div className="flex flex-wrap gap-2">
                     {TRENDING_SEARCHES.map((tag) => (
@@ -310,9 +310,9 @@ export default function SearchPage() {
 
                 {/* Trending users */}
                 {suggestedUsers.length > 0 && (
-                  <div className="mt-5">
-                    <h2 className="font-bold mb-2 text-gold-metallic text-sm">Trending users</h2>
-                    <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2">
+                  <div className="mt-4 px-4">
+                    <h2 className="font-bold mb-1 text-gold-metallic text-sm">Trending users</h2>
+                    <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
                       {suggestedUsers.map((u) => (
                         <button
                           key={u.id}
@@ -376,11 +376,13 @@ export default function SearchPage() {
                   </div>
                 )}
 
-                {/* Trending videos — one full-width snap container */}
-                <TrendingSnapFeed videos={(videos || []).slice(0, 30)} />
+                {/* Trending videos — full width, directly under names, no card frame */}
+                <div className="mt-1 w-full">
+                  <TrendingSnapFeed videos={(videos || []).slice(0, 30)} />
+                </div>
               </>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-4 px-4 pb-4">
                 {searching && <div className="text-xs text-[#C9A96E]/60 text-center py-3">Searching...</div>}
 
                 {matchedUsers.length > 0 && (

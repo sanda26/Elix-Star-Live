@@ -3128,7 +3128,12 @@ export default function LiveStream() {
                 <div key={`battle-top-center-${i}`} style={{ zIndex: 3 - i }} className="relative">
                   <GoldProfileFrame size={32}>
                     {topMvpViewers[i]?.avatar ? (
-                      <img src={topMvpViewers[i].avatar} alt="" className="h-full w-full rounded-full object-cover object-center" />
+                      <img
+                        src={topMvpViewers[i].avatar}
+                        alt=""
+                        className="h-full w-full rounded-full object-cover object-center"
+                        style={{ transform: 'translateY(0.5mm)' }}
+                      />
                     ) : (
                       <Plus className="text-[#C9A96E]" size={14} strokeWidth={2.5} />
                     )}
@@ -3736,7 +3741,12 @@ export default function LiveStream() {
                             <div key={`top-viewers-${i}`} style={{ zIndex: 3 - i }} className="relative">
                               <GoldProfileFrame size={36}>
                                 {topMvpViewers[i]?.avatar ? (
-                                  <img src={topMvpViewers[i].avatar} alt="" className="h-full w-full rounded-full object-cover object-center" />
+                                  <img
+                                    src={topMvpViewers[i].avatar}
+                                    alt=""
+                                    className="h-full w-full rounded-full object-cover object-center"
+                                    style={{ transform: 'translateY(0.5mm)' }}
+                                  />
                                 ) : (
                                   <Plus className="text-[#C9A96E]" size={16} strokeWidth={2.5} />
                                 )}

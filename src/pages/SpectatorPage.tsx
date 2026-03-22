@@ -1806,9 +1806,9 @@ export default function SpectatorPage() {
                 </div>
               </div>
 
-              <div className="pointer-events-auto flex items-center gap-0.5 flex-shrink-0">
+              <div className="pointer-events-auto flex items-center gap-0 flex-shrink-0">
                 <div
-                  className="flex items-center -space-x-3 pointer-events-auto"
+                  className="flex items-center gap-0.5 pointer-events-auto"
                   onClick={() => {
                     const list: { id: string; name: string; avatar: string; level?: number }[] = [];
                     const hid = hostUserIdRef.current || hostUserId || effectiveStreamId;
@@ -1825,11 +1825,16 @@ export default function SpectatorPage() {
                     const slot = spectatorTopAvatars[i];
                     return (
                       <div key={`spectator-top-mvp-${i}`} style={{ zIndex: 3 - i }} className="relative">
-                        <GoldProfileFrame size={36}>
+                        <GoldProfileFrame size={24}>
                           {slot?.avatar ? (
-                            <img src={slot.avatar} alt={slot.name || ''} className="h-full w-full rounded-full object-cover object-center" />
+                            <img
+                              src={slot.avatar}
+                              alt={slot.name || ''}
+                              className="h-full w-full rounded-full object-cover object-center"
+                              style={{ transform: 'translateY(0.5mm)' }}
+                            />
                           ) : (
-                            <Plus className="text-[#C9A96E]" size={16} strokeWidth={2.5} />
+                            <Plus className="text-[#C9A96E]" size={10} strokeWidth={2.5} />
                           )}
                         </GoldProfileFrame>
                       </div>
@@ -1839,7 +1844,7 @@ export default function SpectatorPage() {
                 {/* Viewer count */}
                 <button
                   type="button"
-                  className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-transparent border-0 active:scale-95 transition-transform"
+                  className="flex items-center gap-1.5 px-0 py-1 rounded-full bg-transparent border-0 active:scale-95 transition-transform"
                   onClick={() => {
                     const list: { id: string; name: string; avatar: string; level?: number }[] = [];
                     const hid = hostUserIdRef.current || hostUserId || effectiveStreamId;

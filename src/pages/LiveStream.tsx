@@ -3610,8 +3610,8 @@ export default function LiveStream() {
                             >
                               <AvatarRing src={myAvatar} alt={myCreatorName} size={56} />
                             </div>
-                            <div className="flex flex-col justify-center -ml-4 pl-6 pr-16 h-9 rounded-full border border-[#C9A96E]/60 bg-[#13151A]/80 min-w-[140px] relative" style={{ borderTopLeftRadius: 0, borderBottomLeftRadius: 0, boxShadow: '0 0 8px rgba(201,169,110,0.25)' }}>
-                              <span className="text-white text-[10px] font-bold truncate max-w-[160px] leading-tight">{myCreatorName}</span>
+                            <div className="flex flex-col justify-center -ml-3 pl-5 pr-16 h-8 rounded-full border border-[#C9A96E]/60 bg-[#13151A]/80 min-w-0 relative" style={{ borderTopLeftRadius: 0, borderBottomLeftRadius: 0, boxShadow: '0 0 8px rgba(201,169,110,0.25)' }}>
+                              <span className="text-white text-[11px] font-bold truncate max-w-[100px] leading-tight">{myCreatorName}</span>
                               <button
                   type="button"
                   className="flex items-center gap-0.5 pointer-events-auto -mt-0.5"

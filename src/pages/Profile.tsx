@@ -821,6 +821,18 @@ export default function Profile() {
           </button>
         </div>
 
+        {isOwnProfile && activeTab === 'private' && (
+          <div className="px-3 pt-2 pb-1 flex justify-end">
+            <button
+              type="button"
+              onClick={() => navigate('/upload?type=story')}
+              className="px-3 py-1.5 rounded-md bg-[#C9A96E] text-black text-[11px] font-bold"
+            >
+              Post Story
+            </button>
+          </div>
+        )}
+
         {/* ═══ VIDEO GRID ═══ */}
         {activeTab !== 'shop' && (
           <div className="grid grid-cols-3 gap-[2px] px-3 pt-3 pb-2 flex-1">
@@ -886,7 +898,20 @@ export default function Profile() {
         {!videosLoading && activeTab !== 'shop' && videos.length === 0 && (
           <div className="flex-1 flex items-center justify-center py-16 text-white/30 text-sm">
             {activeTab === 'videos' && 'No videos yet'}
-            {activeTab === 'private' && 'No private videos'}
+            {activeTab === 'private' && (
+              <div className="flex flex-col items-center gap-2">
+                <span>No private videos</span>
+                {isOwnProfile && (
+                  <button
+                    type="button"
+                    onClick={() => navigate('/upload?type=story')}
+                    className="px-3 py-1.5 rounded-md bg-[#C9A96E] text-black text-[11px] font-bold"
+                  >
+                    Post Story
+                  </button>
+                )}
+              </div>
+            )}
             {activeTab === 'reposts' && 'No reposts yet'}
             {activeTab === 'saved' && 'No saved videos'}
             {activeTab === 'liked' && 'No liked videos'}

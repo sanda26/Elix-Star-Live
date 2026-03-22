@@ -1794,14 +1794,16 @@ export default function SpectatorPage() {
                   </div>
                   {/* Follow — spectator sees creator top bar; only creator bottom bar is hidden */}
                   {!isFollowing && (
-                    <button
-                      type="button"
-                      className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center justify-center gap-0.5 bg-[#FF2D55] rounded-full px-1.5 py-0.5 shadow-sm border border-white/20 w-[58px] h-5 z-20"
-                      onClick={followHost}
-                    >
-                      <Plus size={10} className="text-white" strokeWidth={3} />
-                      <span className="text-white text-[9px] font-bold">Follow</span>
-                    </button>
+                    <div className="absolute right-1 top-1/2 -translate-y-1/2 grid place-items-center pointer-events-auto">
+                      <button
+                        type="button"
+                        className="col-start-1 row-start-1 z-20 relative flex items-center justify-center gap-1 bg-[#FF2D55] rounded-full px-1.5 py-0.5 shadow-sm border border-white/20 w-[58px] h-7"
+                        onClick={followHost}
+                      >
+                        <Plus size={10} className="text-white" strokeWidth={3} />
+                        <span className="text-white text-[9px] font-bold">Follow</span>
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>
@@ -1809,6 +1811,7 @@ export default function SpectatorPage() {
               <div className="pointer-events-auto flex items-center gap-0 flex-shrink-0">
                 <div
                   className="flex items-center gap-0.5 pointer-events-auto"
+                  style={{ transform: 'translateX(-2mm)' }}
                   onClick={() => {
                     const list: { id: string; name: string; avatar: string; level?: number }[] = [];
                     const hid = hostUserIdRef.current || hostUserId || effectiveStreamId;
@@ -1831,7 +1834,7 @@ export default function SpectatorPage() {
                               src={slot.avatar}
                               alt={slot.name || ''}
                               className="h-full w-full rounded-full object-cover object-center"
-                              style={{ transform: 'translateY(0.5mm)' }}
+                              style={{ transform: 'translateY(0.4mm)' }}
                             />
                           ) : (
                             <Plus className="text-[#C9A96E]" size={10} strokeWidth={2.5} />

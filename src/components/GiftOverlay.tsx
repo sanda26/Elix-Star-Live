@@ -26,9 +26,18 @@ interface GiftOverlayProps {
   isBattleMode?: boolean;
   /** When false, spectators can hear the gift video sound. Default true (muted) for creator/autoplay. */
   muted?: boolean;
+  /** Use lighter, less obstructive layout for spectator pages. */
+  spectatorMode?: boolean;
 }
 
-export function GiftOverlay({ videoSrc, previewSrc: _previewSrc, onEnded, isBattleMode: _isBattleMode, muted = true }: GiftOverlayProps) {
+export function GiftOverlay({
+  videoSrc,
+  previewSrc: _previewSrc,
+  onEnded,
+  isBattleMode: _isBattleMode,
+  muted = true,
+  spectatorMode = false,
+}: GiftOverlayProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const safetyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onEndedRef = useRef(onEnded);
@@ -87,7 +96,7 @@ export function GiftOverlay({ videoSrc, previewSrc: _previewSrc, onEnded, isBatt
     <div
       className="absolute left-0 right-0 bottom-0 pointer-events-none overflow-hidden"
       style={{
-        height: '70%',
+        height: spectatorMode ? '52%' : '70%',
         zIndex: 95,
         WebkitMaskImage: 'linear-gradient(to top, black 0%, black 60%, transparent 100%)',
         maskImage: 'linear-gradient(to top, black 0%, black 60%, transparent 100%)',
@@ -97,11 +106,12 @@ export function GiftOverlay({ videoSrc, previewSrc: _previewSrc, onEnded, isBatt
         ref={videoRef}
         key={videoSrc}
         src={videoSrc}
-        className="absolute inset-0 w-full h-full object-cover drop-shadow-2xl"
+        className={`absolute inset-0 w-full h-full ${spectatorMode ? 'object-contain' : 'object-cover'} drop-shadow-2xl`}
         playsInline
         autoPlay
         muted={muted}
         preload="auto"
+        style={spectatorMode ? { opacity: 0.88 } : undefined}
         onLoadedData={() => {
           if (videoRef.current?.paused) {
             videoRef.current.play().catch(() => {});

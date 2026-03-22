@@ -2030,7 +2030,14 @@ export default function SpectatorPage() {
         <GiftAnimationOverlay streamId={effectiveStreamId} />
 
         {/* GIFT VIDEO OVERLAY */}
-        <GiftOverlay key={`gift-${giftKey}`} videoSrc={currentGift?.video ?? null} onEnded={handleGiftEnded} isBattleMode={!!spectatorBattle?.active} muted={false} />
+        <GiftOverlay
+          key={`gift-${giftKey}`}
+          videoSrc={currentGift?.video ?? null}
+          onEnded={handleGiftEnded}
+          isBattleMode={!!spectatorBattle?.active}
+          muted={false}
+          spectatorMode
+        />
 
 
         {/* ═══ CO-HOST PANEL — spectator Accept/Reject when creator invited, or Request to co-host. No layout control. */}

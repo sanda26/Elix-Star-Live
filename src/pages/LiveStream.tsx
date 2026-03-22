@@ -1832,6 +1832,8 @@ export default function LiveStream() {
   }, [isMicMuted]);
 
   const [activeViewers, setActiveViewers] = useState<LiveViewer[]>([]);
+  const viewerIdentityCacheRef = useRef<Map<string, { username: string; displayName: string; avatar: string; level: number }>>(new Map());
+  const viewerIdentityInflightRef = useRef<Map<string, Promise<void>>>(new Map());
   /** Coin value sent this session — global top gifters (top bar). */
   const [mvpGiftScores, setMvpGiftScores] = useState<Record<string, number>>({});
   /** Battle: gifts tagged for host/creator side (red). */
@@ -1839,6 +1841,60 @@ export default function LiveStream() {
   /** Battle: gifts tagged for opponent side (blue). */
   const [mvpGiftScoresOpponent, setMvpGiftScoresOpponent] = useState<Record<string, number>>({});
   useEffect(() => { activeViewersRef.current = activeViewers; }, [activeViewers]);
+  const isGenericViewerName = useCallback((value: string | null | undefined) => {
+    const v = String(value || '').trim().toLowerCase();
+    if (!v) return true;
+    return v === 'anonymous' || v === 'user' || v === 'viewer' || v === 'guest' || v.startsWith('user_');
+  }, []);
+  const maybeResolveViewerIdentity = useCallback((viewerId: string) => {
+    if (!viewerId || viewerId === user?.id) return;
+    if (viewerIdentityCacheRef.current.has(viewerId) || viewerIdentityInflightRef.current.has(viewerId)) return;
+    const task = (async () => {
+      try {
+        const res = await fetch(apiUrl(`/api/profiles/${encodeURIComponent(viewerId)}`), {
+          method: 'GET',
+          credentials: 'include',
+        });
+        if (!res.ok) return;
+        const body = await res.json().catch(() => ({}));
+        const profile = body?.profile || body?.data || {};
+        const resolvedUsername =
+          (typeof profile.username === 'string' && profile.username.trim()) ||
+          (typeof profile.displayName === 'string' && profile.displayName.trim()) ||
+          (typeof profile.display_name === 'string' && profile.display_name.trim()) ||
+          '';
+        const resolvedDisplayName =
+          (typeof profile.displayName === 'string' && profile.displayName.trim()) ||
+          (typeof profile.display_name === 'string' && profile.display_name.trim()) ||
+          resolvedUsername ||
+          '';
+        const resolvedAvatar =
+          (typeof profile.avatarUrl === 'string' && profile.avatarUrl.trim()) ||
+          (typeof profile.avatar_url === 'string' && profile.avatar_url.trim()) ||
+          '';
+        const resolvedLevel =
+          typeof profile.level === 'number' && Number.isFinite(profile.level) && profile.level > 0
+            ? Math.floor(profile.level)
+            : 1;
+        if (!resolvedUsername && !resolvedDisplayName && !resolvedAvatar) return;
+        const nextIdentity = {
+          username: resolvedUsername || resolvedDisplayName || `user_${viewerId.slice(0, 8)}`,
+          displayName: resolvedDisplayName || resolvedUsername || `User ${viewerId.slice(0, 8)}`,
+          avatar: resolvedAvatar,
+          level: resolvedLevel,
+        };
+        viewerIdentityCacheRef.current.set(viewerId, nextIdentity);
+        setActiveViewers((prev) =>
+          prev.map((v) => (v.id === viewerId ? { ...v, ...nextIdentity } : v))
+        );
+      } catch {
+        // Keep socket name fallback if profile lookup fails.
+      } finally {
+        viewerIdentityInflightRef.current.delete(viewerId);
+      }
+    })();
+    viewerIdentityInflightRef.current.set(viewerId, task);
+  }, [user?.id]);
   useEffect(() => {
     setMvpGiftScores({});
     setMvpGiftScoresHost({});
@@ -1893,16 +1949,23 @@ export default function LiveStream() {
       if (!mounted) return;
       const seen = new Set<string>();
       const viewers: LiveViewer[] = [];
+      const needsIdentityLookup: string[] = [];
       for (const v of (data.viewers || [])) {
         const uid = typeof v.user_id === 'string' ? v.user_id : String(v.user_id ?? '');
         if (!uid || uid === user?.id || seen.has(uid)) continue;
         seen.add(uid);
+        const cached = viewerIdentityCacheRef.current.get(uid);
+        const socketUsername = typeof v.username === 'string' ? v.username : 'User';
+        const socketDisplayName =
+          typeof v.display_name === 'string'
+            ? v.display_name
+            : (typeof v.username === 'string' ? v.username : 'User');
         viewers.push({
           id: uid,
-          username: typeof v.username === 'string' ? v.username : 'User',
-          displayName: typeof v.display_name === 'string' ? v.display_name : (typeof v.username === 'string' ? v.username : 'User'),
-          level: typeof v.level === 'number' && Number.isFinite(v.level) ? v.level : 1,
-          avatar: typeof v.avatar_url === 'string' ? v.avatar_url : '',
+          username: cached?.username || socketUsername,
+          displayName: cached?.displayName || socketDisplayName,
+          level: cached?.level || (typeof v.level === 'number' && Number.isFinite(v.level) ? v.level : 1),
+          avatar: cached?.avatar || (typeof v.avatar_url === 'string' ? v.avatar_url : ''),
           country: v.country || '',
           joinedAt: Date.now(),
           isActive: true,
@@ -1910,8 +1973,12 @@ export default function LiveStream() {
           supportDays: 0,
           lastVisitDaysAgo: 0,
         });
+        if (!cached && (isGenericViewerName(socketUsername) || isGenericViewerName(socketDisplayName))) {
+          needsIdentityLookup.push(uid);
+        }
       }
       setActiveViewers(viewers);
+      needsIdentityLookup.forEach((uid) => maybeResolveViewerIdentity(uid));
 
       // Creator: push layout to server as soon as we connect so spectators who join later get creator layout
       if (isBroadcastRef.current && effectiveStreamId && user?.id) {
@@ -1929,14 +1996,16 @@ export default function LiveStream() {
       if (!mounted) return;
       if (data.user_id === user?.id) return;
       const joinName = data.username || 'User';
+      const uid = typeof data.user_id === 'string' ? data.user_id : String(data.user_id ?? '');
+      const cached = uid ? viewerIdentityCacheRef.current.get(uid) : undefined;
       setActiveViewers(prev => {
-        if (prev.some(v => v.id === data.user_id)) return prev;
+        if (prev.some(v => v.id === uid)) return prev;
         return [...prev, {
-          id: data.user_id,
-          username: joinName,
-          displayName: typeof data.display_name === 'string' ? data.display_name : joinName,
-          level: typeof data.level === 'number' && Number.isFinite(data.level) ? data.level : 1,
-          avatar: typeof data.avatar_url === 'string' ? data.avatar_url : '',
+          id: uid,
+          username: cached?.username || joinName,
+          displayName: cached?.displayName || (typeof data.display_name === 'string' ? data.display_name : joinName),
+          level: cached?.level || (typeof data.level === 'number' && Number.isFinite(data.level) ? data.level : 1),
+          avatar: cached?.avatar || (typeof data.avatar_url === 'string' ? data.avatar_url : ''),
           country: data.country || '',
           joinedAt: Date.now(),
           isActive: true,
@@ -1954,6 +2023,9 @@ export default function LiveStream() {
         avatar: typeof data.avatar_url === 'string' ? data.avatar_url : '',
       }]);
       setViewerCount(prev => prev + 1);
+      if (uid && !cached && (isGenericViewerName(joinName) || isGenericViewerName(data.display_name))) {
+        maybeResolveViewerIdentity(uid);
+      }
       // So new spectators get current co-host layout
       if (isBroadcastRef.current && effectiveStreamId && user?.id) {
         const list = coHostsRef.current.map((h) => ({ id: h.id, userId: h.userId, name: h.name, avatar: h.avatar, status: h.status }));
@@ -2323,7 +2395,7 @@ export default function LiveStream() {
       websocket.off('moderation_suspend', handleModerationSuspend);
       websocket.disconnect();
     };
-  }, [effectiveStreamId, user?.id, navigate]);
+  }, [effectiveStreamId, user?.id, navigate, maybeResolveViewerIdentity, isGenericViewerName]);
 
   // AI moderation: periodic frame check when broadcasting (flag + assist, all actions logged)
   const moderationIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);

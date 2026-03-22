@@ -511,8 +511,7 @@ export default function VideoFeed() {
                   className="w-full max-w-[480px] flex-1 min-h-0 relative overflow-hidden bg-[#0A0B0E]"
                   style={{
                     transform:
-                      "translateY(calc(-1 * var(--feed-video-lift-for-you))) scale(var(--feed-video-scale-for-you))",
-                    transformOrigin: "center center",
+                      "translateY(calc(-1 * var(--feed-video-lift-for-you)))",
                     willChange: "transform",
                   }}
                 >
@@ -539,8 +538,7 @@ export default function VideoFeed() {
                 className="w-full max-w-[480px] flex-1 min-h-0 relative overflow-hidden bg-[#0A0B0E]"
                 style={{
                   transform:
-                    "translateY(calc(-1 * var(--feed-video-lift-for-you))) scale(var(--feed-video-scale-for-you))",
-                  transformOrigin: "center center",
+                    "translateY(calc(-1 * var(--feed-video-lift-for-you)))",
                   willChange: "transform",
                 }}
               >

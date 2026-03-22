@@ -495,8 +495,7 @@ export default function VideoFeed() {
             scrollSnapAlign: "start",
             scrollSnapStop: "always",
             boxSizing: "border-box",
-            /* Pad matches topbar stack; video fills below — can read under fixed TopNav (z above) */
-            paddingTop: "var(--feed-slide-pad-top-for-you)",
+            paddingTop: "var(--topbar-total)",
           };
 
           if (item.kind === "live") {
@@ -507,14 +506,7 @@ export default function VideoFeed() {
                 className="h-full w-full shrink-0 snap-start flex flex-col items-center bg-[#0A0B0E]"
                 style={slideStyle}
               >
-                <div
-                  className="w-full max-w-[480px] flex-1 min-h-0 relative overflow-hidden bg-[#0A0B0E]"
-                  style={{
-                    transform:
-                      "translateY(calc(-1 * var(--feed-video-lift-for-you)))",
-                    willChange: "transform",
-                  }}
-                >
+                <div className="w-full max-w-[480px] flex-1 min-h-0 relative overflow-hidden bg-[#0A0B0E]">
                   <InlineLiveViewer
                     streamKey={item.stream.streamKey}
                     isActive={activeIndex === index}
@@ -534,14 +526,7 @@ export default function VideoFeed() {
               className="h-full w-full shrink-0 snap-start flex flex-col items-center bg-[#0A0B0E]"
               style={slideStyle}
             >
-              <div
-                className="w-full max-w-[480px] flex-1 min-h-0 relative overflow-hidden bg-[#0A0B0E]"
-                style={{
-                  transform:
-                    "translateY(calc(-1 * var(--feed-video-lift-for-you)))",
-                  willChange: "transform",
-                }}
-              >
+              <div className="w-full max-w-[480px] flex-1 min-h-0 relative overflow-hidden bg-[#0A0B0E]">
                 <EnhancedVideoPlayer
                   videoId={item.videoId}
                   isActive={activeIndex === index}

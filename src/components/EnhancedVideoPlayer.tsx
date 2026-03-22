@@ -686,11 +686,10 @@ export default function EnhancedVideoPlayer({
             </div>
           </div>
         ) : (
-        <div className="absolute inset-0 overflow-hidden">
         <video
           ref={videoRef}
           src={video.url}
-          className="absolute inset-0 h-full w-full object-cover"
+          className="w-full h-full object-cover"
           loop
           playsInline
           autoPlay
@@ -698,11 +697,6 @@ export default function EnhancedVideoPlayer({
           preload="auto"
           onClick={handleVideoClick}
           poster={posterUrl}
-          style={{
-            objectPosition: 'center center',
-            transform: 'scale(1.08)',
-            transformOrigin: 'center center',
-          }}
           onError={() => {
             if (retryCountRef.current < 5 && video.url) {
               retryCountRef.current += 1;
@@ -717,7 +711,6 @@ export default function EnhancedVideoPlayer({
             setVideoError(true);
           }}
         />
-        </div>
         )}
 
 
@@ -819,7 +812,6 @@ export default function EnhancedVideoPlayer({
             : scrubbing
               ? 'max(3.5rem, calc(44px + 10px))'
               : 'max(3.5rem, 1.5rem)',
-          transform: 'translateY(10mm)',
         }}
       >
         

@@ -1,5 +1,4 @@
 import React from 'react';
-import { PROFILE_RING_IMAGE_LIFT_MM } from '../lib/profileFrame';
 
 export interface LevelIconProps {
   level: number;
@@ -24,7 +23,6 @@ export const LevelIcon: React.FC<LevelIconProps> = ({
   const barHeight = Math.round(circleSize * 0.72);
   const barWidth = Math.round(circleSize * 1.75);
   const overlap = Math.round(circleSize * 0.52);
-  const ringThickness = Math.max(2, Math.round(circleSize * 0.09));
 
   const getBarGradient = () => {
     if (barColor) return barColor;
@@ -34,10 +32,7 @@ export const LevelIcon: React.FC<LevelIconProps> = ({
     return 'linear-gradient(180deg, #22c55e 0%, #14532d 55%, #22c55e 100%)';
   };
 
-  const ringGlow = 'rgba(201, 169, 110, 0.35)';
-  const goldScale = (circleSize + 12) / circleSize; // 3mm bigger
-  const ringMetal =
-    'conic-gradient(from 210deg, rgba(255,255,255,0.08), rgba(0,0,0,0.55), rgba(255,255,255,0.18), rgba(0,0,0,0.55), rgba(255,255,255,0.08))';
+  const goldScale = (circleSize + 12) / circleSize;
 
   return (
     <div className={className} style={{ display: 'inline-flex', alignItems: 'center', flexShrink: 0, marginLeft: 8 }}>
@@ -48,19 +43,18 @@ export const LevelIcon: React.FC<LevelIconProps> = ({
           width: circleSize,
           height: circleSize,
           borderRadius: 999,
-          padding: ringThickness,
-          background: ringMetal,
-          boxShadow: `0 0 0 1px rgba(0,0,0,0.8), 0 6px 14px rgba(0,0,0,0.55), 0 0 10px ${ringGlow}`,
         }}
       >
         <div
           style={{
-            position: 'relative',
-            width: '100%',
-            height: '100%',
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: circleSize - 6,
+            height: circleSize - 6,
             borderRadius: 999,
             overflow: 'hidden',
-            background: 'rgba(0,0,0,0.55)',
           }}
         >
           {typeof avatarUrl === 'string' && avatarUrl ? (
@@ -74,30 +68,20 @@ export const LevelIcon: React.FC<LevelIconProps> = ({
                 display: 'block',
                 objectFit: 'cover',
                 objectPosition: 'center center',
-                transform: `translateY(-${PROFILE_RING_IMAGE_LIFT_MM}mm)`,
               }}
             />
           ) : null}
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              background: 'radial-gradient(circle at 50% 50%, rgba(255,255,255,0.18) 0%, transparent 60%)',
-              pointerEvents: 'none',
-            }}
-          />
         </div>
         <img
           src="/Icons/Profile icon.png"
           alt=""
-          className="pointer-events-none absolute rounded-full object-contain"
+          className="pointer-events-none absolute object-contain"
           style={{
-            top: `calc(50% - ${PROFILE_RING_IMAGE_LIFT_MM}mm)`,
+            top: '50%',
             left: '50%',
-            width: '100%',
-            height: '100%',
-            transform: `translate(-50%, -50%) scale(${goldScale})`,
-            objectPosition: 'center center',
+            width: circleSize * goldScale,
+            height: circleSize * goldScale,
+            transform: 'translate(-50%, -50%)',
             zIndex: 3,
           }}
         />

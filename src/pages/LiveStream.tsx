@@ -394,10 +394,16 @@ export default function LiveStream() {
     const room = new Room({ adaptiveStream: true });
     liveKitRoomRef.current = room;
 
-    const attachRemoteVideo = (track: import('livekit-client').Track, participant: import('livekit-client').RemoteParticipant) => {
-      if (track.kind !== 'video') return;
+    const attachRemoteTrack = (track: import('livekit-client').Track, participant: import('livekit-client').RemoteParticipant) => {
       const identity = participant.identity;
       if (identity === user?.id) return;
+
+      if (track.kind === 'audio') {
+        // Co-host audio must be attached on host side, otherwise host can see but not hear co-hosts.
+        track.attach();
+        return;
+      }
+      if (track.kind !== 'video') return;
 
       // Try co-host slot first
       const coHostEl = coHostVideoRefs.current.get(identity);
@@ -417,7 +423,7 @@ export default function LiveStream() {
     };
 
     room.on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
-      attachRemoteVideo(track, participant);
+      attachRemoteTrack(track, participant);
     });
 
     (async () => {
@@ -425,7 +431,10 @@ export default function LiveStream() {
         await room.connect(liveKitCreds.url, liveKitCreds.token);
         for (const [, participant] of room.remoteParticipants) {
           for (const [, pub] of participant.videoTrackPublications) {
-            if (pub.track && pub.isSubscribed) attachRemoteVideo(pub.track, participant);
+            if (pub.track && pub.isSubscribed) attachRemoteTrack(pub.track, participant);
+          }
+          for (const [, pub] of participant.audioTrackPublications) {
+            if (pub.track && pub.isSubscribed) attachRemoteTrack(pub.track, participant);
           }
         }
         if (videoTrack) {

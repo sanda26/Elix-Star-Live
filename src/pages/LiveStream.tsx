@@ -196,6 +196,12 @@ export default function LiveStream() {
       .filter(Boolean)
       .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
       .join(' ');
+  const resolveCircleAvatar = useCallback((avatar: string | null | undefined, name: string | null | undefined) => {
+    const direct = typeof avatar === 'string' ? avatar.trim() : '';
+    if (direct) return direct;
+    const label = String(name || 'User').trim() || 'User';
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(label)}&background=121212&color=C9A96E`;
+  }, []);
   const [hostName, setHostName] = useState('');
   const [hostAvatar, setHostAvatar] = useState('');
   const creatorName = isBroadcast
@@ -2036,7 +2042,8 @@ export default function LiveStream() {
           supportDays: 0,
           lastVisitDaysAgo: 0,
         });
-        if (!cached && (isGenericViewerName(socketUsername) || isGenericViewerName(socketDisplayName))) {
+        const socketAvatar = typeof v.avatar_url === 'string' ? v.avatar_url.trim() : '';
+        if (!cached && (isGenericViewerName(socketUsername) || isGenericViewerName(socketDisplayName) || !socketAvatar)) {
           needsIdentityLookup.push(uid);
         }
       }
@@ -2086,7 +2093,8 @@ export default function LiveStream() {
         avatar: typeof data.avatar_url === 'string' ? data.avatar_url : '',
       }]);
       setViewerCount(prev => prev + 1);
-      if (uid && !cached && (isGenericViewerName(joinName) || isGenericViewerName(data.display_name))) {
+      const joinAvatar = typeof data.avatar_url === 'string' ? data.avatar_url.trim() : '';
+      if (uid && !cached && (isGenericViewerName(joinName) || isGenericViewerName(data.display_name) || !joinAvatar)) {
         maybeResolveViewerIdentity(uid);
       }
       // So new spectators get current co-host layout
@@ -2602,6 +2610,16 @@ export default function LiveStream() {
 
   const handleSendGift = async (gift: typeof GIFTS[0]) => {
     if (!gift) return;
+    const resolveOutgoingBattleTarget = (target: 'me' | 'opponent' | 'player3' | 'player4') => {
+      const role = battleRoleRef.current || (isBattleJoiner ? 'opponent' : (isBroadcast ? 'host' : null));
+      if (role !== 'opponent') return target;
+      // Opponent UI keeps self on the left; server scoring uses absolute host/opponent keys.
+      if (target === 'me') return 'opponent';
+      if (target === 'opponent') return 'me';
+      if (target === 'player3') return 'player4';
+      if (target === 'player4') return 'player3';
+      return target;
+    };
 
     try {
       // Local/dev: always allow sending gifts, even if coinBalance is low,
@@ -2703,7 +2721,7 @@ export default function LiveStream() {
         avatar: giftMsg.avatar,
         video: gift.video || null,
         transactionId: `${user?.id || 'anon'}-${Date.now()}`,
-        battleTarget: isBattleMode ? giftTarget : undefined,
+        battleTarget: isBattleMode ? resolveOutgoingBattleTarget(giftTarget) : undefined,
         creator_name: hostName || 'Creator',
         ...(!isBroadcast && { host_user_id: effectiveStreamId }),
       });
@@ -2755,6 +2773,15 @@ export default function LiveStream() {
 
   const handleComboClick = async () => {
       if (!lastSentGift) return;
+      const resolveOutgoingBattleTarget = (target: 'me' | 'opponent' | 'player3' | 'player4') => {
+        const role = battleRoleRef.current || (isBattleJoiner ? 'opponent' : (isBroadcast ? 'host' : null));
+        if (role !== 'opponent') return target;
+        if (target === 'me') return 'opponent';
+        if (target === 'opponent') return 'me';
+        if (target === 'player3') return 'player4';
+        if (target === 'player4') return 'player3';
+        return target;
+      };
       
       // Check balance
       if (coinBalance < lastSentGift.coins) {
@@ -2832,6 +2859,20 @@ export default function LiveStream() {
           avatar: viewerAvatar,
       };
       setMessages(prev => [...prev, giftMsg]);
+      websocket.send('gift_sent', {
+        giftId: lastSentGift.id,
+        giftName: lastSentGift.name,
+        coins: lastSentGift.coins,
+        gift_icon: lastSentGift.icon || '🎁',
+        quantity: 1,
+        level: newLevel,
+        avatar: giftMsg.avatar,
+        video: lastSentGift.video || null,
+        transactionId: `${user?.id || 'anon'}-${Date.now()}`,
+        battleTarget: isBattleMode ? resolveOutgoingBattleTarget(giftTarget) : undefined,
+        creator_name: hostName || 'Creator',
+        ...(!isBroadcast && { host_user_id: effectiveStreamId }),
+      });
 
 
       // Handle Combo Logic
@@ -3697,8 +3738,8 @@ export default function LiveStream() {
                 {[0, 1, 2].map((i) => (
                   <div key={`mvp-l-${i}`} className="relative flex flex-col items-center" style={{ zIndex: 3 - i }}>
                     <GoldProfileFrame size={28}>
-                      {topMvpHostBattle[i]?.avatar ? (
-                        <img src={topMvpHostBattle[i].avatar} alt="" className="h-full w-full rounded-full object-cover object-center" />
+                      {topMvpHostBattle[i] ? (
+                        <img src={resolveCircleAvatar(topMvpHostBattle[i].avatar, topMvpHostBattle[i].displayName || topMvpHostBattle[i].username)} alt="" className="h-full w-full rounded-full object-cover object-center" />
                       ) : (
                         <Plus className="text-[#C9A96E]" size={12} strokeWidth={2.5} />
                       )}
@@ -3710,8 +3751,8 @@ export default function LiveStream() {
                 {[0, 1, 2].map((i) => (
                   <div key={`mvp-r-${i}`} className="relative flex flex-col items-center" style={{ zIndex: 3 - i }}>
                     <GoldProfileFrame size={28}>
-                      {topMvpOpponentBattle[i]?.avatar ? (
-                        <img src={topMvpOpponentBattle[i].avatar} alt="" className="h-full w-full rounded-full object-cover object-center" />
+                      {topMvpOpponentBattle[i] ? (
+                        <img src={resolveCircleAvatar(topMvpOpponentBattle[i].avatar, topMvpOpponentBattle[i].displayName || topMvpOpponentBattle[i].username)} alt="" className="h-full w-full rounded-full object-cover object-center" />
                       ) : (
                         <Plus className="text-[#C9A96E]" size={12} strokeWidth={2.5} />
                       )}
@@ -3888,9 +3929,9 @@ export default function LiveStream() {
                           {[0, 1, 2].map((i) => (
                             <div key={`top-viewers-${i}`} style={{ zIndex: 3 - i }} className="relative">
                               <GoldProfileFrame size={36}>
-                                {topMvpViewers[i]?.avatar ? (
+                                {topMvpViewers[i] ? (
                                   <img
-                                    src={topMvpViewers[i].avatar}
+                                    src={resolveCircleAvatar(topMvpViewers[i].avatar, topMvpViewers[i].displayName || topMvpViewers[i].username)}
                                     alt=""
                                     className="h-full w-full rounded-full object-cover object-center"
                                     style={{ transform: 'translateY(0.5mm)' }}

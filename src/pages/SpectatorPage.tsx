@@ -145,6 +145,12 @@ export default function SpectatorPage() {
     host: MvpSlotRow[];
     opponent: MvpSlotRow[];
   }>({ global: [], host: [], opponent: [] });
+  const resolveCircleAvatar = useCallback((avatar: string | null | undefined, name: string | null | undefined) => {
+    const direct = typeof avatar === 'string' ? avatar.trim() : '';
+    if (direct) return direct;
+    const label = String(name || 'User').trim() || 'User';
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(label)}&background=121212&color=C9A96E`;
+  }, []);
 
   const syncMvpSlots = useCallback(() => {
     const hid = hostUserIdRef.current || hostUserId || effectiveStreamId || '';
@@ -1575,8 +1581,8 @@ export default function SpectatorPage() {
                       return (
                         <div key={`mvp-l-${i}`} className="relative flex flex-col items-center" style={{ zIndex: 3 - i }}>
                           <GoldProfileFrame size={24}>
-                            {slot?.avatar ? (
-                              <img src={slot.avatar} alt="" className="h-full w-full rounded-full object-cover object-center" />
+                            {slot ? (
+                              <img src={resolveCircleAvatar(slot.avatar, slot.name)} alt="" className="h-full w-full rounded-full object-cover object-center" />
                             ) : (
                               <Plus className="text-[#C9A96E]" size={10} strokeWidth={2.5} />
                             )}
@@ -1594,8 +1600,8 @@ export default function SpectatorPage() {
                       return (
                         <div key={`mvp-r-${i}`} className="relative flex flex-col items-center" style={{ zIndex: 3 - i }}>
                           <GoldProfileFrame size={24}>
-                            {slot?.avatar ? (
-                              <img src={slot.avatar} alt="" className="h-full w-full rounded-full object-cover object-center" />
+                            {slot ? (
+                              <img src={resolveCircleAvatar(slot.avatar, slot.name)} alt="" className="h-full w-full rounded-full object-cover object-center" />
                             ) : (
                               <Plus className="text-[#C9A96E]" size={10} strokeWidth={2.5} />
                             )}
@@ -1855,9 +1861,9 @@ export default function SpectatorPage() {
                     return (
                       <div key={`spectator-top-mvp-${i}`} style={{ zIndex: 3 - i }} className="relative">
                         <GoldProfileFrame size={24}>
-                          {slot?.avatar ? (
+                          {slot ? (
                             <img
-                              src={slot.avatar}
+                              src={resolveCircleAvatar(slot.avatar, slot.name)}
                               alt={slot.name || ''}
                               className="h-full w-full rounded-full object-cover object-center"
                               style={{ transform: 'translateY(0.9mm)' }}

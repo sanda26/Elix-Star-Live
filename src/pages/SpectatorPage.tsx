@@ -2039,7 +2039,6 @@ export default function SpectatorPage() {
           onEnded={handleGiftEnded}
           isBattleMode={!!spectatorBattle?.active}
           muted={false}
-          spectatorMode
         />
 
 

@@ -19,6 +19,7 @@ import { useAuthStore } from '../store/useAuthStore';
 import { StoryGoldRingAvatar } from './StoryGoldRingAvatar';
 import PromotePanel from './PromotePanel';
 import { nativeConfirm } from './NativeDialog';
+import { apiUrl } from '../lib/api';
 
 interface ShareModalProps {
   isOpen: boolean;
@@ -60,13 +61,47 @@ export default function ShareModal({ isOpen, onClose, video, onReport, onJoin, i
   const loadFollowers = async () => {
     if (!user?.id) return;
     try {
-      // Only people who follow you (your followers), not people you follow
-      const { data: followData } = await apiStub.from('followers').select('follower_id').eq('following_id', user.id).limit(50);
+      // Primary source: backend followers endpoint (same source used by Inbox circles).
+      const session = useAuthStore.getState().session;
+      const headers: Record<string, string> = {};
+      if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+      const res = await fetch(
+        apiUrl(`/api/profiles/${encodeURIComponent(user.id)}/followers`),
+        { credentials: 'include', headers },
+      ).catch(() => null as Response | null);
+
+      if (res?.ok) {
+        const body = await res.json().catch(() => ({} as Record<string, unknown>));
+        const rawProfiles = Array.isArray(body?.follower_profiles) ? body.follower_profiles : [];
+        const fromBackend = rawProfiles
+          .map((p: Record<string, unknown>) => ({
+            user_id: String(p.user_id ?? ''),
+            username: String(p.username ?? 'user'),
+            avatar_url: p.avatar_url != null ? String(p.avatar_url) : null,
+          }))
+          .filter((p: { user_id: string }) => !!p.user_id && p.user_id !== user.id);
+        if (fromBackend.length > 0) {
+          setFollowers(fromBackend);
+          return;
+        }
+      }
+
+      // Fallback: legacy table path
+      const { data: followData } = await apiStub
+        .from('followers')
+        .select('follower_id')
+        .eq('following_id', user.id)
+        .limit(50);
       const ids = (followData || []).map((f: { follower_id: string }) => f.follower_id);
       if (ids.length === 0) { setFollowers([]); return; }
-      const { data: profiles } = await apiStub.from('profiles').select('user_id, username, avatar_url').in('user_id', ids);
+      const { data: profiles } = await apiStub
+        .from('profiles')
+        .select('user_id, username, avatar_url')
+        .in('user_id', ids);
       setFollowers(profiles || []);
-    } catch { setFollowers([]); }
+    } catch {
+      setFollowers([]);
+    }
   };
 
   const sendShareTo = async (targetUserId: string) => {

@@ -16,7 +16,7 @@ export const BottomNav = () => {
 
   return (
     <nav
-      className="pointer-events-none bg-transparent fixed inset-x-0 bottom-0 top-auto z-[10000] pb-[var(--safe-bottom)]"
+      className="pointer-events-none bg-transparent fixed inset-x-0 bottom-0 top-auto z-[10002] pb-[var(--safe-bottom)]"
     >
       {/* Same width as main / Inbox: max-w-[480px], no extra horizontal shrink */}
       <div className="flex justify-center bg-transparent">

@@ -1563,9 +1563,13 @@ export default function LiveStream() {
     setGiftTarget(target);
     spectatorTapPointsRef.current = 1;
     setSpectatorTapsUsed(1);
-    awardBattlePoints('me', 5, false);
+    // #region agent log
+    fetch('http://127.0.0.1:7765/ingest/504ee8d9-85af-4146-9e87-ee22d4845d37',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'7a7f0c'},body:JSON.stringify({sessionId:'7a7f0c',location:'LiveStream.tsx:handleBattleTap',message:'tap-vote',data:{target,role:battleRoleRef.current,isBroadcast},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
+    const serverTarget = battleRoleRef.current === 'opponent' ? 'opponent' : 'host';
+    websocket.send('battle_spectator_vote', { target: serverTarget });
 
-  }, [battleWinner, battleTime, awardBattlePoints, isBattleMode]);
+  }, [battleWinner, battleTime, isBattleMode]);
 
   // ─── SPEED CHALLENGE LOGIC ───
   const startSpeedChallenge = useCallback(() => {
@@ -2209,6 +2213,9 @@ export default function LiveStream() {
       else if (selfId && payloadOpponentId && selfId === payloadOpponentId) battleRoleRef.current = 'opponent';
 
       const role = battleRoleRef.current || (isBattleJoiner ? 'opponent' : (isBroadcast ? 'host' : 'opponent'));
+      // #region agent log
+      fetch('http://127.0.0.1:7765/ingest/504ee8d9-85af-4146-9e87-ee22d4845d37',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'7a7f0c'},body:JSON.stringify({sessionId:'7a7f0c',location:'LiveStream.tsx:applyBattleScores',message:'score-apply',data:{selfId,payloadHostId,payloadOpponentId,role,battleRoleRef:battleRoleRef.current,isBattleJoiner,isBroadcast,rawHostScore:data.hostScore,rawOpponentScore:data.opponentScore,host,opponent,prevMy:battleScoresRef.current.myScore,prevOpp:battleScoresRef.current.opponentScore,lastScorer:data.lastScorer,eventHint:data.timeLeft!==undefined?'tick':'score'},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
       if (role === 'host') {
         setMyScore(host);
         setOpponentScore(opponent);
@@ -2727,6 +2734,9 @@ export default function LiveStream() {
         creator_name: hostName || 'Creator',
         ...(!isBroadcast && { host_user_id: effectiveStreamId }),
       });
+      // #region agent log
+      if(isBattleMode){fetch('http://127.0.0.1:7765/ingest/504ee8d9-85af-4146-9e87-ee22d4845d37',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'7a7f0c'},body:JSON.stringify({sessionId:'7a7f0c',location:'LiveStream.tsx:handleSendGift',message:'gift-sent',data:{giftTarget,resolved:resolveOutgoingBattleTarget(giftTarget),role:battleRoleRef.current,isBattleJoiner,isBroadcast,giftId:gift.id,coins:gift.coins},timestamp:Date.now()})}).catch(()=>{});}
+      // #endregion
 
       // Handle Combo Logic
       setLastSentGift(gift);

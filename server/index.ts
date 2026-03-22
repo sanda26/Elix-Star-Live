@@ -1122,6 +1122,9 @@ function addBattleScoreForTarget(
   } else if (target === "player4") {
     session.player4Score += points;
   }
+  // #region agent log
+  console.log(`[DBG-7a7f0c] SCORE +${points} to ${target} → host=${session.hostScore} opp=${session.opponentScore} room=${roomId}`);
+  // #endregion
 
   const scorePayload = {
     hostScore: session.hostScore,
@@ -1666,15 +1669,26 @@ async function handleMessage(client: Client, event: string, data: any) {
         }
 
         // Auto-score gifts in active battles — use server-side gift value, NOT client
-        // Look up battle by client's room first, then by userBattleRoom (opponent is in their own room)
-        const battleRoomId = battles.has(client.roomId)
-          ? client.roomId
-          : userBattleRoom.get(client.userId) || client.roomId;
+        // Look up battle by client's room first, then by userBattleRoom, then by opponentRoomId
+        let battleRoomId = client.roomId;
+        if (!battles.has(battleRoomId)) {
+          const fromUser = userBattleRoom.get(client.userId);
+          if (fromUser) {
+            battleRoomId = fromUser;
+          } else {
+            for (const [rId, s] of battles) {
+              if (s.opponentRoomId === client.roomId) { battleRoomId = rId; break; }
+            }
+          }
+        }
         const activeBattle = battles.get(battleRoomId);
         if (activeBattle && activeBattle.status === "ACTIVE") {
           const serverGiftValue = getGiftValue(data.giftId);
           if (serverGiftValue > 0) {
             const normalizedTarget = normalizeBattleTarget(data.battleTarget);
+            // #region agent log
+            console.log(`[DBG-7a7f0c] gift_sent scoring: userId=${client.userId} roomId=${client.roomId} battleRoomId=${battleRoomId} rawTarget=${data.battleTarget} normalized=${normalizedTarget} giftId=${data.giftId} value=${serverGiftValue} hostId=${activeBattle.hostUserId} oppId=${activeBattle.opponentUserId} hostScore=${activeBattle.hostScore} oppScore=${activeBattle.opponentScore}`);
+            // #endregion
             if (normalizedTarget) {
               addBattleScoreForTarget(
                 battleRoomId,
@@ -1754,8 +1768,21 @@ async function handleMessage(client: Client, event: string, data: any) {
       }
 
       case "battle_spectator_vote": {
-        const voteRoom = client.roomId;
+        let voteRoom = client.roomId;
+        if (!battles.has(voteRoom)) {
+          const fromUser = userBattleRoom.get(client.userId);
+          if (fromUser) {
+            voteRoom = fromUser;
+          } else {
+            for (const [rId, s] of battles) {
+              if (s.opponentRoomId === client.roomId) { voteRoom = rId; break; }
+            }
+          }
+        }
         const voteBattle = battles.get(voteRoom);
+        // #region agent log
+        console.log(`[DBG-7a7f0c] battle_spectator_vote: userId=${client.userId} clientRoom=${client.roomId} voteRoom=${voteRoom} found=${!!voteBattle} target=${data.target}`);
+        // #endregion
         if (!voteBattle || voteBattle.status !== "ACTIVE") break;
         const voteTarget = data.target === "host" ? "host" : "opponent";
         addBattleScoreForTarget(voteRoom, voteTarget, 5);

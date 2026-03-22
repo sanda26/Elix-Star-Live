@@ -183,8 +183,10 @@ function App() {
   /* Full-screen camera / record flows — no tab bar over the viewfinder */
   const isCameraShell =
     location.pathname === "/create" || location.pathname === "/upload";
+  /* Viewer-only watch screen should not show global bottom nav */
+  const isSpectatorShell = location.pathname.startsWith("/watch/");
   const showBottomNav =
-    isAuthenticated && !isLiveOrBattleShell && !isCameraShell;
+    isAuthenticated && !isLiveOrBattleShell && !isCameraShell && !isSpectatorShell;
 
   /* Inbox + DM: TopNav is hidden (only /feed shows it) — no pt-topbar or you get empty space under the status bar */
   const isInboxRoute =

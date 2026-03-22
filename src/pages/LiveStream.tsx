@@ -3118,6 +3118,24 @@ export default function LiveStream() {
                 <span className="text-white text-[10px] font-black tabular-nums drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">{formatTime(battleTime)}</span>
               </div>
             </div>
+            {/* Battle top-center MVP row (3 circles) */}
+            <div
+              className="absolute left-1/2 -translate-x-1/2 z-[120] pointer-events-auto flex items-center -space-x-1.5"
+              style={{ top: 'calc(env(safe-area-inset-top, 0px) + 44px)' }}
+              onClick={() => setShowViewerList(true)}
+            >
+              {[0, 1, 2].map((i) => (
+                <div key={`battle-top-center-${i}`} style={{ zIndex: 3 - i }} className="relative">
+                  <GoldProfileFrame size={32}>
+                    {topMvpViewers[i]?.avatar ? (
+                      <img src={topMvpViewers[i].avatar} alt="" className="h-full w-full rounded-full object-cover object-center" />
+                    ) : (
+                      <Plus className="text-[#C9A96E]" size={14} strokeWidth={2.5} />
+                    )}
+                  </GoldProfileFrame>
+                </div>
+              ))}
+            </div>
 
             {battleCountdown != null && (
               <div className="absolute inset-0 z-[260] pointer-events-none flex items-center justify-center">
@@ -3521,7 +3539,7 @@ export default function LiveStream() {
             );
           })()}
 
-            <div className="w-full px-3 py-2 flex items-center justify-between flex-none pointer-events-none mt-1 relative z-30">
+            <div className="absolute bottom-1 left-0 right-0 px-3 py-2 flex items-center justify-between flex-none pointer-events-none relative z-30">
               <div className="flex items-center -space-x-1.5 min-w-0 flex-1 justify-start pointer-events-auto" onClick={() => setShowViewerList(true)}>
                 {[0, 1, 2].map((i) => (
                   <div key={`mvp-l-${i}`} className="relative flex flex-col items-center" style={{ zIndex: 3 - i }}>

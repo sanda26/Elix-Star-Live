@@ -6,6 +6,10 @@ import { Plus, X, Camera, Tag, MessageCircle, Search } from 'lucide-react';
 import { AvatarRing } from '../components/AvatarRing';
 import { showToast } from '../lib/toast';
 import { apiUrl } from '../lib/api';
+import { profileRingInnerPx } from '../lib/profileFrame';
+
+const SHOP_LIVE_RING = 85;
+const SHOP_LIVE_INNER = profileRingInnerPx(SHOP_LIVE_RING);
 
 interface ShopItem {
   id: string;
@@ -292,8 +296,16 @@ export default function Shop() {
                     <img
                       src={u.avatar || '/Icons/Profile icon.png'}
                       alt={u.name}
-                      className="rounded-full object-cover"
-                      style={{ width: 52, height: 52, zIndex: 1 }}
+                      className="absolute rounded-full object-cover"
+                      style={{
+                        width: SHOP_LIVE_INNER,
+                        height: SHOP_LIVE_INNER,
+                        top: '50%',
+                        left: '50%',
+                        transform: 'translate(-50%, -50%)',
+                        objectPosition: 'center center',
+                        zIndex: 1,
+                      }}
                     />
                     <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 bg-red-500 text-white text-[9px] font-bold px-2 py-0.5 rounded z-20 whitespace-nowrap">
                       LIVE

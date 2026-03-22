@@ -8,6 +8,9 @@ import { Heart, UserPlus, Search, ShoppingBag, Archive, MicOff, Plus, Sword, X, 
 import { AvatarRing } from '../components/AvatarRing';
 import { showToast } from '../lib/toast';
 import { apiUrl } from '../lib/api';
+import { profileRingInnerPx } from '../lib/profileFrame';
+
+const STORY_RING_INNER = profileRingInnerPx(85);
 
 interface Notification {
   id: string;
@@ -400,7 +403,15 @@ export default function Inbox() {
                             src={myNewFollowers[0]?.avatar_url || user?.avatar || (user?.id && typeof localStorage !== 'undefined' ? localStorage.getItem('elix_avatar_' + user.id) : null) || '/Icons/Profile icon.png'}
                             alt="Followers"
                             className="absolute rounded-full object-cover"
-                            style={{ width: 52, height: 52, top: '45%', left: '51%', transform: 'translate(-50%, -50%)', zIndex: 0 }}
+                            style={{
+                              width: STORY_RING_INNER,
+                              height: STORY_RING_INNER,
+                              top: '50%',
+                              left: '50%',
+                              transform: 'translate(-50%, -50%)',
+                              objectPosition: 'center center',
+                              zIndex: 0,
+                            }}
                         />
                     </div>
                     <div className="text-[11px] text-white/80 truncate w-full text-center">Followers</div>
@@ -441,11 +452,12 @@ export default function Inbox() {
                                             alt={u.name || u.username}
                                             className="absolute rounded-full object-cover"
                                             style={{
-                                                width: 52,
-                                                height: 52,
-                                                top: '45%',
-                                                left: '51%',
+                                                width: STORY_RING_INNER,
+                                                height: STORY_RING_INNER,
+                                                top: '50%',
+                                                left: '50%',
                                                 transform: 'translate(-50%, -50%)',
+                                                objectPosition: 'center center',
                                                 zIndex: 2,
                                             }}
                                         />
@@ -462,7 +474,15 @@ export default function Inbox() {
                                             src={u.avatar_url || '/Icons/Profile icon.png'}
                                             alt={u.name || u.username}
                                             className="absolute rounded-full object-cover"
-                                            style={{ width: 52, height: 52, top: '45%', left: '51%', transform: 'translate(-50%, -50%)', zIndex: 0 }}
+                                            style={{
+                                                width: STORY_RING_INNER,
+                                                height: STORY_RING_INNER,
+                                                top: '50%',
+                                                left: '50%',
+                                                transform: 'translate(-50%, -50%)',
+                                                objectPosition: 'center center',
+                                                zIndex: 0,
+                                            }}
                                         />
                                     </div>
                                 </>
@@ -485,7 +505,15 @@ export default function Inbox() {
                                 src={f.avatar_url || '/Icons/Profile icon.png'}
                                 alt={f.display_name || f.username || 'User'}
                                 className="absolute rounded-full object-cover"
-                                style={{ width: 52, height: 52, top: '45%', left: '51%', transform: 'translate(-50%, -50%)', zIndex: 0 }}
+                                style={{
+                                    width: STORY_RING_INNER,
+                                    height: STORY_RING_INNER,
+                                    top: '50%',
+                                    left: '50%',
+                                    transform: 'translate(-50%, -50%)',
+                                    objectPosition: 'center center',
+                                    zIndex: 0,
+                                }}
                             />
                         </div>
                         <div className="text-[11px] text-white/80 truncate w-full text-center">{f.display_name || f.username || 'User'}</div>

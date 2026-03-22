@@ -32,6 +32,7 @@ import { LevelBadge } from './LevelBadge';
 import { apiStub } from '../lib/apiStub';
 import { nativeConfirm } from './NativeDialog';
 import { getVideoPosterUrl } from '../lib/bunnyStorage';
+import { PROFILE_RING_INNER_RATIO } from '../lib/profileFrame';
 
 interface EnhancedVideoPlayerProps {
   videoId: string;
@@ -828,7 +829,15 @@ export default function EnhancedVideoPlayer({
                 src={video.user.avatar} 
                 alt={video.user.username} 
                 className="absolute rounded-full object-cover pointer-events-none"
-                style={{ width: '58%', height: '58%', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}
+                style={{
+                  width: `${PROFILE_RING_INNER_RATIO * 100}%`,
+                  height: `${PROFILE_RING_INNER_RATIO * 100}%`,
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  objectFit: 'cover',
+                  objectPosition: 'center center',
+                }}
               />
             ) : null}
           </div>

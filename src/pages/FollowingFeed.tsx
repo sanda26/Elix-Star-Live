@@ -7,6 +7,10 @@ import { useVideoStore } from '../store/useVideoStore';
 import { trackScreenView } from '../lib/analytics';
 import EnhancedVideoPlayer from '../components/EnhancedVideoPlayer';
 import { apiUrl } from '../lib/api';
+import { profileRingInnerPx } from '../lib/profileFrame';
+
+const STORY_RING_OUTER = 85;
+const STORY_RING_INNER = profileRingInnerPx(STORY_RING_OUTER);
 
 interface FollowingUser {
   id: string;
@@ -168,7 +172,15 @@ export default function FollowingFeed() {
                     src={user?.avatar || (user?.id && typeof localStorage !== 'undefined' ? localStorage.getItem('elix_avatar_' + user.id) : null) || '/Icons/Profile icon.png'}
                     alt="You"
                     className="absolute rounded-full object-cover"
-                    style={{ width: 52, height: 52, top: '45%', left: '51%', transform: 'translate(-50%, -50%)', zIndex: 0 }}
+                    style={{
+                      width: STORY_RING_INNER,
+                      height: STORY_RING_INNER,
+                      top: '50%',
+                      left: '50%',
+                      transform: 'translate(-50%, -50%)',
+                      objectPosition: 'center center',
+                      zIndex: 0,
+                    }}
                   />
                 </div>
                 <div className="text-[11px] text-white/80 truncate w-full text-center">Create</div>
@@ -196,8 +208,16 @@ export default function FollowingFeed() {
                         <img
                           src={u.avatar_url || '/Icons/Profile icon.png'}
                           alt={u.name || u.username}
-                          className="rounded-full object-cover"
-                          style={{ width: 52, height: 52, zIndex: 1 }}
+                          className="absolute rounded-full object-cover"
+                          style={{
+                            width: STORY_RING_INNER,
+                            height: STORY_RING_INNER,
+                            top: '50%',
+                            left: '50%',
+                            transform: 'translate(-50%, -50%)',
+                            objectPosition: 'center center',
+                            zIndex: 1,
+                          }}
                         />
                         <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 bg-red-500 text-white text-[9px] font-bold px-2 py-0.5 rounded z-20 whitespace-nowrap">
                           LIVE
@@ -211,7 +231,15 @@ export default function FollowingFeed() {
                             src={u.avatar_url || '/Icons/Profile icon.png'}
                             alt={u.name || u.username}
                             className="absolute rounded-full object-cover"
-                            style={{ width: 52, height: 52, top: '45%', left: '51%', transform: 'translate(-50%, -50%)', zIndex: 0 }}
+                            style={{
+                              width: STORY_RING_INNER,
+                              height: STORY_RING_INNER,
+                              top: '50%',
+                              left: '50%',
+                              transform: 'translate(-50%, -50%)',
+                              objectPosition: 'center center',
+                              zIndex: 0,
+                            }}
                           />
                         </div>
                       </>

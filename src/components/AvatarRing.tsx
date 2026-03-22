@@ -1,3 +1,5 @@
+import { profileRingInnerPx } from '../lib/profileFrame';
+
 interface AvatarRingProps {
   src: string;
   alt?: string;
@@ -9,7 +11,7 @@ interface AvatarRingProps {
 }
 
 export function AvatarRing({ src, alt = '', size, className = '', onClick, simple = false }: AvatarRingProps) {
-  const innerSize = size * 0.65;
+  const innerSize = profileRingInnerPx(size);
   const safeSrc = (typeof src === 'string' && src.length > 0) ? src : '/Icons/Profile icon.png';
   const safeAlt = typeof alt === 'string' ? alt : '';
 

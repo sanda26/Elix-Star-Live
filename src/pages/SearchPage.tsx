@@ -5,6 +5,9 @@ import { AvatarRing } from '../components/AvatarRing';
 import { TrendingSnapFeed } from '../components/TrendingSnapFeed';
 import { apiUrl } from '../lib/api';
 import { useVideoStore } from '../store/useVideoStore';
+import { profileRingInnerPx } from '../lib/profileFrame';
+
+const STORY_RING_INNER = profileRingInnerPx(85);
 
 const TRENDING_SEARCHES = [
   'Dance challenge',
@@ -331,8 +334,16 @@ export default function SearchPage() {
                                 <img
                                   src={u.avatar || '/Icons/Profile icon.png'}
                                   alt={u.name || u.username}
-                                  className="rounded-full object-cover"
-                                  style={{ width: 52, height: 52, zIndex: 1 }}
+                                  className="absolute rounded-full object-cover"
+                                  style={{
+                                    width: STORY_RING_INNER,
+                                    height: STORY_RING_INNER,
+                                    top: '50%',
+                                    left: '50%',
+                                    transform: 'translate(-50%, -50%)',
+                                    objectPosition: 'center center',
+                                    zIndex: 1,
+                                  }}
                                 />
                                 <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 bg-red-500 text-white text-[9px] font-bold px-2 py-0.5 rounded z-20 whitespace-nowrap">LIVE</div>
                               </>
@@ -343,7 +354,15 @@ export default function SearchPage() {
                                   src={u.avatar || '/Icons/Profile icon.png'}
                                   alt={u.name || u.username}
                                   className="absolute rounded-full object-cover"
-                                  style={{ width: 52, height: 52, top: '45%', left: '51%', transform: 'translate(-50%, -50%)', zIndex: 0 }}
+                                  style={{
+                                    width: STORY_RING_INNER,
+                                    height: STORY_RING_INNER,
+                                    top: '50%',
+                                    left: '50%',
+                                    transform: 'translate(-50%, -50%)',
+                                    objectPosition: 'center center',
+                                    zIndex: 0,
+                                  }}
                                 />
                               </div>
                             )}

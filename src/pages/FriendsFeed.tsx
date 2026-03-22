@@ -5,6 +5,10 @@ import { useAuthStore } from '../store/useAuthStore';
 import { useVideoStore } from '../store/useVideoStore';
 import EnhancedVideoPlayer from '../components/EnhancedVideoPlayer';
 import { apiUrl } from '../lib/api';
+import { profileRingInnerPx } from '../lib/profileFrame';
+
+const STORY_RING_OUTER = 85;
+const STORY_RING_INNER = profileRingInnerPx(STORY_RING_OUTER);
 
 interface SuggestedUser {
   id: string;
@@ -127,7 +131,15 @@ export default function FriendsFeed() {
                   src={user?.avatar || (user?.id && typeof localStorage !== 'undefined' ? localStorage.getItem('elix_avatar_' + user.id) : null) || '/Icons/Profile icon.png'}
                   alt="You"
                   className="absolute rounded-full object-cover"
-                  style={{ width: 52, height: 52, top: '45%', left: '51%', transform: 'translate(-50%, -50%)', zIndex: 0 }}
+                  style={{
+                    width: STORY_RING_INNER,
+                    height: STORY_RING_INNER,
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    objectPosition: 'center center',
+                    zIndex: 0,
+                  }}
                 />
               </div>
               <div className="text-[11px] text-white/80 truncate w-full text-center">Create</div>
@@ -169,11 +181,12 @@ export default function FriendsFeed() {
                           alt={u.name || u.username}
                           className="absolute rounded-full object-cover"
                           style={{
-                            width: 52,
-                            height: 52,
-                            top: '45%',
-                            left: '51%',
+                            width: STORY_RING_INNER,
+                            height: STORY_RING_INNER,
+                            top: '50%',
+                            left: '50%',
                             transform: 'translate(-50%, -50%)',
+                            objectPosition: 'center center',
                             zIndex: 2,
                           }}
                         />
@@ -196,7 +209,15 @@ export default function FriendsFeed() {
                           src={u.avatar_url || '/Icons/Profile icon.png'}
                           alt={u.name || u.username}
                           className="absolute rounded-full object-cover"
-                          style={{ width: 52, height: 52, top: '45%', left: '51%', transform: 'translate(-50%, -50%)', zIndex: 0 }}
+                          style={{
+                            width: STORY_RING_INNER,
+                            height: STORY_RING_INNER,
+                            top: '50%',
+                            left: '50%',
+                            transform: 'translate(-50%, -50%)',
+                            objectPosition: 'center center',
+                            zIndex: 0,
+                          }}
                         />
                       </div>
                     </>

@@ -791,6 +791,84 @@ function decodeUserIdFromToken(token: string): string | null {
   }
 }
 
+async function resolveSocketIdentity(userId: string): Promise<{
+  username: string;
+  displayName: string;
+  avatarUrl: string;
+  level: number;
+  country: string;
+}> {
+  const fallbackUsername = `user_${String(userId).slice(0, 8)}`;
+  const fallbackDisplayName = `User ${String(userId).slice(0, 8)}`;
+  try {
+    const pool = getPool();
+    if (!pool) {
+      return {
+        username: fallbackUsername,
+        displayName: fallbackDisplayName,
+        avatarUrl: "",
+        level: 1,
+        country: "",
+      };
+    }
+
+    const result = await pool.query<{
+      username: string | null;
+      display_name: string | null;
+      avatar_url: string | null;
+      level: number | null;
+    }>(
+      `
+      SELECT
+        COALESCE(
+          NULLIF(TRIM(p.username), ''),
+          NULLIF(TRIM(p.display_name), ''),
+          NULLIF(TRIM(au.username), ''),
+          NULLIF(TRIM(au.display_name), '')
+        ) AS username,
+        COALESCE(
+          NULLIF(TRIM(p.display_name), ''),
+          NULLIF(TRIM(p.username), ''),
+          NULLIF(TRIM(au.display_name), ''),
+          NULLIF(TRIM(au.username), '')
+        ) AS display_name,
+        COALESCE(
+          NULLIF(TRIM(p.avatar_url), ''),
+          NULLIF(TRIM(au.avatar_url), '')
+        ) AS avatar_url,
+        COALESCE(p.level, 1) AS level
+      FROM (SELECT * FROM profiles WHERE user_id = $1 LIMIT 1) p
+      FULL OUTER JOIN (SELECT * FROM auth_users WHERE id = $1 LIMIT 1) au ON true
+      LIMIT 1
+      `,
+      [userId],
+    );
+
+    const row = result.rows?.[0];
+    return {
+      username: String(row?.username || "").trim() || fallbackUsername,
+      displayName:
+        String(row?.display_name || "").trim() ||
+        String(row?.username || "").trim() ||
+        fallbackDisplayName,
+      avatarUrl: String(row?.avatar_url || "").trim(),
+      level:
+        typeof row?.level === "number" && Number.isFinite(row.level) && row.level > 0
+          ? Math.floor(row.level)
+          : 1,
+      country: "",
+    };
+  } catch {
+    return {
+      username: fallbackUsername,
+      displayName: fallbackDisplayName,
+      avatarUrl: "",
+      level: 1,
+      country: "",
+    };
+  }
+}
+
 interface Client {
   ws: WebSocket;
   userId: string;
@@ -1182,11 +1260,12 @@ wss.on("connection", async (ws: WebSocket, req) => {
       return;
     }
 
-    const username = "Anonymous";
-    const displayName = "";
-    const avatarUrl = "";
-    const level = 1;
-    const country = "";
+    const identity = await resolveSocketIdentity(userId);
+    const username = identity.username;
+    const displayName = identity.displayName;
+    const avatarUrl = identity.avatarUrl;
+    const level = identity.level;
+    const country = identity.country;
 
     client = {
       ws,

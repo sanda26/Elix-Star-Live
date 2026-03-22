@@ -61,6 +61,31 @@ import { normalizeBattleGiftTarget } from '../lib/liveBattleGiftTarget';
 import { IS_STORE_BUILD } from '../config/build';
 import { Room, RoomEvent, LocalVideoTrack, LocalAudioTrack } from 'livekit-client';
 
+function AnimatedScore({ value, className = '' }: { value: number; className?: string }) {
+  const [display, setDisplay] = useState(value);
+  const rafRef = useRef<number>(0);
+  const startRef = useRef(display);
+  const targetRef = useRef(value);
+  useEffect(() => {
+    if (value === display) { targetRef.current = value; return; }
+    cancelAnimationFrame(rafRef.current);
+    startRef.current = display;
+    targetRef.current = value;
+    const start = performance.now();
+    const duration = 300;
+    const from = startRef.current;
+    const to = targetRef.current;
+    const step = (now: number) => {
+      const t = Math.min((now - start) / duration, 1);
+      const ease = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+      setDisplay(Math.round(from + (to - from) * ease));
+      if (t < 1) rafRef.current = requestAnimationFrame(step);
+    };
+    rafRef.current = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [value]);
+  return <span className={className}>{display.toLocaleString()}</span>;
+}
 
 type LiveMessage = {
   id: string;
@@ -1563,9 +1588,6 @@ export default function LiveStream() {
     setGiftTarget(target);
     spectatorTapPointsRef.current = 1;
     setSpectatorTapsUsed(1);
-    // #region agent log
-    fetch('http://127.0.0.1:7765/ingest/504ee8d9-85af-4146-9e87-ee22d4845d37',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'7a7f0c'},body:JSON.stringify({sessionId:'7a7f0c',location:'LiveStream.tsx:handleBattleTap',message:'tap-vote',data:{target,role:battleRoleRef.current,isBroadcast},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
     const serverTarget = battleRoleRef.current === 'opponent' ? 'opponent' : 'host';
     websocket.send('battle_spectator_vote', { target: serverTarget });
 
@@ -2170,9 +2192,7 @@ export default function LiveStream() {
           isGift: true,
         };
         setMessages(prev => [...prev, msg]);
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'creator-gift-debug',hypothesisId:'C1',location:'src/pages/LiveStream.tsx:1952',message:'Creator received gift event',data:{giftId:data.giftId,incomingVideo:data.video ?? null,giftDefVideo:giftDef.video ?? null,incomingGiftName:data.giftName ?? null},timestamp:Date.now()})}).catch(()=>{});
-        // #endregion
+        
 
         const isVideoFile = (value: string) => {
           const p = value.split('?')[0].toLowerCase();
@@ -2187,9 +2207,7 @@ export default function LiveStream() {
           const videoUrl = (pickedRawVideo.startsWith('http://') || pickedRawVideo.startsWith('https://'))
             ? pickedRawVideo
             : resolveGiftAssetUrl(pickedRawVideo.startsWith('/') ? pickedRawVideo : `/${pickedRawVideo}`);
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'creator-gift-debug',hypothesisId:'C2',location:'src/pages/LiveStream.tsx:1965',message:'Creator queued gift overlay url',data:{giftId:data.giftId,incomingVideo,pickedRawVideo,queuedVideoUrl:videoUrl,isMp4:/\\.mp4(\\?|$)/i.test(videoUrl),isWebm:/\\.webm(\\?|$)/i.test(videoUrl),isPng:/\\.png(\\?|$)/i.test(videoUrl)},timestamp:Date.now()})}).catch(()=>{});
-          // #endregion
+          
           setGiftQueue(prev => [...prev, { video: videoUrl }]);
         }
       }
@@ -2210,9 +2228,7 @@ export default function LiveStream() {
       else if (selfId && payloadOpponentId && selfId === payloadOpponentId) battleRoleRef.current = 'opponent';
 
       const role = battleRoleRef.current || (isBattleJoiner ? 'opponent' : (isBroadcast ? 'host' : 'host'));
-      // #region agent log
-      console.warn(`[BATTLE-DBG] role=${role} hostScore=${hostScore} oppScore=${oppScore} selfId=${selfId} payloadHost=${payloadHostId} payloadOpp=${payloadOpponentId} event=${data.lastScorer?'score':'tick/sync'}`);
-      // #endregion
+      
       if (role === 'opponent') {
         setMyScore(oppScore);
         setOpponentScore(hostScore);
@@ -2727,9 +2743,7 @@ export default function LiveStream() {
         creator_name: hostName || 'Creator',
         ...(!isBroadcast && { host_user_id: effectiveStreamId }),
       });
-      // #region agent log
-      if(isBattleMode){fetch('http://127.0.0.1:7765/ingest/504ee8d9-85af-4146-9e87-ee22d4845d37',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'7a7f0c'},body:JSON.stringify({sessionId:'7a7f0c',location:'LiveStream.tsx:handleSendGift',message:'gift-sent',data:{giftTarget,resolved:resolveOutgoingBattleTarget(giftTarget),role:battleRoleRef.current,isBattleJoiner,isBroadcast,giftId:gift.id,coins:gift.coins},timestamp:Date.now()})}).catch(()=>{});}
-      // #endregion
+      
 
       // Handle Combo Logic
       setLastSentGift(gift);
@@ -3389,12 +3403,12 @@ export default function LiveStream() {
                       className="absolute inset-0 flex cursor-pointer pointer-events-auto"
                       onClick={(e) => { e.stopPropagation(); if (isBroadcast) { toggleBattle(); } else { spawnHeartFromClient(e.clientX, e.clientY); } }}
                     >
-                      <div className="h-full" style={{ width: `${leftPct}%`, backgroundImage: 'linear-gradient(90deg, #DC143C, #FF1744, #C41E3A)' }} />
+                      <div className="h-full transition-[width] duration-300 ease-out" style={{ width: `${leftPct}%`, backgroundImage: 'linear-gradient(90deg, #DC143C, #FF1744, #C41E3A)' }} />
                       <div className="h-full flex-1" style={{ backgroundImage: 'linear-gradient(90deg, #1E90FF, #4169E1, #0047AB)' }} />
                     </div>
                     <div className="absolute inset-0 z-10 flex items-center justify-between px-2 pointer-events-none">
-                      <span className="text-white font-black text-[14px] tabular-nums drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">{(typeof redTeamScore === 'number' && Number.isFinite(redTeamScore) ? redTeamScore : 0).toLocaleString()}</span>
-                      <span className="text-white font-black text-[14px] tabular-nums drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">{(typeof blueTeamScore === 'number' && Number.isFinite(blueTeamScore) ? blueTeamScore : 0).toLocaleString()}</span>
+                      <AnimatedScore value={typeof redTeamScore === 'number' && Number.isFinite(redTeamScore) ? redTeamScore : 0} className="text-white font-black text-[14px] tabular-nums drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" />
+                      <AnimatedScore value={typeof blueTeamScore === 'number' && Number.isFinite(blueTeamScore) ? blueTeamScore : 0} className="text-white font-black text-[14px] tabular-nums drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" />
                     </div>
                   </div>
 

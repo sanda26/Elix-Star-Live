@@ -50,6 +50,32 @@ import { normalizeBattleGiftTarget } from '../lib/liveBattleGiftTarget';
 import { IS_STORE_BUILD } from '../config/build';
 import { Room, RoomEvent, LocalVideoTrack, LocalAudioTrack } from 'livekit-client';
 
+function AnimatedScore({ value, className = '' }: { value: number; className?: string }) {
+  const [display, setDisplay] = useState(value);
+  const rafRef = useRef<number>(0);
+  const startRef = useRef(display);
+  const targetRef = useRef(value);
+  useEffect(() => {
+    if (value === display) { targetRef.current = value; return; }
+    cancelAnimationFrame(rafRef.current);
+    startRef.current = display;
+    targetRef.current = value;
+    const start = performance.now();
+    const duration = 300;
+    const from = startRef.current;
+    const to = targetRef.current;
+    const step = (now: number) => {
+      const t = Math.min((now - start) / duration, 1);
+      const ease = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+      setDisplay(Math.round(from + (to - from) * ease));
+      if (t < 1) rafRef.current = requestAnimationFrame(step);
+    };
+    rafRef.current = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [value]);
+  return <span className={className}>{display.toLocaleString()}</span>;
+}
+
 type LiveMessage = {
   id: string;
   username: string;
@@ -896,9 +922,6 @@ export default function SpectatorPage() {
           };
           setMessages(prev => [...prev, msg]);
         }
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'gift-flow-debug',hypothesisId:'H2',location:'src/pages/SpectatorPage.tsx:809',message:'Spectator received gift event',data:{giftId:data.giftId,receivedVideo:data.video ?? null,giftDefVideo:giftDef.video ?? null},timestamp:Date.now()})}).catch(()=>{});
-        // #endregion
         // Match creator (LiveStream): only queue real video assets; prefer catalog path, else WS payload.
         if (data.user_id !== user?.id) {
           const isVideoFile = (value: string) => {
@@ -919,9 +942,6 @@ export default function SpectatorPage() {
               raw.startsWith('http://') || raw.startsWith('https://')
                 ? raw
                 : resolveGiftAssetUrl(raw.startsWith('/') ? raw : `/${raw}`);
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'gift-flow-debug',hypothesisId:'H3',location:'src/pages/SpectatorPage.tsx:816',message:'Queued gift overlay from picked video',data:{giftId:data.giftId,queuedVideoUrl:videoUrl},timestamp:Date.now()})}).catch(()=>{});
-            // #endregion
             setGiftQueue(prev => [...prev, { video: videoUrl }]);
           }
         }
@@ -1331,9 +1351,6 @@ export default function SpectatorPage() {
         raw.startsWith('http://') || raw.startsWith('https://')
           ? raw
           : resolveGiftAssetUrl(raw.startsWith('/') ? raw : `/${raw}`);
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'gift-flow-debug',hypothesisId:'H4',location:'src/pages/SpectatorPage.tsx:1132',message:'Local spectator queued gift overlay before send',data:{giftId:gift.id,rawGiftVideo:gift.video,queuedVideoUrl:videoUrl},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
       setGiftQueue(prev => [...prev, { video: videoUrl }]);
     }
 
@@ -1362,9 +1379,7 @@ export default function SpectatorPage() {
         ? { battleTarget: spectatorGiftBattleTarget }
         : {}),
     });
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'gift-flow-debug',hypothesisId:'H5',location:'src/pages/SpectatorPage.tsx:1156',message:'Spectator sent gift event',data:{giftId:gift.id,sentVideoField:gift.video ?? null,iconField:gift.icon ?? null},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
+    
 
     setLastSentGift(gift);
     setComboCount(1);
@@ -1463,16 +1478,12 @@ export default function SpectatorPage() {
                 {/* Score bar — identical to creator */}
                 <div className="relative z-20 w-full flex-none overflow-hidden" style={{ height: '18px' }}>
                   <div className="absolute inset-0 flex">
-                    <div className="h-full" style={{ width: `${leftPct}%`, backgroundImage: 'linear-gradient(90deg, #DC143C, #FF1744, #C41E3A)' }} />
+                    <div className="h-full transition-[width] duration-300 ease-out" style={{ width: `${leftPct}%`, backgroundImage: 'linear-gradient(90deg, #DC143C, #FF1744, #C41E3A)' }} />
                     <div className="h-full flex-1" style={{ backgroundImage: 'linear-gradient(90deg, #1E90FF, #4169E1, #0047AB)' }} />
                   </div>
                   <div className="absolute inset-0 z-10 flex items-center justify-between px-2 pointer-events-none">
-                    <span className="text-white font-black text-[14px] tabular-nums drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
-                      {(typeof redTeamScore === 'number' && Number.isFinite(redTeamScore) ? redTeamScore : 0).toLocaleString()}
-                    </span>
-                    <span className="text-white font-black text-[14px] tabular-nums drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
-                      {(typeof blueTeamScore === 'number' && Number.isFinite(blueTeamScore) ? blueTeamScore : 0).toLocaleString()}
-                    </span>
+                    <AnimatedScore value={typeof redTeamScore === 'number' && Number.isFinite(redTeamScore) ? redTeamScore : 0} className="text-white font-black text-[14px] tabular-nums drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" />
+                    <AnimatedScore value={typeof blueTeamScore === 'number' && Number.isFinite(blueTeamScore) ? blueTeamScore : 0} className="text-white font-black text-[14px] tabular-nums drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" />
                   </div>
                 </div>
 

@@ -5,6 +5,7 @@ import { trackEvent } from '../lib/analytics';
 import { AvatarRing } from '../components/AvatarRing';
 import { getVideoPosterUrl } from '../lib/bunnyStorage';
 import { apiUrl } from '../lib/api';
+import { isIndecentExploreCaption } from '../lib/suggestiveCaption';
 import { useAuthStore } from '../store/useAuthStore';
 import { useVideoStore } from '../store/useVideoStore';
 
@@ -132,7 +133,13 @@ export default function Discover() {
           (a: any, b: any) => (Number(b.views) || 0) - (Number(a.views) || 0),
         );
 
-        setTrendingVideos(sorted.slice(0, 30).map((v: any) => ({
+        /* Explore: only indecent-tagged clips (caption/hashtags), not all trending */
+        const indecentOnly = sorted.filter((v: any) => {
+          const tags = Array.isArray(v.hashtags) ? v.hashtags : [];
+          return isIndecentExploreCaption(v.description || '', tags);
+        });
+
+        setTrendingVideos(indecentOnly.slice(0, 30).map((v: any) => ({
           id: v.id,
           user_id: v.userId || v.user_id,
           thumbnail_url: v.thumbnail || v.thumbnail_url || '',
@@ -330,9 +337,9 @@ export default function Discover() {
                   <div className="px-3 py-2.5 border-b border-white/10 flex items-center gap-2">
                     <TrendingUp className="w-4 h-4 text-[#C9A96E] shrink-0" />
                     <div className="min-w-0">
-                      <h2 className="text-[13px] font-bold text-gold-metallic leading-tight">Trending Now</h2>
+                      <h2 className="text-[13px] font-bold text-gold-metallic leading-tight">Indecent (Explore)</h2>
                       <p className="text-[9px] text-white/35 leading-tight mt-0.5">
-                        By views — vertical feed like Friends &amp; For You (all videos, no filters)
+                        Only videos whose caption or hashtags match indecent-style tags (e.g. nsfw, sexy, 18+). Sorted by views.
                       </p>
                     </div>
                   </div>
@@ -343,7 +350,11 @@ export default function Discover() {
                   </div>
                 </div>
               ) : (
-                <EmptyState icon={<TrendingUp className="w-10 h-10" />} text="No trending videos yet" />
+                <EmptyState
+                  icon={<TrendingUp className="w-10 h-10" />}
+                  text="No indecent-tagged videos yet"
+                  sub="Creators add words like nsfw, sexy, or 18+ in the caption or hashtags to appear here."
+                />
               )}
             </div>
           )}

@@ -31,6 +31,10 @@ const INDECENTISH = [
   'xxx',
   'hot',
   'thirst',
+  'spicy',
+  '18+',
+  'adult',
+  'explicit',
 ];
 
 export function isStemIndecentishCaption(description: string, hashtags: string[] = []): boolean {
@@ -41,4 +45,12 @@ export function isStemIndecentishCaption(description: string, hashtags: string[]
 /** STEM: after top-by-views, also pull clips matching suggestive OR indecentish captions. */
 export function isStemExtraCaption(description: string, hashtags: string[] = []): boolean {
   return isSuggestiveCaption(description, hashtags) || isStemIndecentishCaption(description, hashtags);
+}
+
+/**
+ * Explore / Discover “Trending” strip: only clips whose caption or hashtags match
+ * indecent-style keywords (not general app-wide trending).
+ */
+export function isIndecentExploreCaption(description: string, hashtags: string[] = []): boolean {
+  return isStemIndecentishCaption(description, hashtags);
 }

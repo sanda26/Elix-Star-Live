@@ -253,6 +253,7 @@
   .pt-topbar { padding-top: var(--topbar-total); }
   .pb-nav { padding-bottom: var(--bottom-ui-reserve); }
   .pb-nav-feed { padding-bottom: var(--feed-main-pb); }
+  .pb-nav-friends { padding-bottom: max(0px, calc(var(--bottom-ui-reserve) - 8mm)); }
 
   /* Fixed / full-viewport columns above bottom nav; +3mm eats dead band between content and gold bar */
   .h-above-bottom-nav {

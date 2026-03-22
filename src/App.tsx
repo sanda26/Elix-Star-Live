@@ -273,7 +273,11 @@ function App() {
               location.pathname === "/feed" &&
               "pb-nav-feed",
             showBottomNav &&
+              location.pathname === "/friends" &&
+              "pb-nav-friends",
+            showBottomNav &&
               location.pathname !== "/feed" &&
+              location.pathname !== "/friends" &&
               "pb-nav",
             /* Same tone as page so pb-nav band is not a visible “gap” above BottomNav */
             showBottomNav &&

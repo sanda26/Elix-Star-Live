@@ -294,13 +294,9 @@ export const useVideoStore = create<VideoStore>()(
             set({ followingUsers: ids });
           }
 
+          /* Server unions following ∪ followers; do not skip when following list is empty */
           const { followingUsers } = get();
-          if (followingUsers.length === 0) {
-            set({ friendsLoading: false });
-            return;
-          }
 
-          // Fetch friend videos from server
           const res = await fetch(apiUrl('/api/feed/friends'), { credentials: 'include', headers });
           if (!res.ok) {
             set({ friendsLoading: false });

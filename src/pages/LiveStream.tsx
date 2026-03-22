@@ -1036,6 +1036,7 @@ export default function LiveStream() {
   const [battleReadiness, setBattleReadiness] = useState(0);
   const [hasOpponentStream, setHasOpponentStream] = useState(false);
   const [opponentStreamKey, setOpponentStreamKey] = useState<string | null>(null);
+  const battleRoleRef = useRef<'host' | 'opponent' | null>(null);
   const opponentLkRoomRef = useRef<Room | null>(null);
   const [iAmReady, setIAmReady] = useState(false);
   const [hostIsReady, setHostIsReady] = useState(false);
@@ -2188,14 +2189,22 @@ export default function LiveStream() {
       const opponent = typeof data.opponentScore === 'number' && Number.isFinite(data.opponentScore) ? data.opponentScore : 0;
       const player3 = typeof data.player3Score === 'number' && Number.isFinite(data.player3Score) ? data.player3Score : 0;
       const player4 = typeof data.player4Score === 'number' && Number.isFinite(data.player4Score) ? data.player4Score : 0;
-      // Host sees host-vs-opponent as-is; invited opponent sees opponent on left (their side).
-      if (isBroadcast) {
+
+      const selfId = user?.id || '';
+      const payloadHostId = typeof data.hostUserId === 'string' ? data.hostUserId : '';
+      const payloadOpponentId = typeof data.opponentUserId === 'string' ? data.opponentUserId : '';
+      if (selfId && payloadHostId && selfId === payloadHostId) battleRoleRef.current = 'host';
+      else if (selfId && payloadOpponentId && selfId === payloadOpponentId) battleRoleRef.current = 'opponent';
+
+      const role = battleRoleRef.current || (isBattleJoiner ? 'opponent' : (isBroadcast ? 'host' : null));
+      if (role === 'host') {
         setMyScore(host);
         setOpponentScore(opponent);
-      } else if (isBattleJoiner) {
+      } else if (role === 'opponent') {
         setMyScore(opponent);
         setOpponentScore(host);
       } else {
+        // Fallback when role is still unknown
         setMyScore(host);
         setOpponentScore(opponent);
       }
@@ -2205,6 +2214,10 @@ export default function LiveStream() {
 
     const handleBattleStateSync = (data: any) => {
       if (!mounted) return;
+      const selfId = user?.id || '';
+      if (selfId && typeof data.hostUserId === 'string' && data.hostUserId === selfId) battleRoleRef.current = 'host';
+      else if (selfId && typeof data.opponentUserId === 'string' && data.opponentUserId === selfId) battleRoleRef.current = 'opponent';
+
       if (data.status === 'WAITING') {
         setIsBattleMode(true);
         setBattleState('INVITING');
@@ -2290,8 +2303,9 @@ export default function LiveStream() {
       setBattleState('ENDED');
       applyBattleScores(data);
       const winner = data.winner;
-      if (winner === 'host') setBattleWinner(isBattleJoiner ? 'opponent' : 'me');
-      else if (winner === 'opponent') setBattleWinner(isBattleJoiner ? 'me' : 'opponent');
+      const role = battleRoleRef.current || (isBattleJoiner ? 'opponent' : (isBroadcast ? 'host' : null));
+      if (winner === 'host') setBattleWinner(role === 'opponent' ? 'opponent' : 'me');
+      else if (winner === 'opponent') setBattleWinner(role === 'opponent' ? 'me' : 'opponent');
       else if (data.winner === 'player3') setBattleWinner('player3' as any); // cast for type safety
       else if (data.winner === 'player4') setBattleWinner('player4' as any);
       else setBattleWinner('draw' as any);

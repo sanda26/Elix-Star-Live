@@ -829,7 +829,7 @@ export default function EnhancedVideoPlayer({
                 style={{
                   width: VIDEO_SIDEBAR_AVATAR_INNER,
                   height: VIDEO_SIDEBAR_AVATAR_INNER,
-                  top: `calc(50% - ${PROFILE_RING_IMAGE_LIFT_MM}mm)`,
+                  top: `calc(50% - ${PROFILE_RING_IMAGE_LIFT_MM}mm + 0.4mm)`,
                   left: '50%',
                   transform: 'translate(-50%, -50%)',
                   zIndex: 1,

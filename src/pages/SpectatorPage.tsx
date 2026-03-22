@@ -1804,10 +1804,13 @@ export default function SpectatorPage() {
                       <button
                         type="button"
                         className="col-start-1 row-start-1 z-20 relative flex items-center justify-center gap-1 bg-[#FF2D55] rounded-full px-1.5 py-0.5 shadow-sm border border-white/20 w-[58px] h-7"
-                        onClick={followHost}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          followHost(e);
+                        }}
                       >
-                        <Plus size={10} className="text-white" strokeWidth={3} />
-                        <span className="text-white text-[9px] font-bold">Follow</span>
+                        <Plus size={12} className="text-white" strokeWidth={3} />
+                        <span className="text-white text-[10px] font-bold">Follow</span>
                       </button>
                     </div>
                   )}

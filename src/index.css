@@ -98,7 +98,7 @@
           var(--topnav-bar-height) +
           var(--topnav-video-gap) -
           12px -
-          64mm
+          74mm
       )
     );
     /* For You main: a bit tighter above bottom nav (still clears tap targets) */

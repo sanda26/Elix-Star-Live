@@ -6,7 +6,7 @@ import { Eye, EyeOff, Lock, Mail, Check, User } from 'lucide-react';
 export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { signInWithPassword, signInWithApple, signInAsGuest } = useAuthStore();
+  const { signInWithPassword, signInWithApple } = useAuthStore();
   
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -14,7 +14,6 @@ export default function Login() {
   const [saveDetails, setSaveDetails] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isGuestLoading, setIsGuestLoading] = useState(false);
 
   const state = location.state as { from?: string } | null;
   const from = state?.from ?? '/';
@@ -188,30 +187,18 @@ export default function Login() {
           </button>
         </form>
 
-        {/* Guest login for quick access (local/testing) */}
+        {/* Sign up CTA in place of guest access */}
         <div className="mt-4 flex flex-col gap-2">
           <div className="flex items-center justify-between gap-2">
-            <span className="text-xs text-white/40">Just want to look around?</span>
+            <span className="text-xs text-white/40">New here?</span>
           </div>
           <button
             type="button"
-            disabled={isSubmitting || isGuestLoading}
-            onClick={async () => {
-              if (isGuestLoading) return;
-              setError(null);
-              setIsGuestLoading(true);
-              const res = await signInAsGuest();
-              if (res.error) {
-                setError(res.error);
-                setIsGuestLoading(false);
-                return;
-              }
-              navigate(from, { replace: true });
-            }}
-            className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-white/8 hover:bg-white/15 text-white text-sm font-semibold py-2.5 border border-white/15 disabled:opacity-60 disabled:cursor-not-allowed transition"
+            onClick={() => navigate('/register')}
+            className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-white/8 hover:bg-white/15 text-white text-sm font-semibold py-2.5 border border-white/15 transition"
           >
             <User className="w-4 h-4" />
-            {isGuestLoading ? 'Signing in as guest…' : 'Continue as guest'}
+            Sign up
           </button>
         </div>
 

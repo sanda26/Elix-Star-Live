@@ -1093,6 +1093,8 @@ function startBattleTimer(roomId: string) {
       player3Score: s.player3Score,
       player4Score: s.player4Score,
       endsAt: s.endsAt,
+      hostUserId: s.hostUserId,
+      opponentUserId: s.opponentUserId,
     };
     broadcastToRoom(roomId, "battle_tick", tickPayload);
     broadcastToBattleParticipants(roomId, s, "battle_tick", tickPayload);
@@ -1128,6 +1130,8 @@ function addBattleScoreForTarget(
     player4Score: session.player4Score,
     lastScorer: target,
     points,
+    hostUserId: session.hostUserId,
+    opponentUserId: session.opponentUserId,
   };
   broadcastToRoom(roomId, "battle_score", scorePayload);
   broadcastToBattleParticipants(roomId, session, "battle_score", scorePayload);
@@ -1162,6 +1166,8 @@ function endBattle(roomId: string) {
     winner: session.winner,
     hostName: session.hostName,
     opponentName: session.opponentName,
+    hostUserId: session.hostUserId,
+    opponentUserId: session.opponentUserId,
   };
   broadcastToRoom(roomId, "battle_ended", endedPayload);
   broadcastToBattleParticipants(roomId, session, "battle_ended", endedPayload);
@@ -1219,6 +1225,15 @@ function broadcastToBattleParticipants(
   event: string,
   data: any,
 ) {
+  // Broadcast to all battle-related rooms (opponent's room, etc.) so spectators there see scores
+  const extraRoomIds = [session.opponentRoomId].filter(
+    (r): r is string => typeof r === "string" && r.length > 0 && r !== roomId,
+  );
+  for (const extraRoom of extraRoomIds) {
+    broadcastToRoom(extraRoom, event, data);
+  }
+
+  // Send directly to any participant not already reached via room broadcasts
   const participantIds = [
     session.hostUserId,
     session.opponentUserId,
@@ -1227,16 +1242,18 @@ function broadcastToBattleParticipants(
   ].filter((id): id is string => typeof id === "string" && id.length > 0);
   if (participantIds.length === 0) return;
 
-  const room = rooms.get(roomId);
-  const inRoom = new Set<string>();
-  if (room) {
-    room.forEach((client) => {
-      if (client?.userId) inRoom.add(client.userId);
-    });
+  const reachedUserIds = new Set<string>();
+  for (const rId of [roomId, ...extraRoomIds]) {
+    const room = rooms.get(rId);
+    if (room) {
+      room.forEach((client) => {
+        if (client?.userId) reachedUserIds.add(client.userId);
+      });
+    }
   }
 
   for (const userId of participantIds) {
-    if (!inRoom.has(userId)) {
+    if (!reachedUserIds.has(userId)) {
       sendToUserGlobal(userId, event, data);
     }
   }

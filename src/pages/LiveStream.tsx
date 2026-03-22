@@ -2211,7 +2211,7 @@ export default function LiveStream() {
 
       const role = battleRoleRef.current || (isBattleJoiner ? 'opponent' : (isBroadcast ? 'host' : 'host'));
       // #region agent log
-      fetch('http://127.0.0.1:7765/ingest/504ee8d9-85af-4146-9e87-ee22d4845d37',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'7a7f0c'},body:JSON.stringify({sessionId:'7a7f0c',location:'LiveStream.tsx:applyBattleScores',message:'score-apply',data:{selfId,payloadHostId,payloadOpponentId,role,hostScore,oppScore,event:data.lastScorer?'battle_score':'state_sync'},timestamp:Date.now()})}).catch(()=>{});
+      console.warn(`[BATTLE-DBG] role=${role} hostScore=${hostScore} oppScore=${oppScore} selfId=${selfId} payloadHost=${payloadHostId} payloadOpp=${payloadOpponentId} event=${data.lastScorer?'score':'tick/sync'}`);
       // #endregion
       if (role === 'opponent') {
         setMyScore(oppScore);

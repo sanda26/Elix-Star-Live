@@ -864,8 +864,31 @@ export default function LiveStream() {
     let cancelled = false;
     (async () => {
       const hostLabel = effectiveStreamId.slice(0, 8).toUpperCase();
-      const hName = `Host ${hostLabel}`;
-      const hAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(hostLabel)}&background=121212&color=C9A96E`;
+      let hName = `Host ${hostLabel}`;
+      let hAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(hostLabel)}&background=121212&color=C9A96E`;
+      try {
+        const profileRes = await fetch(apiUrl(`/api/profiles/${encodeURIComponent(effectiveStreamId)}`), {
+          method: 'GET',
+          credentials: 'include',
+        });
+        if (profileRes.ok) {
+          const body = await profileRes.json().catch(() => ({}));
+          const profile = body?.profile || body?.data || {};
+          const resolvedName =
+            (typeof profile.displayName === 'string' && profile.displayName.trim()) ||
+            (typeof profile.display_name === 'string' && profile.display_name.trim()) ||
+            (typeof profile.username === 'string' && profile.username.trim()) ||
+            '';
+          const resolvedAvatar =
+            (typeof profile.avatarUrl === 'string' && profile.avatarUrl.trim()) ||
+            (typeof profile.avatar_url === 'string' && profile.avatar_url.trim()) ||
+            '';
+          if (resolvedName) hName = resolvedName;
+          if (resolvedAvatar) hAvatar = resolvedAvatar;
+        }
+      } catch {
+        // Keep fallback host label/avatar.
+      }
 
       if (cancelled) return;
       setBattleSlots(prev => {
@@ -911,7 +934,12 @@ export default function LiveStream() {
 
         // Subscribe to host's video for the opponent panel
         room.on(RoomEvent.TrackSubscribed, (track) => {
-          if (cancelled || track.kind !== 'video') return;
+          if (cancelled) return;
+          if (track.kind === 'audio') {
+            track.attach();
+            return;
+          }
+          if (track.kind !== 'video') return;
           const el = opponentVideoRef.current;
           if (el) {
             track.attach(el);
@@ -921,6 +949,12 @@ export default function LiveStream() {
 
         await room.connect(lkUrl, lkToken);
         if (cancelled) { room.disconnect(); return; }
+
+        for (const [, participant] of room.remoteParticipants) {
+          for (const [, pub] of participant.audioTrackPublications) {
+            if (pub.track && pub.isSubscribed) pub.track.attach();
+          }
+        }
 
         // Publish our camera and mic to the host's room
         const videoTrack = stream.getVideoTracks()[0];
@@ -1045,7 +1079,12 @@ export default function LiveStream() {
         if (!token || !url || !mounted) return;
 
         room.on(RoomEvent.TrackSubscribed, (track) => {
-          if (!mounted || track.kind !== 'video') return;
+          if (!mounted) return;
+          if (track.kind === 'audio') {
+            track.attach();
+            return;
+          }
+          if (track.kind !== 'video') return;
           const el = opponentVideoRef.current;
           if (el) {
             track.attach(el);
@@ -1062,6 +1101,9 @@ export default function LiveStream() {
               pub.track.attach(opponentVideoRef.current);
               setHasOpponentStream(true);
             }
+          }
+          for (const [, pub] of participant.audioTrackPublications) {
+            if (pub.track && pub.isSubscribed) pub.track.attach();
           }
         }
       } catch (e) {

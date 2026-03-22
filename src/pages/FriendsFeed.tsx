@@ -102,20 +102,20 @@ export default function FriendsFeed() {
     <div className="h-full min-h-0 w-full flex justify-center bg-[#13151A]">
       {/* Full height of main: header + stories + video scroll share this column (video is NOT main-high alone) */}
       <div className="w-full max-w-[480px] h-full min-h-0 flex flex-col overflow-hidden mx-auto">
-        <div className="w-full shrink-0 bg-[#13151A] z-10">
-        <div className="px-3 pt-[calc(env(safe-area-inset-top,8px)+6px)] pb-1 flex items-center justify-between relative">
-          <button onClick={() => navigate('/search')} className="p-1 z-10" aria-label="Search"><Search size={18} className="text-white" /></button>
-          <h1 className="text-sm font-bold text-white absolute left-1/2 transform -translate-x-1/2">Friends</h1>
-          <div className="flex items-center gap-3 z-10">
-            <button onClick={() => navigate(-1)} title="Back">
-              <img src="/Icons/Gold power buton.png" alt="Back" className="w-5 h-5" />
-            </button>
+        <div className="w-full shrink-0 bg-[#13151A] z-10 relative">
+          <div className="px-3 pt-[calc(env(safe-area-inset-top,8px)+6px)] pb-1 flex items-center justify-between relative">
+            <button onClick={() => navigate('/search')} className="p-1 z-10" aria-label="Search"><Search size={18} className="text-white" /></button>
+            <h1 className="text-sm font-bold text-white absolute left-1/2 transform -translate-x-1/2">Friends</h1>
+            <div className="flex items-center gap-3 z-10">
+              <button onClick={() => navigate(-1)} title="Back">
+                <img src="/Icons/Gold power buton.png" alt="Back" className="w-5 h-5" />
+              </button>
+            </div>
           </div>
-        </div>
 
-        {/* Circles — Create first, then all followers (scroll left), then suggested */}
-        <div className="px-3 py-2">
-          <div className="flex gap-3 overflow-x-auto overflow-y-hidden no-scrollbar" style={{ WebkitOverflowScrolling: 'touch' }}>
+          {/* Circles — Create first, then all followers (scroll left), then suggested */}
+          <div className="px-3 py-2">
+            <div className="flex gap-3 overflow-x-auto overflow-y-hidden no-scrollbar" style={{ WebkitOverflowScrolling: 'touch' }}>
             <button
               type="button"
               onClick={() => navigate('/create')}
@@ -205,8 +205,8 @@ export default function FriendsFeed() {
                 <div className="text-[11px] text-white/80 truncate w-full text-center">{u.name || u.username}</div>
               </button>
             ))}
+            </div>
           </div>
-        </div>
         </div>
 
         <div

@@ -193,6 +193,7 @@ function App() {
     location.pathname === "/feed" ||
     location.pathname === "/stem" ||
     location.pathname === "/following" ||
+    location.pathname === "/friends" ||
     location.pathname.startsWith("/video/");
 
   const isNavHidden =

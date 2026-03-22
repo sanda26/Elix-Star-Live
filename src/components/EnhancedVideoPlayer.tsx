@@ -722,7 +722,7 @@ export default function EnhancedVideoPlayer({
           </div>
         )}
 
-        {/* Single bottom scrub bar — full width, large touch target, drag to seek */}
+        {/* Thin line at rest; touch/drag expands track and scrubs (seek only while finger is down) */}
         <div
           ref={progressTrackRef}
           role="slider"
@@ -731,12 +731,13 @@ export default function EnhancedVideoPlayer({
           aria-valuenow={Number.isFinite(currentTime) ? Math.round(currentTime) : 0}
           aria-valuemin={0}
           aria-valuemax={Number.isFinite(duration) && duration > 0 ? Math.round(duration) : 0}
-          className="absolute left-3 right-[3.75rem] z-[16] pointer-events-auto flex items-center cursor-pointer"
+          className="absolute left-3 right-[3.75rem] z-[16] pointer-events-auto flex flex-col justify-end cursor-pointer select-none"
           style={{
-            /* Flush to bottom of player — aligns with top of bottom nav when main uses pb-nav */
             bottom: 0,
-            height: '44px',
+            paddingBottom: 'max(4px, env(safe-area-inset-bottom, 0px))',
             touchAction: 'none',
+            minHeight: scrubbing ? 44 : 22,
+            transition: 'min-height 0.12s ease-out',
           }}
           onPointerDown={(e) => {
             e.stopPropagation();
@@ -755,17 +756,25 @@ export default function EnhancedVideoPlayer({
           }}
         >
           <div
-            className="w-full h-4 rounded-full bg-white/20 overflow-hidden shadow-inner pointer-events-none"
-            style={{ boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.15)' }}
+            className={`w-full rounded-full bg-white/20 overflow-hidden pointer-events-none transition-[height,box-shadow] duration-150 ease-out ${
+              scrubbing ? 'h-3.5 shadow-inner' : 'h-[3px]'
+            }`}
+            style={
+              scrubbing
+                ? { boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.15)' }
+                : undefined
+            }
           >
             <div
               className="h-full rounded-full bg-gradient-to-r from-[#C9A96E] via-[#00c2be] to-[#C9A96E] relative overflow-hidden"
               style={{
                 width: `${duration > 0 ? Math.min(100, Math.max(0, (currentTime / duration) * 100)) : 0}%`,
-                boxShadow: '0 0 10px rgba(201, 169, 110, 0.5)',
+                boxShadow: scrubbing ? '0 0 10px rgba(201, 169, 110, 0.5)' : 'none',
               }}
             >
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/25 to-transparent animate-shimmer" />
+              {scrubbing ? (
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/25 to-transparent animate-shimmer" />
+              ) : null}
             </div>
           </div>
         </div>
@@ -786,8 +795,8 @@ export default function EnhancedVideoPlayer({
         className="absolute z-[10] flex flex-col items-center gap-2 pointer-events-auto"
         style={{
           right: '12px',
-          /* Sit above the bottom scrub strip (44px) so icons are not on top of the bar */
-          bottom: 'max(3.5rem, calc(44px + 10px))',
+          /* Above thin progress line; extra space when user is scrubbing */
+          bottom: scrubbing ? 'max(3.5rem, calc(44px + 10px))' : 'max(3.5rem, 1.5rem)',
         }}
       >
         

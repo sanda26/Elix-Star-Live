@@ -1,18 +1,20 @@
 // Service Worker for Push Notifications
 // File: public/sw.js
 
-const CACHE_NAME = 'elix-star-live-v1';
+const CACHE_NAME = 'elix-star-live-v2';
 const urlsToCache = [
   '/',
   '/index.html',
   '/manifest.json',
   '/favicon.svg',
   '/pwa-192x192.svg',
-  '/pwa-512x512.svg'
+  '/pwa-512x512.svg',
+  '/Icons/bottombar.png',
 ];
 
 // Install service worker and cache assets
 self.addEventListener('install', (event) => {
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => cache.addAll(urlsToCache))
@@ -30,18 +32,34 @@ self.addEventListener('activate', (event) => {
           }
         })
       );
-    })
+    }).then(() => self.clients.claim())
   );
 });
 
-// Fetch requests - serve from cache when offline
+// HTML/app shell: network first so new deploys are not stuck on old JS (e.g. old bottom nav).
+// Other GET: cache first, then network (offline-friendly).
 self.addEventListener('fetch', (event) => {
+  const req = event.request;
+  if (req.method !== 'GET') {
+    return;
+  }
+  const accept = req.headers.get('accept') || '';
+  const isNavigate = req.mode === 'navigate';
+  const isDocument = accept.includes('text/html');
+
+  if (isNavigate || isDocument) {
+    event.respondWith(
+      fetch(req)
+        .then((response) => response)
+        .catch(() =>
+          caches.match(req).then((r) => r || caches.match('/index.html'))
+        )
+    );
+    return;
+  }
+
   event.respondWith(
-    caches.match(event.request)
-      .then((response) => {
-        // Return cached version or fetch from network
-        return response || fetch(event.request);
-      })
+    caches.match(req).then((response) => response || fetch(req))
   );
 });
 

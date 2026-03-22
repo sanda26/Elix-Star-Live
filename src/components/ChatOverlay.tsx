@@ -108,7 +108,7 @@ export function ChatOverlay({ messages, variant = 'panel', compact = false, clas
           >
             <div 
               className="flex-shrink-0 cursor-pointer relative z-10"
-              style={{ transform: 'translateY(2mm)' }}
+              style={{ transform: 'translateY(4mm)' }}
               onClick={(e) => {
                 e.stopPropagation();
                 if (onProfileTap) onProfileTap(msg.username);

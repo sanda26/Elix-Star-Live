@@ -7,16 +7,9 @@ export const BottomNav = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Hide on fullscreen / immersive pages
   if (
     location.pathname === "/live" ||
-    location.pathname.startsWith("/live/") ||
-    location.pathname.startsWith("/watch/") ||
-    location.pathname === "/create" ||
-    location.pathname.startsWith("/create/") ||
-    location.pathname === "/upload" ||
-    location.pathname === "/login" ||
-    location.pathname === "/register"
+    location.pathname.startsWith("/live/")
   ) {
     return null;
   }

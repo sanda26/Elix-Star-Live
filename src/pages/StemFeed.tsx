@@ -58,15 +58,16 @@ export default function StemFeed() {
   }, [stemVideos.length, activeIndex]);
 
   return (
-    <div
-      ref={containerRef}
-      className="h-[100dvh] w-full overflow-y-scroll snap-y snap-mandatory relative bg-[#13151A]"
-      style={{ scrollSnapType: "y mandatory" }}
-      onScroll={handleScroll}
-    >
-      {/* Header with search + exit (same buttons as Friends) */}
-      <div className="fixed left-0 right-0 z-[9999] flex justify-center pointer-events-none">
-        <div className="w-full max-w-[480px] px-3 pt-[calc(env(safe-area-inset-top,8px)+6px)] pb-1 flex items-center justify-between pointer-events-auto">
+    <div className="h-full min-h-0 w-full flex flex-col bg-[#13151A]">
+      {/* Header — same vertical band as For You golden top bar */}
+      <div
+        className="fixed left-0 right-0 z-[9999] flex justify-center pointer-events-none"
+        style={{ top: "var(--topnav-anchor-top)" }}
+      >
+        <div
+          className="w-full max-w-[480px] px-3 flex items-center justify-between pointer-events-auto"
+          style={{ minHeight: "var(--topnav-bar-height)" }}
+        >
           <button
             onClick={() => navigate("/search")}
             className="p-1"
@@ -89,20 +90,25 @@ export default function StemFeed() {
         </div>
       </div>
 
-      {/* Spacer at top so feed content isn't hidden under system UI */}
-      <div className="h-[24px]" />
-
-      {/* Full-screen video feed — most viewed first */}
+      <div
+        ref={containerRef}
+        className="flex-1 min-h-0 w-full overflow-y-scroll snap-y snap-mandatory relative bg-[#13151A]"
+        style={{ scrollSnapType: "y mandatory" }}
+        onScroll={handleScroll}
+      >
+      {/* Full-screen video feed — aligned with For You slide padding */}
       {stemVideos.map((video, index) => (
         <div
           key={`stem-${video.id}-${index}`}
-          className="h-[100dvh] w-full snap-start relative flex justify-center bg-[#13151A]"
-          style={{ scrollSnapAlign: "start", scrollSnapStop: "always" }}
+          className="h-full w-full shrink-0 snap-start flex flex-col items-center justify-center bg-[#13151A]"
+          style={{
+            scrollSnapAlign: "start",
+            scrollSnapStop: "always",
+            boxSizing: "border-box",
+            paddingTop: "var(--feed-slide-pad-top)",
+          }}
         >
-          <div
-            className="w-full max-w-[480px] relative"
-            style={{ height: "calc(100dvh - var(--bottom-ui-reserve) - 1.1cm)", marginTop: "1.1cm" }}
-          >
+          <div className="w-full max-w-[480px] flex-1 min-h-0 relative overflow-hidden bg-[#13151A]">
             <EnhancedVideoPlayer
               videoId={video.id}
               isActive={activeIndex === index}
@@ -113,13 +119,13 @@ export default function StemFeed() {
       ))}
 
       {stemLoading && stemVideos.length === 0 && (
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-[1]">
           <div className="w-8 h-8 border-2 border-[#C9A96E] border-t-transparent rounded-full animate-spin" />
         </div>
       )}
 
       {!stemLoading && stemVideos.length === 0 && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-[1]">
           <div className="w-20 h-20 rounded-full bg-[#13151A] border border-white/10 flex items-center justify-center mb-4">
             <span className="text-3xl">🔥</span>
           </div>
@@ -137,6 +143,7 @@ export default function StemFeed() {
           </button>
         </div>
       )}
+      </div>
     </div>
   );
 }

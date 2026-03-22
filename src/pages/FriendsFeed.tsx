@@ -102,8 +102,11 @@ export default function FriendsFeed() {
     <div className="h-full min-h-0 w-full flex justify-center bg-[#13151A]">
       {/* Full height of main: header + stories + video scroll share this column (video is NOT main-high alone) */}
       <div className="w-full max-w-[480px] h-full min-h-0 flex flex-col overflow-hidden mx-auto">
-        <div className="w-full shrink-0 bg-[#13151A] z-10 relative">
-          <div className="px-3 pt-[calc(env(safe-area-inset-top,8px)+6px)] pb-1 flex items-center justify-between relative">
+        <div
+          className="w-full shrink-0 bg-[#13151A] z-10 relative"
+          style={{ paddingTop: "var(--feed-slide-pad-top)" }}
+        >
+          <div className="px-3 pb-1 flex items-center justify-between relative">
             <button onClick={() => navigate('/search')} className="p-1 z-10" aria-label="Search"><Search size={18} className="text-white" /></button>
             <h1 className="text-sm font-bold text-white absolute left-1/2 transform -translate-x-1/2">Friends</h1>
             <div className="flex items-center gap-3 z-10">

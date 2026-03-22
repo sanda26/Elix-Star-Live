@@ -121,7 +121,7 @@ export default function ChatThread() {
 
   if (isSystemThread) {
     return (
-      <div className="h-full min-h-0 flex flex-col bg-[#13151A] text-white p-4">
+      <div className="min-h-full min-h-0 flex flex-col bg-[#13151A] text-white p-4">
         <header className="flex items-center gap-4 mb-4 flex-shrink-0">
           <button type="button" onClick={() => navigate('/inbox')} className="p-1 rounded-lg active:bg-white/10" aria-label="Back to inbox">
             <ArrowLeft />
@@ -134,9 +134,9 @@ export default function ChatThread() {
   }
 
   return (
-    <div className="h-full min-h-0 flex flex-col bg-[#13151A] text-white w-full">
-      <div className="flex-1 min-h-0 flex justify-center px-2 w-full max-w-[480px] mx-auto">
-        <div className="w-full h-full min-h-0 flex flex-col rounded-3xl overflow-hidden bg-[#13151A] border border-white/[0.06]">
+    <div className="flex flex-col h-full min-h-full min-h-0 w-full bg-[#13151A] text-white">
+      <div className="flex flex-1 min-h-0 flex-col w-full">
+        <div className="flex flex-1 min-h-0 flex-col w-full overflow-hidden bg-[#13151A] border-x border-white/[0.06] border-t-0 border-b-0">
         <header className="flex-shrink-0 flex items-center gap-3 px-4 py-3 border-b border-white/10 bg-[#13151A]">
           <button type="button" onClick={() => navigate('/inbox')} className="p-1 rounded-lg active:bg-white/10" aria-label="Back to inbox">
             <img src="/Icons/Gold power buton.png" alt="" className="w-5 h-5" />
@@ -182,7 +182,7 @@ export default function ChatThread() {
           })}
         </div>
 
-        <div className="flex-shrink-0 p-4 bg-[#13151A] border-t border-white/10 pb-[var(--bottom-ui-reserve)]">
+        <div className="flex-shrink-0 p-4 bg-[#13151A] border-t border-white/10">
           <form className="flex items-center gap-2 bg-[#222] rounded-full px-4 py-2" onSubmit={handleSend}>
             <input
               value={draft}

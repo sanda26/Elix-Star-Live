@@ -69,8 +69,6 @@
     --bottom-ui-reserve: calc(var(--nav-height) + var(--safe-bottom) + var(--nav-tolerance));
     /* Top bar height (responsive) */
     --topbar-height: clamp(40px, 10vw, 56px);
-    /* Total top offset so content stays below top bar (non–For You pages using pt-topbar) */
-    --topbar-total: calc(var(--safe-top) + 46px + 9mm - 1cm + 10mm);
     /* For You golden top bar — MUST match TopNav.tsx fixed position */
     --topnav-anchor-top: calc(var(--safe-top) + 6mm - 1cm + 10mm);
     /* Approximate height of topbar.png after scaleY(0.80); tune if art changes */
@@ -81,6 +79,8 @@
     --feed-slide-pad-top: calc(
       var(--topnav-anchor-top) + var(--topnav-bar-height) + var(--topnav-video-gap)
     );
+    /* Same as For You top chrome: all tab pages + main scroller align from here */
+    --topbar-total: var(--feed-slide-pad-top);
     /* Bottom sheets */
     --sheet-collapsed: 30vh;
     --sheet-half: 50vh;

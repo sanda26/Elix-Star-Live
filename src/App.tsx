@@ -176,16 +176,15 @@ function App() {
     location.pathname === "/friends" ||
     location.pathname.startsWith("/video/");
 
-  const isNavHidden =
+  /* Hide bottom nav only while hosting / joining live (includes battle via ?battle=1 on /live/...) */
+  const isLiveOrBattleShell =
     location.pathname === "/live" ||
-    location.pathname.startsWith("/live/") ||
-    location.pathname.startsWith("/watch/") ||
-    location.pathname === "/create" ||
-    location.pathname.startsWith("/create/") ||
-    location.pathname === "/upload" ||
-    location.pathname === "/login" ||
-    location.pathname === "/register";
-  const showBottomNav = isAuthenticated && !isNavHidden;
+    location.pathname.startsWith("/live/");
+  const showBottomNav = isAuthenticated && !isLiveOrBattleShell;
+
+  /* Inbox + DM: TopNav is hidden (only /feed shows it) — no pt-topbar or you get empty space under the status bar */
+  const isInboxRoute =
+    location.pathname === "/inbox" || /^\/inbox\/.+/.test(location.pathname);
 
   // Public routes that don't require authentication
   const isPublicRoute =
@@ -229,19 +228,36 @@ function App() {
       <OfflineBanner />
       <IncomingCallModal />
       <TopNav />
-      <main
-        className={cn(
-          "flex-1 w-full min-h-0 mx-auto max-w-[480px] overflow-auto bg-background",
-          showBottomNav && !isFullScreen && "pt-topbar",
-          (!showBottomNav || isFullScreen) &&
-            location.pathname !== "/feed" &&
-            "pt-[3mm]",
-          /* For You: flush to shell — slide handles offset below golden top bar */
-          location.pathname === "/feed" && "pt-0",
-          /* Reserve space above fixed BottomNav so routes scroll above the bar (same padding app-wide) */
-          showBottomNav && "pb-nav",
-        )}
-      >
+      {/* Full-height column background (continues behind BottomNav art); main stays scrollable with pb-nav */}
+      <div className="flex-1 min-h-0 w-full flex flex-col relative">
+        <div
+          className="pointer-events-none absolute inset-0 mx-auto w-full max-w-[480px] bg-background z-0"
+          aria-hidden
+        />
+        <main
+          className={cn(
+            "relative z-[1] flex-1 w-full min-h-0 mx-auto max-w-[480px] overflow-auto bg-transparent",
+            location.pathname === "/feed" && "pt-0",
+            showBottomNav &&
+              location.pathname !== "/feed" &&
+              !isFullScreen &&
+              !isInboxRoute &&
+              "pt-topbar",
+            showBottomNav &&
+              location.pathname !== "/feed" &&
+              !isFullScreen &&
+              isInboxRoute &&
+              "pt-0",
+            showBottomNav &&
+              location.pathname !== "/feed" &&
+              isFullScreen &&
+              "pt-0",
+            !showBottomNav && location.pathname !== "/feed" && "pt-[3mm]",
+            showBottomNav && "pb-nav",
+            /* Same tone as chat column so pb-nav band is not a visible “gap” above BottomNav */
+            showBottomNav && isInboxRoute && "bg-[#13151A]",
+          )}
+        >
         <ErrorBoundary>
           <Suspense fallback={<PageLoader />}>
             <Routes>
@@ -327,7 +343,8 @@ function App() {
             </Routes>
           </Suspense>
         </ErrorBoundary>
-      </main>
+        </main>
+      </div>
       {showBottomNav && <BottomNav />}
     </div>
   );

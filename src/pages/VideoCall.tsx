@@ -152,8 +152,10 @@ export default function VideoCall() {
 
   if (!callId || !remoteUser) {
     return (
-      <div className="min-h-[100dvh] h-[100dvh] bg-[#13151A] flex items-center justify-center text-white overflow-hidden">
-        <p>No active call</p>
+      <div className="min-h-[100dvh] h-[100dvh] w-full bg-[#13151A] flex justify-center text-white overflow-hidden">
+        <div className="w-full max-w-[480px] mx-auto flex items-center justify-center px-4">
+          <p>No active call</p>
+        </div>
       </div>
     );
   }
@@ -183,8 +185,10 @@ export default function VideoCall() {
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-[#13151A] pb-[var(--bottom-ui-reserve)]">
+      {/* Same width column as BottomNav (max-w-[480px] centered) — full-bleed bg on sides */}
+      <div className="flex flex-1 min-h-0 flex-col w-full max-w-[480px] mx-auto">
       {/* Remote video (full screen) */}
-      <div className="flex-1 relative">
+      <div className="flex-1 min-h-0 relative w-full">
         {remoteStream && status === 'connected' ? (
           <video
             ref={remoteVideoRef}
@@ -245,7 +249,7 @@ export default function VideoCall() {
       </div>
 
       {/* Controls */}
-      <div className="bg-[#13151A]/80 backdrop-blur-sm pb-10 pt-6 px-6">
+      <div className="w-full bg-[#13151A]/80 backdrop-blur-sm pb-10 pt-6 px-6 shrink-0">
         <div className="flex items-center justify-center gap-6">
           <button
             type="button"
@@ -293,6 +297,7 @@ export default function VideoCall() {
             <PhoneOff className="w-7 h-7 text-white" />
           </button>
         </div>
+      </div>
       </div>
     </div>
   );

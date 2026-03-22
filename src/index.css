@@ -79,7 +79,7 @@
     --topbar-total: calc(
       var(--topnav-anchor-top) + var(--topnav-bar-height) + var(--topnav-video-gap)
     );
-    /* For You slides only: tuck video up to meet scaled topbar (−9mm total trim under topbar art) */
+    /* For You slides: minimal pad so video rides up under fixed gold topbar (notch still respected via max) */
     --feed-slide-pad-top: max(
       var(--safe-top),
       calc(
@@ -87,11 +87,11 @@
           var(--topnav-bar-height) +
           var(--topnav-video-gap) -
           10px -
-          9mm
+          14mm
       )
     );
-    /* For You main: trim bottom reserve so video sits lower (clear of BottomNav taps) */
-    --feed-main-pb: max(0px, calc(var(--bottom-ui-reserve) - 6mm));
+    /* For You main: a bit tighter above bottom nav (still clears tap targets) */
+    --feed-main-pb: max(0px, calc(var(--bottom-ui-reserve) - 9mm));
     /* Bottom sheets */
     --sheet-collapsed: 30vh;
     --sheet-half: 50vh;

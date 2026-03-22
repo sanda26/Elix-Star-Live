@@ -495,7 +495,7 @@ export default function VideoFeed() {
             scrollSnapAlign: "start",
             scrollSnapStop: "always",
             boxSizing: "border-box",
-            /* Solid #0A0B0E shows here — video never draws under the top bar */
+            /* Pad matches topbar stack; video fills below — can read under fixed TopNav (z above) */
             paddingTop: "var(--feed-slide-pad-top)",
           };
 

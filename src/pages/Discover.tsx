@@ -56,26 +56,6 @@ export default function Discover() {
   const [loading, setLoading] = useState(false);
   const user = useAuthStore((s) => s.user);
 
-  const isIndecent = (v: Video): boolean => {
-    const text = `${v.description || ''}`.toLowerCase();
-    // Heuristic keyword filter (caption/hashtags). Keep simple and user-controlled.
-    const keywords = [
-      'bikini',
-      'lingerie',
-      'sexy',
-      'nude',
-      'nudity',
-      'nsfw',
-      'onlyfans',
-      'porn',
-      'xxx',
-      'boobs',
-      'ass',
-      'tits',
-    ];
-    return keywords.some((k) => text.includes(k));
-  };
-
   useEffect(() => {
     if (activeTab === 'trending') {
       loadTrending();
@@ -103,36 +83,8 @@ export default function Discover() {
       try {
         await fetchFriendVideos();
         if (cancelled) return;
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            location: 'src/pages/Discover.tsx',
-            message: 'fetchFriendVideos complete',
-            hypothesisId: 'D1',
-            runId: 'discover-following-debug',
-            timestamp: Date.now(),
-            data: { userId: user.id },
-          }),
-        }).catch(() => {});
-        // #endregion
-      } catch (e: any) {
+      } catch {
         if (cancelled) return;
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            location: 'src/pages/Discover.tsx',
-            message: 'fetchFriendVideos failed',
-            hypothesisId: 'D1',
-            runId: 'discover-following-debug',
-            timestamp: Date.now(),
-            data: { userId: user.id, error: String(e?.message || e) },
-          }),
-        }).catch(() => {});
-        // #endregion
       }
     })();
     return () => {
@@ -176,7 +128,11 @@ export default function Discover() {
         const profileMap: Record<string, { username: string; avatar_url: string | null }> = {};
         allProfiles.forEach((p: any) => { profileMap[p.user_id] = { username: p.username || 'User', avatar_url: p.avatar_url ?? null }; });
 
-        setTrendingVideos(list.slice(0, 30).map((v: any) => ({
+        const sorted = [...list].sort(
+          (a: any, b: any) => (Number(b.views) || 0) - (Number(a.views) || 0),
+        );
+
+        setTrendingVideos(sorted.slice(0, 30).map((v: any) => ({
           id: v.id,
           user_id: v.userId || v.user_id,
           thumbnail_url: v.thumbnail || v.thumbnail_url || '',
@@ -302,7 +258,7 @@ export default function Discover() {
               className="flex-1 bg-transparent outline-none text-[13px] text-gold-metallic placeholder-[#C9A96E]/30"
             />
             {searchQuery && (
-              <button onClick={() => setSearchQuery('')} className="p-0.5 rounded-full bg-[#13151A] border border-[#C9A96E]/40" title="Clear">
+              <button onClick={() => setSearchQuery('')} className="p-0.5 rounded-full bg-[#13151A] border border-white/15" title="Clear">
                 <span className="text-white/50 text-xs leading-none px-1">✕</span>
               </button>
             )}
@@ -343,7 +299,7 @@ export default function Discover() {
                   <p className="text-white/30 text-xs">Loading friends & followers...</p>
                 </div>
               ) : followingVideosForUi.length > 0 ? (
-                <div className="mb-5 rounded-2xl border border-[#C9A96E]/25 bg-white/[0.02] overflow-hidden">
+                <div className="mb-5 rounded-2xl border border-white/10 bg-white/[0.02] overflow-hidden">
                   <div className="px-3 py-2.5 border-b border-white/10 flex items-center gap-2">
                     <Users className="w-4 h-4 text-[#C9A96E] shrink-0" />
                     <div className="min-w-0">
@@ -369,49 +325,23 @@ export default function Discover() {
                 </div>
               )}
 
-              <div className="flex items-center gap-2 mb-3 px-1">
-                <TrendingUp className="w-4 h-4 text-[#C9A96E]" />
-                <h2 className="text-[14px] font-bold text-gold-metallic">Trending Now</h2>
-              </div>
               {trendingVideos.length > 0 ? (
-                <>
-                  {/* Two containers per row: left = normal, right = indecent */}
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="rounded-2xl border border-white/10 bg-white/[0.02] overflow-hidden">
-                      <div className="px-2.5 py-2 border-b border-white/5 flex items-center justify-between">
-                        <span className="text-[11px] font-bold text-white/80">Trending</span>
-                        <span className="text-[10px] text-white/30">Safe</span>
-                      </div>
-                      <div className="p-2">
-                        {trendingVideos.filter(v => !isIndecent(v)).slice(0, 1).map(video => (
-                          <VideoThumbnail key={video.id} video={video} />
-                        ))}
-                        {trendingVideos.filter(v => !isIndecent(v)).length === 0 && (
-                          <div className="aspect-[9/16] flex items-center justify-center rounded-xl border border-white/10 bg-white/[0.03] text-white/35 text-[11px] text-center px-2">
-                            No clip here
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="rounded-2xl border border-white/10 bg-white/[0.02] overflow-hidden">
-                      <div className="px-2.5 py-2 border-b border-white/5 flex items-center justify-between">
-                        <span className="text-[11px] font-bold text-white/80">Indecent</span>
-                        <span className="text-[10px] text-white/30">Filtered</span>
-                      </div>
-                      <div className="p-2">
-                        {trendingVideos.filter(v => isIndecent(v)).slice(0, 1).map(video => (
-                          <VideoThumbnail key={video.id} video={video} />
-                        ))}
-                        {trendingVideos.filter(v => isIndecent(v)).length === 0 && (
-                          <div className="aspect-[9/16] flex items-center justify-center rounded-xl border border-white/10 bg-white/[0.03] text-white/35 text-[11px] text-center px-2">
-                            No clip here
-                          </div>
-                        )}
-                      </div>
+                <div className="mb-5 rounded-2xl border border-white/10 bg-white/[0.02] overflow-hidden">
+                  <div className="px-3 py-2.5 border-b border-white/10 flex items-center gap-2">
+                    <TrendingUp className="w-4 h-4 text-[#C9A96E] shrink-0" />
+                    <div className="min-w-0">
+                      <h2 className="text-[13px] font-bold text-gold-metallic leading-tight">Trending Now</h2>
+                      <p className="text-[9px] text-white/35 leading-tight mt-0.5">
+                        By views — vertical feed like Friends &amp; For You (all videos, no filters)
+                      </p>
                     </div>
                   </div>
-                </>
+                  <div className="p-3 flex flex-col gap-3 max-w-[320px] mx-auto w-full">
+                    {trendingVideos.map((video) => (
+                      <VideoThumbnail key={video.id} video={video} />
+                    ))}
+                  </div>
+                </div>
               ) : (
                 <EmptyState icon={<TrendingUp className="w-10 h-10" />} text="No trending videos yet" />
               )}
@@ -474,10 +404,10 @@ export default function Discover() {
           {!loading && activeTab === 'ranking' && (
             <div className="px-3 pt-3">
               {/* Banner */}
-              <div className="bg-gradient-to-br from-[#C9A96E]/10 to-[#B8943F]/5 p-4 rounded-2xl mb-3">
+              <div className="bg-gradient-to-br from-white/[0.06] to-white/[0.02] p-4 rounded-2xl mb-3 border border-white/10">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-10 h-10 rounded-xl bg-[#C9A96E]/20 flex items-center justify-center">
-                    <Trophy className="w-5 h-5 text-[#C9A96E]" />
+                  <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
+                    <Trophy className="w-5 h-5 text-white/80" />
                   </div>
                   <div>
                     <h2 className="text-[15px] font-extrabold text-gold-metallic">Weekly Ranking</h2>
@@ -590,7 +520,7 @@ function VideoThumbnail({ video }: { video: Video }) {
   return (
     <div
       ref={containerRef}
-      className="relative aspect-[9/16] bg-[#1C1E24] rounded-xl overflow-hidden w-full border border-[#C9A96E]/20"
+      className="relative aspect-[9/16] bg-[#1C1E24] rounded-xl overflow-hidden w-full border border-white/10"
     >
       <div className="absolute inset-0 cursor-pointer" onClick={() => navigate(`/video/${video.id}`)}>
         {video.url ? (

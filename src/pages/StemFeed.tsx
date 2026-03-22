@@ -126,8 +126,8 @@ export default function StemFeed() {
           <p className="text-white/60 font-semibold text-base mb-1">
             Most viewed
           </p>
-          <p className="text-white/30 text-sm mb-4">
-            No videos yet. Check back later.
+          <p className="text-white/30 text-sm mb-4 text-center px-6">
+            Nothing in the global list yet. STEM uses trending views plus caption-tagged clips.
           </p>
           <button
             onClick={() => fetchStemVideos()}

@@ -16,6 +16,7 @@ import {
 } from '../lib/interactionTracker';
 import { showToast } from '../lib/toast';
 import { getVideoPosterUrl } from '../lib/bunnyStorage';
+import { isStemExtraCaption } from '../lib/suggestiveCaption';
 
 async function withRetry<T>(fn: () => Promise<T>, retries = 3, delay = 2000): Promise<T> {
   for (let i = 0; i <= retries; i++) {
@@ -29,6 +30,65 @@ async function withRetry<T>(fn: () => Promise<T>, retries = 3, delay = 2000): Pr
 }
 
 let _feedFetchPromise: Promise<void> | null = null;
+
+function mapRawVideoRowToClientVideo(
+  v: any,
+  likedSet: Set<string>,
+  savedSet: Set<string>,
+  followingSet: Set<string>,
+): Video {
+  const u = v.user || {};
+  const stats = v.stats || {};
+  const music = v.music || { id: 'original', title: 'Original Sound', artist: u.name || v.displayName || 'Creator', duration: '0:15' };
+  const durationStr =
+    typeof v.duration === 'number' ? `0:${String(v.duration).padStart(2, '0')}` : (v.duration || '0:15');
+  const id = String(v.id || '');
+  const userId = String(u.id || v.userId || 'unknown');
+  const locallySaved = savedSet.has(id);
+  const displayName = u.name || u.username || v.displayName || v.username || 'Creator';
+  return {
+    id,
+    url: v.url,
+    thumbnail: v.thumbnail || getVideoPosterUrl(v.url || ''),
+    duration: durationStr,
+    user: {
+      id: userId,
+      username: u.username || u.name || v.username || 'creator',
+      name: displayName,
+      avatar:
+        u.avatar ||
+        v.avatar ||
+        `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName.slice(0, 1))}`,
+      level: 1,
+      isVerified: !!u.isVerified,
+      followers: u.followers ?? 0,
+      following: u.following ?? 0,
+      isFollowing: followingSet.has(userId),
+    },
+    description: v.description || '',
+    hashtags: Array.isArray(v.hashtags) ? v.hashtags : [],
+    music: {
+      id: music.id || 'original',
+      title: music.title || 'Original Sound',
+      artist: music.artist || 'Creator',
+      duration: typeof music.duration === 'string' ? music.duration : '0:15',
+    },
+    stats: {
+      views: stats.views ?? v.views ?? 0,
+      likes: stats.likes ?? v.likes ?? 0,
+      comments: stats.comments ?? v.comments ?? 0,
+      shares: stats.shares ?? v.shares ?? 0,
+      saves: Math.max(0, Number(stats.saves ?? v.saves ?? 0) || 0) + (locallySaved ? 1 : 0),
+    },
+    createdAt: v.createdAt || v.created_at || new Date().toISOString(),
+    isLiked: likedSet.has(id) || !!v.isLiked,
+    isSaved: savedSet.has(id) || !!v.isSaved,
+    isFollowing: followingSet.has(userId) || !!u.isFollowing,
+    comments: [],
+    quality: 'auto',
+    privacy: v.privacy === 'private' ? 'private' : 'public',
+  };
+}
 
 interface User {
   id: string;
@@ -157,8 +217,12 @@ export const useVideoStore = create<VideoStore>()(
       stemLoading: false,
 
       getVideoById: (videoId: string) => {
-        const { friendVideos, videos } = get();
-        return friendVideos.find((v) => v.id === videoId) ?? videos.find((v) => v.id === videoId);
+        const { friendVideos, videos, stemVideos } = get();
+        return (
+          friendVideos.find((v) => v.id === videoId) ??
+          videos.find((v) => v.id === videoId) ??
+          stemVideos.find((v) => v.id === videoId)
+        );
       },
 
       fetchVideos: async () => {
@@ -194,62 +258,21 @@ export const useVideoStore = create<VideoStore>()(
           const savedSet = new Set(savedVideos);
           const followingSet = new Set(followingUsers);
 
+          const toClientVideo = (v: any) =>
+            mapRawVideoRowToClientVideo(v, likedSet, savedSet, followingSet);
+
           // Use all real backend videos. If backend is empty, show empty state.
           const hasApiVideos = Array.isArray(apiVideos) && apiVideos.length > 0;
           const sourceVideos = hasApiVideos ? apiVideos! : [];
 
-          const mappedVideos: Video[] = sourceVideos.map((v: any) => {
-            const u = v.user || {};
-            const stats = v.stats || {};
-            const music = v.music || { id: 'original', title: 'Original Sound', artist: u.name || 'Creator', duration: '0:15' };
-            const durationStr = typeof v.duration === 'number' ? `0:${String(v.duration).padStart(2, '0')}` : (v.duration || '0:15');
-            const id = String(v.id || '');
-            const locallySaved = savedSet.has(id);
-            return {
-              id,
-              url: v.url,
-              thumbnail: v.thumbnail || getVideoPosterUrl(v.url || ''),
-              duration: durationStr,
-              user: {
-                id: u.id || 'unknown',
-                username: u.username || u.name || 'creator',
-                name: u.name || u.username || 'Creator',
-                avatar: u.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent((u.name || u.username || 'C').slice(0, 1))}`,
-                level: 1,
-                isVerified: !!u.isVerified,
-                followers: u.followers ?? 0,
-                following: u.following ?? 0,
-                isFollowing: followingSet.has(String(u.id || '')),
-              },
-              description: v.description || '',
-              hashtags: Array.isArray(v.hashtags) ? v.hashtags : [],
-              music: {
-                id: music.id || 'original',
-                title: music.title || 'Original Sound',
-                artist: music.artist || 'Creator',
-                duration: typeof music.duration === 'string' ? music.duration : '0:15',
-              },
-              stats: {
-                views: stats.views ?? 0,
-                likes: stats.likes ?? 0,
-                comments: stats.comments ?? 0,
-                shares: stats.shares ?? 0,
-                // If backend doesn't return save counts yet, keep UI stable after refresh.
-                saves: Math.max(0, Number(stats.saves ?? 0) || 0) + (locallySaved ? 1 : 0),
-              },
-              createdAt: v.createdAt || v.created_at || new Date().toISOString(),
-              // Persist like/save/follow UI across refresh using local store.
-              // Backend may not return these flags yet.
-              isLiked: likedSet.has(id) || !!v.isLiked,
-              isSaved: savedSet.has(id) || !!v.isSaved,
-              isFollowing: followingSet.has(String(u.id || '')) || !!u.isFollowing,
-              comments: [],
-              quality: 'auto',
-              privacy: 'public',
-            };
-          });
+          const mappedVideos: Video[] = sourceVideos.map(toClientVideo);
 
-          set({ videos: mappedVideos, mutualFollowIds: mutualFromApi, loading: false });
+          /* For You = only /api/feed/foryou (mutual). Do not merge global or friends here. */
+          set({
+            videos: mappedVideos,
+            mutualFollowIds: mutualFromApi,
+            loading: false,
+          });
         } catch (err) {
           set({ loading: false });
           if (!navigator.onLine) showToast('No internet connection');
@@ -263,13 +286,43 @@ export const useVideoStore = create<VideoStore>()(
       fetchStemVideos: async () => {
         set({ stemLoading: true });
         try {
-          // STEM is a "most viewed" slice of For You.
-          // Keep videos on For You; also show any video with >= 5k views here.
-          const state = get();
-          const source = (state.videos || []).filter((v) => (v.stats?.views ?? 0) >= 5000);
-          const sorted = [...source].sort((a, b) => (b.stats?.views ?? 0) - (a.stats?.views ?? 0));
-          set({ stemVideos: sorted.slice(0, 50), stemLoading: false });
-        } catch (err) {
+          const session = useAuthStore.getState().session;
+          const headers: Record<string, string> = {};
+          if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+
+          const { likedVideos, savedVideos, followingUsers } = get();
+          const likedSet = new Set(likedVideos);
+          const savedSet = new Set(savedVideos);
+          const followingSet = new Set(followingUsers);
+
+          const res = await fetch(apiUrl('/api/videos'), { credentials: 'include', headers });
+          if (!res.ok) {
+            set({ stemVideos: [], stemLoading: false });
+            return;
+          }
+          const body = await res.json().catch(() => ({ videos: [] }));
+          const rawList = Array.isArray(body?.videos) ? body.videos : [];
+          const eligible = rawList.filter((v: any) => {
+            if (v.privacy === 'private') return false;
+            return !!(v.url || '').toString().trim();
+          });
+          const mapped = eligible.map((v: any) =>
+            mapRawVideoRowToClientVideo(v, likedSet, savedSet, followingSet),
+          );
+          const byViews = [...mapped].sort((a, b) => (b.stats.views ?? 0) - (a.stats.views ?? 0));
+
+          /* Global trending by views first (like Explore), then extra suggestive / indecentish slots */
+          const topTrending = byViews.slice(0, 40);
+          const seen = new Set(topTrending.map((x) => x.id));
+          const extraPool = byViews.filter(
+            (x) =>
+              !seen.has(x.id) &&
+              isStemExtraCaption(x.description, x.hashtags),
+          );
+          const stemList = [...topTrending, ...extraPool.slice(0, 20)].slice(0, 55);
+
+          set({ stemVideos: stemList, stemLoading: false });
+        } catch {
           set({ stemLoading: false });
         }
       },

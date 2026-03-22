@@ -375,8 +375,14 @@ export default function Inbox() {
             <button onClick={() => navigate('/search')} aria-label="Search"><Search size={18} className="text-white" /></button>
           </div>
           <h1 className="text-sm font-bold text-white absolute left-1/2 transform -translate-x-1/2">Inbox</h1>
-          <button onClick={() => navigate(-1)} className="p-1 z-10" title="Close">
-            <img src="/Icons/Gold power buton.png" alt="Close" className="w-5 h-5" />
+          <button
+            type="button"
+            onClick={() => navigate("/feed", { replace: true })}
+            className="p-1 z-10"
+            title="Close"
+            aria-label="Close inbox and go to For You"
+          >
+            <img src="/Icons/Gold power buton.png" alt="" className="w-5 h-5" />
           </button>
         </div>
 

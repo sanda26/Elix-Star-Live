@@ -212,16 +212,6 @@ export default function VideoCall() {
           </div>
         )}
 
-        {/* Back button */}
-        <button
-          onClick={() => navigate(-1)}
-          title="Go back"
-          className="absolute top-12 left-4 w-10 h-10 rounded-full bg-[#13151A] border border-[#C9A96E]/40 flex items-center justify-center relative"
-        >
-          <img src="/Icons/Gold power buton.png" alt="Back" className="w-5 h-5 relative z-[2]" />
-          <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-125 translate-y-0.5" />
-        </button>
-
         {/* Timer / Status */}
         {status === 'connected' && (
           <div className="absolute top-12 left-1/2 -translate-x-1/2 bg-[#13151A]/50 px-4 py-1 rounded-full">

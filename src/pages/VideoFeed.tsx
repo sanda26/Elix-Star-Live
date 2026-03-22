@@ -487,7 +487,7 @@ export default function VideoFeed() {
       <div
         ref={containerRef}
         className="flex-1 min-h-0 w-full overflow-y-scroll snap-y snap-mandatory relative"
-        style={{ scrollSnapType: "y mandatory", marginTop: "-8mm" }}
+        style={{ scrollSnapType: "y mandatory", marginTop: "-4mm" }}
         onScroll={handleScroll}
       >
         {feedItems.map((item, index) => {
@@ -495,7 +495,7 @@ export default function VideoFeed() {
             scrollSnapAlign: "start",
             scrollSnapStop: "always",
             boxSizing: "border-box",
-            paddingTop: "var(--topbar-total)",
+            paddingTop: "0",
           };
 
           if (item.kind === "live") {

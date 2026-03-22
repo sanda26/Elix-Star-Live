@@ -364,8 +364,8 @@ export default function Inbox() {
   return (
     <div className="fixed inset-0 bg-[#13151A] flex justify-center">
       <div
-        className="w-full max-w-[480px] flex flex-col overflow-hidden"
-        style={{ height: 'calc(100vh - 3.6cm)', marginTop: 0 }}
+        className="w-full max-w-[480px] flex flex-col overflow-hidden h-above-bottom-nav"
+        style={{ marginTop: 0 }}
       >
 
         {/* Header + Circles with gold frame — same as Friends */}
@@ -840,7 +840,7 @@ export default function Inbox() {
             onClick={() => setShowNewFollowersPanel(false)}
             aria-hidden
           />
-          <div className="fixed left-0 right-0 pointer-events-auto max-w-[480px] mx-auto z-[101]" style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + var(--nav-height))' }}>
+          <div className="fixed left-0 right-0 pointer-events-auto max-w-[480px] mx-auto z-[101]" style={{ bottom: 'var(--bottom-ui-reserve)' }}>
             <div className="bg-[#1C1E24]/95 backdrop-blur-md rounded-t-2xl p-3 pb-4 overflow-y-scroll shadow-2xl w-full border-t border-[#C9A96E]/20 new-followers-panel-scroll" style={{ minHeight: 'calc(55dvh - 3cm)', maxHeight: 'calc(min(85dvh, 700px) - 3cm)' }}>
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-lg font-bold text-gold-metallic">Followers ({followersCount})</h2>

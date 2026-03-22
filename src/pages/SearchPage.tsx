@@ -205,8 +205,8 @@ export default function SearchPage() {
         style={{ transform: visible ? 'translateY(0)' : 'translateY(100%)' }}
       >
         <div
-          className="w-full max-w-[480px] bg-[#13151A] border border-white/10 flex flex-col overflow-hidden pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)]"
-          style={{ boxShadow: '0 -8px 30px rgba(0,0,0,0.5)', height: 'calc(100vh - 2.6cm)', marginTop: 0 }}
+          className="w-full max-w-[480px] bg-[#13151A] border border-white/10 flex flex-col overflow-hidden pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)] h-above-bottom-nav"
+          style={{ boxShadow: '0 -8px 30px rgba(0,0,0,0.5)', marginTop: 0 }}
         >
           {/* Top: drag handle + power (back) — swipe down here to close */}
           <div

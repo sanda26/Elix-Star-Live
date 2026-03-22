@@ -204,7 +204,9 @@ function App() {
     location.pathname.startsWith("/create/") ||
     location.pathname === "/upload" ||
     location.pathname === "/login" ||
-    location.pathname === "/register";
+    location.pathname === "/register" ||
+    location.pathname === "/call" ||
+    location.pathname.startsWith("/inbox/");
   const showBottomNav = isAuthenticated && !isNavHidden;
 
   // Public routes that don't require authentication

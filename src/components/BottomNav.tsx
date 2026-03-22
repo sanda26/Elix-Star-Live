@@ -16,7 +16,9 @@ export const BottomNav = () => {
     location.pathname.startsWith("/create/") ||
     location.pathname === "/upload" ||
     location.pathname === "/login" ||
-    location.pathname === "/register"
+    location.pathname === "/register" ||
+    location.pathname === "/call" ||
+    location.pathname.startsWith("/inbox/")
   ) {
     return null;
   }

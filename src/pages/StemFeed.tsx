@@ -101,7 +101,7 @@ export default function StemFeed() {
         >
           <div
             className="w-full max-w-[480px] relative"
-            style={{ height: "calc(100vh - 3.6cm)", marginTop: "1.1cm" }}
+            style={{ height: "calc(100dvh - var(--bottom-ui-reserve) - 1.1cm)", marginTop: "1.1cm" }}
           >
             <EnhancedVideoPlayer
               videoId={video.id}

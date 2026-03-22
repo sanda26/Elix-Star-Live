@@ -234,8 +234,8 @@ export default function Discover() {
   return (
     <div className="fixed inset-0 bg-[#13151A] text-white flex justify-center">
       <div
-        className="w-full max-w-[480px] flex flex-col overflow-hidden"
-        style={{ height: 'calc(100vh - 3.6cm)', marginTop: 0 }}
+        className="w-full max-w-[480px] flex flex-col overflow-hidden h-above-bottom-nav"
+        style={{ marginTop: 0 }}
       >
 
         {/* ═══ HEADER (like before) ═══ */}

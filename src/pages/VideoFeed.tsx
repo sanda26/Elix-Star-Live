@@ -496,7 +496,7 @@ export default function VideoFeed() {
             scrollSnapStop: "always",
             boxSizing: "border-box",
             /* Solid #0A0B0E shows here — video never draws under the top bar */
-            paddingTop: "var(--feed-slide-pad-top, calc(var(--topbar-total) + 12px))",
+            paddingTop: "var(--feed-slide-pad-top)",
           };
 
           if (item.kind === "live") {

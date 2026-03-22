@@ -147,8 +147,8 @@ export default function LiveDiscover() {
   return (
     <div className="fixed inset-0 bg-[#0A0B0E] flex justify-center overflow-hidden">
       <div
-        className="relative w-full max-w-[480px] flex flex-col"
-        style={{ height: 'calc(100vh - 3.6cm)', marginTop: 0 }}
+        className="relative w-full max-w-[480px] flex flex-col h-[100dvh] max-h-[100dvh]"
+        style={{ marginTop: 0 }}
       >
 
         {/* Header */}

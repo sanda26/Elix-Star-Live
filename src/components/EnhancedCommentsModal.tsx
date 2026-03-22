@@ -387,7 +387,7 @@ export default function CommentsModal({ isOpen, onClose, videoId }: CommentsModa
     >
       <div
         className="bg-[#1C1E24]/95 rounded-t-2xl p-3 pb-safe h-1/2 w-full max-w-[480px] shadow-2xl flex flex-col border-2 border-b-0 border-[#C9A96E]"
-        style={{ marginBottom: 'calc(var(--nav-height) + var(--safe-bottom) + 5mm)', boxShadow: '0 -4px 30px rgba(201,169,110,0.25)' }}
+        style={{ marginBottom: 'calc(var(--nav-height) + var(--safe-bottom))', boxShadow: '0 -4px 30px rgba(201,169,110,0.25)' }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-2">
@@ -423,7 +423,7 @@ export default function CommentsModal({ isOpen, onClose, videoId }: CommentsModa
           )}
         </div>
 
-        <div className="pt-3 mt-2 border-t border-white/10">
+        <div className="pt-3 mt-2 border-t border-white/10" style={{ transform: 'translateY(-5mm)' }}>
           <div className="flex gap-2 items-center">
             {/* Input area avatar updated to LevelBadge */}
             <div className="flex-shrink-0">

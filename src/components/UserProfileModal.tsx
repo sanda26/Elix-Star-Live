@@ -319,12 +319,25 @@ export default function UserProfileModal({ isOpen, onClose, user, onFollow }: Us
                   <div key={video.id} onClick={() => { onClose(); navigate(`/video/${video.id}`); }} className="aspect-[3/4] bg-[#0A0B0E] rounded-xl overflow-hidden relative cursor-pointer">
                     <video
                       src={video.url}
+                      poster={video.thumbnail || undefined}
                       muted
                       autoPlay
                       loop
                       playsInline
                       className="w-full h-full object-cover"
+                      ref={(el) => { if (el) el.play().catch(() => {}); }}
                     />
+                    {video.thumbnail && (
+                      <img
+                        src={video.thumbnail}
+                        alt=""
+                        className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+                        onLoad={(e) => {
+                          const vid = (e.target as HTMLImageElement).parentElement?.querySelector('video');
+                          if (vid) vid.addEventListener('playing', () => { (e.target as HTMLImageElement).style.display = 'none'; }, { once: true });
+                        }}
+                      />
+                    )}
                     <div className="absolute bottom-1.5 left-1.5 text-[10px] font-bold text-white drop-shadow-md flex items-center gap-0.5">
                       <Play size={10} fill="white" />
                       {formatNumber(video.stats?.views || 0)}

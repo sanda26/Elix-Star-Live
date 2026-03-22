@@ -568,29 +568,38 @@ export default function Profile() {
               <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 pb-4">
                 {/* Create + Followers row — same as LiveStream share panel */}
                 <div className="w-full overflow-hidden shrink-0 mb-3">
-                  <div className="flex gap-3 overflow-x-auto pb-3 no-scrollbar items-center px-4" style={{ marginLeft: '-2mm' }}>
-                    <button type="button" onClick={() => { setShowSharePanel(false); navigate('/create'); }} className="flex-shrink-0 flex flex-col items-center gap-1.5 min-w-[80px] active:scale-95 transition-transform">
-                      <div className="relative w-20 h-20 flex items-center justify-center">
-                        <img src="/Icons/Profile icon.png" alt="" className="w-full h-full object-contain" />
+                  <div className="flex gap-3 overflow-x-auto pb-3 no-scrollbar items-center px-4">
+                    <button type="button" onClick={() => { setShowSharePanel(false); navigate('/create'); }} className="flex-shrink-0 flex flex-col items-center gap-1 active:scale-95 transition-transform" style={{ width: 95, minWidth: 95 }}>
+                      <div className="relative w-[85px] h-[85px] flex items-center justify-center">
+                        <StoryGoldRingAvatar
+                          size={85}
+                          src={displayAvatar || '/Icons/Profile icon.png'}
+                          alt="Create"
+                        />
                         <Plus size={28} className="text-[#C9A96E] absolute" strokeWidth={2.5} />
                       </div>
                       <span className="text-white/80 text-[11px] font-medium">Create</span>
                     </button>
                     {shareFollowers.map((f) => (
-                      <button key={f.user_id} className="flex flex-col items-center gap-1 min-w-[64px] active:scale-95 transition-transform" style={{ marginTop: '6mm' }} onClick={() => sendShareTo(f.user_id)}>
-                        <div className="relative">
-                          <AvatarRing
+                      <button
+                        key={f.user_id}
+                        className="flex-shrink-0 flex flex-col items-center gap-1 active:scale-95 transition-transform"
+                        style={{ width: 95, minWidth: 95 }}
+                        onClick={() => sendShareTo(f.user_id)}
+                      >
+                        <div className="relative w-[95px] min-w-[95px] flex flex-col items-center gap-1">
+                          <StoryGoldRingAvatar
+                            size={85}
                             src={f.avatar_url || '/Icons/Profile icon.png'}
                             alt={f.username || 'User'}
-                            size={56}
                           />
                           {shareSent.has(f.user_id) && (
                             <div className="absolute bottom-0 right-0 w-4 h-4 bg-[#C9A96E] rounded-full flex items-center justify-center border-2 border-[#1C1E24]">
                               <Check size={8} className="text-black" />
                             </div>
                           )}
+                          <span className="text-white/80 text-[11px] font-medium truncate w-full text-center">{shareSent.has(f.user_id) ? 'Sent' : f.username || 'User'}</span>
                         </div>
-                        <span className="text-white/60 text-[10px] font-medium truncate w-16 text-center">{shareSent.has(f.user_id) ? 'Sent' : f.username || 'User'}</span>
                       </button>
                     ))}
                   </div>

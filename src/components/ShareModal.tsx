@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { apiStub } from '../lib/apiStub';
 import { useAuthStore } from '../store/useAuthStore';
-import { AvatarRing } from './AvatarRing';
+import { StoryGoldRingAvatar } from './StoryGoldRingAvatar';
 import PromotePanel from './PromotePanel';
 import { nativeConfirm } from './NativeDialog';
 
@@ -139,14 +139,15 @@ export default function ShareModal({ isOpen, onClose, video, onReport, onJoin, i
         </div>
 
         {/* Create + Followers row — same as LiveStream share panel */}
-        <div className="flex gap-3 overflow-x-auto overflow-y-hidden pb-3 flex-shrink-0 px-4 no-scrollbar" style={{ marginLeft: '-2mm' }}>
+        <div className="flex gap-3 overflow-x-auto overflow-y-hidden pb-3 flex-shrink-0 px-4 no-scrollbar">
           <button
             type="button"
             onClick={() => { onClose(); navigate('/create'); }}
-            className="flex flex-col items-center gap-1.5 min-w-[80px] active:scale-95 transition-transform flex-shrink-0"
+            className="flex-shrink-0 flex flex-col items-center gap-1 active:scale-95 transition-transform"
+            style={{ width: 95, minWidth: 95 }}
           >
-            <div className="relative w-20 h-20 flex items-center justify-center">
-              <img src="/Icons/Profile icon.png" alt="" className="w-full h-full object-contain" />
+            <div className="relative w-[85px] h-[85px] flex items-center justify-center">
+              <StoryGoldRingAvatar size={85} src={user?.avatar || '/Icons/Profile icon.png'} alt="Create" />
               <Plus size={28} className="text-[#C9A96E] absolute" strokeWidth={2.5} />
             </div>
             <span className="text-white/80 text-[11px] font-medium">Create</span>
@@ -154,12 +155,12 @@ export default function ShareModal({ isOpen, onClose, video, onReport, onJoin, i
           {filteredFollowers.length > 0 && filteredFollowers.map((f) => (
             <button
               key={f.user_id}
-              className="flex flex-col items-center gap-1 min-w-[64px] flex-shrink-0 active:scale-95 transition-transform"
-              style={{ marginTop: '6mm' }}
+              className="flex-shrink-0 flex flex-col items-center gap-1 active:scale-95 transition-transform"
+              style={{ width: 95, minWidth: 95 }}
               onClick={() => sendShareTo(f.user_id)}
             >
-              <AvatarRing src={f.avatar_url || '/Icons/Profile icon.png'} alt={f.username} size={56} />
-              <span className="text-white/60 text-[10px] font-medium truncate w-16 text-center">
+              <StoryGoldRingAvatar size={85} src={f.avatar_url || '/Icons/Profile icon.png'} alt={f.username} />
+              <span className="text-white/80 text-[11px] font-medium truncate w-full text-center">
                 {sentTo.has(f.user_id) ? 'Sent' : f.username || 'User'}
               </span>
             </button>

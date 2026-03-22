@@ -36,6 +36,7 @@ import { GiftOverlay } from '../components/GiftOverlay';
 import GiftAnimationOverlay from '../components/GiftAnimationOverlay';
 import { ChatOverlay } from '../components/ChatOverlay';
 import { AvatarRing } from '../components/AvatarRing';
+import { StoryGoldRingAvatar } from '../components/StoryGoldRingAvatar';
 import { GoldProfileFrame } from '../components/GoldProfileFrame';
 import { useAuthStore } from '../store/useAuthStore';
 import { useVideoStore } from '../store/useVideoStore';
@@ -2353,10 +2354,10 @@ export default function SpectatorPage() {
                   </div>
                 </div>
                 <div className="w-full overflow-hidden shrink-0">
-                  <div className="flex gap-3 overflow-x-auto pb-3 no-scrollbar items-center px-4" style={{ marginLeft: '-2mm' }}>
-                    <button type="button" onClick={() => { setShowSharePanel(false); navigate('/create'); }} className="flex-shrink-0 flex flex-col items-center gap-1.5 min-w-[80px] active:scale-95 transition-transform">
-                      <div className="relative w-20 h-20 flex items-center justify-center">
-                        <img src="/Icons/Profile icon.png" alt="" className="w-full h-full object-contain" />
+                  <div className="flex gap-3 overflow-x-auto pb-3 no-scrollbar items-center px-4">
+                    <button type="button" onClick={() => { setShowSharePanel(false); navigate('/create'); }} className="flex-shrink-0 flex flex-col items-center gap-1 active:scale-95 transition-transform" style={{ width: 95, minWidth: 95 }}>
+                      <div className="relative w-[85px] h-[85px] flex items-center justify-center">
+                        <StoryGoldRingAvatar size={85} src={user?.avatar || '/Icons/Profile icon.png'} alt="Create" />
                         <Plus size={28} className="text-[#C9A96E] absolute" strokeWidth={2.5} />
                       </div>
                       <span className="text-white/80 text-[11px] font-medium">Create</span>
@@ -2364,8 +2365,8 @@ export default function SpectatorPage() {
                     {shareContacts.filter(c => c.name.toLowerCase().includes(shareQuery.toLowerCase())).map((u) => (
                       <button
                         key={u.id}
-                        className="flex flex-col items-center gap-1 min-w-[64px] active:scale-95 transition-transform"
-                        style={{ marginTop: '6mm' }}
+                        className="flex-shrink-0 flex flex-col items-center gap-1 active:scale-95 transition-transform"
+                        style={{ width: 95, minWidth: 95 }}
                         onClick={async () => {
                           setShowSharePanel(false);
                           if (!user?.id) {
@@ -2403,8 +2404,8 @@ export default function SpectatorPage() {
                           }
                         }}
                       >
-                        <AvatarRing src={u.avatar || '/Icons/Profile icon.png'} alt={u.name} size={56} />
-                        <span className="text-white/60 text-[10px] font-medium truncate w-16 text-center">{u.name}</span>
+                        <StoryGoldRingAvatar size={85} src={u.avatar || '/Icons/Profile icon.png'} alt={u.name} />
+                        <span className="text-white/80 text-[11px] font-medium truncate w-full text-center">{u.name}</span>
                       </button>
                     ))}
                   </div>

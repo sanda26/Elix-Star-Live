@@ -482,69 +482,61 @@ export default function VideoFeed() {
   /*  Render                                                           */
   /* ================================================================ */
   return (
-    <div
-      ref={containerRef}
-      className="h-[100dvh] w-full overflow-y-scroll snap-y snap-mandatory relative bg-[#0A0B0E]"
-      style={{ scrollSnapType: "y mandatory" }}
-      onScroll={handleScroll}
-    >
-      {/* Spacer so first video starts below top bar (auto-adjusts to safe area + bar) */}
-      <div style={{ height: "var(--topbar-total, 120px)" }} />
+    <div className="h-full min-h-0 w-full flex flex-col bg-[#0A0B0E]">
+      {/* Fills main between fixed TopNav and BottomNav; each slide is one viewport tall */}
+      <div
+        ref={containerRef}
+        className="flex-1 min-h-0 w-full overflow-y-scroll snap-y snap-mandatory relative"
+        style={{ scrollSnapType: "y mandatory" }}
+        onScroll={handleScroll}
+      >
+        {feedItems.map((item, index) => {
+          const slideStyle: React.CSSProperties = {
+            scrollSnapAlign: "start",
+            scrollSnapStop: "always",
+            boxSizing: "border-box",
+            /* Solid #0A0B0E shows here — video never draws under the top bar */
+            paddingTop: "var(--feed-slide-pad-top, calc(var(--topbar-total) + 12px))",
+          };
 
-      {/* ============================================================ */}
-      {/*  Feed items: live streams first, then videos                  */}
-      {/* ============================================================ */}
-      {feedItems.map((item, index) => {
-        if (item.kind === "live") {
+          if (item.kind === "live") {
+            return (
+              <div
+                key={`live-${item.stream.streamKey}`}
+                data-feed-index={index}
+                className="h-full w-full shrink-0 snap-start flex flex-col items-center bg-[#0A0B0E]"
+                style={slideStyle}
+              >
+                <div className="w-full max-w-[480px] flex-1 min-h-0 relative border-2 border-black overflow-hidden bg-[#0A0B0E]">
+                  <InlineLiveViewer
+                    streamKey={item.stream.streamKey}
+                    isActive={activeIndex === index}
+                    creatorName={item.stream.name}
+                    creatorAvatar={item.stream.avatar}
+                    viewerCount={item.stream.viewers}
+                  />
+                </div>
+              </div>
+            );
+          }
+
           return (
             <div
-              key={`live-${item.stream.streamKey}`}
+              key={`video-${item.videoId}-${index}`}
               data-feed-index={index}
-              className="h-[100dvh] w-full snap-start relative flex justify-center bg-[#0A0B0E]"
-              style={{ scrollSnapAlign: "start", scrollSnapStop: "always" }}
+              className="h-full w-full shrink-0 snap-start flex flex-col items-center bg-[#0A0B0E]"
+              style={slideStyle}
             >
-            <div
-              className="w-full max-w-[480px] relative border-2 border-black overflow-hidden bg-[#0A0B0E]"
-              style={{
-                height: "calc(100dvh - var(--topbar-total, 120px) - 1rem - 2cm)",
-                marginTop: "25mm",
-              }}
-            >
-              <InlineLiveViewer
-                  streamKey={item.stream.streamKey}
+              <div className="w-full max-w-[480px] flex-1 min-h-0 relative border-2 border-black overflow-hidden bg-[#0A0B0E]">
+                <EnhancedVideoPlayer
+                  videoId={item.videoId}
                   isActive={activeIndex === index}
-                  creatorName={item.stream.name}
-                  creatorAvatar={item.stream.avatar}
-                  viewerCount={item.stream.viewers}
+                  onVideoEnd={() => handleVideoEnd(index)}
                 />
               </div>
             </div>
           );
-        }
-
-        return (
-          <div
-            key={`video-${item.videoId}-${index}`}
-            data-feed-index={index}
-            className="h-[100dvh] w-full snap-start relative flex justify-center bg-[#0A0B0E]"
-            style={{ scrollSnapAlign: "start", scrollSnapStop: "always" }}
-          >
-            <div
-              className="w-full max-w-[480px] relative border-2 border-black overflow-hidden bg-[#0A0B0E]"
-              style={{
-                height: "calc(100dvh - var(--topbar-total, 120px) - 1rem - 2cm)",
-                marginTop: "25mm",
-              }}
-            >
-              <EnhancedVideoPlayer
-                videoId={item.videoId}
-                isActive={activeIndex === index}
-                onVideoEnd={() => handleVideoEnd(index)}
-              />
-            </div>
-          </div>
-        );
-      })}
+        })}
 
       {/* ---- Loading spinner ---- */}
       {loading && feedItems.length === 0 && (
@@ -578,6 +570,7 @@ export default function VideoFeed() {
           </button>
         </div>
       )}
+      </div>
     </div>
   );
 }

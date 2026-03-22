@@ -15,6 +15,8 @@ import {
   Copy,
   Users2,
   Play,
+  SkipBack,
+  SkipForward,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useVideoStore } from '../store/useVideoStore';
@@ -125,6 +127,7 @@ export default function EnhancedVideoPlayer({
   const duetOriginalRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const progressTrackRef = useRef<HTMLDivElement>(null);
   const isActiveRef = useRef(isActive);
   isActiveRef.current = isActive;
   
@@ -147,7 +150,8 @@ export default function EnhancedVideoPlayer({
   const [isDoubleClick, setIsDoubleClick] = useState(false);
   const [showHeartAnimation, setShowHeartAnimation] = useState(false);
   const [duetOriginalUrl, setDuetOriginalUrl] = useState<string | null>(null);
-  
+  const [scrubbing, setScrubbing] = useState(false);
+
   const navigate = useNavigate();
   const { muteAllSounds } = useSettingsStore();
   const { 
@@ -180,6 +184,67 @@ export default function EnhancedVideoPlayer({
     })();
     return () => { cancelled = true; };
   }, [video?.duetWithVideoId, originalVideo]);
+
+  const seekAllTo = useCallback(
+    (seconds: number) => {
+      const main = videoRef.current;
+      const d =
+        main && Number.isFinite(main.duration) && main.duration > 0
+          ? main.duration
+          : duration;
+      if (!main || !Number.isFinite(d) || d <= 0) return;
+      const t = Math.max(0, Math.min(d, seconds));
+      main.currentTime = t;
+      if (isDuetLayout && duetOriginalRef.current) {
+        const d2 = duetOriginalRef.current.duration;
+        duetOriginalRef.current.currentTime =
+          Number.isFinite(d2) && d2 > 0 ? Math.min(t, d2) : t;
+      }
+    },
+    [duration, isDuetLayout],
+  );
+
+  const seekFromClientX = useCallback(
+    (clientX: number) => {
+      const el = progressTrackRef.current;
+      const main = videoRef.current;
+      const d =
+        main && Number.isFinite(main.duration) && main.duration > 0
+          ? main.duration
+          : duration;
+      if (!el || !Number.isFinite(d) || d <= 0) return;
+      const rect = el.getBoundingClientRect();
+      const pct =
+        rect.width > 0
+          ? Math.min(1, Math.max(0, (clientX - rect.left) / rect.width))
+          : 0;
+      seekAllTo(pct * d);
+    },
+    [duration, seekAllTo],
+  );
+
+  const skipBy = useCallback(
+    (deltaSec: number) => {
+      const main = videoRef.current;
+      if (!main) return;
+      seekAllTo(main.currentTime + deltaSec);
+    },
+    [seekAllTo],
+  );
+
+  useEffect(() => {
+    if (!scrubbing) return;
+    const move = (e: PointerEvent) => seekFromClientX(e.clientX);
+    const end = () => setScrubbing(false);
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', end);
+    window.addEventListener('pointercancel', end);
+    return () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', end);
+      window.removeEventListener('pointercancel', end);
+    };
+  }, [scrubbing, seekFromClientX]);
   
   // Video playback controls
   const togglePlay = useCallback(() => {
@@ -659,16 +724,71 @@ export default function EnhancedVideoPlayer({
           </div>
         )}
 
-        <div className="absolute bottom-3 left-3 right-3 h-1.5 rounded-full overflow-hidden shadow-lg">
-          <div
-            className="h-full bg-gradient-to-r from-[#C9A96E] via-[#00c2be] to-[#C9A96E] relative overflow-hidden"
-            style={{
-              width: `${duration > 0 ? Math.min(100, Math.max(0, (currentTime / duration) * 100)) : 0}%`,
-              boxShadow: '0 0 10px rgba(201, 169, 110, 0.6)',
+        <div
+          className="absolute left-2 z-[16] flex items-center gap-2 pointer-events-auto"
+          style={{
+            right: '4.5rem',
+            bottom: 'var(--video-progress-bottom, 7rem)',
+          }}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          <button
+            type="button"
+            aria-label="Back 10 seconds"
+            className="flex-shrink-0 w-9 h-9 rounded-full bg-black/60 border border-white/15 flex items-center justify-center text-white shadow-lg active:scale-95 touch-manipulation"
+            onClick={(e) => {
+              e.stopPropagation();
+              skipBy(-10);
             }}
           >
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
+            <SkipBack className="w-5 h-5" strokeWidth={2.2} />
+          </button>
+          <div
+            ref={progressTrackRef}
+            role="slider"
+            tabIndex={0}
+            aria-valuenow={Number.isFinite(currentTime) ? Math.round(currentTime) : 0}
+            aria-valuemin={0}
+            aria-valuemax={Number.isFinite(duration) && duration > 0 ? Math.round(duration) : 0}
+            className="flex-1 min-w-0 h-3 rounded-full bg-black/45 overflow-hidden touch-none cursor-pointer py-1.5 px-0"
+            style={{ boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.12)' }}
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              setScrubbing(true);
+              seekFromClientX(e.clientX);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'ArrowLeft') {
+                e.preventDefault();
+                skipBy(-5);
+              } else if (e.key === 'ArrowRight') {
+                e.preventDefault();
+                skipBy(5);
+              }
+            }}
+          >
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-[#C9A96E] via-[#00c2be] to-[#C9A96E] relative overflow-hidden pointer-events-none"
+              style={{
+                width: `${duration > 0 ? Math.min(100, Math.max(0, (currentTime / duration) * 100)) : 0}%`,
+                boxShadow: '0 0 10px rgba(201, 169, 110, 0.6)',
+              }}
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
+            </div>
           </div>
+          <button
+            type="button"
+            aria-label="Forward 10 seconds"
+            className="flex-shrink-0 w-9 h-9 rounded-full bg-black/60 border border-white/15 flex items-center justify-center text-white shadow-lg active:scale-95 touch-manipulation"
+            onClick={(e) => {
+              e.stopPropagation();
+              skipBy(10);
+            }}
+          >
+            <SkipForward className="w-5 h-5" strokeWidth={2.2} />
+          </button>
         </div>
 
         {/* Heart animation for double click */}

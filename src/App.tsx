@@ -261,9 +261,11 @@ function App() {
       <TopNav />
       <main
         className={cn(
-          "flex-1 w-full min-h-0 mx-auto max-w-[480px] overflow-auto",
-          showBottomNav && !isFullScreen && "pt-topbar pb-nav",
+          "flex-1 w-full min-h-0 mx-auto max-w-[480px] overflow-auto bg-background",
+          showBottomNav && !isFullScreen && "pt-topbar",
           (!showBottomNav || isFullScreen) && "pt-[3mm]",
+          /* Fullscreen feeds still use fixed BottomNav — pad so video never sits under it */
+          showBottomNav && "pb-nav",
         )}
       >
         <ErrorBoundary>

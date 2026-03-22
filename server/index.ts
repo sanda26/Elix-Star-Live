@@ -1649,19 +1649,23 @@ async function handleMessage(client: Client, event: string, data: any) {
         }
 
         // Auto-score gifts in active battles — use server-side gift value, NOT client
-        const activeBattle = battles.get(client.roomId);
+        // Look up battle by client's room first, then by userBattleRoom (opponent is in their own room)
+        const battleRoomId = battles.has(client.roomId)
+          ? client.roomId
+          : userBattleRoom.get(client.userId) || client.roomId;
+        const activeBattle = battles.get(battleRoomId);
         if (activeBattle && activeBattle.status === "ACTIVE") {
           const serverGiftValue = getGiftValue(data.giftId);
           if (serverGiftValue > 0) {
             const normalizedTarget = normalizeBattleTarget(data.battleTarget);
             if (normalizedTarget) {
               addBattleScoreForTarget(
-                client.roomId,
+                battleRoomId,
                 normalizedTarget,
                 serverGiftValue,
               );
             } else {
-              addBattleScoreForTarget(client.roomId, "host", serverGiftValue);
+              addBattleScoreForTarget(battleRoomId, "host", serverGiftValue);
             }
           }
         }

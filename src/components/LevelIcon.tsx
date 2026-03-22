@@ -74,6 +74,7 @@ export const LevelIcon: React.FC<LevelIconProps> = ({
                 display: 'block',
                 objectFit: 'cover',
                 objectPosition: 'center center',
+                transform: 'translateY(-2mm)',
               }}
             />
           ) : null}

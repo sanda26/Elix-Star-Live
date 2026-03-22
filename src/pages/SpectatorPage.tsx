@@ -1359,7 +1359,7 @@ export default function SpectatorPage() {
       creator_name: hostName || 'Creator',
       host_user_id: hostUserId || effectiveStreamId,
       ...(spectatorBattle?.active
-        ? { battleTarget: spectatorGiftBattleTarget === 'host' ? 'me' : 'opponent' }
+        ? { battleTarget: spectatorGiftBattleTarget }
         : {}),
     });
     // #region agent log

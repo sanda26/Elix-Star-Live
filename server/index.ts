@@ -1701,19 +1701,24 @@ async function handleMessage(client: Client, event: string, data: any) {
         if (activeBattle && activeBattle.status === "ACTIVE") {
           const serverGiftValue = getGiftValue(data.giftId);
           if (serverGiftValue > 0) {
-            const normalizedTarget = normalizeBattleTarget(data.battleTarget);
-            // #region agent log
-            console.log(`[DBG-7a7f0c] gift_sent scoring: userId=${client.userId} roomId=${client.roomId} battleRoomId=${battleRoomId} rawTarget=${data.battleTarget} normalized=${normalizedTarget} giftId=${data.giftId} value=${serverGiftValue} hostId=${activeBattle.hostUserId} oppId=${activeBattle.opponentUserId} hostScore=${activeBattle.hostScore} oppScore=${activeBattle.opponentScore}`);
-            // #endregion
-            if (normalizedTarget) {
-              addBattleScoreForTarget(
-                battleRoomId,
-                normalizedTarget,
-                serverGiftValue,
-              );
-            } else {
-              addBattleScoreForTarget(battleRoomId, "host", serverGiftValue);
+            let normalizedTarget = normalizeBattleTarget(data.battleTarget);
+            // If gift came from opponent's room and target is 'me'/'host', flip to 'opponent'
+            if (client.roomId === activeBattle.opponentRoomId && client.roomId !== battleRoomId) {
+              if (!normalizedTarget || normalizedTarget === "host") normalizedTarget = "opponent";
+              else if (normalizedTarget === "opponent") normalizedTarget = "host";
             }
+            // If sender IS the opponent, 'me' should score opponent
+            if (!normalizedTarget && client.userId === activeBattle.opponentUserId) {
+              normalizedTarget = "opponent";
+            }
+            // #region agent log
+            console.log(`[DBG-7a7f0c] gift_sent scoring: userId=${client.userId} roomId=${client.roomId} battleRoomId=${battleRoomId} rawTarget=${data.battleTarget} normalized=${normalizedTarget} value=${serverGiftValue} hostScore=${activeBattle.hostScore} oppScore=${activeBattle.opponentScore}`);
+            // #endregion
+            addBattleScoreForTarget(
+              battleRoomId,
+              normalizedTarget || "host",
+              serverGiftValue,
+            );
           }
         }
         break;

@@ -105,8 +105,9 @@
       )
     );
     /* Guaranteed extra lift (VideoFeed inner player wrapper) — works even when padding is stuck on safe-area */
-    /* Tuned: was 10mm; net −2mm (down 5mm, up 3mm) */
     --feed-video-lift-for-you: 8mm;
+    /* Slight zoom so picture bleeds ~3mm past each edge (object-cover fills letterboxing) */
+    --feed-video-scale-for-you: 1.018;
     /* For You main: a bit tighter above bottom nav (still clears tap targets) */
     --feed-main-pb: max(0px, calc(var(--bottom-ui-reserve) - 9mm));
     /* Bottom sheets */

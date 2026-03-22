@@ -6,6 +6,7 @@ import { apiStub } from '../lib/apiStub';
 import { showToast } from '../lib/toast';
 import { uploadAvatar } from '../lib/avatarUpload';
 import { AvatarRing } from '../components/AvatarRing';
+import { StoryGoldRingAvatar } from '../components/StoryGoldRingAvatar';
 import { trackEvent } from '../lib/analytics';
 import ReportModal from '../components/ReportModal';
 import PromotePanel from '../components/PromotePanel';
@@ -628,7 +629,7 @@ export default function Profile() {
             className={`relative ${isOwnProfile ? 'cursor-pointer' : ''}`}
             onClick={() => { if (isOwnProfile) fileInputRef.current?.click(); }}
           >
-            <AvatarRing src={displayAvatar} alt="Profile" size={130} />
+            <StoryGoldRingAvatar size={130} src={displayAvatar} alt="Profile" />
           </div>
           <input 
             ref={fileInputRef}

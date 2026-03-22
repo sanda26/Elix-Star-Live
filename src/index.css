@@ -260,6 +260,10 @@
     height: calc(100dvh - var(--bottom-ui-reserve) + 3mm);
     max-height: calc(100dvh - var(--bottom-ui-reserve) + 3mm);
   }
+  .h-above-bottom-nav-friends {
+    height: calc(100dvh - var(--bottom-ui-reserve) + 11mm);
+    max-height: calc(100dvh - var(--bottom-ui-reserve) + 11mm);
+  }
 
   /* Responsive text that scales with viewport */
   .text-fluid-xs { font-size: clamp(0.625rem, 2.5vw, 0.75rem); }

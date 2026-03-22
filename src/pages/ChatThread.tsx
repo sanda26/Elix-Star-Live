@@ -121,22 +121,25 @@ export default function ChatThread() {
 
   if (isSystemThread) {
     return (
-      <div className="bg-[#13151A] text-white p-4">
-        <header className="flex items-center gap-4 mb-4">
-          <button onClick={() => navigate('/inbox')}><ArrowLeft /></button>
+      <div className="h-full min-h-0 flex flex-col bg-[#13151A] text-white p-4">
+        <header className="flex items-center gap-4 mb-4 flex-shrink-0">
+          <button type="button" onClick={() => navigate('/inbox')} className="p-1 rounded-lg active:bg-white/10" aria-label="Back to inbox">
+            <ArrowLeft />
+          </button>
           <h1 className="font-bold text-lg capitalize">{threadId}</h1>
         </header>
-        <div className="text-center text-white/50 mt-20">No {threadId} yet.</div>
+        <div className="flex-1 min-h-0 flex items-center justify-center text-white/50">No {threadId} yet.</div>
       </div>
     );
   }
 
   return (
-    <div className="bg-[#13151A] text-white flex justify-center px-2">
-      <div className="w-full max-w-[480px] flex flex-col rounded-3xl overflow-hidden bg-[#13151A]">
-        <header className="flex items-center gap-3 px-4 py-3 border-b border-white/10 bg-[#13151A]">
-          <button onClick={() => navigate('/inbox')} className="p-1">
-            <img src="/Icons/Gold power buton.png" alt="Back" className="w-5 h-5" />
+    <div className="h-full min-h-0 flex flex-col bg-[#13151A] text-white w-full">
+      <div className="flex-1 min-h-0 flex justify-center px-2 w-full max-w-[480px] mx-auto">
+        <div className="w-full h-full min-h-0 flex flex-col rounded-3xl overflow-hidden bg-[#13151A] border border-white/[0.06]">
+        <header className="flex-shrink-0 flex items-center gap-3 px-4 py-3 border-b border-white/10 bg-[#13151A]">
+          <button type="button" onClick={() => navigate('/inbox')} className="p-1 rounded-lg active:bg-white/10" aria-label="Back to inbox">
+            <img src="/Icons/Gold power buton.png" alt="" className="w-5 h-5" />
           </button>
           {otherUser ? (
             <div className="flex items-center gap-3 flex-1">
@@ -150,6 +153,7 @@ export default function ChatThread() {
           )}
           {otherUser && (
             <button
+              type="button"
               onClick={async () => {
                 const callId = await initiateCall({ id: otherUser.user_id, username: otherUser.username, avatar: otherUser.avatar_url || '' });
                 if (callId) navigate('/call');
@@ -161,7 +165,7 @@ export default function ChatThread() {
           )}
         </header>
 
-        <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3 scroll-smooth">
+        <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3 scroll-smooth">
           {loading && <div className="text-center text-white/40 text-sm">Loading messages...</div>}
           {!loading && messages.length === 0 && (
             <div className="text-center text-white/40 text-sm mt-10">Start the conversation!</div>
@@ -178,7 +182,7 @@ export default function ChatThread() {
           })}
         </div>
 
-        <div className="p-4 bg-[#13151A] border-t border-white/10 pb-safe">
+        <div className="flex-shrink-0 p-4 bg-[#13151A] border-t border-white/10 pb-[max(0.75rem,var(--safe-bottom))]">
           <form className="flex items-center gap-2 bg-[#222] rounded-full px-4 py-2" onSubmit={handleSend}>
             <input
               value={draft}
@@ -190,6 +194,7 @@ export default function ChatThread() {
               <Send size={16} />
             </button>
           </form>
+        </div>
         </div>
       </div>
     </div>

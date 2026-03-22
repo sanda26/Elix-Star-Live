@@ -141,7 +141,7 @@ export default function Discover() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
-  const followingVideosForUi: Video[] = (friendVideos || []).slice(0, 10).map((v: any) => ({
+  const followingVideosForUi: Video[] = (friendVideos || []).slice(0, 50).map((v: any) => ({
     id: String(v.id),
     user_id: String(v.user?.id ?? v.user_id ?? ''),
     thumbnail_url: v.thumbnail || v.thumbnail_url || getVideoPosterUrl(v.url || ''),
@@ -340,15 +340,20 @@ export default function Discover() {
               {friendsLoading ? (
                 <div className="flex flex-col items-center justify-center py-6 gap-2">
                   <div className="w-7 h-7 border-2 border-[#C9A96E]/20 border-t-[#C9A96E] rounded-full animate-spin" />
-                  <p className="text-white/30 text-xs">Loading people you follow...</p>
+                  <p className="text-white/30 text-xs">Loading friends & followers...</p>
                 </div>
               ) : followingVideosForUi.length > 0 ? (
-                <div className="mb-5">
-                  <div className="flex items-center gap-2 mb-2 px-1">
-                    <Users className="w-4 h-4 text-[#C9A96E]" />
-                    <h2 className="text-[14px] font-bold text-gold-metallic">Following & Friends</h2>
+                <div className="mb-5 rounded-2xl border border-[#C9A96E]/25 bg-white/[0.02] overflow-hidden">
+                  <div className="px-3 py-2.5 border-b border-white/10 flex items-center gap-2">
+                    <Users className="w-4 h-4 text-[#C9A96E] shrink-0" />
+                    <div className="min-w-0">
+                      <h2 className="text-[13px] font-bold text-gold-metallic leading-tight">Friends & followers</h2>
+                      <p className="text-[9px] text-white/35 leading-tight mt-0.5">
+                        Following + followers, one vertical feed (like For You)
+                      </p>
+                    </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="p-3 flex flex-col gap-3 max-w-[320px] mx-auto w-full">
                     {followingVideosForUi.map((video) => (
                       <VideoThumbnail key={video.id} video={video} />
                     ))}
@@ -358,8 +363,8 @@ export default function Discover() {
                 <div className="mb-5">
                   <EmptyState
                     icon={<Users className="w-10 h-10" />}
-                    text="No videos from people you follow"
-                    sub="Follow people to see their videos here"
+                    text="No friends or followers videos yet"
+                    sub="Follow creators or get followers who post — their videos will show here"
                   />
                 </div>
               )}

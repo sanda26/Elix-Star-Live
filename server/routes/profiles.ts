@@ -85,6 +85,23 @@ export function getFollowingIds(userId: string): string[] {
   return [...(followsMap.get(userId) ?? [])];
 }
 
+/** Users who follow `userId` (inverse of following list). */
+export function getFollowerIds(userId: string): string[] {
+  const ids: string[] = [];
+  for (const [followerId, followingSet] of followsMap) {
+    if (followingSet.has(userId)) ids.push(followerId);
+  }
+  return ids;
+}
+
+/** You follow them and they follow you (friends / mutual). */
+export function getMutualFollowIds(userId: string): string[] {
+  const following = getFollowingIds(userId);
+  if (following.length === 0) return [];
+  const followers = new Set(getFollowerIds(userId));
+  return following.filter((id) => id && id !== userId && followers.has(id));
+}
+
 export function isFollowing(followerId: string, targetId: string): boolean {
   return followsMap.get(followerId)?.has(targetId) ?? false;
 }
@@ -572,6 +589,12 @@ export async function handleFollow(req: Request, res: Response): Promise<void> {
         myFollows.add(userId);
         followsMap.set(jwtUser.sub, myFollows);
         saveFollowsToDisk();
+        void import("./feed")
+          .then((m) => {
+            m.invalidateFeedCache(jwtUser.sub);
+            m.invalidateFeedCache(userId);
+          })
+          .catch(() => {});
         const p = await getOrCreateProfileAsync(userId);
         res.json({ success: true, already: true, followers: p.followers });
         return;
@@ -594,6 +617,12 @@ export async function handleFollow(req: Request, res: Response): Promise<void> {
   saveProfileToDb(target).catch(() => {});
   saveProfileToDb(follower).catch(() => {});
   saveFollowsToDisk();
+  void import("./feed")
+    .then((m) => {
+      m.invalidateFeedCache(jwtUser.sub);
+      m.invalidateFeedCache(userId);
+    })
+    .catch(() => {});
   res.json({ success: true, followers: target.followers });
 }
 
@@ -635,6 +664,12 @@ export async function handleUnfollow(req: Request, res: Response): Promise<void>
   saveProfileToDb(target).catch(() => {});
   saveProfileToDb(follower).catch(() => {});
   saveFollowsToDisk();
+  void import("./feed")
+    .then((m) => {
+      m.invalidateFeedCache(jwtUser.sub);
+      m.invalidateFeedCache(userId);
+    })
+    .catch(() => {});
   res.json({ success: true, followers: target.followers });
 }
 

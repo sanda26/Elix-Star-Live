@@ -100,6 +100,8 @@ interface VideoStore {
   likedVideos: string[];
   savedVideos: string[];
   followingUsers: string[];
+  /** Users you follow who also follow you — used to filter live cards on For You */
+  mutualFollowIds: string[];
   loading: boolean;
   friendsLoading: boolean;
   stemLoading: boolean;
@@ -149,6 +151,7 @@ export const useVideoStore = create<VideoStore>()(
       likedVideos: [],
       savedVideos: [],
       followingUsers: [],
+      mutualFollowIds: [],
       loading: false,
       friendsLoading: false,
       stemLoading: false,
@@ -163,7 +166,9 @@ export const useVideoStore = create<VideoStore>()(
         const doFetch = async () => {
         set({ loading: true });
         try {
-          const { videos: apiVideos } = await withRetry(() => fetchForYouFeed(1, 50));
+          const pageJson = await withRetry(() => fetchForYouFeed(1, 50));
+          const apiVideos = Array.isArray(pageJson?.videos) ? pageJson.videos : [];
+          const mutualFromApi = Array.isArray(pageJson?.mutualUserIds) ? pageJson.mutualUserIds : [];
           const authUser = useAuthStore.getState().user;
           const session = useAuthStore.getState().session;
           if (authUser?.id) {
@@ -244,7 +249,7 @@ export const useVideoStore = create<VideoStore>()(
             };
           });
 
-          set({ videos: mappedVideos, loading: false });
+          set({ videos: mappedVideos, mutualFollowIds: mutualFromApi, loading: false });
         } catch (err) {
           set({ loading: false });
           if (!navigator.onLine) showToast('No internet connection');

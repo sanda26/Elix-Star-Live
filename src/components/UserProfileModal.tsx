@@ -8,6 +8,7 @@ import { useSafetyStore } from '../store/useSafetyStore';
 import ReportModal from './ReportModal';
 import { showToast } from '../lib/toast';
 import { apiStub } from '../lib/apiStub';
+import { navigateToDmWithUser } from '../lib/openDmThread';
 
 interface User {
   id: string;
@@ -90,9 +91,10 @@ export default function UserProfileModal({ isOpen, onClose, user, onFollow }: Us
 
   if (!isOpen) return null;
 
-  const handleMessage = () => {
+  const handleMessage = async () => {
     onClose();
-    navigate(`/inbox/${user.id}`);
+    const token = useAuthStore.getState().session?.access_token;
+    await navigateToDmWithUser(user.id, navigate, token);
   };
 
   const handleReportUser = () => {

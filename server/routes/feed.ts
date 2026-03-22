@@ -296,75 +296,123 @@ function formatVideoForClient(
   };
 }
 
+/** For You = only people you follow who also follow you (mutual). Not the global explore feed. */
 export async function handleForYouFeed(req: Request, res: Response) {
   try {
-    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const page = Math.max(1, parseInt(String(req.query.page || "1"), 10) || 1);
     const limit = Math.min(
       50,
-      Math.max(1, parseInt(req.query.limit as string) || 20),
+      Math.max(1, parseInt(String(req.query.limit || "20"), 10) || 20),
     );
     const offset = (page - 1) * limit;
 
-    // Always serve from in-memory store (source of truth during runtime).
-    // Postgres is used only for persistence across server restarts.
-    const cacheKey = `mem:${page}:${limit}`;
+    const token = getTokenFromRequest(req);
+    const jwtUser = token ? verifyAuthToken(token) : null;
+
+    if (!jwtUser?.sub) {
+      return res.json({
+        videos: [],
+        mutualUserIds: [],
+        page,
+        limit,
+        hasMore: false,
+        total: 0,
+        source: "login_required",
+      });
+    }
+
+    const { getMutualFollowIds, getFollowingIds } = await import("./profiles");
+    const mutualIds = getMutualFollowIds(jwtUser.sub);
+    const followingSet = new Set(getFollowingIds(jwtUser.sub));
+    const likedSet = new Set<string>();
+
+    if (mutualIds.length === 0) {
+      return res.json({
+        videos: [],
+        mutualUserIds: [],
+        page,
+        limit,
+        hasMore: false,
+        total: 0,
+        source: "no_mutual_follows",
+      });
+    }
+
+    const cacheKey = `foryou:mutual:${jwtUser.sub}:${page}:${limit}`;
     const cached = feedCache.get(cacheKey);
     if (cached && Date.now() - cached.ts < CACHE_TTL) {
       return res.json({
         videos: cached.data,
+        mutualUserIds: mutualIds,
         page,
         limit,
-        hasMore: true,
-        total: cached.data.length,
+        hasMore: cached.data.length >= limit,
+        total: offset + cached.data.length,
         source: "cache",
       });
     }
 
-    const memAll = getAllVideos();
-    const memVideos = memAll.filter((v) => {
-      const url = (v.url || "").trim();
-      if (!url) return false;
-      if (url.startsWith("https://example.com/")) return false;
-      return true;
-    });
-    const total = memVideos.length;
-    const paginated = memVideos.slice(offset, offset + limit);
+    const db = getPool();
+    let formatted: any[] = [];
 
-    const formatted = paginated.map((v) => ({
-      id: v.id,
-      url: v.url,
-      thumbnail: v.thumbnail,
-      duration: v.duration,
-      user: {
-        id: v.userId,
-        username: v.username,
-        name: v.displayName,
-        avatar: v.avatar,
-      },
-      description: v.description,
-      hashtags: v.hashtags,
-      music: v.music,
-      stats: {
-        views: v.views,
-        likes: v.likes,
-        comments: v.comments,
-        shares: v.shares,
-        saves: v.saves,
-      },
-      createdAt: v.createdAt,
-    }));
+    if (db) {
+      const { rows } = await db.query(
+        `SELECT v.*, row_to_json(p) AS user
+         FROM videos v
+         LEFT JOIN profiles p ON p.user_id = v.user_id
+         WHERE v.user_id = ANY($1::text[])
+           AND (v.privacy IS NULL OR v.privacy <> 'private')
+           AND v.url IS NOT NULL AND btrim(v.url) <> ''
+         ORDER BY v.created_at DESC NULLS LAST
+         LIMIT $2 OFFSET $3`,
+        [mutualIds, limit, offset],
+      );
+      formatted = (rows || []).map((v: any) => formatVideoForClient(v, likedSet, followingSet));
+    } else {
+      const mutualSet = new Set(mutualIds);
+      const memVideos = getAllVideos().filter((v) => {
+        const url = (v.url || "").trim();
+        if (!url || url.startsWith("https://example.com/")) return false;
+        return mutualSet.has(v.userId) && v.privacy !== "private";
+      });
+      const paginated = memVideos.slice(offset, offset + limit);
+      formatted = paginated.map((v) => ({
+        id: v.id,
+        url: v.url,
+        thumbnail: v.thumbnail,
+        duration: v.duration,
+        user: {
+          id: v.userId,
+          username: v.username,
+          name: v.displayName,
+          avatar: v.avatar,
+        },
+        description: v.description,
+        hashtags: v.hashtags,
+        music: v.music,
+        stats: {
+          views: v.views,
+          likes: v.likes,
+          comments: v.comments,
+          shares: v.shares,
+          saves: v.saves,
+        },
+        createdAt: v.createdAt,
+      }));
+    }
 
     if (formatted.length > 0) {
       feedCache.set(cacheKey, { data: formatted, ts: Date.now() });
     }
 
-    res.json({
+    return res.json({
       videos: formatted,
+      mutualUserIds: mutualIds,
       page,
       limit,
-      hasMore: total > offset + limit,
-      total,
-      source: "memory",
+      hasMore: formatted.length >= limit,
+      total: offset + formatted.length,
+      source: db ? "postgres_mutual" : "memory_mutual",
     });
   } catch (err: any) {
     console.error("[ForYouFeed] Error:", err?.message || err);
@@ -711,7 +759,7 @@ export async function handleGetVideoScore(req: Request, res: Response) {
   }
 }
 
-/** GET /api/feed/friends — videos from users the caller follows */
+/** GET /api/feed/friends — videos from people you follow and people who follow you (one social graph feed) */
 export async function handleFriendsFeed(req: Request, res: Response) {
   try {
     const token = getTokenFromRequest(req);
@@ -720,9 +768,13 @@ export async function handleFriendsFeed(req: Request, res: Response) {
       return res.json({ videos: [] });
     }
 
-    const { getFollowingIds } = await import("./profiles");
+    const { getFollowingIds, getFollowerIds } = await import("./profiles");
     const followingIds = getFollowingIds(jwtUser.sub);
-    if (followingIds.length === 0) {
+    const followerIds = getFollowerIds(jwtUser.sub);
+    const networkIds = [...new Set([...followingIds, ...followerIds])].filter(
+      (id) => id && id !== jwtUser.sub,
+    );
+    if (networkIds.length === 0) {
       return res.json({ videos: [] });
     }
 
@@ -737,19 +789,20 @@ export async function handleFriendsFeed(req: Request, res: Response) {
          LEFT JOIN profiles p ON p.user_id = v.user_id
          WHERE v.user_id = ANY($1) AND v.is_public != false
          ORDER BY v.created_at DESC
-         LIMIT 50`,
-        [followingIds],
+         LIMIT 80`,
+        [networkIds],
       );
       const mapped = (rows || []).map((v: any) => formatVideoForClient(v, likedSet, followingSet));
       return res.json({ videos: mapped });
     }
 
     // In-memory fallback
+    const networkSet = new Set(networkIds);
     const allVideos = getAllVideos();
     const friendVids = allVideos
-      .filter((v) => followingSet.has(v.user_id) && v.is_public !== false)
+      .filter((v) => networkSet.has(v.user_id) && v.is_public !== false)
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-      .slice(0, 50);
+      .slice(0, 80);
 
     const mapped = friendVids.map((v) => formatVideoForClient(v, likedSet, followingSet));
     return res.json({ videos: mapped });
@@ -761,8 +814,9 @@ export async function handleFriendsFeed(req: Request, res: Response) {
 
 export function invalidateFeedCache(userId?: string) {
   if (userId) {
-    for (const key of feedCache.keys()) {
-      if (key.startsWith(userId)) feedCache.delete(key);
+    const prefix = `foryou:mutual:${userId}:`;
+    for (const key of [...feedCache.keys()]) {
+      if (key.startsWith(prefix) || key.startsWith(userId)) feedCache.delete(key);
     }
   } else {
     feedCache.clear();

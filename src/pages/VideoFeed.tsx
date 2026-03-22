@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import React, { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import InlineLiveViewer from "../components/InlineLiveViewer";
 import EnhancedVideoPlayer from "../components/EnhancedVideoPlayer";
@@ -177,7 +177,11 @@ export default function VideoFeed() {
   const session = useAuthStore((s) => s.session);
   const token = session?.access_token || "";
 
-  const { videos, fetchVideos, loading: videosLoading } = useVideoStore();
+  const { videos, fetchVideos, loading: videosLoading, mutualFollowIds } = useVideoStore();
+  const mutualRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    mutualRef.current = new Set(mutualFollowIds || []);
+  }, [mutualFollowIds]);
 
   /* ---- Remove a live stream instantly ---- */
   const removeLiveStream = useCallback((streamKey: string) => {
@@ -271,11 +275,7 @@ export default function VideoFeed() {
         const keptFromPrev = prev.filter(
           (s) => !fromApi.has(s.streamKey) && !removed.has(s.streamKey)
         );
-        const merged = [...mapped, ...keptFromPrev];
-        if (monitorRef.current) {
-          monitorRef.current.sync(merged.map((s) => s.streamKey));
-        }
-        return merged;
+        return [...mapped, ...keptFromPrev];
       });
     } catch {
       setLiveStreams([]);
@@ -360,14 +360,14 @@ export default function VideoFeed() {
           const event = msg?.event;
           const data = msg?.data || {};
           if (event === "stream_started") {
+            const uid = String(data.user_id ?? "");
+            if (!uid || !mutualRef.current.has(uid)) return;
             const key = (data.stream_key ?? data.room_id) as string;
             if (!key) return;
             if (removedKeysRef.current.has(key)) return;
             setLiveStreams((prev) => {
               if (prev.some((s) => s.streamKey === key)) return prev;
               const next = [streamStartedToCard(data), ...prev];
-              const keys = next.map((s) => s.streamKey);
-              queueMicrotask(() => monitorRef.current?.sync(keys));
               return next;
             });
           } else if (event === "stream_ended") {
@@ -406,9 +406,21 @@ export default function VideoFeed() {
     }
   }, [location.pathname, fetchLiveStreams, fetchVideos]);
 
-  /* ---- Build unified feed: live streams first, then videos ---- */
+  /* ---- Only mutual friends’ live rooms (same circle as For You videos) ---- */
+  const visibleLiveStreams = useMemo(() => {
+    const m = mutualFollowIds || [];
+    if (m.length === 0) return [];
+    const set = new Set(m);
+    return liveStreams.filter((s) => s.userId && set.has(s.userId));
+  }, [liveStreams, mutualFollowIds]);
+
+  useEffect(() => {
+    monitorRef.current?.sync(visibleLiveStreams.map((s) => s.streamKey));
+  }, [visibleLiveStreams]);
+
+  /* ---- Build unified feed: mutual live first, then mutual videos ---- */
   const feedItems: FeedItem[] = [
-    ...liveStreams.map((stream): FeedItem => ({ kind: "live", stream })),
+    ...visibleLiveStreams.map((stream): FeedItem => ({ kind: "live", stream })),
     ...videos.map((v): FeedItem => ({ kind: "video", videoId: v.id })),
   ];
 
@@ -551,7 +563,7 @@ export default function VideoFeed() {
             Nothing here yet
           </p>
           <p className="text-white/30 text-sm mb-4 text-center">
-            No live streams or videos right now. When creators go live, they appear here in real time. Check back soon!
+            For You is only people you follow who follow you back. When they post or go live, it shows here right away. Follow each other to build your circle, or use Explore for everyone.
           </p>
           <button
             type="button"

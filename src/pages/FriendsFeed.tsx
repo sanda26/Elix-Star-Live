@@ -245,8 +245,8 @@ export default function FriendsFeed() {
 
           {!loading && friendVideoIds.length === 0 && (
             <div className="h-full flex flex-col items-center justify-center text-white/50 px-6 text-center">
-              <p className="text-base font-semibold mb-1">No friends videos yet</p>
-              <p className="text-xs text-white/30 mb-4">Follow people to see their videos here</p>
+              <p className="text-base font-semibold mb-1">No videos yet</p>
+              <p className="text-xs text-white/30 mb-4">Follow people or wait for followers to post — everyone shows in one feed</p>
               <button
                 onClick={() => navigate('/discover')}
                 className="px-5 py-2 bg-[#C9A96E] text-black rounded-full text-sm font-bold"

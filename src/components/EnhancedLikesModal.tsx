@@ -6,6 +6,7 @@ import { useAuthStore } from '../store/useAuthStore';
 import { apiStub } from '../lib/apiStub';
 import { showToast } from '../lib/toast';
 import { AvatarRing } from './AvatarRing';
+import { navigateToDmWithUser } from '../lib/openDmThread';
 
 interface LikeUser {
   id: string;
@@ -103,9 +104,10 @@ export default function EnhancedLikesModal({ isOpen, onClose, videoId, likes }: 
     toggleFollow(userId);
   };
 
-  const handleMessage = (user: LikeUser) => {
+  const handleMessage = async (likeUser: LikeUser) => {
     onClose();
-    navigate(`/inbox/${user.id}`);
+    const token = useAuthStore.getState().session?.access_token;
+    await navigateToDmWithUser(likeUser.id, navigate, token);
   };
 
   const handleReportUser = async (user: LikeUser) => {

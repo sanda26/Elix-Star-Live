@@ -150,6 +150,7 @@ export async function trackFollow(targetUserId: string, videoId?: string): Promi
 
 export async function fetchForYouFeed(page: number = 1, limit: number = 20): Promise<{
   videos: any[];
+  mutualUserIds?: string[];
   page: number;
   limit: number;
   hasMore: boolean;

@@ -973,10 +973,15 @@ export default function SpectatorPage() {
         const n = Number(value);
         return Number.isFinite(n) ? n : fallback;
       };
-      setSpectatorBattle(prev => prev ? ({
-        ...prev,
-        timeLeft: toScore(data.timeLeft, prev.timeLeft ?? 300),
-      }) : prev);
+      setSpectatorBattle(prev => ({
+        active: true,
+        timeLeft: toScore(data.timeLeft, prev?.timeLeft ?? 300),
+        hostScore: toScore(data.hostScore, prev?.hostScore ?? 0),
+        opponentScore: toScore(data.opponentScore, prev?.opponentScore ?? 0),
+        opponentName: (typeof data.opponentName === 'string' && data.opponentName) || prev?.opponentName,
+        opponentRoomId: (typeof data.opponentRoomId === 'string' && data.opponentRoomId) || prev?.opponentRoomId,
+        winner: prev?.winner,
+      }));
     };
 
     const handleBattleScore = (data: any) => {

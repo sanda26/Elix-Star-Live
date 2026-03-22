@@ -2288,6 +2288,7 @@ export default function LiveStream() {
     const handleBattleTick = (data: any) => {
       if (!mounted) return;
       setBattleTime(data.timeLeft ?? 0);
+      applyBattleScores(data);
     };
 
     const handleBattleScore = (data: any) => {

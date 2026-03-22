@@ -1860,7 +1860,7 @@ export default function SpectatorPage() {
                               src={slot.avatar}
                               alt={slot.name || ''}
                               className="h-full w-full rounded-full object-cover object-center"
-                              style={{ transform: 'translateY(1.4mm)' }}
+                              style={{ transform: 'translateY(0.9mm)' }}
                             />
                           ) : (
                             <Plus className="text-[#C9A96E]" size={10} strokeWidth={2.5} />

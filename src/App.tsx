@@ -180,7 +180,11 @@ function App() {
   const isLiveOrBattleShell =
     location.pathname === "/live" ||
     location.pathname.startsWith("/live/");
-  const showBottomNav = isAuthenticated && !isLiveOrBattleShell;
+  /* Full-screen camera / record flows — no tab bar over the viewfinder */
+  const isCameraShell =
+    location.pathname === "/create" || location.pathname === "/upload";
+  const showBottomNav =
+    isAuthenticated && !isLiveOrBattleShell && !isCameraShell;
 
   /* Inbox + DM: TopNav is hidden (only /feed shows it) — no pt-topbar or you get empty space under the status bar */
   const isInboxRoute =

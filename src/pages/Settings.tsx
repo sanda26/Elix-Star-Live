@@ -91,7 +91,7 @@ export default function Settings() {
           </div>
         </div>
 
-        <div className="h-full min-h-0 overflow-y-auto overscroll-y-contain px-3 pb-[max(10px,calc(env(safe-area-inset-bottom,0px)+6px))]">
+        <div className="h-full min-h-0 overflow-y-auto overscroll-y-contain px-3 pb-[max(22px,calc(env(safe-area-inset-bottom,0px)+18px))]">
           <div className="flex flex-col gap-0 max-w-full">
           <S t="Account" />
           <R ic={<User size={14} />} t="Edit Profile" fn={() => navigate('/edit-profile')} />

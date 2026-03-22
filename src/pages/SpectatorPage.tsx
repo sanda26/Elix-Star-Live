@@ -973,15 +973,10 @@ export default function SpectatorPage() {
         const n = Number(value);
         return Number.isFinite(n) ? n : fallback;
       };
-      setSpectatorBattle(prev => ({
-        active: true,
-        timeLeft: toScore(data.timeLeft, prev?.timeLeft ?? 300),
-        hostScore: toScore(data.hostScore, prev?.hostScore ?? 0),
-        opponentScore: toScore(data.opponentScore, prev?.opponentScore ?? 0),
-        opponentName: (typeof data.opponentName === 'string' && data.opponentName) || prev?.opponentName,
-        opponentRoomId: (typeof data.opponentRoomId === 'string' && data.opponentRoomId) || prev?.opponentRoomId,
-        winner: prev?.winner,
-      }));
+      setSpectatorBattle(prev => prev ? ({
+        ...prev,
+        timeLeft: toScore(data.timeLeft, prev.timeLeft ?? 300),
+      }) : prev);
     };
 
     const handleBattleScore = (data: any) => {
@@ -1463,8 +1458,8 @@ export default function SpectatorPage() {
                 {/* Score bar — identical to creator */}
                 <div className="relative z-20 w-full flex-none overflow-hidden" style={{ height: '18px' }}>
                   <div className="absolute inset-0 flex">
-                    <div className="h-full transition-all duration-500 ease-out" style={{ width: `${leftPct}%`, backgroundImage: 'linear-gradient(90deg, #DC143C, #FF1744, #C41E3A)' }} />
-                    <div className="h-full flex-1 transition-all duration-500 ease-out" style={{ backgroundImage: 'linear-gradient(90deg, #1E90FF, #4169E1, #0047AB)' }} />
+                    <div className="h-full" style={{ width: `${leftPct}%`, backgroundImage: 'linear-gradient(90deg, #DC143C, #FF1744, #C41E3A)' }} />
+                    <div className="h-full flex-1" style={{ backgroundImage: 'linear-gradient(90deg, #1E90FF, #4169E1, #0047AB)' }} />
                   </div>
                   <div className="absolute inset-0 z-10 flex items-center justify-between px-2 pointer-events-none">
                     <span className="text-white font-black text-[14px] tabular-nums drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">

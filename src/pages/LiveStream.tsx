@@ -2197,14 +2197,11 @@ export default function LiveStream() {
 
     // Server-controlled battle events — single source of truth
     const applyBattleScores = (data: any) => {
-      const toScore = (value: unknown, fallback: number) => {
-        const n = Number(value);
-        return Number.isFinite(n) ? n : fallback;
-      };
-      const host = toScore(data.hostScore, battleScoresRef.current.myScore);
-      const opponent = toScore(data.opponentScore, battleScoresRef.current.opponentScore);
-      const player3 = toScore(data.player3Score, battleScoresRef.current.player3Score);
-      const player4 = toScore(data.player4Score, battleScoresRef.current.player4Score);
+      const toNum = (v: unknown) => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
+      const hostScore = toNum(data.hostScore);
+      const oppScore = toNum(data.opponentScore);
+      const p3 = toNum(data.player3Score);
+      const p4 = toNum(data.player4Score);
 
       const selfId = user?.id || '';
       const payloadHostId = typeof data.hostUserId === 'string' ? data.hostUserId : '';
@@ -2212,23 +2209,19 @@ export default function LiveStream() {
       if (selfId && payloadHostId && selfId === payloadHostId) battleRoleRef.current = 'host';
       else if (selfId && payloadOpponentId && selfId === payloadOpponentId) battleRoleRef.current = 'opponent';
 
-      const role = battleRoleRef.current || (isBattleJoiner ? 'opponent' : (isBroadcast ? 'host' : 'opponent'));
+      const role = battleRoleRef.current || (isBattleJoiner ? 'opponent' : (isBroadcast ? 'host' : 'host'));
       // #region agent log
-      fetch('http://127.0.0.1:7765/ingest/504ee8d9-85af-4146-9e87-ee22d4845d37',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'7a7f0c'},body:JSON.stringify({sessionId:'7a7f0c',location:'LiveStream.tsx:applyBattleScores',message:'score-apply',data:{selfId,payloadHostId,payloadOpponentId,role,battleRoleRef:battleRoleRef.current,isBattleJoiner,isBroadcast,rawHostScore:data.hostScore,rawOpponentScore:data.opponentScore,host,opponent,prevMy:battleScoresRef.current.myScore,prevOpp:battleScoresRef.current.opponentScore,lastScorer:data.lastScorer,eventHint:data.timeLeft!==undefined?'tick':'score'},timestamp:Date.now()})}).catch(()=>{});
+      fetch('http://127.0.0.1:7765/ingest/504ee8d9-85af-4146-9e87-ee22d4845d37',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'7a7f0c'},body:JSON.stringify({sessionId:'7a7f0c',location:'LiveStream.tsx:applyBattleScores',message:'score-apply',data:{selfId,payloadHostId,payloadOpponentId,role,hostScore,oppScore,event:data.lastScorer?'battle_score':'state_sync'},timestamp:Date.now()})}).catch(()=>{});
       // #endregion
-      if (role === 'host') {
-        setMyScore(host);
-        setOpponentScore(opponent);
-      } else if (role === 'opponent') {
-        setMyScore(opponent);
-        setOpponentScore(host);
+      if (role === 'opponent') {
+        setMyScore(oppScore);
+        setOpponentScore(hostScore);
       } else {
-        // Fallback when role is still unknown
-        setMyScore(host);
-        setOpponentScore(opponent);
+        setMyScore(hostScore);
+        setOpponentScore(oppScore);
       }
-      setPlayer3Score(player3);
-      setPlayer4Score(player4);
+      setPlayer3Score(p3);
+      setPlayer4Score(p4);
     };
 
     const handleBattleStateSync = (data: any) => {
@@ -2295,7 +2288,6 @@ export default function LiveStream() {
     const handleBattleTick = (data: any) => {
       if (!mounted) return;
       setBattleTime(data.timeLeft ?? 0);
-      applyBattleScores(data);
     };
 
     const handleBattleScore = (data: any) => {
@@ -3396,8 +3388,8 @@ export default function LiveStream() {
                       className="absolute inset-0 flex cursor-pointer pointer-events-auto"
                       onClick={(e) => { e.stopPropagation(); if (isBroadcast) { toggleBattle(); } else { spawnHeartFromClient(e.clientX, e.clientY); } }}
                     >
-                      <div className="h-full transition-all duration-500 ease-out" style={{ width: `${leftPct}%`, backgroundImage: 'linear-gradient(90deg, #DC143C, #FF1744, #C41E3A)' }} />
-                      <div className="h-full flex-1 transition-all duration-500 ease-out" style={{ backgroundImage: 'linear-gradient(90deg, #1E90FF, #4169E1, #0047AB)' }} />
+                      <div className="h-full" style={{ width: `${leftPct}%`, backgroundImage: 'linear-gradient(90deg, #DC143C, #FF1744, #C41E3A)' }} />
+                      <div className="h-full flex-1" style={{ backgroundImage: 'linear-gradient(90deg, #1E90FF, #4169E1, #0047AB)' }} />
                     </div>
                     <div className="absolute inset-0 z-10 flex items-center justify-between px-2 pointer-events-none">
                       <span className="text-white font-black text-[14px] tabular-nums drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">{(typeof redTeamScore === 'number' && Number.isFinite(redTeamScore) ? redTeamScore : 0).toLocaleString()}</span>

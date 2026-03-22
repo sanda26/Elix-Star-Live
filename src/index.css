@@ -69,8 +69,8 @@
     --bottom-ui-reserve: calc(var(--nav-height) + var(--safe-bottom) + var(--nav-tolerance));
     /* Top bar height (responsive) */
     --topbar-height: clamp(40px, 10vw, 56px);
-    /* For You golden top bar — MUST match TopNav.tsx fixed position */
-    --topnav-anchor-top: calc(var(--safe-top) + 6mm - 1cm + 10mm);
+    /* For You golden top bar — flush under notch/status (TopNav.tsx top: var(--topnav-anchor-top)) */
+    --topnav-anchor-top: var(--safe-top);
     /* Approximate height of topbar.png after scaleY(0.80); tune if art changes */
     --topnav-bar-height: clamp(44px, 12vw, 58px);
     /* For You: no extra band under golden top bar (slide pad = bar bottom only) */
@@ -79,15 +79,15 @@
     --topbar-total: calc(
       var(--topnav-anchor-top) + var(--topnav-bar-height) + var(--topnav-video-gap)
     );
-    /* For You slides: minimal pad so video rides up under fixed gold topbar (notch still respected via max) */
+    /* For You slides: align video under bar; trim pulls video up (+20mm vs prior 34mm trim) */
     --feed-slide-pad-top: max(
       var(--safe-top),
       calc(
         var(--topnav-anchor-top) +
           var(--topnav-bar-height) +
           var(--topnav-video-gap) -
-          10px -
-          20mm
+          12px -
+          54mm
       )
     );
     /* For You main: a bit tighter above bottom nav (still clears tap targets) */

@@ -79,7 +79,7 @@
     --topbar-total: calc(
       var(--topnav-anchor-top) + var(--topnav-bar-height) + var(--topnav-video-gap)
     );
-    /* For You slides: align video under bar; trim pulls video up (+20mm vs prior 34mm trim) */
+    /* STEM / non–For You full-screen slides — moderate trim under header */
     --feed-slide-pad-top: max(
       var(--safe-top),
       calc(
@@ -87,7 +87,18 @@
           var(--topnav-bar-height) +
           var(--topnav-video-gap) -
           12px -
-          54mm
+          22mm
+      )
+    );
+    /* For You only (VideoFeed) — extra trim to pull video up */
+    --feed-slide-pad-top-for-you: max(
+      var(--safe-top),
+      calc(
+        var(--topnav-anchor-top) +
+          var(--topnav-bar-height) +
+          var(--topnav-video-gap) -
+          12px -
+          64mm
       )
     );
     /* For You main: a bit tighter above bottom nav (still clears tap targets) */

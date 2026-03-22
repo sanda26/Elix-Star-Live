@@ -496,7 +496,7 @@ export default function VideoFeed() {
             scrollSnapStop: "always",
             boxSizing: "border-box",
             /* Pad matches topbar stack; video fills below — can read under fixed TopNav (z above) */
-            paddingTop: "var(--feed-slide-pad-top)",
+            paddingTop: "var(--feed-slide-pad-top-for-you)",
           };
 
           if (item.kind === "live") {

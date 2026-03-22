@@ -1827,7 +1827,6 @@ export default function SpectatorPage() {
                           followHost(e);
                         }}
                       >
-                        <Plus size={12} className="text-white" strokeWidth={3} />
                         <span className="text-white text-[10px] font-bold">Follow</span>
                       </button>
                     </div>

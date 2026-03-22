@@ -15,8 +15,6 @@ import {
   Copy,
   Users2,
   Play,
-  SkipBack,
-  SkipForward,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useVideoStore } from '../store/useVideoStore';
@@ -724,71 +722,52 @@ export default function EnhancedVideoPlayer({
           </div>
         )}
 
+        {/* Single bottom scrub bar — full width, large touch target, drag to seek */}
         <div
-          className="absolute left-2 z-[16] flex items-center gap-2 pointer-events-auto"
+          ref={progressTrackRef}
+          role="slider"
+          tabIndex={0}
+          aria-label="Video progress"
+          aria-valuenow={Number.isFinite(currentTime) ? Math.round(currentTime) : 0}
+          aria-valuemin={0}
+          aria-valuemax={Number.isFinite(duration) && duration > 0 ? Math.round(duration) : 0}
+          className="absolute left-3 right-[3.75rem] z-[16] pointer-events-auto flex items-center cursor-pointer"
           style={{
-            right: '4.5rem',
-            bottom: 'var(--video-progress-bottom, 7rem)',
+            /* Flush to bottom of player — aligns with top of bottom nav when main uses pb-nav */
+            bottom: 0,
+            height: '44px',
+            touchAction: 'none',
           }}
-          onPointerDown={(e) => e.stopPropagation()}
-        >
-          <button
-            type="button"
-            aria-label="Back 10 seconds"
-            className="flex-shrink-0 w-9 h-9 rounded-full bg-black/60 border border-white/15 flex items-center justify-center text-white shadow-lg active:scale-95 touch-manipulation"
-            onClick={(e) => {
-              e.stopPropagation();
-              skipBy(-10);
-            }}
-          >
-            <SkipBack className="w-5 h-5" strokeWidth={2.2} />
-          </button>
-          <div
-            ref={progressTrackRef}
-            role="slider"
-            tabIndex={0}
-            aria-valuenow={Number.isFinite(currentTime) ? Math.round(currentTime) : 0}
-            aria-valuemin={0}
-            aria-valuemax={Number.isFinite(duration) && duration > 0 ? Math.round(duration) : 0}
-            className="flex-1 min-w-0 h-3 rounded-full bg-black/45 overflow-hidden touch-none cursor-pointer py-1.5 px-0"
-            style={{ boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.12)' }}
-            onPointerDown={(e) => {
-              e.stopPropagation();
+          onPointerDown={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            setScrubbing(true);
+            seekFromClientX(e.clientX);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'ArrowLeft') {
               e.preventDefault();
-              setScrubbing(true);
-              seekFromClientX(e.clientX);
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'ArrowLeft') {
-                e.preventDefault();
-                skipBy(-5);
-              } else if (e.key === 'ArrowRight') {
-                e.preventDefault();
-                skipBy(5);
-              }
-            }}
+              skipBy(-5);
+            } else if (e.key === 'ArrowRight') {
+              e.preventDefault();
+              skipBy(5);
+            }
+          }}
+        >
+          <div
+            className="w-full h-4 rounded-full bg-white/20 overflow-hidden shadow-inner pointer-events-none"
+            style={{ boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.15)' }}
           >
             <div
-              className="h-full rounded-full bg-gradient-to-r from-[#C9A96E] via-[#00c2be] to-[#C9A96E] relative overflow-hidden pointer-events-none"
+              className="h-full rounded-full bg-gradient-to-r from-[#C9A96E] via-[#00c2be] to-[#C9A96E] relative overflow-hidden"
               style={{
                 width: `${duration > 0 ? Math.min(100, Math.max(0, (currentTime / duration) * 100)) : 0}%`,
-                boxShadow: '0 0 10px rgba(201, 169, 110, 0.6)',
+                boxShadow: '0 0 10px rgba(201, 169, 110, 0.5)',
               }}
             >
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/25 to-transparent animate-shimmer" />
             </div>
           </div>
-          <button
-            type="button"
-            aria-label="Forward 10 seconds"
-            className="flex-shrink-0 w-9 h-9 rounded-full bg-black/60 border border-white/15 flex items-center justify-center text-white shadow-lg active:scale-95 touch-manipulation"
-            onClick={(e) => {
-              e.stopPropagation();
-              skipBy(10);
-            }}
-          >
-            <SkipForward className="w-5 h-5" strokeWidth={2.2} />
-          </button>
         </div>
 
         {/* Heart animation for double click */}
@@ -807,7 +786,8 @@ export default function EnhancedVideoPlayer({
         className="absolute z-[10] flex flex-col items-center gap-2 pointer-events-auto"
         style={{
           right: '12px',
-          bottom: 'max(12px, calc(var(--safe-bottom) + 12px + 4mm))'
+          /* Sit above the bottom scrub strip (44px) so icons are not on top of the bar */
+          bottom: 'max(3.5rem, calc(44px + 10px))',
         }}
       >
         

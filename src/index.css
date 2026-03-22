@@ -71,9 +71,6 @@
     --feed-top-band: max(12px, calc(8px + var(--safe-top) * 0.35));
     /* Top padding on each feed slide (top bar + tolerance); background shows in this inset */
     --feed-slide-pad-top: calc(var(--topbar-total) + var(--feed-top-band));
-    /* Progress row: player already clears bottom nav via main pb-nav — sit above right action column */
-    --video-progress-bottom: max(5.5rem, calc(var(--safe-bottom) + 4.25rem));
-
     /* Bottom sheets */
     --sheet-collapsed: 30vh;
     --sheet-half: 50vh;

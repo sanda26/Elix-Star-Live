@@ -139,11 +139,8 @@ export default function FollowingFeed() {
   };
 
   return (
-    <div className="fixed inset-0 bg-[#13151A] flex justify-center">
-      <div
-        className="w-full max-w-[480px] flex flex-col overflow-hidden"
-        style={{ height: 'calc(100vh - 3.6cm)', marginTop: 0 }}
-      >
+    <div className="h-full min-h-0 w-full flex justify-center bg-[#13151A]">
+      <div className="w-full max-w-[480px] h-full min-h-0 flex flex-col overflow-hidden">
 
         {/* Header + Circles (no golden frame) */}
         <div className="mx-2 mt-2 rounded-t-2xl bg-[#13151A] z-10 relative">
@@ -240,10 +237,10 @@ export default function FollowingFeed() {
             <div
               key={`following-${videoId}-${index}`}
               data-slide-index={index}
-              className="w-full min-h-full snap-start snap-always relative flex justify-center bg-[#13151A] px-2 pb-2"
+              className="w-full min-h-full snap-start snap-always relative flex justify-center bg-[#13151A] px-2"
               style={{ height: '100%', minHeight: '100%', scrollSnapAlign: 'start', scrollSnapStop: 'always' }}
             >
-              <div className="w-full h-full relative rounded-b-2xl overflow-hidden border-2 border-t-0 border-[#C9A96E]" style={{ boxShadow: '0 0 8px rgba(212,175,55,0.3)' }}>
+              <div className="w-full h-full relative rounded-b-2xl overflow-hidden bg-[#13151A]">
                 <EnhancedVideoPlayer
                   videoId={videoId}
                   isActive={activeIndex === index}

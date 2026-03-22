@@ -22,7 +22,7 @@ export default function VideoView() {
   return (
     <div className="fixed inset-0 bg-[#13151A] flex justify-center">
       <div
-        className="w-full max-w-[480px] relative overflow-hidden bg-[#13151A] border-b border-[#C9A96E]/20"
+        className="w-full max-w-[480px] relative overflow-hidden bg-[#13151A]"
         style={{ height: 'calc(100vh - 3.6cm)', marginTop: 0 }}
       >
         <div className="absolute left-3 top-3 z-[250]">

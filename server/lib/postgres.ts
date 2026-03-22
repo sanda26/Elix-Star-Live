@@ -243,6 +243,20 @@ export async function initPostgres(): Promise<void> {
   }
 }
 
+/** Idempotent — call before INSERT/SELECT on `follows` outside initPostgres (e.g. profile routes). */
+export async function ensureFollowsTable(): Promise<void> {
+  const p = getPool();
+  if (!p) return;
+  await p.query(`
+    CREATE TABLE IF NOT EXISTS follows (
+      follower_id TEXT NOT NULL,
+      following_id TEXT NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      PRIMARY KEY (follower_id, following_id)
+    )
+  `);
+}
+
 export async function loadVideosFromDb(): Promise<Video[]> {
   if (!pool) return [];
   try {

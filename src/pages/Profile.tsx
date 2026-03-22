@@ -232,8 +232,8 @@ export default function Profile() {
         display_name: p.displayName || fallback.display_name,
         avatar_url: p.avatarUrl || fallback.avatar_url,
         bio: p.bio || null,
-        followers_count: p.followers || 0,
-        following_count: p.following || 0,
+        followers_count: Number(p.followers ?? p.followers_count) || 0,
+        following_count: Number(p.following ?? p.following_count) || 0,
         likes_count: 0,
         is_creator: p.isVerified || false,
       };

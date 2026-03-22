@@ -10,7 +10,7 @@ import { getTokenFromRequest, verifyAuthToken } from "./auth";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { getPool } from "../lib/postgres";
+import { ensureFollowsTable, getPool } from "../lib/postgres";
 import { logger } from "../lib/logger";
 
 export interface Profile {
@@ -69,13 +69,34 @@ export async function loadFollowsFromDb(): Promise<void> {
   const db = getPool();
   if (!db) return;
   try {
+    await ensureFollowsTable();
     const res = await db.query(`SELECT follower_id, following_id FROM follows`);
     for (const row of res.rows || []) {
-      const set = followsMap.get(row.follower_id) ?? new Set<string>();
-      set.add(row.following_id);
-      followsMap.set(row.follower_id, set);
+      const fid = String(row.follower_id);
+      const tid = String(row.following_id);
+      const set = followsMap.get(fid) ?? new Set<string>();
+      set.add(tid);
+      followsMap.set(fid, set);
     }
     logger.info({ rows: res.rowCount ?? 0 }, "Follows loaded from Postgres into memory");
+    // Push any edges that only lived in follows.json (or memory) into Neon so deploys/refreshes keep data
+    let synced = 0;
+    for (const [followerId, set] of followsMap) {
+      for (const followingId of set) {
+        try {
+          const ins = await db.query(
+            `INSERT INTO follows (follower_id, following_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+            [followerId, followingId],
+          );
+          if ((ins.rowCount ?? 0) > 0) synced += 1;
+        } catch (e) {
+          logger.error({ err: e, followerId, followingId }, "sync follow edge to Postgres failed");
+        }
+      }
+    }
+    if (synced > 0) {
+      logger.info({ synced }, "Follow edges synced from disk/memory into Postgres");
+    }
   } catch (err) {
     logger.error({ err }, "loadFollowsFromDb failed — follow lists may be empty until fixed");
   }
@@ -402,6 +423,16 @@ export async function handleGetProfile(req: Request, res: Response): Promise<voi
     return;
   }
   const profile = await getOrCreateProfileAsync(userId);
+  // Source of truth for counts is the follows graph (Neon `follows` + followsMap), not denormalized profiles columns
+  const followersFromGraph = getFollowerIds(userId).length;
+  const followingFromGraph = getFollowingIds(userId).length;
+  if (profile.followers !== followersFromGraph || profile.following !== followingFromGraph) {
+    profile.followers = followersFromGraph;
+    profile.following = followingFromGraph;
+    profile.updatedAt = new Date().toISOString();
+    profiles.set(userId, profile);
+    saveProfileToDb(profile).catch(() => {});
+  }
   res.json({ profile });
 }
 
@@ -582,6 +613,7 @@ export async function handleFollow(req: Request, res: Response): Promise<void> {
   const db = getPool();
   if (db) {
     try {
+      await ensureFollowsTable();
       await db.query(`INSERT INTO follows (follower_id, following_id) VALUES ($1, $2)`, [jwtUser.sub, userId]);
     } catch (err: unknown) {
       const code = (err as { code?: string })?.code;
@@ -649,6 +681,7 @@ export async function handleUnfollow(req: Request, res: Response): Promise<void>
   const db = getPool();
   if (db) {
     try {
+      await ensureFollowsTable();
       await db.query(`DELETE FROM follows WHERE follower_id = $1 AND following_id = $2`, [jwtUser.sub, userId]);
     } catch (err) {
       logger.error({ err, follower: jwtUser.sub, following: userId }, "Unfollow DELETE failed");

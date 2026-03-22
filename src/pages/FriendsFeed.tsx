@@ -117,7 +117,7 @@ export default function FriendsFeed() {
           {/* Circles — shifted down 3mm (paint only; no extra header padding) */}
           <div
             className="px-3 py-2 relative z-[11]"
-            style={{ transform: 'translateY(3mm)' }}
+            style={{ transform: 'translateY(0mm)' }}
           >
             <div className="flex gap-3 overflow-x-auto overflow-y-hidden no-scrollbar" style={{ WebkitOverflowScrolling: 'touch' }}>
             <button

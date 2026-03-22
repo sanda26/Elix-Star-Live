@@ -1041,6 +1041,14 @@ function joinBattle(
 
   // If this user is already the opponent (pre-filled by battle_create), treat as a successful join
   if (session.opponentUserId === userId || session.player3UserId === userId || session.player4UserId === userId) {
+    if (session.opponentUserId === userId && !session.opponentRoomId) {
+      for (const [, c] of clients) {
+        if (c.userId === userId && c.roomId && c.roomId !== roomId) {
+          session.opponentRoomId = c.roomId;
+          break;
+        }
+      }
+    }
     if (session.status === "WAITING") {
       startBattleTimer(roomId);
     }
@@ -1051,6 +1059,14 @@ function joinBattle(
   if (!session.opponentUserId) {
     session.opponentUserId = userId;
     session.opponentName = userName;
+    if (!session.opponentRoomId) {
+      for (const [, c] of clients) {
+        if (c.userId === userId && c.roomId && c.roomId !== roomId) {
+          session.opponentRoomId = c.roomId;
+          break;
+        }
+      }
+    }
   } else if (!session.player3UserId) {
     session.player3UserId = userId;
     session.player3Name = userName;
@@ -1721,8 +1737,19 @@ async function handleMessage(client: Client, event: string, data: any) {
           typeof data.opponentUserId === "string" ? data.opponentUserId : "";
         const opponentName =
           typeof data.opponentName === "string" ? data.opponentName : "";
-        const opponentRoomId =
+        let opponentRoomId =
           typeof data.opponentRoomId === "string" ? data.opponentRoomId : "";
+        if (!opponentRoomId && opponentUserId) {
+          for (const [, c] of clients) {
+            if (c.userId === opponentUserId && c.roomId && c.roomId !== client.roomId) {
+              opponentRoomId = c.roomId;
+              break;
+            }
+          }
+        }
+        // #region agent log
+        console.log(`[DBG-7a7f0c] battle_create: hostRoom=${client.roomId} oppUserId=${opponentUserId} oppRoomId=${opponentRoomId}`);
+        // #endregion
         if (opponentUserId && opponentName) {
           session.opponentUserId = opponentUserId;
           session.opponentName = opponentName;

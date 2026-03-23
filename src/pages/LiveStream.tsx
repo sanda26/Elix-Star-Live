@@ -1093,6 +1093,7 @@ export default function LiveStream() {
   );
   /** Authoritative host/opponent/P3/P4 totals from server (never role-swapped) — fixes bar showing 0 for the other team. */
   const battleServerTotalsRef = useRef({ h: 0, o: 0, p3: 0, p4: 0 });
+  const lastBattleScoreUpdateTraceSigRef = useRef('');
   const [battleServerTotals, setBattleServerTotals] = useState({ h: 0, o: 0, p3: 0, p4: 0 });
   const opponentLkRoomRef = useRef<Room | null>(null);
   const [iAmReady, setIAmReady] = useState(false);
@@ -2435,6 +2436,13 @@ export default function LiveStream() {
     /** Server ~300ms authoritative snapshot (same `battleId` / session as `battle_score`). */
     const handleBattleScoreUpdate = (data: any) => {
       if (!mounted) return;
+      if (import.meta.env.DEV) {
+        const sig = `${data?.teamA}|${data?.teamB}|${data?.players?.A1}|${data?.players?.B1}`;
+        if (lastBattleScoreUpdateTraceSigRef.current !== sig) {
+          lastBattleScoreUpdateTraceSigRef.current = sig;
+          console.log("CLIENT RECEIVED:", data);
+        }
+      }
       const p = data?.players;
       if (!p || typeof p !== "object") return;
       applyBattleScores({

@@ -1065,7 +1065,15 @@ interface BattleSession {
 const battles = new Map<string, BattleSession>();
 /** Maps participant userId → host `hostRoomId` for the battle they belong to. */
 const userBattleRoom = new Map<string, string>();
+/** For PK trace logs: skip duplicate EMITTING lines when team totals unchanged between 300ms ticks. */
+const lastBattleEmitSnapshotByHostRoom = new Map<string, string>();
 const lastCohostLayoutByRoom = new Map<string, { coHosts: unknown[]; hostUserId: string }>();
+
+/** Set DEBUG_BATTLE_SCORE=0 to silence. Otherwise traces run in non-production or when DEBUG_BATTLE_SCORE=1. */
+function isBattlePkTrace(): boolean {
+  if (process.env.DEBUG_BATTLE_SCORE === "0") return false;
+  return process.env.DEBUG_BATTLE_SCORE === "1" || process.env.NODE_ENV !== "production";
+}
 
 /** Pending server-spawned booster (catch only sends team — multiplier comes from here). */
 type PendingBooster = { team: "A" | "B"; multiplier: number; expiresAt: number };
@@ -1326,6 +1334,11 @@ function broadcastBattleScoreFromSession(
   };
   broadcastToRoom(roomId, "battle_score", scorePayload);
   broadcastToBattleParticipants(roomId, session, "battle_score", scorePayload);
+  if (isBattlePkTrace()) {
+    const A = session.hostScore + session.player3Score;
+    const B = session.opponentScore + session.player4Score;
+    console.log("UPDATE AFTER:", { A, B, battleKey: roomId });
+  }
 }
 
 /** Add points to exactly one of P1–P4; Neon buckets when DATABASE_URL set, else memory. */
@@ -1538,6 +1551,28 @@ setInterval(() => {
   for (const [roomId, session] of battles) {
     if (session.status !== "ACTIVE") continue;
     const payload = buildBattleScoreUpdatePayload(session);
+    if (isBattlePkTrace()) {
+      const sig = `${payload.teamA},${payload.teamB}`;
+      if (lastBattleEmitSnapshotByHostRoom.get(roomId) !== sig) {
+        lastBattleEmitSnapshotByHostRoom.set(roomId, sig);
+        const hostClients = rooms.get(roomId)?.size ?? 0;
+        const oppR = session.opponentRoomId;
+        const oppClients =
+          typeof oppR === "string" && oppR.length > 0 ? (rooms.get(oppR)?.size ?? 0) : 0;
+        console.log("EMITTING:", {
+          teamA: payload.teamA,
+          teamB: payload.teamB,
+          battleKey: roomId,
+        });
+        console.log("ROOM SIZE:", {
+          hostRoom: roomId,
+          hostClients,
+          opponentRoom: oppR || "(none)",
+          opponentClients: oppClients,
+          note: "Custom WS rooms map (not Socket.io); expect 1+ per stream with viewers.",
+        });
+      }
+    }
     broadcastToRoom(roomId, "battle:score_update", payload);
     broadcastToBattleParticipants(roomId, session, "battle:score_update", payload);
   }

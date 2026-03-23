@@ -279,6 +279,7 @@ export default function SpectatorPage() {
   } | null>(null);
   const spectatorBattleRef = useRef(spectatorBattle);
   spectatorBattleRef.current = spectatorBattle;
+  const lastBattleScoreUpdateTraceSigRef = useRef('');
   /** When battle is active, gifts credit host (red) or opponent (blue) MVP tallies. */
   const [spectatorGiftBattleTarget, setSpectatorGiftBattleTarget] = useState<'host' | 'opponent'>('host');
   /** From battle_state_sync — map /watch/:streamId to red vs blue team for gifts (defaults were always host). */
@@ -1313,6 +1314,13 @@ export default function SpectatorPage() {
     websocket.on('stream_ended', handleStreamEnded);
     const handleBattleScoreUpdateColon = (data: any) => {
       if (!mounted) return;
+      if (import.meta.env.DEV) {
+        const sig = `${data?.teamA}|${data?.teamB}|${data?.players?.A1}|${data?.players?.B1}`;
+        if (lastBattleScoreUpdateTraceSigRef.current !== sig) {
+          lastBattleScoreUpdateTraceSigRef.current = sig;
+          console.log("CLIENT RECEIVED:", data);
+        }
+      }
       const p = data?.players;
       if (!p || typeof p !== 'object') return;
       setSpectatorBattle((prev) => {

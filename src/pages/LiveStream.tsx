@@ -1645,13 +1645,14 @@ export default function LiveStream() {
     if (!isBattleMode) return giftTarget;
     const p3on = battleSlots[1].status === 'accepted';
     const p4on = battleSlots[2].status === 'accepted';
-    // Opponent-stream URL: default giftTarget ('me') maps to host server-side — force blue team. Host-stream URL: Left/Right (giftTarget) still wins.
+    // Same PK layout for every URL: left = host (red), right = opponent (blue). Respect giftTarget — do not force
+    // opponent when watching the opponent stream URL; that made every gift credit blue (wrong).
     if (!isBroadcast && isRegularViewer) {
       const watched = resolveSpectatorVoteTargetFromWatchedStream();
       if (watched === 'opponent') {
         if (giftTarget === 'player3' && !p3on) return 'me';
         if (giftTarget === 'player4' && !p4on) return 'opponent';
-        return 'opponent';
+        return giftTarget;
       }
       if (watched === 'player4' && p4on) return 'player4';
       if (watched === 'player3' && p3on) return 'player3';

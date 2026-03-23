@@ -87,6 +87,67 @@ npx wscat -c "wss://www.elixstarlive.co.uk/live/YOUR_STREAM_ROOM_ID?token=YOUR_J
 
 ---
 
+## 8. Battle score flow (sender → correct room → opponent / spectators)
+
+### ASCII diagram
+
+```text
+Sender taps / gifts
+        |
+        v
+Server receives event (gift_sent / battle:tap / battle_spectator_vote)
+        |
+        v
+Resolve canonical battle session (host-keyed)
+  session = resolveBattleSessionForRoom(client.roomId)
+  // battle row is stored in: battles.get(session.hostRoomId)
+        |
+        v
+Update the correct team buckets (server-authoritative)
+  teamA = A1 + A2
+  teamB = B1 + B2
+        |
+        v
+Broadcast to BOTH streams
+  broadcastToRoom(session.hostRoomId, "battle:score_update", payload)
+  broadcastToRoom(session.opponentRoomId, "battle:score_update", payload)
+  // plus global sends for any participant not already reached
+        |
+        v
+Clients (host + opponent + spectators) receive the same payload
+  UI updates both sides + spectators in real time
+```
+
+### Server pseudocode (canonical room ids)
+
+```ts
+function handleBattleAction(client, target, points) {
+  // Never use `client.roomId` as the battles-map key.
+  // Resolve via host-keyed session and update using `session.hostRoomId`.
+  const session = resolveBattleSessionForRoom(client.roomId);
+  if (!session || session.status !== "ACTIVE") return;
+
+  // Apply score to server buckets:
+  // - teamA = hostScore (A1) + player3Score (A2)
+  // - teamB = opponentScore (B1) + player4Score (B2)
+  applyPointsToSessionBuckets(session, target, points);
+
+  const payload = buildBattleScoreUpdatePayload(session);
+  broadcastToRoom(session.hostRoomId, "battle:score_update", payload);
+  if (session.opponentRoomId) {
+    broadcastToRoom(session.opponentRoomId, "battle:score_update", payload);
+  }
+}
+```
+
+### Critical rule to prevent misrouting
+
+- Always resolve the battle session via `resolveBattleSessionForRoom(...)` and update using the canonical `session.hostRoomId` key.
+- Broadcast `battle:score_update` to both `session.hostRoomId` and `session.opponentRoomId`.
+- Never look up `battles.get(client.roomId)` when the socket might be on the opponent stream.
+
+---
+
 ## 7. Debug logs
 
 - Server **non-production** (`NODE_ENV !== production`) or `DEBUG_BATTLE_SCORE=1`: `UPDATE AFTER`, `EMITTING`, `ROOM SIZE` in server logs.

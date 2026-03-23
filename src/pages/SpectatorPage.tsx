@@ -290,33 +290,6 @@ export default function SpectatorPage() {
     opponentUserId: string;
   } | null>(null);
 
-  const spectatorBattleGiftTargetEffective = useMemo((): 'host' | 'opponent' => {
-    if (!spectatorBattle?.active) return spectatorGiftBattleTarget;
-    const eid = effectiveStreamId;
-    const m = (a: string, b: string) => a.length > 0 && b.length > 0 && a === b;
-    if (battleStreamIds) {
-      if (m(eid, battleStreamIds.opponentRoomId) || m(eid, battleStreamIds.opponentUserId)) return 'opponent';
-      if (m(eid, battleStreamIds.hostRoomId) || m(eid, battleStreamIds.hostUserId)) return spectatorGiftBattleTarget;
-    }
-    const oppOnly = typeof spectatorBattle?.opponentRoomId === 'string' ? spectatorBattle.opponentRoomId : '';
-    if (oppOnly && m(eid, oppOnly)) return 'opponent';
-    return spectatorGiftBattleTarget;
-  }, [spectatorBattle?.active, spectatorBattle?.opponentRoomId, battleStreamIds, effectiveStreamId, spectatorGiftBattleTarget]);
-
-  useEffect(() => {
-    if (!spectatorBattle?.active) return;
-    const eid = effectiveStreamId;
-    const m = (a: string, b: string) => a.length > 0 && b.length > 0 && a === b;
-    if (battleStreamIds) {
-      if (m(eid, battleStreamIds.opponentRoomId) || m(eid, battleStreamIds.opponentUserId)) {
-        setSpectatorGiftBattleTarget('opponent');
-        return;
-      }
-    }
-    const oppOnly = typeof spectatorBattle?.opponentRoomId === 'string' ? spectatorBattle.opponentRoomId : '';
-    if (oppOnly && m(eid, oppOnly)) setSpectatorGiftBattleTarget('opponent');
-  }, [spectatorBattle?.active, effectiveStreamId, battleStreamIds, spectatorBattle?.opponentRoomId]);
-
   const opponentVideoRef = useRef<HTMLVideoElement>(null);
   const opponentLkRoomRef = useRef<Room | null>(null);
   const [hasOpponentStream, setHasOpponentStream] = useState(false);
@@ -1620,7 +1593,7 @@ export default function SpectatorPage() {
       creator_name: hostName || 'Creator',
       host_user_id: hostUserId || effectiveStreamId,
       ...(spectatorBattle?.active
-        ? { battleTarget: spectatorBattleGiftTargetEffective }
+        ? { battleTarget: spectatorGiftBattleTarget }
         : {}),
     });
     
@@ -2652,7 +2625,7 @@ export default function SpectatorPage() {
                       type="button"
                       title="Gift left side"
                       onClick={() => setSpectatorGiftBattleTarget('host')}
-                      className={`px-4 py-1.5 text-[10px] font-bold transition-colors ${spectatorBattleGiftTargetEffective === 'host' ? 'bg-[#DC143C]/90 text-white' : 'bg-[#13151A] text-white/70'}`}
+                      className={`px-4 py-1.5 text-[10px] font-bold transition-colors ${spectatorGiftBattleTarget === 'host' ? 'bg-[#DC143C]/90 text-white' : 'bg-[#13151A] text-white/70'}`}
                     >
                       Left
                     </button>
@@ -2660,7 +2633,7 @@ export default function SpectatorPage() {
                       type="button"
                       title="Gift right side"
                       onClick={() => setSpectatorGiftBattleTarget('opponent')}
-                      className={`px-4 py-1.5 text-[10px] font-bold transition-colors ${spectatorBattleGiftTargetEffective === 'opponent' ? 'bg-[#1E90FF]/90 text-white' : 'bg-[#13151A] text-white/70'}`}
+                      className={`px-4 py-1.5 text-[10px] font-bold transition-colors ${spectatorGiftBattleTarget === 'opponent' ? 'bg-[#1E90FF]/90 text-white' : 'bg-[#13151A] text-white/70'}`}
                     >
                       Right
                     </button>

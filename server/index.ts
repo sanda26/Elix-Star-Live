@@ -1833,7 +1833,14 @@ async function handleMessage(client: Client, event: string, data: any) {
         }
         const activeBattle = battles.get(battleRoomId);
         if (activeBattle && activeBattle.status === "ACTIVE") {
-          const serverGiftValue = getGiftValue(data.giftId);
+          const giftIdRaw = String(data.giftId ?? "").trim();
+          let serverGiftValue = getGiftValue(giftIdRaw);
+          if (serverGiftValue <= 0) {
+            const c = Number(data.coins);
+            if (Number.isFinite(c) && c > 0) {
+              serverGiftValue = Math.min(Math.floor(c), 1_000_000_000);
+            }
+          }
           if (serverGiftValue > 0) {
             let normalizedTarget = normalizeBattleTarget(data.battleTarget);
             // Spectators in the opponent's stream see that creator as on-screen "host"; flip host↔opponent for team credit.
@@ -1865,7 +1872,7 @@ async function handleMessage(client: Client, event: string, data: any) {
             if (!normalizedTarget && activeBattle.player4UserId && client.userId === activeBattle.player4UserId) {
               normalizedTarget = "player4";
             }
-            // Spectators / ambiguous "me": credit the stream room being watched (not always host room)
+            // Spectators / ambiguous: credit only the room that matches host vs opponent — never dump everything on one side.
             if (!normalizedTarget) {
               if (
                 activeBattle.opponentRoomId &&
@@ -1875,13 +1882,15 @@ async function handleMessage(client: Client, event: string, data: any) {
               } else if (client.roomId === activeBattle.hostRoomId) {
                 normalizedTarget = "host";
               } else {
-                normalizedTarget = "host";
+                normalizedTarget = null;
               }
             }
             // #region agent log
             console.log(`[DBG-7a7f0c] gift_sent scoring: userId=${client.userId} roomId=${client.roomId} battleRoomId=${battleRoomId} rawTarget=${data.battleTarget} normalized=${normalizedTarget} value=${serverGiftValue} hostScore=${activeBattle.hostScore} oppScore=${activeBattle.opponentScore}`);
             // #endregion
-            addBattleScoreForTarget(battleRoomId, normalizedTarget, serverGiftValue);
+            if (normalizedTarget) {
+              addBattleScoreForTarget(battleRoomId, normalizedTarget, serverGiftValue);
+            }
           }
         }
         break;

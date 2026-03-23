@@ -882,6 +882,8 @@ interface Client {
 }
 
 const rooms = new Map<string, Set<Client>>();
+/** Cumulative live appreciation taps (heart_sent) per room — synced to all clients. */
+const roomLiveLikes = new Map<string, number>();
 const clients = new Map<WebSocket, Client>();
 const processedTransactions = new Map<string, number>();
 
@@ -1413,6 +1415,7 @@ wss.on("connection", async (ws: WebSocket, req) => {
 
     sendToClient(client, "room_state", {
       viewers,
+      live_likes: roomLiveLikes.get(roomId) ?? 0,
     });
 
     // Spectators only join/leave; layout is from the app (creator). Send current room layout to this joiner so they see the same layout as the creator — no spectator layout.
@@ -1658,12 +1661,18 @@ async function handleMessage(client: Client, event: string, data: any) {
 
       case "heart_sent":
         if (!wsRateCheck(client.userId, "heart", 30, 2_000)) break;
-        broadcastToRoom(client.roomId, "heart_sent", {
-          user_id: client.userId,
-          username: data?.username || client.username,
-          avatar: data?.avatar || "",
-          timestamp: new Date().toISOString(),
-        });
+        {
+          const roomId = client.roomId;
+          const next = (roomLiveLikes.get(roomId) ?? 0) + 1;
+          roomLiveLikes.set(roomId, next);
+          broadcastToRoom(roomId, "heart_sent", {
+            user_id: client.userId,
+            username: data?.username || client.username,
+            avatar: data?.avatar || "",
+            timestamp: new Date().toISOString(),
+            live_likes: next,
+          });
+        }
         break;
 
       case "gift_sent": {

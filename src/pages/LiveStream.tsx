@@ -1051,6 +1051,8 @@ export default function LiveStream() {
   const [giftTarget, setGiftTarget] = useState<'me' | 'opponent' | 'player3' | 'player4'>('me');
   const lastScreenTapRef = useRef<number>(0);
   const battleScoreTapWindowRef = useRef<{ windowStart: number; count: number }>({ windowStart: 0, count: 0 });
+  /** Video battle grid (excludes score bar) — spectator taps delegate to handleScreenTap + coordinate mapping. */
+  const battleVoteGridRef = useRef<HTMLDivElement | null>(null);
   const lastBattleTapTimeRef = useRef<number>(0);
   const battleFreeTapUsedRef = useRef<boolean>(false);
   const battleTripleTapRef = useRef<{ target: 'me' | 'opponent' | null; lastTapAt: number; count: number }>({
@@ -1068,9 +1070,6 @@ export default function LiveStream() {
   const [battleUiRole, setBattleUiRole] = useState<'host' | 'opponent'>(() =>
     isBattleJoiner ? 'opponent' : 'host',
   );
-  /** Server-synced labels so every room sees the same red vs blue team names + totals. */
-  const [battleBarLabelRed, setBattleBarLabelRed] = useState('');
-  const [battleBarLabelBlue, setBattleBarLabelBlue] = useState('');
   /** Authoritative host/opponent/P3/P4 totals from server (never role-swapped) — fixes bar showing 0 for the other team. */
   const battleServerTotalsRef = useRef({ h: 0, o: 0, p3: 0, p4: 0 });
   const [battleServerTotals, setBattleServerTotals] = useState({ h: 0, o: 0, p3: 0, p4: 0 });
@@ -1319,8 +1318,6 @@ export default function LiveStream() {
     setHostIsReady(false);
     setOpponentIsReady(false);
     setOpponentCreatorName('');
-    setBattleBarLabelRed('');
-    setBattleBarLabelBlue('');
     battleServerTotalsRef.current = { h: 0, o: 0, p3: 0, p4: 0 };
     setBattleServerTotals({ h: 0, o: 0, p3: 0, p4: 0 });
     setGiftTarget('me');
@@ -2122,6 +2119,10 @@ export default function LiveStream() {
       if (isBattleJoiner) {
         websocket.send('battle_join', { opponentName: user?.username || user?.name || 'Player' });
       }
+
+      if (typeof data.live_likes === 'number' && Number.isFinite(data.live_likes)) {
+        setLiveLikes(Math.max(0, data.live_likes));
+      }
     };
 
     const handleUserJoined = (data: any) => {
@@ -2250,19 +2251,6 @@ export default function LiveStream() {
     };
 
     // Server-controlled battle events — single source of truth
-    const syncBattleBarLabels = (data: any) => {
-      const h = typeof data.hostName === 'string' ? data.hostName.trim() : '';
-      const o = typeof data.opponentName === 'string' ? data.opponentName.trim() : '';
-      const p3 = typeof data.player3Name === 'string' ? data.player3Name.trim() : '';
-      const p4 = typeof data.player4Name === 'string' ? data.player4Name.trim() : '';
-      if (!h && !o && !p3 && !p4) return;
-      const cap = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
-      const red = p3 ? `${h || 'Host'} + ${p3}` : (h || 'Host');
-      const blue = p4 ? `${o || 'Guest'} + ${p4}` : (o || 'Guest');
-      setBattleBarLabelRed(cap(red, 24));
-      setBattleBarLabelBlue(cap(blue, 24));
-    };
-
     const applyBattleScores = (data: any) => {
       const pick = (v: unknown, fallback: number) => {
         if (v === undefined || v === null) return fallback;
@@ -2325,7 +2313,6 @@ export default function LiveStream() {
         setBattleState('ENDED');
       }
       applyBattleScores(data);
-      syncBattleBarLabels(data);
       setBattleTime(data.timeLeft ?? 300);
       if (data.hostReady != null) setHostIsReady(!!data.hostReady);
       if (data.opponentReady != null) setOpponentIsReady(!!data.opponentReady);
@@ -2367,7 +2354,6 @@ export default function LiveStream() {
     const handleBattleScore = (data: any) => {
       if (!mounted) return;
       applyBattleScores(data);
-      syncBattleBarLabels(data);
     };
 
     const handleBattleCountdown = (data: any) => {
@@ -2390,7 +2376,6 @@ export default function LiveStream() {
       }
       setBattleState('ENDED');
       applyBattleScores(data);
-      syncBattleBarLabels(data);
       const winner = data.winner;
       const role = battleRoleRef.current || (isBattleJoiner ? 'opponent' : (isBroadcast ? 'host' : null));
       if (winner === 'host') setBattleWinner(role === 'opponent' ? 'opponent' : 'me');
@@ -2406,8 +2391,12 @@ export default function LiveStream() {
 
     const handleHeartSent = (data: any) => {
       if (!mounted) return;
+      if (typeof data.live_likes === 'number' && Number.isFinite(data.live_likes)) {
+        setLiveLikes(Math.max(0, data.live_likes));
+      } else if (data.user_id !== user?.id) {
+        addLiveLikes(1);
+      }
       if (data.user_id === user?.id) return;
-      addLiveLikes(1);
       const stage = stageRef.current;
       if (stage) {
         const rect = stage.getBoundingClientRect();
@@ -3037,10 +3026,9 @@ export default function LiveStream() {
   };
 
   const handleScreenTap = (e?: React.MouseEvent | React.TouchEvent) => {
-    // 1. Spawn visual heart at tap location
+    let clientX: number | undefined;
+    let clientY: number | undefined;
     if (e) {
-      let clientX, clientY;
-      // Handle both mouse and touch events
       if ('touches' in e && e.touches.length > 0) {
         clientX = e.touches[0].clientX;
         clientY = e.touches[0].clientY;
@@ -3048,16 +3036,33 @@ export default function LiveStream() {
         clientX = (e as React.MouseEvent).clientX;
         clientY = (e as React.MouseEvent).clientY;
       }
-
-      if (clientX !== undefined && clientY !== undefined) {
-        spawnHeartFromClient(clientX, clientY, undefined, myCreatorName, myAvatar);
-      }
-    } else {
-      // Fallback for keyboard or other triggers
-      spawnHeartAtSide('me');
     }
 
-    // 2. Battle Logic: handled by handleBattleTap on individual player buttons
+    // Battle (spectators): taps anywhere on the video grid = same +5 vote as cells (max 5/sec on server)
+    if (!isBroadcast && clientX !== undefined && clientY !== undefined && isBattleMode && battleTime > 0 && !battleWinner) {
+      const g = battleVoteGridRef.current;
+      if (g) {
+        const rect = g.getBoundingClientRect();
+        if (clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom) {
+          const nx = (clientX - rect.left) / rect.width;
+          const ny = (clientY - rect.top) / rect.height;
+          const is4Player = battleSlots[1].status !== 'empty' || battleSlots[2].status !== 'empty';
+          const target: 'me' | 'opponent' | 'player3' | 'player4' = !is4Player
+            ? (nx < 0.5 ? 'me' : 'opponent')
+            : (nx < 0.5 ? (ny < 0.5 ? 'me' : 'player3') : (ny < 0.5 ? 'opponent' : 'player4'));
+          handleBattleTap(target);
+          setGiftTarget(target);
+          spawnHeartFromClient(clientX, clientY, undefined, myCreatorName, myAvatar);
+          return;
+        }
+      }
+    }
+
+    if (clientX !== undefined && clientY !== undefined) {
+      spawnHeartFromClient(clientX, clientY, undefined, myCreatorName, myAvatar);
+    } else {
+      spawnHeartAtSide('me');
+    }
   };
 
   const handleLikeTap = (e?: React.MouseEvent | React.TouchEvent) => {
@@ -3076,6 +3081,12 @@ export default function LiveStream() {
       }
     }
     addLiveLikes(1);
+    if (websocket.isConnected()) {
+      websocket.send('heart_sent', {
+        username: isBroadcast ? creatorName : viewerName,
+        avatar: isBroadcast ? (user?.avatar || myAvatar || '') : viewerAvatar,
+      });
+    }
   };
 
   const openMiniProfile = async (username: string, coins?: number) => {
@@ -3449,35 +3460,11 @@ export default function LiveStream() {
               return (
                 <div className={`relative w-full flex-none flex flex-col ${is4Player ? 'aspect-square' : 'h-[44dvh]'}`}>
 
-                  {/* Battle score: team names + totals (same for host / opponent / viewers via server payloads) */}
+                  {/* Battle score: totals inside PK bar only (no name strip above) */}
                   <div className="relative z-20 w-full flex-none bg-[#13151A]/95 border-b border-white/10">
-                    <div className="flex items-start justify-between gap-2 px-2 py-1 pointer-events-none">
-                      <div className="flex flex-col items-start min-w-0 flex-1 max-w-[50%]">
-                        <span className="text-[7px] font-bold uppercase tracking-wide text-[#ffb3b3] truncate w-full">
-                          Red · {battleBarLabelRed || 'Host team'}
-                        </span>
-                        <AnimatedScore value={typeof redTeamScore === 'number' && Number.isFinite(redTeamScore) ? redTeamScore : 0} durationMs={1200} className="text-white font-black text-[15px] tabular-nums leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" />
-                        {is4Player && (
-                          <span className="text-[7px] text-white/50 tabular-nums leading-tight">
-                            P1 {battleServerTotals.h} + P3 {battleServerTotals.p3}
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex flex-col items-end min-w-0 flex-1 max-w-[50%]">
-                        <span className="text-[7px] font-bold uppercase tracking-wide text-[#b3d4ff] truncate w-full text-right">
-                          Blue · {battleBarLabelBlue || 'Guest team'}
-                        </span>
-                        <AnimatedScore value={typeof blueTeamScore === 'number' && Number.isFinite(blueTeamScore) ? blueTeamScore : 0} durationMs={1200} className="text-white font-black text-[15px] tabular-nums leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" />
-                        {is4Player && (
-                          <span className="text-[7px] text-white/50 tabular-nums leading-tight text-right">
-                            P2 {battleServerTotals.o} + P4 {battleServerTotals.p4}
-                          </span>
-                        )}
-                      </div>
-                    </div>
                     <div
                       className="relative w-full overflow-hidden cursor-pointer pointer-events-auto"
-                      style={{ height: '14px' }}
+                      style={{ minHeight: is4Player ? '40px' : '32px' }}
                       onClick={(e) => { e.stopPropagation(); if (isBroadcast) { toggleBattle(); } else { spawnHeartFromClient(e.clientX, e.clientY); } }}
                     >
                       <div className="absolute inset-0 flex">
@@ -3485,7 +3472,25 @@ export default function LiveStream() {
                           className="h-full transition-[width] duration-[1200ms] ease-out motion-reduce:transition-none"
                           style={{ width: `${leftPct}%`, backgroundImage: 'linear-gradient(90deg, #DC143C, #FF1744, #C41E3A)' }}
                         />
-                        <div className="h-full flex-1" style={{ backgroundImage: 'linear-gradient(90deg, #1E90FF, #4169E1, #0047AB)' }} />
+                        <div className="h-full flex-1 min-w-0" style={{ backgroundImage: 'linear-gradient(90deg, #1E90FF, #4169E1, #0047AB)' }} />
+                      </div>
+                      <div className="relative z-10 flex h-full min-h-[32px] items-center justify-between gap-2 px-2.5 pointer-events-none">
+                        <div className="flex min-w-0 flex-1 flex-col items-start justify-center">
+                          <AnimatedScore value={typeof redTeamScore === 'number' && Number.isFinite(redTeamScore) ? redTeamScore : 0} durationMs={1200} className="text-white font-black text-[15px] tabular-nums leading-tight drop-shadow-[0_1px_3px_rgba(0,0,0,0.95)]" />
+                          {is4Player && (
+                            <span className="text-[6px] text-white/80 tabular-nums leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+                              P1 {battleServerTotals.h} + P3 {battleServerTotals.p3}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex min-w-0 flex-1 flex-col items-end justify-center">
+                          <AnimatedScore value={typeof blueTeamScore === 'number' && Number.isFinite(blueTeamScore) ? blueTeamScore : 0} durationMs={1200} className="text-white font-black text-[15px] tabular-nums leading-tight drop-shadow-[0_1px_3px_rgba(0,0,0,0.95)]" />
+                          {is4Player && (
+                            <span className="text-[6px] text-white/80 tabular-nums leading-tight text-right drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+                              P2 {battleServerTotals.o} + P4 {battleServerTotals.p4}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -3501,13 +3506,12 @@ export default function LiveStream() {
                     </div>
                   )}
 
-                  {/* Grid Container */}
-                  <div className="flex-1 min-h-0 flex flex-col">
+                  {/* Grid Container — ref for spectator tap→vote mapping */}
+                  <div ref={battleVoteGridRef} className="flex-1 min-h-0 flex flex-col">
                     {/* Row 1: P1 & P2 */}
                     <div className="flex flex-1 min-h-0">
                       <button
                         type="button"
-                        onClick={(e) => { e.stopPropagation(); handleBattleTap('me'); setGiftTarget('me'); spawnHeartFromClient(e.clientX, e.clientY); }}
                         className={`w-1/2 h-full overflow-hidden relative bg-[#13151A] pointer-events-auto border-r border-white/5 ${is4Player ? 'border-b' : ''}`}
                       >
                       <video ref={videoRef} className="w-full h-full object-cover transform scale-x-[-1]" autoPlay playsInline muted style={isCamOff ? { opacity: 0 } : undefined} />
@@ -3556,7 +3560,6 @@ export default function LiveStream() {
                     </button>
                     <button
                       type="button"
-                      onClick={(e) => { e.stopPropagation(); handleBattleTap('opponent'); setGiftTarget('opponent'); spawnHeartFromClient(e.clientX, e.clientY); }}
                       className={`w-1/2 h-full overflow-hidden relative bg-[#13151A] pointer-events-auto ${is4Player ? 'border-b border-white/5' : ''}`}
                     >
                       {battleSlots[0].status === 'accepted' ? (
@@ -3660,7 +3663,6 @@ export default function LiveStream() {
                     <div className="flex flex-1 min-h-0">
                       <button
                         type="button"
-                        onClick={(e) => { e.stopPropagation(); handleBattleTap('player3'); setGiftTarget('player3'); spawnHeartFromClient(e.clientX, e.clientY); }}
                         className="w-1/2 h-full overflow-hidden relative bg-[#13151A] pointer-events-auto border-r border-white/5"
                       >
                         {battleSlots[1].status === 'accepted' ? (
@@ -3742,7 +3744,6 @@ export default function LiveStream() {
                       </button>
                       <button
                         type="button"
-                        onClick={(e) => { e.stopPropagation(); handleBattleTap('player4'); setGiftTarget('player4'); spawnHeartFromClient(e.clientX, e.clientY); }}
                         className="w-1/2 h-full overflow-hidden relative bg-[#13151A] pointer-events-auto"
                       >
                         {battleSlots[2].status === 'accepted' ? (
@@ -4079,7 +4080,7 @@ export default function LiveStream() {
                     messages={messages}
                     variant="panel"
                     isModerator={isBroadcast || moderators.has(user?.id || '')}
-                    onLike={() => addLiveLikes(1)}
+                    onLike={() => handleLikeTap()}
                     onHeartSpawn={(cx, cy) => handleLikeTap()}
                     onProfileTap={(username) => openMiniProfile(username)}
                     onDeleteMessage={(msgId) => setMessages(prev => prev.filter(m => m.id !== msgId))}

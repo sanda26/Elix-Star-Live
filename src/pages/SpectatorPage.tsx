@@ -1311,8 +1311,28 @@ export default function SpectatorPage() {
     websocket.on('gift_sent', handleGiftSent);
     websocket.on('heart_sent', handleHeartSent);
     websocket.on('stream_ended', handleStreamEnded);
+    const handleBattleScoreUpdateColon = (data: any) => {
+      if (!mounted) return;
+      const p = data?.players;
+      if (!p || typeof p !== 'object') return;
+      setSpectatorBattle((prev) => {
+        if (!prev?.active) return prev;
+        const toScore = (value: unknown, fallback: number) => {
+          const n = Number(value);
+          return Number.isFinite(n) ? n : fallback;
+        };
+        return {
+          ...prev,
+          hostScore: toScore(p.A1, prev.hostScore),
+          opponentScore: toScore(p.B1, prev.opponentScore),
+          player3Score: toScore(p.A2, prev.player3Score ?? 0),
+          player4Score: toScore(p.B2, prev.player4Score ?? 0),
+        };
+      });
+    };
     websocket.on('battle_state_sync', handleBattleStateSync);
     websocket.on('battle_score', handleBattleScore);
+    websocket.on('battle:score_update', handleBattleScoreUpdateColon);
     websocket.on('battle_ended', handleBattleEnded);
     websocket.on('cohost_layout_sync', handleCohostLayoutSync);
     websocket.on('cohost_request_accepted', handleCohostRequestAccepted);
@@ -1369,6 +1389,7 @@ export default function SpectatorPage() {
       websocket.off('stream_ended', handleStreamEnded);
       websocket.off('battle_state_sync', handleBattleStateSync);
       websocket.off('battle_score', handleBattleScore);
+      websocket.off('battle:score_update', handleBattleScoreUpdateColon);
       websocket.off('battle_ended', handleBattleEnded);
       websocket.off('cohost_layout_sync', handleCohostLayoutSync);
       websocket.off('cohost_request_accepted', handleCohostRequestAccepted);

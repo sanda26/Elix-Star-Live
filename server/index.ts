@@ -1058,8 +1058,13 @@ interface BattleSession {
   battleLikes: number;
 }
 
-const battles = new Map<string, BattleSession>(); // roomId -> BattleSession
-const userBattleRoom = new Map<string, string>(); // userId -> roomId (which battle they're in)
+// IMPORTANT: `battles` is keyed ONLY by the host's stream room id (`hostRoomId`). That is the
+// single source of truth for a PK session. Do NOT use `battles.get(client.roomId)` when the
+// socket is on the opponent's stream — lookups will miss. Use `resolveBattleSessionForRoom`,
+// `userBattleRoom.get(userId)`, `resolveActiveBattleRoomId`, or `joinBattle(session.hostRoomId, …)`.
+const battles = new Map<string, BattleSession>();
+/** Maps participant userId → host `hostRoomId` for the battle they belong to. */
+const userBattleRoom = new Map<string, string>();
 const lastCohostLayoutByRoom = new Map<string, { coHosts: unknown[]; hostUserId: string }>();
 
 /** Pending server-spawned booster (catch only sends team — multiplier comes from here). */
@@ -1303,9 +1308,6 @@ function broadcastBattleScoreFromSession(
   target: "host" | "opponent" | "player3" | "player4",
   points: number,
 ) {
-  console.log(
-    `[DBG-7a7f0c] SCORE +${points} to ${target} → P1=${session.hostScore} P2=${session.opponentScore} P3=${session.player3Score} P4=${session.player4Score} room=${roomId}`,
-  );
   const scorePayload = {
     hostScore: session.hostScore,
     opponentScore: session.opponentScore,
@@ -2025,9 +2027,6 @@ async function handleMessage(client: Client, event: string, data: any) {
                 normalizedTarget = null;
               }
             }
-            // #region agent log
-            console.log(`[DBG-7a7f0c] gift_sent scoring: userId=${client.userId} roomId=${client.roomId} battleRoomId=${battleRoomId} rawTarget=${data.battleTarget} normalized=${normalizedTarget} value=${serverGiftValue} hostScore=${activeBattle.hostScore} oppScore=${activeBattle.opponentScore}`);
-            // #endregion
             if (normalizedTarget) {
               addBattleScoreForTarget(battleRoomId, normalizedTarget, serverGiftValue);
             }
@@ -2069,9 +2068,6 @@ async function handleMessage(client: Client, event: string, data: any) {
             }
           }
         }
-        // #region agent log
-        console.log(`[DBG-7a7f0c] battle_create: hostRoom=${client.roomId} oppUserId=${opponentUserId} oppRoomId=${opponentRoomId}`);
-        // #endregion
         if (opponentUserId && opponentName) {
           session.opponentUserId = opponentUserId;
           session.opponentName = opponentName;
@@ -2095,8 +2091,20 @@ async function handleMessage(client: Client, event: string, data: any) {
       }
 
       case "battle_join": {
+        /** Battles live under the host's `hostRoomId` key — never `battles.get(opponentStreamRoomId)`. */
+        let session = resolveBattleSessionForRoom(client.roomId);
+        if (!session) {
+          const hostRoom = userBattleRoom.get(client.userId);
+          if (hostRoom) session = battles.get(hostRoom) ?? null;
+        }
+        if (!session || session.status === "ENDED") {
+          sendToClient(client, "battle_error", {
+            message: "No battle to join",
+          });
+          break;
+        }
         const battleSession = joinBattle(
-          client.roomId,
+          session.hostRoomId,
           client.userId,
           data.opponentName || client.displayName,
         );
@@ -2105,6 +2113,19 @@ async function handleMessage(client: Client, event: string, data: any) {
             message: "No battle to join",
           });
           break;
+        }
+        if (process.env.NODE_ENV !== "production") {
+          const s = battleSession;
+          console.log("BATTLE STATE:", {
+            battleId: s.id,
+            room: s.hostRoomId,
+            players: {
+              A1: s.hostScore,
+              A2: s.player3Score,
+              B1: s.opponentScore,
+              B2: s.player4Score,
+            },
+          });
         }
         break;
       }
@@ -2148,9 +2169,6 @@ async function handleMessage(client: Client, event: string, data: any) {
       case "battle_spectator_vote": {
         const voteRoom = resolveActiveBattleRoomId(client.roomId, client.userId);
         const voteBattle = voteRoom ? battles.get(voteRoom) : undefined;
-        // #region agent log
-        console.log(`[DBG-7a7f0c] battle_spectator_vote: userId=${client.userId} clientRoom=${client.roomId} voteRoom=${voteRoom} found=${!!voteBattle} target=${data.target}`);
-        // #endregion
         if (!voteBattle || voteBattle.status !== "ACTIVE") break;
         if (!allowBattleSpectatorTapScore(client.userId, voteRoom, 5)) break;
         const team = normalizeSpectatorVoteTeam(data.target);

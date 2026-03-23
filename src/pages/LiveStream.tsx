@@ -2432,6 +2432,21 @@ export default function LiveStream() {
       applyBattleScores(data);
     };
 
+    /** Server ~300ms authoritative snapshot (same `battleId` / session as `battle_score`). */
+    const handleBattleScoreUpdate = (data: any) => {
+      if (!mounted) return;
+      const p = data?.players;
+      if (!p || typeof p !== "object") return;
+      applyBattleScores({
+        hostScore: p.A1,
+        opponentScore: p.B1,
+        player3Score: p.A2,
+        player4Score: p.B2,
+        hostUserId: battleStreamIdsRef.current.hostUserId,
+        opponentUserId: battleStreamIdsRef.current.opponentUserId,
+      });
+    };
+
     const handleBattleCountdown = (data: any) => {
       if (!mounted) return;
       setBattleCountdown(data.count ?? null);
@@ -2489,6 +2504,7 @@ export default function LiveStream() {
     websocket.on('heart_sent', handleHeartSent);
     websocket.on('battle_state_sync', handleBattleStateSync);
     websocket.on('battle_score', handleBattleScore);
+    websocket.on('battle:score_update', handleBattleScoreUpdate);
     websocket.on('battle_countdown', handleBattleCountdown);
     websocket.on('battle_ended', handleBattleEnded);
     websocket.on('battle_ready_state', handleBattleReadyState);
@@ -2616,6 +2632,7 @@ export default function LiveStream() {
       websocket.off('heart_sent', handleHeartSent);
       websocket.off('battle_state_sync', handleBattleStateSync);
       websocket.off('battle_score', handleBattleScore);
+      websocket.off('battle:score_update', handleBattleScoreUpdate);
       websocket.off('battle_countdown', handleBattleCountdown);
       websocket.off('battle_ended', handleBattleEnded);
       websocket.off('battle_ready_state', handleBattleReadyState);

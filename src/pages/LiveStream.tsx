@@ -57,7 +57,7 @@ import { GiftPanel } from '../components/GiftPanel';
 import { RankingPanel } from '../components/RankingPanel';
 import { websocket } from '../lib/websocket';
 import LiveAIFilters from '../components/LiveAIFilters';
-import { normalizeBattleGiftTarget } from '../lib/liveBattleGiftTarget';
+import { liveStreamUiGiftTargetToServerBattleTarget, normalizeBattleGiftTarget } from '../lib/liveBattleGiftTarget';
 import { IS_STORE_BUILD } from '../config/build';
 import { Room, RoomEvent, LocalVideoTrack, LocalAudioTrack } from 'livekit-client';
 
@@ -2367,7 +2367,7 @@ export default function LiveStream() {
       if (!mounted) return;
       applyBattleScores(data);
       // #region agent log
-      fetch('http://127.0.0.1:7765/ingest/504ee8d9-85af-4146-9e87-ee22d4845d37',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d3b772'},body:JSON.stringify({sessionId:'d3b772',runId:'run-current',hypothesisId:'H4',location:'src/pages/LiveStream.tsx:handleBattleScore',message:'battle_score received',data:{hostScore:data?.hostScore,opponentScore:data?.opponentScore,player3Score:data?.player3Score,player4Score:data?.player4Score,target:data?.target,points:data?.points},timestamp:Date.now()})}).catch(()=>{});
+      fetch('http://127.0.0.1:7765/ingest/504ee8d9-85af-4146-9e87-ee22d4845d37',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'88a9f1'},body:JSON.stringify({sessionId:'88a9f1',runId:'run-pre',hypothesisId:'H3',location:'LiveStream.tsx:handleBattleScore',message:'battle_score',data:{h:data?.hostScore,o:data?.opponentScore,isBattleJoiner},timestamp:Date.now()})}).catch(()=>{});
       // #endregion
     };
 
@@ -2383,16 +2383,20 @@ export default function LiveStream() {
       }
       const p = data?.players;
       if (!p || typeof p !== "object") return;
+      const ids = battleStreamIdsRef.current;
+      // #region agent log
+      fetch('http://127.0.0.1:7765/ingest/504ee8d9-85af-4146-9e87-ee22d4845d37',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'88a9f1'},body:JSON.stringify({sessionId:'88a9f1',runId:'run-pre',hypothesisId:'H1',location:'LiveStream.tsx:handleBattleScoreUpdate',message:'before applyBattleScores',data:{idsNull:ids==null,A1:p?.A1,B1:p?.B1,isBattleJoiner},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
       applyBattleScores({
         hostScore: p.A1,
         opponentScore: p.B1,
         player3Score: p.A2,
         player4Score: p.B2,
-        hostUserId: battleStreamIdsRef.current.hostUserId,
-        opponentUserId: battleStreamIdsRef.current.opponentUserId,
+        hostUserId: ids?.hostUserId,
+        opponentUserId: ids?.opponentUserId,
       });
       // #region agent log
-      fetch('http://127.0.0.1:7765/ingest/504ee8d9-85af-4146-9e87-ee22d4845d37',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d3b772'},body:JSON.stringify({sessionId:'d3b772',runId:'run-current',hypothesisId:'H4',location:'src/pages/LiveStream.tsx:handleBattleScoreUpdate',message:'battle:score_update received',data:{teamA:data?.teamA,teamB:data?.teamB,A1:p?.A1,B1:p?.B1,A2:p?.A2,B2:p?.B2},timestamp:Date.now()})}).catch(()=>{});
+      fetch('http://127.0.0.1:7765/ingest/504ee8d9-85af-4146-9e87-ee22d4845d37',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'88a9f1'},body:JSON.stringify({sessionId:'88a9f1',runId:'run-pre',hypothesisId:'H2',location:'LiveStream.tsx:handleBattleScoreUpdate:after',message:'totals after apply',data:{h:battleServerTotalsRef.current.h,o:battleServerTotalsRef.current.o,role:battleRoleRef.current},timestamp:Date.now()})}).catch(()=>{});
       // #endregion
     };
 
@@ -2806,6 +2810,18 @@ export default function LiveStream() {
       };
       setMessages(prev => [...prev, giftMsg]);
 
+      const idsForBattleGift = battleStreamIdsRef.current;
+      const serverBattleTarget =
+        isBattleMode
+          ? liveStreamUiGiftTargetToServerBattleTarget(giftTarget, {
+              isBroadcast,
+              isBattleJoiner,
+              effectiveStreamId,
+              hostRoomId: idsForBattleGift?.hostRoomId ?? '',
+              opponentRoomId: idsForBattleGift?.opponentRoomId ?? '',
+            })
+          : undefined;
+
       websocket.send('gift_sent', {
         giftId: gift.id,
         giftName: gift.name,
@@ -2816,7 +2832,7 @@ export default function LiveStream() {
         avatar: giftMsg.avatar,
         video: gift.video || null,
         transactionId: `${user?.id || 'anon'}-${Date.now()}`,
-        battleTarget: isBattleMode ? giftTarget : undefined,
+        battleTarget: serverBattleTarget,
         creator_name: hostName || 'Creator',
         ...(!isBroadcast && { host_user_id: effectiveStreamId }),
       });
@@ -2949,6 +2965,19 @@ export default function LiveStream() {
           avatar: viewerAvatar,
       };
       setMessages(prev => [...prev, giftMsg]);
+
+      const idsForBattleGiftCombo = battleStreamIdsRef.current;
+      const serverBattleTargetCombo =
+        isBattleMode
+          ? liveStreamUiGiftTargetToServerBattleTarget(giftTarget, {
+              isBroadcast,
+              isBattleJoiner,
+              effectiveStreamId,
+              hostRoomId: idsForBattleGiftCombo?.hostRoomId ?? '',
+              opponentRoomId: idsForBattleGiftCombo?.opponentRoomId ?? '',
+            })
+          : undefined;
+
       websocket.send('gift_sent', {
         giftId: lastSentGift.id,
         giftName: lastSentGift.name,
@@ -2959,7 +2988,7 @@ export default function LiveStream() {
         avatar: giftMsg.avatar,
         video: lastSentGift.video || null,
         transactionId: `${user?.id || 'anon'}-${Date.now()}`,
-        battleTarget: isBattleMode ? giftTarget : undefined,
+        battleTarget: serverBattleTargetCombo,
         creator_name: hostName || 'Creator',
         ...(!isBroadcast && { host_user_id: effectiveStreamId }),
       });
@@ -3557,8 +3586,7 @@ export default function LiveStream() {
                   <div ref={battleVoteGridRef} className="flex-1 min-h-0 flex flex-col">
                     {/* Row 1: P1 & P2 */}
                     <div className="flex flex-1 min-h-0">
-                      <button
-                        type="button"
+                      <div
                         className={`w-1/2 h-full overflow-hidden relative bg-[#13151A] pointer-events-auto border-r border-white/5 ${is4Player ? 'border-b' : ''}`}
                       >
                       <video ref={videoRef} className="w-full h-full object-cover transform scale-x-[-1]" autoPlay playsInline muted style={isCamOff ? { opacity: 0 } : undefined} />
@@ -3604,9 +3632,8 @@ export default function LiveStream() {
                           </span>
                         </div>
                       )}
-                    </button>
-                    <button
-                      type="button"
+                    </div>
+                    <div
                       className={`w-1/2 h-full overflow-hidden relative bg-[#13151A] pointer-events-auto ${is4Player ? 'border-b border-white/5' : ''}`}
                     >
                       {battleSlots[0].status === 'accepted' ? (
@@ -3702,14 +3729,13 @@ export default function LiveStream() {
                           </span>
                         </div>
                       )}
-                    </button>
+                    </div>
                   </div>
 
                   {/* Row 2: P3 & P4 — only when 4 players, same container */}
                   {is4Player && (
                     <div className="flex flex-1 min-h-0">
-                      <button
-                        type="button"
+                      <div
                         className="w-1/2 h-full overflow-hidden relative bg-[#13151A] pointer-events-auto border-r border-white/5"
                       >
                         {battleSlots[1].status === 'accepted' ? (
@@ -3788,9 +3814,8 @@ export default function LiveStream() {
                             </span>
                           </div>
                         )}
-                      </button>
-                      <button
-                        type="button"
+                      </div>
+                      <div
                         className="w-1/2 h-full overflow-hidden relative bg-[#13151A] pointer-events-auto"
                       >
                         {battleSlots[2].status === 'accepted' ? (
@@ -3870,7 +3895,7 @@ export default function LiveStream() {
                             </span>
                           </div>
                         )}
-                      </button>
+                      </div>
                     </div>
                   )}
                 </div>

@@ -2166,6 +2166,9 @@ export default function SpectatorPage() {
                     const interactive = e.target.closest('button, a, input, textarea, select, [role="button"]');
                     if (interactive) return;
                   }
+                  // #region agent log
+                  fetch('http://127.0.0.1:7915/ingest/977d1c87-bfd5-48d4-8dd5-e632c283ea88',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'9f0b02'},body:JSON.stringify({sessionId:'9f0b02',location:'SpectatorPage.tsx:2164',message:'Video onPointerDown fired (like tap)',data:{targetTag:(e.target as Element)?.tagName,targetClass:(e.target as Element)?.className?.toString?.()?.slice(0,80)},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
+                  // #endregion
                   handleLikeTap(e);
                 }}
               >
@@ -2271,8 +2274,14 @@ export default function SpectatorPage() {
                   <AvatarRing src={hostAvatar} alt={hostName} size={56} />
                 </div>
                 <div
-                  className="flex flex-col justify-center -ml-3 pl-5 pr-16 h-8 rounded-full border border-[#C9A96E]/60 bg-[#13151A]/80 min-w-0 relative"
+                  className="flex flex-col justify-center -ml-3 pl-5 pr-16 h-8 rounded-full border border-[#C9A96E]/60 bg-[#13151A]/80 min-w-0 relative cursor-pointer"
                   style={{ borderTopLeftRadius: 0, borderBottomLeftRadius: 0, boxShadow: '0 0 8px rgba(201,169,110,0.25)' }}
+                  onClick={() => {
+                    // #region agent log
+                    fetch('http://127.0.0.1:7915/ingest/977d1c87-bfd5-48d4-8dd5-e632c283ea88',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'9f0b02'},body:JSON.stringify({sessionId:'9f0b02',location:'SpectatorPage.tsx:2276',message:'Aprecieri bar clicked',data:{hostUserId,hostName},timestamp:Date.now(),hypothesisId:'H1+H3'})}).catch(()=>{});
+                    // #endregion
+                    navigate(`/profile/${hostUserId}`);
+                  }}
                 >
                   <span className="text-white text-[11px] font-bold truncate max-w-[100px] leading-tight">{hostName}</span>
                   <div className="flex items-center gap-1 -mt-0.5 flex-wrap">

@@ -63,6 +63,7 @@ import {
   isPostgresConfigured,
   dbEnsureBattleCreatorBuckets,
   dbAddBattleScoreAndFetchAll,
+  dbAddBattleScoreTeamSideAndFetchAll,
   dbDeleteBattleBuckets,
   dbSyncBattleCreatorSlot,
   type BattleSessionScoreContext,
@@ -987,18 +988,18 @@ function normalizeBattleTarget(
 // ═══════════════════════════════════════════════════════════════
 // BATTLE SYSTEM — Server-controlled sessions, timers, scoring
 //
-// Four creators (4-player layout) — one score bucket each (same for 2-player; P3/P4 stay 0 if empty):
+// Logical model (same as in-memory session):
+//   players: { A1: hostScore, A2: player3Score, B1: opponentScore, B2: player4Score }
+//   multiplier: { A: teamRedMultiplier, B: teamBlueMultiplier }  // tap only; server authority
+//   teamA = A1+A2, teamB = B1+B2 (derived)
 //
-//   P1 (host)     → hostScore      — red team
-//   P2 (opponent) → opponentScore  — blue team
-//   P3            → player3Score   — red team with P1
-//   P4            → player4Score   — blue team with P2
+// WebSocket events (Socket.IO-style names, no Socket.IO dependency):
+//   Client → server: battle:tap { team: "A"|"B" } | battle_spectator_vote (legacy)
+//   Server → all:   battle:score_update every 300ms while ACTIVE; battle_score on each change (legacy)
+//   Booster: booster:spawn (host), booster:catch { team }, booster:activated / booster:spawn broadcast
+//   Chat during battle: +1 battleLikes → likes:update { total }
 //
-// Team totals: redTeam = hostScore + player3Score; blueTeam = opponentScore + player4Score.
-// Every scored action (gift, battle_spectator_vote) calls addBattleScoreForTarget(roomId, target, points)
-// with target ∈ { host, opponent, player3, player4 } — exactly one bucket per event.
-//
-// 2-player: only hostScore + opponentScore are used; player3Score/player4Score stay 0. Same API.
+// Gifts: addBattleScoreForTarget — one bucket per gift (unchanged).
 //
 // When DATABASE_URL is set (e.g. Neon), each creator’s points live in Postgres table
 // `battle_creator_buckets` (one row per slot per host_room_id). In-memory session scores
@@ -1028,11 +1029,55 @@ interface BattleSession {
   createdAt: number;
   hostReady: boolean;
   opponentReady: boolean;
+  /** Applied to spectator tap points for whole red side (both A1 and A2). Default 1. */
+  teamRedMultiplier: number;
+  /** Applied to spectator tap points for whole blue side (both B1 and B2). Default 1. */
+  teamBlueMultiplier: number;
+  /** Battle-scoped like counter (e.g. +1 per chat message while battle active). */
+  battleLikes: number;
 }
 
 const battles = new Map<string, BattleSession>(); // roomId -> BattleSession
 const userBattleRoom = new Map<string, string>(); // userId -> roomId (which battle they're in)
 const lastCohostLayoutByRoom = new Map<string, { coHosts: unknown[]; hostUserId: string }>();
+
+/** Pending server-spawned booster (catch only sends team — multiplier comes from here). */
+type PendingBooster = { team: "A" | "B"; multiplier: number; expiresAt: number };
+const pendingBoosterByRoom = new Map<string, PendingBooster>();
+
+/** Host room id for an active battle, or opponent’s room mapped to host battle room. */
+function resolveActiveBattleRoomId(roomId: string, userId: string): string | null {
+  const here = battles.get(roomId);
+  if (here && here.status === "ACTIVE") return roomId;
+  const fromUser = userBattleRoom.get(userId);
+  if (fromUser) {
+    const s = battles.get(fromUser);
+    if (s && s.status === "ACTIVE") return fromUser;
+  }
+  for (const [rId, s] of battles) {
+    if (s.status === "ACTIVE" && s.opponentRoomId === roomId) return rId;
+  }
+  return null;
+}
+
+function buildBattleScoreUpdatePayload(session: BattleSession) {
+  const players = {
+    A1: session.hostScore,
+    A2: session.player3Score,
+    B1: session.opponentScore,
+    B2: session.player4Score,
+  };
+  const teamA = players.A1 + players.A2;
+  const teamB = players.B1 + players.B2;
+  return {
+    battleId: session.id,
+    players,
+    multiplier: { A: session.teamRedMultiplier, B: session.teamBlueMultiplier },
+    teamA,
+    teamB,
+    likes: session.battleLikes,
+  };
+}
 
 function createBattle(
   hostRoomId: string,
@@ -1063,6 +1108,9 @@ function createBattle(
     createdAt: Date.now(),
     hostReady: false,
     opponentReady: false,
+    teamRedMultiplier: 1,
+    teamBlueMultiplier: 1,
+    battleLikes: 0,
   };
   battles.set(hostRoomId, session);
   userBattleRoom.set(hostUserId, hostRoomId);
@@ -1187,13 +1235,11 @@ function allowBattleSpectatorTapScore(userId: string, roomId: string, maxPerSec:
   return true;
 }
 
-/** Map client vote / gift target to one of four player buckets (see BATTLE SYSTEM header). */
-function normalizeSpectatorVoteTarget(raw: unknown): "host" | "opponent" | "player3" | "player4" | null {
+/** Spectator/creator PK tap: map to team only — same points go to BOTH players on that side. */
+function normalizeSpectatorVoteTeam(raw: unknown): "red" | "blue" | null {
   const s = typeof raw === "string" ? raw.toLowerCase().trim() : "";
-  if (s === "host" || s === "a" || s === "red") return "host";
-  if (s === "opponent" || s === "b" || s === "blue") return "opponent";
-  if (s === "player3" || s === "p3") return "player3";
-  if (s === "player4" || s === "p4") return "player4";
+  if (s === "host" || s === "player3" || s === "red" || s === "left" || s === "a") return "red";
+  if (s === "opponent" || s === "player4" || s === "blue" || s === "right" || s === "b") return "blue";
   return null;
 }
 
@@ -1275,9 +1321,51 @@ function addBattleScoreForTarget(
   broadcastBattleScoreFromSession(session, roomId, target, points);
 }
 
+/** PK tap: add the same points to both players on red (host+player3) or blue (opponent+player4). */
+function addBattleScoreForTeamSide(
+  roomId: string,
+  side: "red" | "blue",
+  pointsPerPlayer: number,
+) {
+  const session = battles.get(roomId);
+  if (!session || session.status !== "ACTIVE") return;
+
+  if (isPostgresConfigured()) {
+    void (async () => {
+      const s = battles.get(roomId);
+      if (!s || s.status !== "ACTIVE") return;
+      const row = await dbAddBattleScoreTeamSideAndFetchAll(
+        roomId,
+        side,
+        pointsPerPlayer,
+        battleSessionToScoreCtx(s),
+      );
+      if (row) {
+        s.hostScore = row.host;
+        s.opponentScore = row.opponent;
+        s.player3Score = row.player3;
+        s.player4Score = row.player4;
+        broadcastBattleScoreFromSession(s, roomId, side === "red" ? "host" : "opponent", pointsPerPlayer);
+      } else {
+        applyBattleScoreInMemory(s, side === "red" ? "host" : "opponent", pointsPerPlayer);
+        applyBattleScoreInMemory(s, side === "red" ? "player3" : "player4", pointsPerPlayer);
+        broadcastBattleScoreFromSession(s, roomId, side === "red" ? "host" : "opponent", pointsPerPlayer);
+        logger.warn({ roomId, side }, "battle team score: DB unavailable, used in-memory fallback");
+      }
+    })();
+    return;
+  }
+
+  applyBattleScoreInMemory(session, side === "red" ? "host" : "opponent", pointsPerPlayer);
+  applyBattleScoreInMemory(session, side === "red" ? "player3" : "player4", pointsPerPlayer);
+  broadcastBattleScoreFromSession(session, roomId, side === "red" ? "host" : "opponent", pointsPerPlayer);
+}
+
 function endBattle(roomId: string) {
   const session = battles.get(roomId);
   if (!session) return;
+
+  pendingBoosterByRoom.delete(roomId);
 
   if (session.timer) {
     clearInterval(session.timer);
@@ -1404,6 +1492,16 @@ function broadcastToBattleParticipants(
     }
   }
 }
+
+/** Server authority: full battle snapshot to all clients ~300ms while ACTIVE (anti-cheat friendly). */
+setInterval(() => {
+  for (const [roomId, session] of battles) {
+    if (session.status !== "ACTIVE") continue;
+    const payload = buildBattleScoreUpdatePayload(session);
+    broadcastToRoom(roomId, "battle:score_update", payload);
+    broadcastToBattleParticipants(roomId, session, "battle:score_update", payload);
+  }
+}, 300);
 
 wss.on("connection", async (ws: WebSocket, req) => {
   let client: Client | null = null;
@@ -1760,6 +1858,18 @@ async function handleMessage(client: Client, event: string, data: any) {
           username: client.username,
           timestamp: new Date().toISOString(),
         });
+        {
+          const battleRoom = resolveActiveBattleRoomId(client.roomId, client.userId);
+          if (battleRoom) {
+            const b = battles.get(battleRoom);
+            if (b && b.status === "ACTIVE") {
+              b.battleLikes += 1;
+              const likesPayload = { total: b.battleLikes, battleId: b.id };
+              broadcastToRoom(battleRoom, "likes:update", likesPayload);
+              broadcastToBattleParticipants(battleRoom, b, "likes:update", likesPayload);
+            }
+          }
+        }
         break;
 
       case "heart_sent":
@@ -1970,28 +2080,52 @@ async function handleMessage(client: Client, event: string, data: any) {
         break;
       }
 
+      /** Client intent only: team A or B — server applies base × multiplier to both players on that side. */
+      case "battle:tap": {
+        const battleRoom = resolveActiveBattleRoomId(client.roomId, client.userId);
+        if (!battleRoom) break;
+        const b = battles.get(battleRoom);
+        if (!b || b.status !== "ACTIVE") break;
+        if (!allowBattleSpectatorTapScore(client.userId, battleRoom, 5)) break;
+        const team = String(data?.team ?? "").toUpperCase();
+        if (team !== "A" && team !== "B") break;
+        const side = team === "A" ? "red" : "blue";
+        const mult = Math.max(1, team === "A" ? b.teamRedMultiplier : b.teamBlueMultiplier);
+        const pointsPerPlayer = Math.round(5 * mult);
+        addBattleScoreForTeamSide(battleRoom, side, pointsPerPlayer);
+        sendToClient(client, "battle_vote_ack", {
+          side: team === "A" ? "red" : "blue",
+          team,
+          pointsPerPlayer,
+          basePoints: 5,
+          multiplier: mult,
+        });
+        break;
+      }
+
       case "battle_spectator_vote": {
-        let voteRoom = client.roomId;
-        if (!battles.has(voteRoom)) {
-          const fromUser = userBattleRoom.get(client.userId);
-          if (fromUser) {
-            voteRoom = fromUser;
-          } else {
-            for (const [rId, s] of battles) {
-              if (s.opponentRoomId === client.roomId) { voteRoom = rId; break; }
-            }
-          }
-        }
-        const voteBattle = battles.get(voteRoom);
+        const voteRoom = resolveActiveBattleRoomId(client.roomId, client.userId);
+        const voteBattle = voteRoom ? battles.get(voteRoom) : undefined;
         // #region agent log
         console.log(`[DBG-7a7f0c] battle_spectator_vote: userId=${client.userId} clientRoom=${client.roomId} voteRoom=${voteRoom} found=${!!voteBattle} target=${data.target}`);
         // #endregion
         if (!voteBattle || voteBattle.status !== "ACTIVE") break;
         if (!allowBattleSpectatorTapScore(client.userId, voteRoom, 5)) break;
-        const voteTarget = normalizeSpectatorVoteTarget(data.target);
-        if (!voteTarget) break;
-        addBattleScoreForTarget(voteRoom, voteTarget, 5);
-        sendToClient(client, "battle_vote_ack", { target: voteTarget, points: 5 });
+        const team = normalizeSpectatorVoteTeam(data.target);
+        if (!team) break;
+        const mult = Math.max(
+          1,
+          team === "red" ? voteBattle.teamRedMultiplier : voteBattle.teamBlueMultiplier,
+        );
+        const base = 5;
+        const pointsPerPlayer = Math.round(base * mult);
+        addBattleScoreForTeamSide(voteRoom, team, pointsPerPlayer);
+        sendToClient(client, "battle_vote_ack", {
+          side: team,
+          pointsPerPlayer,
+          basePoints: base,
+          multiplier: mult,
+        });
         break;
       }
 
@@ -2217,12 +2351,85 @@ async function handleMessage(client: Client, event: string, data: any) {
         break;
       }
 
-      case "booster_activated":
+      /** Host-only: spawn a catchable booster (multiplier is server-controlled). */
+      case "booster:spawn": {
+        if (!wsRateCheck(client.userId, "booster_spawn", 8, 60_000)) break;
+        const battleRoom = resolveActiveBattleRoomId(client.roomId, client.userId);
+        const s = battleRoom ? battles.get(battleRoom) : undefined;
+        if (!s || s.status !== "ACTIVE" || s.hostUserId !== client.userId) break;
+        const team = String(data?.team ?? "").toUpperCase();
+        if (team !== "A" && team !== "B") break;
+        const multiplier = Math.min(10, Math.max(2, Math.floor(Number(data?.multiplier)) || 5));
+        const duration = Math.min(60000, Math.max(2000, Math.floor(Number(data?.duration)) || 8000));
+        pendingBoosterByRoom.set(battleRoom, {
+          team: team as "A" | "B",
+          multiplier,
+          expiresAt: Date.now() + duration,
+        });
+        const payload = { team, multiplier, duration };
+        broadcastToRoom(battleRoom, "booster:spawn", payload);
+        broadcastToBattleParticipants(battleRoom, s, "booster:spawn", payload);
+        break;
+      }
+
+      /** Client sends team only — multiplier applied from pending server spawn. */
+      case "booster:catch": {
+        if (!wsRateCheck(client.userId, "booster_catch", 12, 5_000)) break;
+        const battleRoom = resolveActiveBattleRoomId(client.roomId, client.userId);
+        if (!battleRoom) break;
+        const s = battles.get(battleRoom);
+        if (!s || s.status !== "ACTIVE") break;
+        const pending = pendingBoosterByRoom.get(battleRoom);
+        if (!pending || Date.now() > pending.expiresAt) {
+          pendingBoosterByRoom.delete(battleRoom);
+          break;
+        }
+        const team = String(data?.team ?? "").toUpperCase();
+        if (team !== pending.team) break;
+        const mult = pending.multiplier;
+        const durationMs = 8000;
+        if (team === "A") s.teamRedMultiplier = mult;
+        else s.teamBlueMultiplier = mult;
+        pendingBoosterByRoom.delete(battleRoom);
+        setTimeout(() => {
+          const s2 = battles.get(battleRoom);
+          if (!s2 || s2.status !== "ACTIVE") return;
+          if (team === "A") s2.teamRedMultiplier = 1;
+          else s2.teamBlueMultiplier = 1;
+        }, durationMs);
+        const ack = { team, multiplier: mult, duration: durationMs };
+        broadcastToRoom(battleRoom, "booster:activated", ack);
+        broadcastToBattleParticipants(battleRoom, s, "booster:activated", ack);
+        break;
+      }
+
+      case "booster_activated": {
+        const b = battles.get(client.roomId);
+        if (b && b.status === "ACTIVE" && b.hostUserId === client.userId) {
+          const team = String(data?.team ?? "").toLowerCase();
+          const m = Number(data?.multiplier);
+          const cap = (x: number) => Math.min(10, Math.max(1, x));
+          if (
+            (team === "red" || team === "a" || team === "left") &&
+            Number.isFinite(m) &&
+            m >= 1
+          ) {
+            b.teamRedMultiplier = cap(m);
+          }
+          if (
+            (team === "blue" || team === "b" || team === "right") &&
+            Number.isFinite(m) &&
+            m >= 1
+          ) {
+            b.teamBlueMultiplier = cap(m);
+          }
+        }
         broadcastToRoom(client.roomId, "booster_activated", {
           ...data,
           user_id: client.userId,
         });
         break;
+      }
 
       default:
         if (process.env.NODE_ENV !== "production")

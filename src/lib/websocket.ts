@@ -47,10 +47,15 @@ export type WebSocketEvent =
   | "moderation_pause"
   | "moderation_suspend"
   | "room_full"
-  | "stream_ended";
+  | "stream_ended"
+  // Battle (server-authoritative; colon names match server events)
+  | "battle:score_update"
+  | "likes:update"
+  | "booster:spawn"
+  | "booster:activated";
 
 export interface WebSocketMessage {
-  event: WebSocketEvent;
+  event: WebSocketEvent | string;
   data: any;
   timestamp: string;
 }
@@ -61,7 +66,7 @@ class WebSocketService {
   private maxReconnectAttempts = 15;
   private reconnectDelay = 1000;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
-  private listeners = new Map<WebSocketEvent, Set<(data: any) => void>>();
+  private listeners = new Map<string, Set<(data: any) => void>>();
   private roomId: string | null = null;
   private token: string | null = null;
   private pendingMessages: string[] = [];
@@ -160,19 +165,19 @@ class WebSocketService {
     }
   }
 
-  on(event: WebSocketEvent, callback: (data: any) => void) {
+  on(event: WebSocketEvent | string, callback: (data: any) => void) {
     if (!this.listeners.has(event)) {
       this.listeners.set(event, new Set());
     }
     this.listeners.get(event)!.add(callback);
   }
 
-  off(event: WebSocketEvent, callback: (data: any) => void) {
+  off(event: WebSocketEvent | string, callback: (data: any) => void) {
     this.listeners.get(event)?.delete(callback);
   }
 
   private handleMessage(message: WebSocketMessage) {
-    const listeners = this.listeners.get(message.event);
+    const listeners = this.listeners.get(message.event as string);
     if (listeners) {
       listeners.forEach((callback) => callback(message.data));
     }

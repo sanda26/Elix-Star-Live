@@ -319,26 +319,29 @@ export default function SpectatorPage() {
   const opponentVideoRef = useRef<HTMLVideoElement>(null);
   const opponentLkRoomRef = useRef<Room | null>(null);
   const [hasOpponentStream, setHasOpponentStream] = useState(false);
-  /** Same rate limit as live battle UI: max 5 scored taps per second (server-enforced). */
-  const spectatorBattleTapWindowRef = useRef<{ windowStart: number; count: number }>({ windowStart: 0, count: 0 });
+  /** One server +5 PK vote per spectator per battle (matches LiveStream `battleTapScoreRemainingRef`). */
+  const spectatorBattleVoteRemainingRef = useRef(1);
+  const prevSpectatorBattleActiveRef = useRef(false);
   useEffect(() => {
-    if (!spectatorBattle?.active) {
-      spectatorBattleTapWindowRef.current = { windowStart: 0, count: 0 };
+    const active = !!spectatorBattle?.active;
+    if (active && !prevSpectatorBattleActiveRef.current) {
+      spectatorBattleVoteRemainingRef.current = 1;
     }
+    prevSpectatorBattleActiveRef.current = active;
   }, [spectatorBattle?.active]);
 
-  const handleSpectatorVote = (target: 'host' | 'opponent' | 'player3' | 'player4') => {
+  const handleSpectatorVote = useCallback((target: 'host' | 'opponent' | 'player3' | 'player4') => {
     if (!spectatorBattle?.active) return;
-    const w = spectatorBattleTapWindowRef.current;
-    const now = Date.now();
-    if (now - w.windowStart >= 1000) {
-      w.windowStart = now;
-      w.count = 0;
+    if (spectatorBattleVoteRemainingRef.current <= 0) return;
+    if (!websocket.isConnected()) return;
+    spectatorBattleVoteRemainingRef.current = 0;
+    try {
+      if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(12);
+    } catch {
+      /* ignore */
     }
-    if (w.count >= 5) return;
-    w.count += 1;
     websocket.send('battle_spectator_vote', { target });
-  };
+  }, [spectatorBattle?.active]);
 
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
@@ -518,6 +521,67 @@ export default function SpectatorPage() {
 
   // Video ref for live stream (LiveKit)
   const videoRef = useRef<HTMLVideoElement>(null);
+  /** Tap-to-like / floating hearts — same coordinate space as host video (matches LiveStream stage). */
+  const spectatorStageRef = useRef<HTMLDivElement>(null);
+  const [floatingHearts, setFloatingHearts] = useState<
+    Array<{ id: string; x: number; y: number; dx: number; rot: number; size: number; color: string; username?: string; avatar?: string }>
+  >([]);
+
+  const spawnHeartAt = useCallback((x: number, y: number, colorOverride?: string, likerName?: string, likerAvatar?: string) => {
+    const id = `${Date.now()}_${Math.random().toString(16).slice(2)}`;
+    const dx = Math.round((Math.random() * 2 - 1) * 120);
+    const rot = Math.round((Math.random() * 2 - 1) * 45);
+    const size = Math.round(24 + Math.random() * 12);
+    const colors = ['#FF0000', '#FF2D55', '#E60026', '#DC143C', '#FF1744', '#CC0000'];
+    const color = colorOverride ?? colors[Math.floor(Math.random() * colors.length)];
+    setFloatingHearts((prev) => [...prev.slice(-40), { id, x, y, dx, rot, size, color, username: likerName, avatar: likerAvatar }]);
+    window.setTimeout(() => {
+      setFloatingHearts((prev) => prev.filter((h) => h.id !== id));
+    }, 500);
+  }, []);
+
+  const spawnHeartFromClient = useCallback((clientX: number, clientY: number, colorOverride?: string, likerName?: string, likerAvatar?: string) => {
+    const stage = spectatorStageRef.current;
+    if (!stage) return;
+    const rect = stage.getBoundingClientRect();
+    spawnHeartAt(clientX - rect.left, clientY - rect.top, colorOverride, likerName, likerAvatar);
+  }, [spawnHeartAt]);
+
+  const spawnHeartAtSideSpectator = useCallback(() => {
+    const stage = spectatorStageRef.current;
+    if (!stage) return;
+    const rect = stage.getBoundingClientRect();
+    const x = rect.width * 0.25;
+    const y = rect.height * 0.62;
+    spawnHeartAt(x, y, '#FF2D55', viewerName, viewerAvatar);
+  }, [spawnHeartAt, viewerName, viewerAvatar]);
+
+  /** Tap / double-tap video to send `heart_sent` — top bar Aprecieri updates via `room_state` + `heart_sent` (same as creator live). */
+  const handleLikeTap = useCallback((e?: React.MouseEvent | React.TouchEvent | React.PointerEvent) => {
+    if (e) {
+      let clientX: number | undefined;
+      let clientY: number | undefined;
+      if ('touches' in e && e.touches.length > 0) {
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+      } else if ('clientX' in e) {
+        clientX = (e as React.MouseEvent).clientX;
+        clientY = (e as React.MouseEvent).clientY;
+      }
+      if (clientX !== undefined && clientY !== undefined) {
+        spawnHeartFromClient(clientX, clientY, undefined, viewerName, viewerAvatar);
+      } else {
+        spawnHeartAtSideSpectator();
+      }
+    } else {
+      spawnHeartAtSideSpectator();
+    }
+    setActiveLikes((prev) => prev + 1);
+    if (websocket.isConnected()) {
+      websocket.send('heart_sent', { username: viewerName, avatar: viewerAvatar });
+    }
+  }, [viewerName, viewerAvatar, spawnHeartFromClient, spawnHeartAtSideSpectator]);
+
   const [hasStream, setHasStream] = useState(false);
   const [liveConnectRetryKey, setLiveConnectRetryKey] = useState(0);
   const retryJoinRoom = () => {
@@ -1181,6 +1245,14 @@ export default function SpectatorPage() {
         return;
       }
       if (data.user_id === user?.id) return;
+      const stage = spectatorStageRef.current;
+      if (stage) {
+        const w = stage.clientWidth;
+        const h = stage.clientHeight;
+        const x = w * (0.6 + Math.random() * 0.3);
+        const y = h * (0.4 + Math.random() * 0.2);
+        spawnHeartAt(x, y, undefined, typeof data.username === 'string' ? data.username : undefined, typeof data.avatar === 'string' ? data.avatar : undefined);
+      }
       setActiveLikes((prev) => prev + 1);
     };
 
@@ -1304,7 +1376,7 @@ export default function SpectatorPage() {
       websocket.off('cohost_invite', handleCohostInvite);
       websocket.disconnect();
     };
-  }, [effectiveStreamId, user?.id, streamIsLive, syncMvpSlots]);
+  }, [effectiveStreamId, user?.id, streamIsLive, syncMvpSlots, spawnHeartAt]);
 
   // Share panel contacts: show all platform users (and implicitly followers).
   useEffect(() => {
@@ -1537,14 +1609,6 @@ export default function SpectatorPage() {
     handleSendGift(lastSentGift);
   };
 
-  // Heart tap — server broadcasts authoritative live_likes; optimistic +1 until echo
-  const handleLikeTap = () => {
-    setActiveLikes((prev) => prev + 1);
-    if (websocket.isConnected()) {
-      websocket.send('heart_sent', { username: viewerName, avatar: viewerAvatar });
-    }
-  };
-
   if (streamIsLive === null) {
     return (
       <div className="fixed inset-0 bg-[#0A0B0E] flex justify-center">
@@ -1653,16 +1717,11 @@ export default function SpectatorPage() {
                   </div>
                 </div>
 
-                {/* Battle grid — creator-identical 50/50 */}
+                {/* Battle grid — videos + tap overlay (2-way or 4-way PK); one +5 vote per spectator per battle */}
                 <div className="relative w-full flex-none flex flex-col h-[44dvh]">
-                  <div className="flex-1 min-h-0 flex flex-col">
-                    <div className="flex flex-1 min-h-0">
-                      {/* Host side — tap to vote */}
-                      <div
-                        className="w-1/2 h-full overflow-hidden relative bg-[#13151A] pointer-events-auto cursor-pointer border-r border-white/5"
-                        onClick={() => handleSpectatorVote('host')}
-                        role="presentation"
-                      >
+                  <div className="flex-1 min-h-0 flex flex-col relative">
+                    <div className="absolute inset-0 flex flex-row">
+                      <div className="w-1/2 h-full overflow-hidden relative bg-[#13151A] border-r border-white/5">
                         <video
                           ref={videoRef}
                           className="absolute inset-0 w-full h-full object-cover"
@@ -1671,7 +1730,7 @@ export default function SpectatorPage() {
                           style={{ opacity: hasStream ? 1 : 0, transition: 'opacity 0.4s ease' }}
                         />
                         {!hasStream && (
-                          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-[#13151A]">
+                          <div className="absolute inset-0 z-[1] flex flex-col items-center justify-center gap-2 bg-[#13151A]">
                             {hostAvatar ? (
                               <img src={hostAvatar} alt="" className="w-16 h-16 rounded-full border-2 border-[#C9A96E] object-cover object-center" />
                             ) : (
@@ -1686,21 +1745,8 @@ export default function SpectatorPage() {
                             </div>
                           </div>
                         )}
-                        {spectatorBattle.winner && (
-                          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                            <span className={`text-sm font-black drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)] ${spectatorBattle.winner === 'host' ? 'text-white' : spectatorBattle.winner === 'draw' ? 'text-white' : 'text-red-400'}`}>
-                              {spectatorBattle.winner === 'host' ? 'WIN' : spectatorBattle.winner === 'draw' ? 'DRAW' : 'LOSS'}
-                            </span>
-                          </div>
-                        )}
                       </div>
-
-                      {/* Opponent side — tap to visit / vote */}
-                      <div
-                        className="w-1/2 h-full overflow-hidden relative bg-[#13151A] pointer-events-auto cursor-pointer"
-                        onClick={() => handleSpectatorVote('opponent')}
-                        role="presentation"
-                      >
+                      <div className="w-1/2 h-full overflow-hidden relative bg-[#13151A]">
                         <video
                           ref={opponentVideoRef}
                           className="absolute inset-0 w-full h-full object-cover"
@@ -1710,7 +1756,7 @@ export default function SpectatorPage() {
                           style={{ opacity: hasOpponentStream ? 1 : 0, transition: 'opacity 0.3s ease' }}
                         />
                         {!hasOpponentStream && (
-                          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-[#13151A]">
+                          <div className="absolute inset-0 z-[1] flex flex-col items-center justify-center gap-2 bg-[#13151A]">
                             {spectatorBattle.opponentName ? (
                               <div className="w-16 h-16 rounded-full border-2 border-[#C9A96E] bg-[#1C1E24] flex items-center justify-center">
                                 <span className="text-2xl font-black text-[#C9A96E]">{spectatorBattle.opponentName.charAt(0).toUpperCase()}</span>
@@ -1727,27 +1773,83 @@ export default function SpectatorPage() {
                             </div>
                           </div>
                         )}
-                        {spectatorBattle.opponentRoomId && (
+                      </div>
+                    </div>
+                    {spectatorBattle.winner && (
+                      <div className="absolute inset-0 z-[8] pointer-events-none flex flex-row">
+                        <div className="w-1/2 h-full flex items-center justify-center">
+                          <span className={`text-sm font-black drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)] ${spectatorBattle.winner === 'host' ? 'text-white' : spectatorBattle.winner === 'draw' ? 'text-white' : 'text-red-400'}`}>
+                            {spectatorBattle.winner === 'host' ? 'WIN' : spectatorBattle.winner === 'draw' ? 'DRAW' : 'LOSS'}
+                          </span>
+                        </div>
+                        <div className="w-1/2 h-full flex items-center justify-center">
+                          <span className={`text-sm font-black drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)] ${spectatorBattle.winner === 'opponent' ? 'text-white' : spectatorBattle.winner === 'draw' ? 'text-white' : 'text-red-400'}`}>
+                            {spectatorBattle.winner === 'opponent' ? 'WIN' : spectatorBattle.winner === 'draw' ? 'DRAW' : 'LOSS'}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                    {spectatorBattle.opponentRoomId && (
+                      <button
+                        type="button"
+                        className="absolute top-1 right-1 z-30 flex items-center justify-center rounded-full bg-black/50 p-1.5 border border-white/15 pointer-events-auto active:scale-95"
+                        title="Watch opponent stream"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/watch/${spectatorBattle.opponentRoomId}`);
+                        }}
+                      >
+                        <ExternalLink className="w-3.5 h-3.5 text-white/90" strokeWidth={2} />
+                      </button>
+                    )}
+                    <div className="absolute inset-0 z-10 flex flex-row touch-manipulation">
+                      {showPkBreakdown ? (
+                        <>
+                          <div className="w-1/2 h-full flex flex-col min-h-0">
+                            <button
+                              type="button"
+                              className="flex-1 min-h-0 w-full touch-manipulation cursor-pointer border-0 bg-transparent p-0 active:bg-white/5"
+                              aria-label="Vote red team P1"
+                              onClick={() => handleSpectatorVote('host')}
+                            />
+                            <button
+                              type="button"
+                              className="flex-1 min-h-0 w-full touch-manipulation cursor-pointer border-0 bg-transparent p-0 active:bg-white/5 border-t border-white/10"
+                              aria-label="Vote red team P3"
+                              onClick={() => handleSpectatorVote('player3')}
+                            />
+                          </div>
+                          <div className="w-1/2 h-full flex flex-col min-h-0">
+                            <button
+                              type="button"
+                              className="flex-1 min-h-0 w-full touch-manipulation cursor-pointer border-0 bg-transparent p-0 active:bg-white/5"
+                              aria-label="Vote blue team P2"
+                              onClick={() => handleSpectatorVote('opponent')}
+                            />
+                            <button
+                              type="button"
+                              className="flex-1 min-h-0 w-full touch-manipulation cursor-pointer border-0 bg-transparent p-0 active:bg-white/5 border-t border-white/10"
+                              aria-label="Vote blue team P4"
+                              onClick={() => handleSpectatorVote('player4')}
+                            />
+                          </div>
+                        </>
+                      ) : (
+                        <>
                           <button
                             type="button"
-                            className="absolute top-1 right-1 z-20 flex items-center justify-center rounded-full bg-black/50 p-1.5 border border-white/15 pointer-events-auto active:scale-95"
-                            title="Watch opponent stream"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              navigate(`/watch/${spectatorBattle.opponentRoomId}`);
-                            }}
-                          >
-                            <ExternalLink className="w-3.5 h-3.5 text-white/90" strokeWidth={2} />
-                          </button>
-                        )}
-                        {spectatorBattle.winner && (
-                          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                            <span className={`text-sm font-black drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)] ${spectatorBattle.winner === 'opponent' ? 'text-white' : spectatorBattle.winner === 'draw' ? 'text-white' : 'text-red-400'}`}>
-                              {spectatorBattle.winner === 'opponent' ? 'WIN' : spectatorBattle.winner === 'draw' ? 'DRAW' : 'LOSS'}
-                            </span>
-                          </div>
-                        )}
-                      </div>
+                            className="w-1/2 h-full touch-manipulation cursor-pointer border-0 bg-transparent p-0 active:bg-white/5"
+                            aria-label="Vote red team"
+                            onClick={() => handleSpectatorVote('host')}
+                          />
+                          <button
+                            type="button"
+                            className="w-1/2 h-full touch-manipulation cursor-pointer border-0 bg-transparent p-0 active:bg-white/5"
+                            aria-label="Vote blue team"
+                            onClick={() => handleSpectatorVote('opponent')}
+                          />
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1892,8 +1994,39 @@ export default function SpectatorPage() {
                 : { top: '0px', bottom: '0px' }
               }
             >
-              {/* Left: host video */}
-              <div className={`overflow-hidden rounded-none min-w-0 relative ${showGrid || spectatorBattle?.active ? 'w-1/2' : 'w-full'}`}>
+              <div ref={spectatorStageRef} className="relative flex w-full h-full min-h-0 flex-row overflow-hidden rounded-none">
+                {floatingHearts.map((h) => (
+                  <div
+                    key={h.id}
+                    className="pointer-events-none absolute elix-heart-float z-[200] flex items-center gap-1.5"
+                    style={{
+                      left: h.x,
+                      top: h.y,
+                      '--elix-heart-dx': '0px',
+                      '--elix-heart-rot': '0deg',
+                    } as React.CSSProperties}
+                  >
+                    <svg width={h.size} height={h.size} viewBox="0 0 24 24" fill={h.color} stroke="none" className="flex-shrink-0">
+                      <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+                    </svg>
+                    {h.username && (
+                      <span className="text-[#C8CCD4] text-[11px] font-bold whitespace-nowrap drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]">
+                        {h.username}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              {/* Left: host video — tap/double-tap to like (Aprecieri); excludes buttons/inputs */}
+              <div
+                className={`touch-manipulation overflow-hidden rounded-none min-w-0 relative ${showGrid || spectatorBattle?.active ? 'w-1/2' : 'w-full'}`}
+                onPointerDown={(e) => {
+                  if (e.target instanceof Element) {
+                    const interactive = e.target.closest('button, a, input, textarea, select, [role="button"]');
+                    if (interactive) return;
+                  }
+                  handleLikeTap(e);
+                }}
+              >
                 <video
                   ref={videoRef}
                   className="absolute inset-0 w-full h-full object-cover rounded-none"
@@ -1960,6 +2093,7 @@ export default function SpectatorPage() {
                   ))}
                 </div>
               )}
+              </div>
             </div>
           );
         })()}
@@ -2075,7 +2209,7 @@ export default function SpectatorPage() {
                   }}
                 >
                   <span className="text-white text-[11px] font-bold tabular-nums">
-                    {viewerCount >= 1000 ? (viewerCount / 1000).toFixed(1) + 'K' : viewerCount}
+                    {typeof viewerCount === 'number' && Number.isFinite(viewerCount) ? viewerCount.toLocaleString() : String(viewerCount)}
                   </span>
                   <UserPlus size={10} className="text-[#C9A96E]" />
                 </button>
@@ -2894,7 +3028,7 @@ export default function SpectatorPage() {
                           onClick={() => setTestCoinsAmount(String(amt))}
                           className="py-1.5 rounded-lg text-xs font-bold transition-colors bg-white/5 text-white/70 hover:bg-[#C9A96E]/20"
                         >
-                          {amt >= 1000 ? `${amt / 1000}K` : amt}
+                          {amt.toLocaleString()}
                         </button>
                       ))}
                       <button

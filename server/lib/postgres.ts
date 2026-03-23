@@ -647,6 +647,61 @@ export async function dbAddBattleScoreAndFetchAll(
   return result;
 }
 
+/** Increment both slots on one team (red: host+player3, blue: opponent+player4) in one transaction. */
+export async function dbAddBattleScoreTeamSideAndFetchAll(
+  hostRoomId: string,
+  side: "red" | "blue",
+  pointsPerPlayer: number,
+  ensureCtx: BattleSessionScoreContext | null,
+): Promise<BattleScoresRow | null> {
+  const pool = getPool();
+  if (!pool) return null;
+
+  const slots: [BattleSlot, BattleSlot] =
+    side === "red" ? ["host", "player3"] : ["opponent", "player4"];
+
+  async function doIncrement(): Promise<BattleScoresRow | null> {
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      for (const slot of slots) {
+        const up = await client.query(
+          `UPDATE battle_creator_buckets SET score = score + $3, updated_at = NOW()
+           WHERE host_room_id = $1 AND slot = $2`,
+          [hostRoomId, slot, pointsPerPlayer],
+        );
+        if ((up.rowCount ?? 0) === 0) {
+          await client.query("ROLLBACK");
+          return null;
+        }
+      }
+      const sel = await client.query(
+        `SELECT slot, score FROM battle_creator_buckets WHERE host_room_id = $1`,
+        [hostRoomId],
+      );
+      await client.query("COMMIT");
+      return rowToScores(sel.rows as { slot: string; score: unknown }[]);
+    } catch (err) {
+      try {
+        await client.query("ROLLBACK");
+      } catch {
+        /* ignore */
+      }
+      logger.error({ err, hostRoomId, side }, "battle team side increment failed");
+      return null;
+    } finally {
+      client.release();
+    }
+  }
+
+  let result = await doIncrement();
+  if (result === null && ensureCtx) {
+    await dbEnsureBattleCreatorBuckets(ensureCtx);
+    result = await doIncrement();
+  }
+  return result;
+}
+
 export async function dbLoadBattleScores(hostRoomId: string): Promise<BattleScoresRow | null> {
   const p = getPool();
   if (!p) return null;

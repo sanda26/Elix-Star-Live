@@ -1883,13 +1883,13 @@ export default function SpectatorPage() {
                               type="button"
                               className="flex-1 min-h-0 w-full touch-manipulation cursor-pointer border-0 bg-transparent p-0 active:bg-white/5"
                               aria-label="Vote blue team P2"
-                              onClick={() => handleSpectatorVote('opponent')}
+                              onClick={() => { handleSpectatorVote('opponent'); openOpponentPanel(); }}
                             />
                             <button
                               type="button"
                               className="flex-1 min-h-0 w-full touch-manipulation cursor-pointer border-0 bg-transparent p-0 active:bg-white/5 border-t border-white/10"
                               aria-label="Vote blue team P4"
-                              onClick={() => handleSpectatorVote('player4')}
+                              onClick={() => { handleSpectatorVote('player4'); openOpponentPanel(); }}
                             />
                           </div>
                         </>
@@ -1905,7 +1905,7 @@ export default function SpectatorPage() {
                             type="button"
                             className="w-1/2 h-full touch-manipulation cursor-pointer border-0 bg-transparent p-0 active:bg-white/5"
                             aria-label="Vote blue team"
-                            onClick={() => handleSpectatorVote('opponent')}
+                            onClick={() => { handleSpectatorVote('opponent'); openOpponentPanel(); }}
                           />
                         </>
                       )}

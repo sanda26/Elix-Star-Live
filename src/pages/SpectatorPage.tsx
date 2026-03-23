@@ -1611,7 +1611,9 @@ export default function SpectatorPage() {
         ? { battleTarget: spectatorGiftBattleTarget }
         : {}),
     });
-    
+    // #region agent log
+    fetch('http://127.0.0.1:7915/ingest/977d1c87-bfd5-48d4-8dd5-e632c283ea88',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'9f0b02'},body:JSON.stringify({sessionId:'9f0b02',runId:'run1',hypothesisId:'H_CLIENT_SPEC',location:'SpectatorPage.tsx:handleSendGift',message:'spectator gift_sent payload',data:{giftId:gift.id,giftCoins:gift.coins,battleActive:!!spectatorBattle?.active,spectatorGiftBattleTarget,effectiveStreamId,wsConnected:websocket.isConnected()},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
 
     setLastSentGift(gift);
     setComboCount(1);

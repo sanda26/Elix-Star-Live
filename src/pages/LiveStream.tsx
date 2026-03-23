@@ -2839,7 +2839,9 @@ export default function LiveStream() {
       // #region agent log
       fetch('http://127.0.0.1:7765/ingest/504ee8d9-85af-4146-9e87-ee22d4845d37',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d3b772'},body:JSON.stringify({sessionId:'d3b772',runId:'run-current',hypothesisId:'H1',location:'src/pages/LiveStream.tsx:handleSendGift',message:'gift_sent payload target',data:{giftId:gift.id,giftTarget,isBattleMode,isBroadcast,effectiveStreamId,battleTarget:isBattleMode ? giftTarget : undefined},timestamp:Date.now()})}).catch(()=>{});
       // #endregion
-      
+      // #region agent log
+      fetch('http://127.0.0.1:7915/ingest/977d1c87-bfd5-48d4-8dd5-e632c283ea88',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'9f0b02'},body:JSON.stringify({sessionId:'9f0b02',runId:'run1',hypothesisId:'H_CLIENT',location:'LiveStream.tsx:handleSendGift',message:'client gift_sent payload',data:{giftId:gift.id,giftCoins:gift.coins,giftTarget,serverBattleTarget,isBattleMode,isBroadcast,isBattleJoiner,effectiveStreamId,wsConnected:websocket.isConnected(),hostRoomId:idsForBattleGift?.hostRoomId??null,opponentRoomId:idsForBattleGift?.opponentRoomId??null},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
 
       // Handle Combo Logic
       setLastSentGift(gift);

@@ -2291,6 +2291,7 @@ export default function LiveStream() {
 
     const handleBattleStateSync = (data: any) => {
       if (!mounted) return;
+      if (isBroadcast && typeof data.hostRoomId === 'string' && data.hostRoomId !== effectiveStreamId) return;
       const syncStatus = typeof data.status === 'string' ? data.status : '';
       if (syncStatus === 'ACTIVE' && prevBattleSyncStatusRef.current !== 'ACTIVE') {
         battleTapScoreRemainingRef.current = 5;
@@ -2365,6 +2366,7 @@ export default function LiveStream() {
 
     const handleBattleScore = (data: any) => {
       if (!mounted) return;
+      if (isBroadcast && typeof data.hostUserId === 'string' && data.hostUserId !== user?.id) return;
       applyBattleScores(data);
       // #region agent log
       fetch('http://127.0.0.1:7765/ingest/504ee8d9-85af-4146-9e87-ee22d4845d37',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'88a9f1'},body:JSON.stringify({sessionId:'88a9f1',runId:'run-pre',hypothesisId:'H3',location:'LiveStream.tsx:handleBattleScore',message:'battle_score',data:{h:data?.hostScore,o:data?.opponentScore,isBattleJoiner},timestamp:Date.now()})}).catch(()=>{});
@@ -2414,6 +2416,7 @@ export default function LiveStream() {
 
     const handleBattleEnded = (data: any) => {
       if (!mounted) return;
+      if (isBroadcast && typeof data.hostUserId === 'string' && data.hostUserId !== user?.id) return;
       if (battleEndedTimeoutRef.current) {
         clearTimeout(battleEndedTimeoutRef.current);
         battleEndedTimeoutRef.current = null;

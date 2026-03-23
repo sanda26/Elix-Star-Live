@@ -2093,6 +2093,9 @@ async function handleMessage(client: Client, event: string, data: any) {
 
       // ═══ BATTLE EVENTS — server-controlled ═══
       case "battle_create": {
+        // #region agent log
+        console.log('[DEBUG-9f0b02] battle_create:received', JSON.stringify({V:3,clientUid:client.userId,clientRoom:client.roomId,dataOppUid:data.opponentUserId??null,dataOppName:data.opponentName??null,dataOppRoom:data.opponentRoomId??null,dataHostName:data.hostName??null}));
+        // #endregion
         const existing = battles.get(client.roomId);
         if (existing) {
           if (existing.timer) clearInterval(existing.timer);
@@ -2110,8 +2113,12 @@ async function handleMessage(client: Client, event: string, data: any) {
           client.userId,
           data.hostName || client.displayName,
         );
-        const opponentUserId =
+        let opponentUserId =
           typeof data.opponentUserId === "string" ? data.opponentUserId : "";
+        if (opponentUserId === client.userId) {
+          console.log('[DEBUG-9f0b02] battle_create:SELF_AS_OPPONENT', JSON.stringify({clientUid:client.userId,oppUid:opponentUserId}));
+          opponentUserId = "";
+        }
         const opponentName =
           typeof data.opponentName === "string" ? data.opponentName : "";
         let opponentRoomId =

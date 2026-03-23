@@ -1546,18 +1546,9 @@ export default function LiveStream() {
     }
   }, [isBattleMode, battleTime, battleWinner]);
 
+  /** Gift / battle PK totals — full numbers (no K/M) so scores match real coin amounts. */
   const formatCoinsShort = (coins: number) => {
     const n = typeof coins === 'number' && Number.isFinite(coins) ? coins : 0;
-    if (n >= 1_000_000) {
-      const m = Math.round((n / 1_000_000) * 10) / 10;
-      const label = Number.isInteger(m) ? String(Math.trunc(m)) : String(m);
-      return `${label}M`;
-    }
-    if (n >= 1000) {
-      const k = Math.round((n / 1000) * 10) / 10;
-      const label = Number.isInteger(k) ? String(Math.trunc(k)) : String(k);
-      return `${label}K`;
-    }
     return n.toLocaleString();
   };
 
@@ -1633,16 +1624,6 @@ export default function LiveStream() {
     return target;
   }, [isBattleJoiner, isBroadcast]);
 
-  /** 2-player: only P1 vs P2 — if UI still has P3/P4 selected, credit red (me) or blue (opponent). 4-player: P3/P4 only when slot accepted. */
-  const getResolvedBattleGiftTarget = useCallback((): 'me' | 'opponent' | 'player3' | 'player4' => {
-    if (!isBattleMode) return giftTarget;
-    const p3on = battleSlots[1].status === 'accepted';
-    const p4on = battleSlots[2].status === 'accepted';
-    if (giftTarget === 'player3' && !p3on) return 'me';
-    if (giftTarget === 'player4' && !p4on) return 'opponent';
-    return giftTarget;
-  }, [isBattleMode, giftTarget, battleSlots]);
-
   /** Spectator: +5 goes to the creator whose stream URL matches (host / opponent / P3 / P4 room or user id). */
   const resolveSpectatorVoteTargetFromWatchedStream = useCallback((): 'me' | 'opponent' | 'player3' | 'player4' | null => {
     if (isBroadcast) return null;
@@ -1657,6 +1638,29 @@ export default function LiveStream() {
     if (m(eid, s.player4UserId)) return 'player4';
     return null;
   }, [effectiveStreamId, isBroadcast]);
+
+  /** 2-player: only P1 vs P2 — if UI still has P3/P4 selected, credit red (me) or blue (opponent). 4-player: P3/P4 only when slot accepted. */
+  const getResolvedBattleGiftTarget = useCallback((): 'me' | 'opponent' | 'player3' | 'player4' => {
+    if (!isBattleMode) return giftTarget;
+    const p3on = battleSlots[1].status === 'accepted';
+    const p4on = battleSlots[2].status === 'accepted';
+    // Opponent-stream URL: default giftTarget ('me') maps to host server-side — force blue team. Host-stream URL: Left/Right (giftTarget) still wins.
+    if (!isBroadcast && isRegularViewer) {
+      const watched = resolveSpectatorVoteTargetFromWatchedStream();
+      if (watched === 'opponent') {
+        if (giftTarget === 'player3' && !p3on) return 'me';
+        if (giftTarget === 'player4' && !p4on) return 'opponent';
+        return 'opponent';
+      }
+      if (watched === 'player4' && p4on) return 'player4';
+      if (watched === 'player3' && p3on) return 'player3';
+      if (watched === 'player3' && !p3on) return 'me';
+      if (watched === 'player4' && !p4on) return 'opponent';
+    }
+    if (giftTarget === 'player3' && !p3on) return 'me';
+    if (giftTarget === 'player4' && !p4on) return 'opponent';
+    return giftTarget;
+  }, [isBattleMode, giftTarget, battleSlots, isBroadcast, isRegularViewer, resolveSpectatorVoteTargetFromWatchedStream]);
 
   // Spectator taps: same order as reference — setGiftTarget, optional speed-challenge local points, else one server +5 (battle_spectator_vote) per battle per spectator.
   const handleBattleTap = useCallback((target: 'me' | 'opponent' | 'player3' | 'player4') => {

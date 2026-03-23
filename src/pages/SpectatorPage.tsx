@@ -53,16 +53,6 @@ import { Room, RoomEvent, LocalVideoTrack, LocalAudioTrack } from 'livekit-clien
 
 function formatBattleScoreShort(coins: number) {
   const n = typeof coins === 'number' && Number.isFinite(coins) ? coins : 0;
-  if (n >= 1_000_000) {
-    const m = Math.round((n / 1_000_000) * 10) / 10;
-    const label = Number.isInteger(m) ? String(Math.trunc(m)) : String(m);
-    return `${label}M`;
-  }
-  if (n >= 1000) {
-    const k = Math.round((n / 1000) * 10) / 10;
-    const label = Number.isInteger(k) ? String(Math.trunc(k)) : String(k);
-    return `${label}K`;
-  }
   return n.toLocaleString();
 }
 
@@ -291,6 +281,41 @@ export default function SpectatorPage() {
   spectatorBattleRef.current = spectatorBattle;
   /** When battle is active, gifts credit host (red) or opponent (blue) MVP tallies. */
   const [spectatorGiftBattleTarget, setSpectatorGiftBattleTarget] = useState<'host' | 'opponent'>('host');
+  /** From battle_state_sync — map /watch/:streamId to red vs blue team for gifts (defaults were always host). */
+  const [battleStreamIds, setBattleStreamIds] = useState<{
+    hostRoomId: string;
+    hostUserId: string;
+    opponentRoomId: string;
+    opponentUserId: string;
+  } | null>(null);
+
+  const spectatorBattleGiftTargetEffective = useMemo((): 'host' | 'opponent' => {
+    if (!spectatorBattle?.active) return spectatorGiftBattleTarget;
+    const eid = effectiveStreamId;
+    const m = (a: string, b: string) => a.length > 0 && b.length > 0 && a === b;
+    if (battleStreamIds) {
+      if (m(eid, battleStreamIds.opponentRoomId) || m(eid, battleStreamIds.opponentUserId)) return 'opponent';
+      if (m(eid, battleStreamIds.hostRoomId) || m(eid, battleStreamIds.hostUserId)) return spectatorGiftBattleTarget;
+    }
+    const oppOnly = typeof spectatorBattle?.opponentRoomId === 'string' ? spectatorBattle.opponentRoomId : '';
+    if (oppOnly && m(eid, oppOnly)) return 'opponent';
+    return spectatorGiftBattleTarget;
+  }, [spectatorBattle?.active, spectatorBattle?.opponentRoomId, battleStreamIds, effectiveStreamId, spectatorGiftBattleTarget]);
+
+  useEffect(() => {
+    if (!spectatorBattle?.active) return;
+    const eid = effectiveStreamId;
+    const m = (a: string, b: string) => a.length > 0 && b.length > 0 && a === b;
+    if (battleStreamIds) {
+      if (m(eid, battleStreamIds.opponentRoomId) || m(eid, battleStreamIds.opponentUserId)) {
+        setSpectatorGiftBattleTarget('opponent');
+        return;
+      }
+    }
+    const oppOnly = typeof spectatorBattle?.opponentRoomId === 'string' ? spectatorBattle.opponentRoomId : '';
+    if (oppOnly && m(eid, oppOnly)) setSpectatorGiftBattleTarget('opponent');
+  }, [spectatorBattle?.active, effectiveStreamId, battleStreamIds, spectatorBattle?.opponentRoomId]);
+
   const opponentVideoRef = useRef<HTMLVideoElement>(null);
   const opponentLkRoomRef = useRef<Room | null>(null);
   const [hasOpponentStream, setHasOpponentStream] = useState(false);
@@ -1038,6 +1063,16 @@ export default function SpectatorPage() {
         const n = Number(value);
         return Number.isFinite(n) ? n : fallback;
       };
+      if (data.status === 'ENDED') {
+        setBattleStreamIds(null);
+      } else {
+        setBattleStreamIds({
+          hostRoomId: typeof data.hostRoomId === 'string' ? data.hostRoomId : '',
+          hostUserId: typeof data.hostUserId === 'string' ? data.hostUserId : '',
+          opponentRoomId: typeof data.opponentRoomId === 'string' ? data.opponentRoomId : '',
+          opponentUserId: typeof data.opponentUserId === 'string' ? data.opponentUserId : '',
+        });
+      }
       if (data.status === 'ACTIVE' || data.status === 'active' || data.status === 'IN_BATTLE') {
         const labels = battleTeamLabelsFromPayload(data);
         setSpectatorBattle(prev => ({
@@ -1077,6 +1112,19 @@ export default function SpectatorPage() {
         const n = Number(value);
         return Number.isFinite(n) ? n : fallback;
       };
+      setBattleStreamIds(prev =>
+        prev
+          ? {
+              ...prev,
+              hostUserId:
+                typeof data.hostUserId === 'string' && data.hostUserId ? data.hostUserId : prev.hostUserId,
+              opponentUserId:
+                typeof data.opponentUserId === 'string' && data.opponentUserId
+                  ? data.opponentUserId
+                  : prev.opponentUserId,
+            }
+          : prev,
+      );
       const labels = battleTeamLabelsFromPayload(data);
       setSpectatorBattle(prev => ({
         active: prev?.active ?? true,
@@ -1471,7 +1519,7 @@ export default function SpectatorPage() {
       creator_name: hostName || 'Creator',
       host_user_id: hostUserId || effectiveStreamId,
       ...(spectatorBattle?.active
-        ? { battleTarget: spectatorGiftBattleTarget }
+        ? { battleTarget: spectatorBattleGiftTargetEffective }
         : {}),
     });
     
@@ -2440,7 +2488,7 @@ export default function SpectatorPage() {
                       type="button"
                       title="Gift left side"
                       onClick={() => setSpectatorGiftBattleTarget('host')}
-                      className={`px-4 py-1.5 text-[10px] font-bold transition-colors ${spectatorGiftBattleTarget === 'host' ? 'bg-[#DC143C]/90 text-white' : 'bg-[#13151A] text-white/70'}`}
+                      className={`px-4 py-1.5 text-[10px] font-bold transition-colors ${spectatorBattleGiftTargetEffective === 'host' ? 'bg-[#DC143C]/90 text-white' : 'bg-[#13151A] text-white/70'}`}
                     >
                       Left
                     </button>
@@ -2448,7 +2496,7 @@ export default function SpectatorPage() {
                       type="button"
                       title="Gift right side"
                       onClick={() => setSpectatorGiftBattleTarget('opponent')}
-                      className={`px-4 py-1.5 text-[10px] font-bold transition-colors ${spectatorGiftBattleTarget === 'opponent' ? 'bg-[#1E90FF]/90 text-white' : 'bg-[#13151A] text-white/70'}`}
+                      className={`px-4 py-1.5 text-[10px] font-bold transition-colors ${spectatorBattleGiftTargetEffective === 'opponent' ? 'bg-[#1E90FF]/90 text-white' : 'bg-[#13151A] text-white/70'}`}
                     >
                       Right
                     </button>

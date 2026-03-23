@@ -1843,23 +1843,11 @@ async function handleMessage(client: Client, event: string, data: any) {
           }
           if (serverGiftValue > 0) {
             let normalizedTarget = normalizeBattleTarget(data.battleTarget);
-            // Spectators in the opponent's stream see that creator as on-screen "host"; flip host↔opponent for team credit.
-            // Battle participants send absolute host/opponent/player3/player4 — never flip.
-            const inOpponentStreamRoom =
-              client.roomId === activeBattle.opponentRoomId &&
-              client.roomId !== battleRoomId;
             const isBattleParticipant =
               client.userId === activeBattle.hostUserId ||
               client.userId === activeBattle.opponentUserId ||
               client.userId === activeBattle.player3UserId ||
               client.userId === activeBattle.player4UserId;
-            if (inOpponentStreamRoom && !isBattleParticipant) {
-              if (!normalizedTarget || normalizedTarget === "host") {
-                normalizedTarget = "opponent";
-              } else if (normalizedTarget === "opponent") {
-                normalizedTarget = "host";
-              }
-            }
             if (!normalizedTarget && client.userId === activeBattle.opponentUserId) {
               normalizedTarget = "opponent";
             }

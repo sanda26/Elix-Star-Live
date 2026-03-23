@@ -234,6 +234,23 @@ export async function initPostgres(): Promise<void> {
       )
     `);
 
+    /** One row per creator slot per battle (host room). Scores are the source of truth when DATABASE_URL is set. */
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS battle_creator_buckets (
+        host_room_id TEXT NOT NULL,
+        battle_id TEXT NOT NULL DEFAULT '',
+        slot TEXT NOT NULL,
+        creator_user_id TEXT NOT NULL DEFAULT '',
+        score BIGINT NOT NULL DEFAULT 0,
+        updated_at TIMESTAMPTZ DEFAULT NOW(),
+        PRIMARY KEY (host_room_id, slot),
+        CONSTRAINT battle_creator_buckets_slot_chk CHECK (slot IN ('host', 'opponent', 'player3', 'player4'))
+      )
+    `);
+    await pool.query(
+      `CREATE INDEX IF NOT EXISTS idx_battle_creator_buckets_battle_id ON battle_creator_buckets(battle_id)`,
+    ).catch(() => {});
+
     const userCount = await pool.query(`SELECT COUNT(*) as cnt FROM auth_users`);
     const profileCount = await pool.query(`SELECT COUNT(*) as cnt FROM profiles`);
     logger.info(`Tables ready — ${userCount.rows[0]?.cnt || 0} auth users, ${profileCount.rows[0]?.cnt || 0} profiles in DB`);
@@ -501,5 +518,157 @@ export async function listLiveShareRequestsNonFollowing(recipientId: string): Pr
   } catch (err) {
     logger.error({ err, recipientId }, "Postgres list live_share_inbox failed");
     return [];
+  }
+}
+
+// ── Battle scores (Neon / Postgres) — one bucket per creator slot per host room ─────────────────
+
+export type BattleSlot = "host" | "opponent" | "player3" | "player4";
+
+export type BattleSessionScoreContext = {
+  hostRoomId: string;
+  id: string;
+  hostUserId: string;
+  opponentUserId: string;
+  player3UserId: string;
+  player4UserId: string;
+};
+
+export type BattleScoresRow = {
+  host: number;
+  opponent: number;
+  player3: number;
+  player4: number;
+};
+
+function rowToScores(rows: { slot: string; score: unknown }[]): BattleScoresRow {
+  const out: BattleScoresRow = { host: 0, opponent: 0, player3: 0, player4: 0 };
+  for (const r of rows) {
+    const s = String(r.slot);
+    const n = Number(r.score);
+    if (s === "host") out.host = Number.isFinite(n) ? n : 0;
+    else if (s === "opponent") out.opponent = Number.isFinite(n) ? n : 0;
+    else if (s === "player3") out.player3 = Number.isFinite(n) ? n : 0;
+    else if (s === "player4") out.player4 = Number.isFinite(n) ? n : 0;
+  }
+  return out;
+}
+
+/** Insert or refresh four creator buckets (P1–P4) for a battle. */
+export async function dbEnsureBattleCreatorBuckets(ctx: BattleSessionScoreContext): Promise<void> {
+  const p = getPool();
+  if (!p) return;
+  const creators: Record<BattleSlot, string> = {
+    host: ctx.hostUserId || "",
+    opponent: ctx.opponentUserId || "",
+    player3: ctx.player3UserId || "",
+    player4: ctx.player4UserId || "",
+  };
+  for (const slot of ["host", "opponent", "player3", "player4"] as BattleSlot[]) {
+    await p.query(
+      `INSERT INTO battle_creator_buckets (host_room_id, battle_id, slot, creator_user_id, score)
+       VALUES ($1, $2, $3, $4, 0)
+       ON CONFLICT (host_room_id, slot) DO UPDATE SET
+         battle_id = EXCLUDED.battle_id,
+         creator_user_id = CASE
+           WHEN EXCLUDED.creator_user_id <> '' THEN EXCLUDED.creator_user_id
+           ELSE battle_creator_buckets.creator_user_id
+         END`,
+      [ctx.hostRoomId, ctx.id, slot, creators[slot]],
+    );
+  }
+}
+
+export async function dbSyncBattleCreatorSlot(
+  hostRoomId: string,
+  slot: BattleSlot,
+  creatorUserId: string,
+): Promise<void> {
+  const p = getPool();
+  if (!p || !creatorUserId) return;
+  try {
+    await p.query(
+      `UPDATE battle_creator_buckets SET creator_user_id = $3, updated_at = NOW()
+       WHERE host_room_id = $1 AND slot = $2`,
+      [hostRoomId, slot, creatorUserId],
+    );
+  } catch (err) {
+    logger.error({ err, hostRoomId, slot }, "dbSyncBattleCreatorSlot failed");
+  }
+}
+
+/** Atomic increment for one creator bucket; returns all four scores. Ensures rows if missing. */
+export async function dbAddBattleScoreAndFetchAll(
+  hostRoomId: string,
+  target: BattleSlot,
+  points: number,
+  ensureCtx: BattleSessionScoreContext | null,
+): Promise<BattleScoresRow | null> {
+  const pool = getPool();
+  if (!pool) return null;
+
+  async function doIncrement(): Promise<BattleScoresRow | null> {
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      const up = await client.query(
+        `UPDATE battle_creator_buckets SET score = score + $3, updated_at = NOW()
+         WHERE host_room_id = $1 AND slot = $2`,
+        [hostRoomId, target, points],
+      );
+      if ((up.rowCount ?? 0) === 0) {
+        await client.query("ROLLBACK");
+        return null;
+      }
+      const sel = await client.query(
+        `SELECT slot, score FROM battle_creator_buckets WHERE host_room_id = $1`,
+        [hostRoomId],
+      );
+      await client.query("COMMIT");
+      return rowToScores(sel.rows as { slot: string; score: unknown }[]);
+    } catch (err) {
+      try {
+        await client.query("ROLLBACK");
+      } catch {
+        /* ignore */
+      }
+      logger.error({ err, hostRoomId, target }, "battle bucket increment failed");
+      return null;
+    } finally {
+      client.release();
+    }
+  }
+
+  let result = await doIncrement();
+  if (result === null && ensureCtx) {
+    await dbEnsureBattleCreatorBuckets(ensureCtx);
+    result = await doIncrement();
+  }
+  return result;
+}
+
+export async function dbLoadBattleScores(hostRoomId: string): Promise<BattleScoresRow | null> {
+  const p = getPool();
+  if (!p) return null;
+  try {
+    const sel = await p.query(
+      `SELECT slot, score FROM battle_creator_buckets WHERE host_room_id = $1`,
+      [hostRoomId],
+    );
+    if (!sel.rows?.length) return null;
+    return rowToScores(sel.rows as { slot: string; score: unknown }[]);
+  } catch (err) {
+    logger.error({ err, hostRoomId }, "dbLoadBattleScores failed");
+    return null;
+  }
+}
+
+export async function dbDeleteBattleBuckets(hostRoomId: string): Promise<void> {
+  const p = getPool();
+  if (!p) return;
+  try {
+    await p.query(`DELETE FROM battle_creator_buckets WHERE host_room_id = $1`, [hostRoomId]);
+  } catch (err) {
+    logger.error({ err, hostRoomId }, "dbDeleteBattleBuckets failed");
   }
 }

@@ -53,7 +53,20 @@ import {
   decrementStat,
   type Video,
 } from "./lib/videoStore";
-import { initPostgres, loadVideosFromDb, saveVideoToDb, deleteVideoFromDb, dbUpdateViewerCount, getPool, isPostgresConfigured } from "./lib/postgres";
+import {
+  initPostgres,
+  loadVideosFromDb,
+  saveVideoToDb,
+  deleteVideoFromDb,
+  dbUpdateViewerCount,
+  getPool,
+  isPostgresConfigured,
+  dbEnsureBattleCreatorBuckets,
+  dbAddBattleScoreAndFetchAll,
+  dbDeleteBattleBuckets,
+  dbSyncBattleCreatorSlot,
+  type BattleSessionScoreContext,
+} from "./lib/postgres";
 import {
   handleGetCreatorBalance,
   handleGetCreatorEarnings,
@@ -986,6 +999,10 @@ function normalizeBattleTarget(
 // with target ∈ { host, opponent, player3, player4 } — exactly one bucket per event.
 //
 // 2-player: only hostScore + opponentScore are used; player3Score/player4Score stay 0. Same API.
+//
+// When DATABASE_URL is set (e.g. Neon), each creator’s points live in Postgres table
+// `battle_creator_buckets` (one row per slot per host_room_id). In-memory session scores
+// mirror DB after each update; if DB fails, we fall back to in-memory for that request.
 // ═══════════════════════════════════════════════════════════════
 interface BattleSession {
   id: string;
@@ -1049,7 +1066,23 @@ function createBattle(
   };
   battles.set(hostRoomId, session);
   userBattleRoom.set(hostUserId, hostRoomId);
+  if (isPostgresConfigured()) {
+    void dbEnsureBattleCreatorBuckets(battleSessionToScoreCtx(session)).catch((err) =>
+      logger.error({ err, hostRoomId }, "dbEnsureBattleCreatorBuckets on createBattle failed"),
+    );
+  }
   return session;
+}
+
+function battleSessionToScoreCtx(s: BattleSession): BattleSessionScoreContext {
+  return {
+    hostRoomId: s.hostRoomId,
+    id: s.id,
+    hostUserId: s.hostUserId,
+    opponentUserId: s.opponentUserId,
+    player3UserId: s.player3UserId,
+    player4UserId: s.player4UserId,
+  };
 }
 
 function joinBattle(
@@ -1099,6 +1132,18 @@ function joinBattle(
   }
 
   userBattleRoom.set(userId, roomId);
+  if (isPostgresConfigured()) {
+    if (session.opponentUserId === userId) {
+      void dbSyncBattleCreatorSlot(roomId, "opponent", userId);
+    } else if (session.player3UserId === userId) {
+      void dbSyncBattleCreatorSlot(roomId, "player3", userId);
+    } else if (session.player4UserId === userId) {
+      void dbSyncBattleCreatorSlot(roomId, "player4", userId);
+    }
+    void dbEnsureBattleCreatorBuckets(battleSessionToScoreCtx(session)).catch((err) =>
+      logger.error({ err, roomId }, "dbEnsureBattleCreatorBuckets on joinBattle failed"),
+    );
+  }
   if (session.status === "WAITING") {
     startBattleTimer(roomId);
   } else {
@@ -1152,15 +1197,11 @@ function normalizeSpectatorVoteTarget(raw: unknown): "host" | "opponent" | "play
   return null;
 }
 
-/** Add points to exactly one of P1–P4; broadcasts battle_score with all four totals + ids. */
-function addBattleScoreForTarget(
-  roomId: string,
+function applyBattleScoreInMemory(
+  session: BattleSession,
   target: "host" | "opponent" | "player3" | "player4",
   points: number,
 ) {
-  const session = battles.get(roomId);
-  if (!session || session.status !== "ACTIVE") return;
-
   if (target === "host") {
     session.hostScore += points;
   } else if (target === "opponent") {
@@ -1170,12 +1211,17 @@ function addBattleScoreForTarget(
   } else if (target === "player4") {
     session.player4Score += points;
   }
-  // #region agent log
+}
+
+function broadcastBattleScoreFromSession(
+  session: BattleSession,
+  roomId: string,
+  target: "host" | "opponent" | "player3" | "player4",
+  points: number,
+) {
   console.log(
     `[DBG-7a7f0c] SCORE +${points} to ${target} → P1=${session.hostScore} P2=${session.opponentScore} P3=${session.player3Score} P4=${session.player4Score} room=${roomId}`,
   );
-  // #endregion
-
   const scorePayload = {
     hostScore: session.hostScore,
     opponentScore: session.opponentScore,
@@ -1194,6 +1240,39 @@ function addBattleScoreForTarget(
   };
   broadcastToRoom(roomId, "battle_score", scorePayload);
   broadcastToBattleParticipants(roomId, session, "battle_score", scorePayload);
+}
+
+/** Add points to exactly one of P1–P4; Neon buckets when DATABASE_URL set, else memory. */
+function addBattleScoreForTarget(
+  roomId: string,
+  target: "host" | "opponent" | "player3" | "player4",
+  points: number,
+) {
+  const session = battles.get(roomId);
+  if (!session || session.status !== "ACTIVE") return;
+
+  if (isPostgresConfigured()) {
+    void (async () => {
+      const s = battles.get(roomId);
+      if (!s || s.status !== "ACTIVE") return;
+      const row = await dbAddBattleScoreAndFetchAll(roomId, target, points, battleSessionToScoreCtx(s));
+      if (row) {
+        s.hostScore = row.host;
+        s.opponentScore = row.opponent;
+        s.player3Score = row.player3;
+        s.player4Score = row.player4;
+        broadcastBattleScoreFromSession(s, roomId, target, points);
+      } else {
+        applyBattleScoreInMemory(s, target, points);
+        broadcastBattleScoreFromSession(s, roomId, target, points);
+        logger.warn({ roomId, target }, "battle score: DB unavailable, used in-memory fallback");
+      }
+    })();
+    return;
+  }
+
+  applyBattleScoreInMemory(session, target, points);
+  broadcastBattleScoreFromSession(session, roomId, target, points);
 }
 
 function endBattle(roomId: string) {
@@ -1232,6 +1311,12 @@ function endBattle(roomId: string) {
   };
   broadcastToRoom(roomId, "battle_ended", endedPayload);
   broadcastToBattleParticipants(roomId, session, "battle_ended", endedPayload);
+
+  if (isPostgresConfigured()) {
+    void dbDeleteBattleBuckets(roomId).catch((err) =>
+      logger.error({ err, roomId }, "dbDeleteBattleBuckets on endBattle failed"),
+    );
+  }
 
   // Cleanup after 10 seconds
   setTimeout(() => {
@@ -1809,6 +1894,11 @@ async function handleMessage(client: Client, event: string, data: any) {
           if (existing.timer) clearInterval(existing.timer);
           userBattleRoom.delete(existing.hostUserId);
           userBattleRoom.delete(existing.opponentUserId);
+          if (isPostgresConfigured()) {
+            void dbDeleteBattleBuckets(client.roomId).catch((err) =>
+              logger.error({ err, roomId: client.roomId }, "dbDeleteBattleBuckets on battle_create replace failed"),
+            );
+          }
           battles.delete(client.roomId);
         }
         const session = createBattle(
@@ -1838,6 +1928,12 @@ async function handleMessage(client: Client, event: string, data: any) {
           session.opponentName = opponentName;
           session.opponentRoomId = opponentRoomId;
           if (opponentUserId) userBattleRoom.set(opponentUserId, client.roomId);
+          if (isPostgresConfigured()) {
+            void dbEnsureBattleCreatorBuckets(battleSessionToScoreCtx(session)).catch((err) =>
+              logger.error({ err }, "dbEnsureBattleCreatorBuckets after opponent prefilled failed"),
+            );
+            void dbSyncBattleCreatorSlot(session.hostRoomId, "opponent", opponentUserId);
+          }
           startBattleTimer(client.roomId);
         } else {
           sendToClient(client, "battle_created", {

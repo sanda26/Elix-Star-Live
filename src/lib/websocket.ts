@@ -25,7 +25,6 @@ export type WebSocketEvent =
   | "battle_created"
   | "battle_state_sync"
   | "battle_countdown"
-  | "battle_tick"
   | "battle_score"
   | "battle_error"
   | "battle_ready"

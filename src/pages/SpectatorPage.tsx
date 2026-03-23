@@ -50,7 +50,7 @@ import { normalizeBattleGiftTarget } from '../lib/liveBattleGiftTarget';
 import { IS_STORE_BUILD } from '../config/build';
 import { Room, RoomEvent, LocalVideoTrack, LocalAudioTrack } from 'livekit-client';
 
-function AnimatedScore({ value, className = '' }: { value: number; className?: string }) {
+function AnimatedScore({ value, className = '', durationMs = 300 }: { value: number; className?: string; durationMs?: number }) {
   const [display, setDisplay] = useState(value);
   const rafRef = useRef<number>(0);
   const startRef = useRef(display);
@@ -61,7 +61,7 @@ function AnimatedScore({ value, className = '' }: { value: number; className?: s
     startRef.current = display;
     targetRef.current = value;
     const start = performance.now();
-    const duration = 300;
+    const duration = durationMs;
     const from = startRef.current;
     const to = targetRef.current;
     const step = (now: number) => {
@@ -72,8 +72,19 @@ function AnimatedScore({ value, className = '' }: { value: number; className?: s
     };
     rafRef.current = requestAnimationFrame(step);
     return () => cancelAnimationFrame(rafRef.current);
-  }, [value]);
+  }, [value, durationMs]);
   return <span className={className}>{display.toLocaleString()}</span>;
+}
+
+function battleTeamLabelsFromPayload(data: any): { red: string; blue: string } {
+  const h = typeof data.hostName === 'string' ? data.hostName.trim() : '';
+  const o = typeof data.opponentName === 'string' ? data.opponentName.trim() : '';
+  const p3 = typeof data.player3Name === 'string' ? data.player3Name.trim() : '';
+  const p4 = typeof data.player4Name === 'string' ? data.player4Name.trim() : '';
+  const cap = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
+  const red = p3 ? `${h || 'Host'} + ${p3}` : (h || 'Host');
+  const blue = p4 ? `${o || 'Guest'} + ${p4}` : (o || 'Guest');
+  return { red: cap(red, 24), blue: cap(blue, 24) };
 }
 
 type LiveMessage = {
@@ -250,6 +261,8 @@ export default function SpectatorPage() {
     opponentName?: string;
     opponentRoomId?: string;
     winner?: string;
+    redTeamLabel?: string;
+    blueTeamLabel?: string;
   } | null>(null);
   const spectatorBattleRef = useRef(spectatorBattle);
   spectatorBattleRef.current = spectatorBattle;
@@ -270,6 +283,18 @@ export default function SpectatorPage() {
     const s = seconds % 60;
     return `${m}:${s.toString().padStart(2, '0')}`;
   };
+
+  // Battle countdown locally while active (no battle_tick WebSocket).
+  useEffect(() => {
+    if (!spectatorBattle?.active) return;
+    const id = window.setInterval(() => {
+      setSpectatorBattle((prev) => {
+        if (!prev?.active) return prev;
+        return { ...prev, timeLeft: Math.max(0, prev.timeLeft - 1) };
+      });
+    }, 1000);
+    return () => clearInterval(id);
+  }, [spectatorBattle?.active]);
 
   // Connect to opponent's LiveKit room so spectators see both battle videos
   useEffect(() => {
@@ -974,15 +999,18 @@ export default function SpectatorPage() {
         return Number.isFinite(n) ? n : fallback;
       };
       if (data.status === 'ACTIVE' || data.status === 'active' || data.status === 'IN_BATTLE') {
+        const labels = battleTeamLabelsFromPayload(data);
         setSpectatorBattle(prev => ({
           active: true,
-          hostScore: toScore(data.hostScore, prev?.hostScore ?? 0),
-          opponentScore: toScore(data.opponentScore, prev?.opponentScore ?? 0),
+          hostScore: toScore(data.hostScore ?? data.host_score, prev?.hostScore ?? 0),
+          opponentScore: toScore(data.opponentScore ?? data.opponent_score, prev?.opponentScore ?? 0),
           player3Score: toScore(data.player3Score ?? data.player3_score, prev?.player3Score ?? 0),
           player4Score: toScore(data.player4Score ?? data.player4_score, prev?.player4Score ?? 0),
           timeLeft: toScore(data.timeLeft, prev?.timeLeft ?? 300),
           opponentName: data.opponentName || data.opponent_name || prev?.opponentName,
           opponentRoomId: data.opponentRoomId || prev?.opponentRoomId,
+          redTeamLabel: labels.red,
+          blueTeamLabel: labels.blue,
         }));
       } else if (data.status === 'ENDED') {
         setSpectatorBattle(prev => prev ? { ...prev, active: false } : null);
@@ -997,27 +1025,10 @@ export default function SpectatorPage() {
           timeLeft: toScore(data.timeLeft, 300),
           opponentName: data.opponentName || prev?.opponentName,
           opponentRoomId: data.opponentRoomId || prev?.opponentRoomId,
+          redTeamLabel: '',
+          blueTeamLabel: '',
         }));
       }
-    };
-
-    const handleBattleTick = (data: any) => {
-      if (!mounted) return;
-      const toScore = (value: unknown, fallback = 0) => {
-        const n = Number(value);
-        return Number.isFinite(n) ? n : fallback;
-      };
-      setSpectatorBattle(prev => ({
-        active: true,
-        timeLeft: toScore(data.timeLeft, prev?.timeLeft ?? 300),
-        hostScore: toScore(data.hostScore, prev?.hostScore ?? 0),
-        opponentScore: toScore(data.opponentScore, prev?.opponentScore ?? 0),
-        player3Score: toScore(data.player3Score ?? data.player3_score, prev?.player3Score ?? 0),
-        player4Score: toScore(data.player4Score ?? data.player4_score, prev?.player4Score ?? 0),
-        opponentName: (typeof data.opponentName === 'string' && data.opponentName) || prev?.opponentName,
-        opponentRoomId: (typeof data.opponentRoomId === 'string' && data.opponentRoomId) || prev?.opponentRoomId,
-        winner: prev?.winner,
-      }));
     };
 
     const handleBattleScore = (data: any) => {
@@ -1026,6 +1037,7 @@ export default function SpectatorPage() {
         const n = Number(value);
         return Number.isFinite(n) ? n : fallback;
       };
+      const labels = battleTeamLabelsFromPayload(data);
       setSpectatorBattle(prev => ({
         active: prev?.active ?? true,
         timeLeft: prev?.timeLeft ?? 300,
@@ -1036,6 +1048,8 @@ export default function SpectatorPage() {
         opponentName: (typeof data.opponentName === 'string' && data.opponentName) || prev?.opponentName,
         opponentRoomId: (typeof data.opponentRoomId === 'string' && data.opponentRoomId) || prev?.opponentRoomId,
         winner: prev?.winner,
+        redTeamLabel: labels.red,
+        blueTeamLabel: labels.blue,
       }));
     };
 
@@ -1047,8 +1061,8 @@ export default function SpectatorPage() {
       };
       setSpectatorBattle(prev => {
         if (!prev) return null;
-        const h = toScore(data.hostScore, prev.hostScore);
-        const o = toScore(data.opponentScore, prev.opponentScore);
+        const h = toScore(data.hostScore ?? data.host_score, prev.hostScore);
+        const o = toScore(data.opponentScore ?? data.opponent_score, prev.opponentScore);
         const p3 = toScore(data.player3Score ?? data.player3_score, prev.player3Score ?? 0);
         const p4 = toScore(data.player4Score ?? data.player4_score, prev.player4Score ?? 0);
         const teamA = h + p3;
@@ -1056,6 +1070,7 @@ export default function SpectatorPage() {
         const winner =
           (typeof data.winner === 'string' && data.winner) ||
           (teamA > teamB ? 'host' : teamA < teamB ? 'opponent' : 'draw');
+        const labels = battleTeamLabelsFromPayload(data);
         return {
           ...prev,
           active: false,
@@ -1064,6 +1079,8 @@ export default function SpectatorPage() {
           player3Score: p3,
           player4Score: p4,
           winner,
+          redTeamLabel: labels.red,
+          blueTeamLabel: labels.blue,
         };
       });
       setTimeout(() => setSpectatorBattle(null), 5000);
@@ -1131,7 +1148,6 @@ export default function SpectatorPage() {
     websocket.on('heart_sent', handleHeartSent);
     websocket.on('stream_ended', handleStreamEnded);
     websocket.on('battle_state_sync', handleBattleStateSync);
-    websocket.on('battle_tick', handleBattleTick);
     websocket.on('battle_score', handleBattleScore);
     websocket.on('battle_ended', handleBattleEnded);
     websocket.on('cohost_layout_sync', handleCohostLayoutSync);
@@ -1188,7 +1204,6 @@ export default function SpectatorPage() {
       websocket.off('heart_sent', handleHeartSent);
       websocket.off('stream_ended', handleStreamEnded);
       websocket.off('battle_state_sync', handleBattleStateSync);
-      websocket.off('battle_tick', handleBattleTick);
       websocket.off('battle_score', handleBattleScore);
       websocket.off('battle_ended', handleBattleEnded);
       websocket.off('cohost_layout_sync', handleCohostLayoutSync);
@@ -1506,20 +1521,50 @@ export default function SpectatorPage() {
             const blueTeamScore = (spectatorBattle.opponentScore || 0) + (spectatorBattle.player4Score ?? 0);
             const total = redTeamScore + blueTeamScore;
             const leftPct = total > 0 ? Math.max(5, Math.min(95, (redTeamScore / total) * 100)) : 50;
+            const hS = spectatorBattle.hostScore || 0;
+            const oS = spectatorBattle.opponentScore || 0;
+            const p3s = spectatorBattle.player3Score ?? 0;
+            const p4s = spectatorBattle.player4Score ?? 0;
+            const showPkBreakdown =
+              (spectatorBattle.redTeamLabel || '').includes(' + ') || (spectatorBattle.blueTeamLabel || '').includes(' + ');
             return (
               <div
                 className="absolute inset-0 z-[80] flex flex-col"
                 style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 90px)' }}
               >
-                {/* Score bar — identical to creator */}
-                <div className="relative z-20 w-full flex-none overflow-hidden" style={{ height: '18px' }}>
-                  <div className="absolute inset-0 flex">
-                    <div className="h-full transition-[width] duration-300 ease-out" style={{ width: `${leftPct}%`, backgroundImage: 'linear-gradient(90deg, #DC143C, #FF1744, #C41E3A)' }} />
-                    <div className="h-full flex-1" style={{ backgroundImage: 'linear-gradient(90deg, #1E90FF, #4169E1, #0047AB)' }} />
+                <div className="relative z-20 w-full flex-none bg-[#13151A]/95 border-b border-white/10">
+                  <div className="flex items-start justify-between gap-2 px-2 py-1 pointer-events-none">
+                    <div className="flex flex-col items-start min-w-0 flex-1 max-w-[50%]">
+                      <span className="text-[7px] font-bold uppercase tracking-wide text-[#ffb3b3] truncate w-full">
+                        Red · {spectatorBattle.redTeamLabel || hostName || 'Host team'}
+                      </span>
+                      <AnimatedScore value={typeof redTeamScore === 'number' && Number.isFinite(redTeamScore) ? redTeamScore : 0} durationMs={1200} className="text-white font-black text-[15px] tabular-nums leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" />
+                      {showPkBreakdown && (
+                        <span className="text-[7px] text-white/50 tabular-nums leading-tight">
+                          P1 {hS} + P3 {p3s}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex flex-col items-end min-w-0 flex-1 max-w-[50%]">
+                      <span className="text-[7px] font-bold uppercase tracking-wide text-[#b3d4ff] truncate w-full text-right">
+                        Blue · {spectatorBattle.blueTeamLabel || spectatorBattle.opponentName || 'Guest team'}
+                      </span>
+                      <AnimatedScore value={typeof blueTeamScore === 'number' && Number.isFinite(blueTeamScore) ? blueTeamScore : 0} durationMs={1200} className="text-white font-black text-[15px] tabular-nums leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" />
+                      {showPkBreakdown && (
+                        <span className="text-[7px] text-white/50 tabular-nums leading-tight text-right">
+                          P2 {oS} + P4 {p4s}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <div className="absolute inset-0 z-10 flex items-center justify-between px-2 pointer-events-none">
-                    <AnimatedScore value={typeof redTeamScore === 'number' && Number.isFinite(redTeamScore) ? redTeamScore : 0} className="text-white font-black text-[14px] tabular-nums drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" />
-                    <AnimatedScore value={typeof blueTeamScore === 'number' && Number.isFinite(blueTeamScore) ? blueTeamScore : 0} className="text-white font-black text-[14px] tabular-nums drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]" />
+                  <div className="relative w-full overflow-hidden" style={{ height: '14px' }}>
+                    <div className="absolute inset-0 flex">
+                      <div
+                        className="h-full transition-[width] duration-[1200ms] ease-out motion-reduce:transition-none"
+                        style={{ width: `${leftPct}%`, backgroundImage: 'linear-gradient(90deg, #DC143C, #FF1744, #C41E3A)' }}
+                      />
+                      <div className="h-full flex-1" style={{ backgroundImage: 'linear-gradient(90deg, #1E90FF, #4169E1, #0047AB)' }} />
+                    </div>
                   </div>
                 </div>
 

@@ -1108,24 +1108,33 @@ function startBattleTimer(roomId: string) {
       return;
     }
     s.timeLeft = Math.max(0, Math.round((s.endsAt - Date.now()) / 1000));
-
-    const tickPayload = {
-      timeLeft: s.timeLeft,
-      hostScore: s.hostScore,
-      opponentScore: s.opponentScore,
-      player3Score: s.player3Score,
-      player4Score: s.player4Score,
-      endsAt: s.endsAt,
-      hostUserId: s.hostUserId,
-      opponentUserId: s.opponentUserId,
-    };
-    broadcastToRoom(roomId, "battle_tick", tickPayload);
-    broadcastToBattleParticipants(roomId, s, "battle_tick", tickPayload);
-
+    // No battle_tick broadcast — clients count down locally; scores only change on battle_score / sync.
     if (s.timeLeft <= 0) {
       endBattle(roomId);
     }
   }, 1000);
+}
+
+/** Rate-limit scored spectator taps: max 5 per second per user per battle room. */
+const battleSpectatorTapTimestamps = new Map<string, number[]>();
+function allowBattleSpectatorTapScore(userId: string, roomId: string, maxPerSec: number): boolean {
+  const key = `${userId}:${roomId}`;
+  const now = Date.now();
+  const windowMs = 1000;
+  const arr = (battleSpectatorTapTimestamps.get(key) || []).filter((t) => now - t < windowMs);
+  if (arr.length >= maxPerSec) return false;
+  arr.push(now);
+  battleSpectatorTapTimestamps.set(key, arr);
+  return true;
+}
+
+function normalizeSpectatorVoteTarget(raw: unknown): "host" | "opponent" | "player3" | "player4" | null {
+  const s = typeof raw === "string" ? raw.toLowerCase().trim() : "";
+  if (s === "host" || s === "a") return "host";
+  if (s === "opponent" || s === "b") return "opponent";
+  if (s === "player3" || s === "p3") return "player3";
+  if (s === "player4" || s === "p4") return "player4";
+  return null;
 }
 
 function addBattleScoreForTarget(
@@ -1158,6 +1167,10 @@ function addBattleScoreForTarget(
     points,
     hostUserId: session.hostUserId,
     opponentUserId: session.opponentUserId,
+    hostName: session.hostName,
+    opponentName: session.opponentName,
+    player3Name: session.player3Name,
+    player4Name: session.player4Name,
   };
   broadcastToRoom(roomId, "battle_score", scorePayload);
   broadcastToBattleParticipants(roomId, session, "battle_score", scorePayload);
@@ -1192,6 +1205,8 @@ function endBattle(roomId: string) {
     winner: session.winner,
     hostName: session.hostName,
     opponentName: session.opponentName,
+    player3Name: session.player3Name,
+    player4Name: session.player4Name,
     hostUserId: session.hostUserId,
     opponentUserId: session.opponentUserId,
   };
@@ -1840,7 +1855,9 @@ async function handleMessage(client: Client, event: string, data: any) {
         console.log(`[DBG-7a7f0c] battle_spectator_vote: userId=${client.userId} clientRoom=${client.roomId} voteRoom=${voteRoom} found=${!!voteBattle} target=${data.target}`);
         // #endregion
         if (!voteBattle || voteBattle.status !== "ACTIVE") break;
-        const voteTarget = data.target === "host" ? "host" : "opponent";
+        if (!allowBattleSpectatorTapScore(client.userId, voteRoom, 5)) break;
+        const voteTarget = normalizeSpectatorVoteTarget(data.target);
+        if (!voteTarget) break;
         addBattleScoreForTarget(voteRoom, voteTarget, 5);
         sendToClient(client, "battle_vote_ack", { target: voteTarget, points: 5 });
         break;

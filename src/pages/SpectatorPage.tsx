@@ -51,12 +51,34 @@ import { normalizeBattleGiftTarget } from '../lib/liveBattleGiftTarget';
 import { IS_STORE_BUILD } from '../config/build';
 import { Room, RoomEvent, LocalVideoTrack, LocalAudioTrack } from 'livekit-client';
 
-function AnimatedScore({ value, className = '', durationMs = 300 }: { value: number; className?: string; durationMs?: number }) {
+function formatBattleScoreShort(coins: number) {
+  const n = typeof coins === 'number' && Number.isFinite(coins) ? coins : 0;
+  if (n >= 1_000_000) {
+    const m = Math.round((n / 1_000_000) * 10) / 10;
+    const label = Number.isInteger(m) ? String(Math.trunc(m)) : String(m);
+    return `${label}M`;
+  }
+  if (n >= 1000) {
+    const k = Math.round((n / 1000) * 10) / 10;
+    const label = Number.isInteger(k) ? String(Math.trunc(k)) : String(k);
+    return `${label}K`;
+  }
+  return n.toLocaleString();
+}
+
+function AnimatedScore({ value, className = '', durationMs = 300, format }: { value: number; className?: string; durationMs?: number; format?: (n: number) => string }) {
   const [display, setDisplay] = useState(value);
   const rafRef = useRef<number>(0);
   const startRef = useRef(display);
   const targetRef = useRef(value);
+  const fmt = format ?? ((n: number) => n.toLocaleString());
   useEffect(() => {
+    if (durationMs <= 0) {
+      cancelAnimationFrame(rafRef.current);
+      setDisplay(value);
+      targetRef.current = value;
+      return;
+    }
     if (value === display) { targetRef.current = value; return; }
     cancelAnimationFrame(rafRef.current);
     startRef.current = display;
@@ -74,7 +96,7 @@ function AnimatedScore({ value, className = '', durationMs = 300 }: { value: num
     rafRef.current = requestAnimationFrame(step);
     return () => cancelAnimationFrame(rafRef.current);
   }, [value, durationMs]);
-  return <span className={className}>{display.toLocaleString()}</span>;
+  return <span className={className}>{fmt(display)}</span>;
 }
 
 function battleTeamLabelsFromPayload(data: any): { red: string; blue: string } {
@@ -1554,7 +1576,7 @@ export default function SpectatorPage() {
                 style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 90px)' }}
               >
                 <div className="relative z-20 w-full flex-none bg-[#13151A]/95 border-b border-white/10">
-                  <div className="relative w-full overflow-hidden" style={{ minHeight: showPkBreakdown ? '40px' : '32px' }}>
+                  <div className="relative w-full overflow-hidden" style={{ minHeight: showPkBreakdown ? '20px' : '16px' }}>
                     <div className="absolute inset-0 flex">
                       <div
                         className="h-full transition-[width] duration-[1200ms] ease-out motion-reduce:transition-none"
@@ -1562,19 +1584,19 @@ export default function SpectatorPage() {
                       />
                       <div className="h-full flex-1 min-w-0" style={{ backgroundImage: 'linear-gradient(90deg, #1E90FF, #4169E1, #0047AB)' }} />
                     </div>
-                    <div className="relative z-10 flex h-full min-h-[32px] items-center justify-between gap-2 px-2.5 pointer-events-none">
-                      <div className="flex min-w-0 flex-1 flex-col items-start justify-center">
-                        <AnimatedScore value={typeof redTeamScore === 'number' && Number.isFinite(redTeamScore) ? redTeamScore : 0} durationMs={1200} className="text-white font-black text-[15px] tabular-nums leading-tight drop-shadow-[0_1px_3px_rgba(0,0,0,0.95)]" />
+                    <div className="relative z-10 flex h-full min-h-[16px] items-center justify-between gap-1.5 px-2 pointer-events-none leading-none">
+                      <div className="flex min-w-0 flex-1 flex-col items-start justify-center gap-0">
+                        <AnimatedScore value={typeof redTeamScore === 'number' && Number.isFinite(redTeamScore) ? redTeamScore : 0} durationMs={0} format={formatBattleScoreShort} className="text-white font-black text-[11px] tabular-nums leading-none drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)]" />
                         {showPkBreakdown && (
-                          <span className="text-[6px] text-white/80 tabular-nums leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+                          <span className="text-[5px] text-white/80 tabular-nums leading-none drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
                             P1 {hS} + P3 {p3s}
                           </span>
                         )}
                       </div>
-                      <div className="flex min-w-0 flex-1 flex-col items-end justify-center">
-                        <AnimatedScore value={typeof blueTeamScore === 'number' && Number.isFinite(blueTeamScore) ? blueTeamScore : 0} durationMs={1200} className="text-white font-black text-[15px] tabular-nums leading-tight drop-shadow-[0_1px_3px_rgba(0,0,0,0.95)]" />
+                      <div className="flex min-w-0 flex-1 flex-col items-end justify-center gap-0">
+                        <AnimatedScore value={typeof blueTeamScore === 'number' && Number.isFinite(blueTeamScore) ? blueTeamScore : 0} durationMs={0} format={formatBattleScoreShort} className="text-white font-black text-[11px] tabular-nums leading-none drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)]" />
                         {showPkBreakdown && (
-                          <span className="text-[6px] text-white/80 tabular-nums leading-tight text-right drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+                          <span className="text-[5px] text-white/80 tabular-nums leading-none text-right drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
                             P2 {oS} + P4 {p4s}
                           </span>
                         )}

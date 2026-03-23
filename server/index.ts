@@ -960,15 +960,14 @@ function getGiftValue(giftId: string): number {
 function normalizeBattleTarget(
   rawTarget: unknown,
 ): "host" | "opponent" | "player3" | "player4" | null {
-  if (
-    rawTarget === "host" ||
-    rawTarget === "opponent" ||
-    rawTarget === "player3" ||
-    rawTarget === "player4"
-  ) {
-    return rawTarget;
-  }
-  if (rawTarget === "me") return "host";
+  if (rawTarget == null || rawTarget === "") return null;
+  const s = String(rawTarget).trim().toLowerCase();
+  if (s === "host" || s === "red") return "host";
+  if (s === "opponent" || s === "blue" || s === "guest") return "opponent";
+  if (s === "player3" || s === "p3") return "player3";
+  if (s === "player4" || s === "p4") return "player4";
+  // "me" is ambiguous (host vs opponent stream); gift_sent resolves it via room + userId
+  if (s === "me") return null;
   return null;
 }
 
@@ -1132,8 +1131,8 @@ function allowBattleSpectatorTapScore(userId: string, roomId: string, maxPerSec:
 
 function normalizeSpectatorVoteTarget(raw: unknown): "host" | "opponent" | "player3" | "player4" | null {
   const s = typeof raw === "string" ? raw.toLowerCase().trim() : "";
-  if (s === "host" || s === "a") return "host";
-  if (s === "opponent" || s === "b") return "opponent";
+  if (s === "host" || s === "a" || s === "red") return "host";
+  if (s === "opponent" || s === "b" || s === "blue") return "opponent";
   if (s === "player3" || s === "p3") return "player3";
   if (s === "player4" || s === "p4") return "player4";
   return null;
@@ -1756,12 +1755,18 @@ async function handleMessage(client: Client, event: string, data: any) {
             if (!normalizedTarget && client.userId === activeBattle.hostUserId) {
               normalizedTarget = "host";
             }
+            // Spectators / ambiguous "me": credit the stream room being watched (not always host room)
             if (!normalizedTarget) {
-              normalizedTarget =
-                client.roomId === activeBattle.opponentRoomId &&
-                client.roomId !== battleRoomId
-                  ? "opponent"
-                  : "host";
+              if (
+                activeBattle.opponentRoomId &&
+                client.roomId === activeBattle.opponentRoomId
+              ) {
+                normalizedTarget = "opponent";
+              } else if (client.roomId === activeBattle.hostRoomId) {
+                normalizedTarget = "host";
+              } else {
+                normalizedTarget = "host";
+              }
             }
             // #region agent log
             console.log(`[DBG-7a7f0c] gift_sent scoring: userId=${client.userId} roomId=${client.roomId} battleRoomId=${battleRoomId} rawTarget=${data.battleTarget} normalized=${normalizedTarget} value=${serverGiftValue} hostScore=${activeBattle.hostScore} oppScore=${activeBattle.opponentScore}`);

@@ -61,12 +61,19 @@ import { normalizeBattleGiftTarget } from '../lib/liveBattleGiftTarget';
 import { IS_STORE_BUILD } from '../config/build';
 import { Room, RoomEvent, LocalVideoTrack, LocalAudioTrack } from 'livekit-client';
 
-function AnimatedScore({ value, className = '', durationMs = 300 }: { value: number; className?: string; durationMs?: number }) {
+function AnimatedScore({ value, className = '', durationMs = 300, format }: { value: number; className?: string; durationMs?: number; format?: (n: number) => string }) {
   const [display, setDisplay] = useState(value);
   const rafRef = useRef<number>(0);
   const startRef = useRef(display);
   const targetRef = useRef(value);
+  const fmt = format ?? ((n: number) => n.toLocaleString());
   useEffect(() => {
+    if (durationMs <= 0) {
+      cancelAnimationFrame(rafRef.current);
+      setDisplay(value);
+      targetRef.current = value;
+      return;
+    }
     if (value === display) { targetRef.current = value; return; }
     cancelAnimationFrame(rafRef.current);
     startRef.current = display;
@@ -84,7 +91,7 @@ function AnimatedScore({ value, className = '', durationMs = 300 }: { value: num
     rafRef.current = requestAnimationFrame(step);
     return () => cancelAnimationFrame(rafRef.current);
   }, [value, durationMs]);
-  return <span className={className}>{display.toLocaleString()}</span>;
+  return <span className={className}>{fmt(display)}</span>;
 }
 
 type LiveMessage = {
@@ -1594,8 +1601,20 @@ export default function LiveStream() {
     spawnHeartAt(x, y, '#FF2D55');
   }, [spawnHeartAt]);
 
-  // Battle tap (viewers on creator stream): +5 per scored tap to the tapped cell; server caps 5/sec.
-  // Grid labels are local (me/opponent); server expects absolute host/opponent/P3/P4 — same mapping as gift_sent when role is opponent.
+  /** Map UI cell → server bucket. Left = host (red), right = opponent (blue) for everyone watching; only the opponent *broadcaster* swaps me↔opponent when sending gifts from their own stream. */
+  const resolveOutgoingBattleTarget = useCallback((target: 'me' | 'opponent' | 'player3' | 'player4') => {
+    if (target === 'player3' || target === 'player4') return target;
+    const role = battleRoleRef.current || (isBattleJoiner ? 'opponent' : (isBroadcast ? 'host' : null));
+    if (isBroadcast && role === 'opponent') {
+      if (target === 'me') return 'opponent';
+      if (target === 'opponent') return 'host';
+    }
+    if (target === 'me') return 'host';
+    if (target === 'opponent') return 'opponent';
+    return target;
+  }, [isBattleJoiner, isBroadcast]);
+
+  // Battle tap (viewers only): server still adds +5 per scored vote (`server/index.ts` battle_spectator_vote → addBattleScoreForTarget(..., 5)). This send only carries target; points are not deleted. Client rate-limits 5 scored taps/sec. Grid is absolute (red left, blue right).
   const handleBattleTap = useCallback((target: 'me' | 'opponent' | 'player3' | 'player4') => {
     if (isBroadcast) return;
     if (!isBattleMode || battleWinner || battleTime <= 0) return;
@@ -1613,17 +1632,12 @@ export default function LiveStream() {
     w.count += 1;
 
     setGiftTarget(target);
-    let serverTarget: 'host' | 'opponent' | 'player3' | 'player4' =
+    const serverTarget: 'host' | 'opponent' | 'player3' | 'player4' =
       target === 'me' ? 'host' :
       target === 'opponent' ? 'opponent' :
       target === 'player3' ? 'player3' : 'player4';
-    const role = battleRoleRef.current || (isBattleJoiner ? 'opponent' : (isBroadcast ? 'host' : null));
-    if (role === 'opponent') {
-      if (serverTarget === 'host') serverTarget = 'opponent';
-      else if (serverTarget === 'opponent') serverTarget = 'host';
-    }
     websocket.send('battle_spectator_vote', { target: serverTarget });
-  }, [isBroadcast, battleWinner, battleTime, isBattleMode, battleSlots, isBattleJoiner]);
+  }, [isBroadcast, battleWinner, battleTime, isBattleMode, battleSlots]);
 
   // ─── SPEED CHALLENGE LOGIC ───
   const startSpeedChallenge = useCallback(() => {
@@ -2674,13 +2688,6 @@ export default function LiveStream() {
 
   const handleSendGift = async (gift: typeof GIFTS[0]) => {
     if (!gift) return;
-    const resolveOutgoingBattleTarget = (target: 'me' | 'opponent' | 'player3' | 'player4') => {
-      const role = battleRoleRef.current || (isBattleJoiner ? 'opponent' : (isBroadcast ? 'host' : null));
-      if (role !== 'opponent') return target;
-      if (target === 'me') return 'opponent';
-      if (target === 'opponent') return 'me';
-      return target;
-    };
 
     try {
       // Local/dev: always allow sending gifts, even if coinBalance is low,
@@ -2835,14 +2842,7 @@ export default function LiveStream() {
 
   const handleComboClick = async () => {
       if (!lastSentGift) return;
-      const resolveOutgoingBattleTarget = (target: 'me' | 'opponent' | 'player3' | 'player4') => {
-        const role = battleRoleRef.current || (isBattleJoiner ? 'opponent' : (isBroadcast ? 'host' : null));
-        if (role !== 'opponent') return target;
-        if (target === 'me') return 'opponent';
-        if (target === 'opponent') return 'me';
-        return target;
-      };
-      
+
       // Check balance
       if (coinBalance < lastSentGift.coins) {
         showToast("Not enough coins!");
@@ -3464,7 +3464,7 @@ export default function LiveStream() {
                   <div className="relative z-20 w-full flex-none bg-[#13151A]/95 border-b border-white/10">
                     <div
                       className="relative w-full overflow-hidden cursor-pointer pointer-events-auto"
-                      style={{ minHeight: is4Player ? '40px' : '32px' }}
+                      style={{ minHeight: is4Player ? '20px' : '16px' }}
                       onClick={(e) => { e.stopPropagation(); if (isBroadcast) { toggleBattle(); } else { spawnHeartFromClient(e.clientX, e.clientY); } }}
                     >
                       <div className="absolute inset-0 flex">
@@ -3474,19 +3474,19 @@ export default function LiveStream() {
                         />
                         <div className="h-full flex-1 min-w-0" style={{ backgroundImage: 'linear-gradient(90deg, #1E90FF, #4169E1, #0047AB)' }} />
                       </div>
-                      <div className="relative z-10 flex h-full min-h-[32px] items-center justify-between gap-2 px-2.5 pointer-events-none">
-                        <div className="flex min-w-0 flex-1 flex-col items-start justify-center">
-                          <AnimatedScore value={typeof redTeamScore === 'number' && Number.isFinite(redTeamScore) ? redTeamScore : 0} durationMs={1200} className="text-white font-black text-[15px] tabular-nums leading-tight drop-shadow-[0_1px_3px_rgba(0,0,0,0.95)]" />
+                      <div className="relative z-10 flex h-full min-h-[16px] items-center justify-between gap-1.5 px-2 pointer-events-none leading-none">
+                        <div className="flex min-w-0 flex-1 flex-col items-start justify-center gap-0">
+                          <AnimatedScore value={typeof redTeamScore === 'number' && Number.isFinite(redTeamScore) ? redTeamScore : 0} durationMs={0} format={formatCoinsShort} className="text-white font-black text-[11px] tabular-nums leading-none drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)]" />
                           {is4Player && (
-                            <span className="text-[6px] text-white/80 tabular-nums leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+                            <span className="text-[5px] text-white/80 tabular-nums leading-none drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
                               P1 {battleServerTotals.h} + P3 {battleServerTotals.p3}
                             </span>
                           )}
                         </div>
-                        <div className="flex min-w-0 flex-1 flex-col items-end justify-center">
-                          <AnimatedScore value={typeof blueTeamScore === 'number' && Number.isFinite(blueTeamScore) ? blueTeamScore : 0} durationMs={1200} className="text-white font-black text-[15px] tabular-nums leading-tight drop-shadow-[0_1px_3px_rgba(0,0,0,0.95)]" />
+                        <div className="flex min-w-0 flex-1 flex-col items-end justify-center gap-0">
+                          <AnimatedScore value={typeof blueTeamScore === 'number' && Number.isFinite(blueTeamScore) ? blueTeamScore : 0} durationMs={0} format={formatCoinsShort} className="text-white font-black text-[11px] tabular-nums leading-none drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)]" />
                           {is4Player && (
-                            <span className="text-[6px] text-white/80 tabular-nums leading-tight text-right drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+                            <span className="text-[5px] text-white/80 tabular-nums leading-none text-right drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
                               P2 {battleServerTotals.o} + P4 {battleServerTotals.p4}
                             </span>
                           )}

@@ -2052,6 +2052,22 @@ async function handleMessage(client: Client, event: string, data: any) {
               client.userId === activeBattle.opponentUserId ||
               client.userId === activeBattle.player3UserId ||
               client.userId === activeBattle.player4UserId;
+
+            // For non-participants (spectators), the room they're connected to is
+            // the authoritative signal for which side they're supporting. Override
+            // any client-sent target with the room-based target so gifts always
+            // credit the creator the spectator is actually watching.
+            if (!isBattleParticipant) {
+              if (
+                activeBattle.opponentRoomId &&
+                client.roomId === activeBattle.opponentRoomId
+              ) {
+                normalizedTarget = "opponent";
+              } else if (client.roomId === activeBattle.hostRoomId) {
+                normalizedTarget = "host";
+              }
+            }
+
             if (!normalizedTarget && client.userId === activeBattle.opponentUserId) {
               normalizedTarget = "opponent";
             }
@@ -2064,7 +2080,6 @@ async function handleMessage(client: Client, event: string, data: any) {
             if (!normalizedTarget && activeBattle.player4UserId && client.userId === activeBattle.player4UserId) {
               normalizedTarget = "player4";
             }
-            // Spectators / ambiguous: credit only the room that matches host vs opponent — never dump everything on one side.
             if (!normalizedTarget) {
               if (
                 activeBattle.opponentRoomId &&

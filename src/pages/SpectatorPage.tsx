@@ -290,6 +290,15 @@ export default function SpectatorPage() {
     opponentUserId: string;
   } | null>(null);
 
+  useEffect(() => {
+    if (!battleStreamIds || !effectiveStreamId) return;
+    if (battleStreamIds.opponentRoomId && effectiveStreamId === battleStreamIds.opponentRoomId) {
+      setSpectatorGiftBattleTarget('opponent');
+    } else {
+      setSpectatorGiftBattleTarget('host');
+    }
+  }, [battleStreamIds, effectiveStreamId]);
+
   const opponentVideoRef = useRef<HTMLVideoElement>(null);
   const opponentLkRoomRef = useRef<Room | null>(null);
   const [hasOpponentStream, setHasOpponentStream] = useState(false);

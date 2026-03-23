@@ -1776,21 +1776,6 @@ export default function SpectatorPage() {
                 {/* Battle grid — videos + tap overlay (2-way or 4-way PK); one +5 vote per spectator per battle */}
                 <div className="relative w-full flex-none flex flex-col h-[44dvh]">
                   <div className="flex-1 min-h-0 flex flex-col relative">
-                    {/* VS timer — centered at top of video grid */}
-                    <div className="absolute top-1.5 left-1/2 -translate-x-1/2 z-[25] pointer-events-none">
-                      <div className="flex items-center gap-1 bg-black/50 backdrop-blur-md rounded-full px-2.5 py-1 border border-white/10 shadow-lg">
-                        <div className="relative w-[16px] h-[16px] flex items-center justify-center">
-                          <svg viewBox="0 0 40 44" className="absolute inset-0 w-full h-full drop-shadow-md">
-                            <path d="M20 2 L36 10 L36 26 Q36 38 20 42 Q4 38 4 26 L4 10 Z" fill="url(#vsGradSpectator)" stroke="rgba(255,255,255,0.5)" strokeWidth="1.5"/>
-                            <defs><linearGradient id="vsGradSpectator" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor="#DC143C"/><stop offset="50%" stopColor="#8B0000"/><stop offset="100%" stopColor="#1E90FF"/></linearGradient></defs>
-                          </svg>
-                          <span className="relative z-10 text-white text-[5px] font-black italic drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">VS</span>
-                        </div>
-                        <span className="text-white text-[11px] font-black tabular-nums drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
-                          {formatTime(spectatorBattle.timeLeft)}
-                        </span>
-                      </div>
-                    </div>
                     <div className="absolute inset-0 flex flex-row">
                       <div className="w-1/2 h-full overflow-hidden relative bg-[#13151A] border-r border-white/5">
                         <video
@@ -2255,7 +2240,23 @@ export default function SpectatorPage() {
           );
         })()}
 
-        {/* Battle VS timer removed from here — now inside battle grid */}
+        {/* Battle VS timer — fixed overlay (score bar, videos, MVPs are in the unified battle container above) */}
+        {spectatorBattle?.active && (
+          <div className="fixed top-0 left-0 right-0 z-[9999] pointer-events-none flex justify-center max-w-[480px] mx-auto py-1.5 px-2 bg-gradient-to-b from-black/50 to-transparent" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 4cm - 10.5mm)' }}>
+            <div className="flex items-center gap-1 bg-black/40 backdrop-blur-md rounded-full px-2 py-0.5 border border-white/10 shadow-sm">
+              <div className="relative w-[16px] h-[16px] flex items-center justify-center">
+                <svg viewBox="0 0 40 44" className="absolute inset-0 w-full h-full drop-shadow-md">
+                  <path d="M20 2 L36 10 L36 26 Q36 38 20 42 Q4 38 4 26 L4 10 Z" fill="url(#vsGradSpectator)" stroke="rgba(255,255,255,0.5)" strokeWidth="1.5"/>
+                  <defs><linearGradient id="vsGradSpectator" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor="#DC143C"/><stop offset="50%" stopColor="#8B0000"/><stop offset="100%" stopColor="#1E90FF"/></linearGradient></defs>
+                </svg>
+                <span className="relative z-10 text-white text-[5px] font-black italic drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">VS</span>
+              </div>
+              <span className="text-white text-[10px] font-black tabular-nums drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] translate-y-[3mm]">
+                {formatTime(spectatorBattle.timeLeft)}
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* CREATOR TOP BAR — only connection to creator page: spectator has access to full creator top bar (avatar, name, likes, Follow, Weekly Ranking, Membership, viewer count, close). Rest is single video + spectator's own bottom bar. */}
         <div className="absolute top-0 left-0 right-0 z-[110] pointer-events-none">

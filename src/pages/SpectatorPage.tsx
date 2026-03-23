@@ -2266,7 +2266,14 @@ export default function SpectatorPage() {
           <div className="px-3" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 6px)' }}>
             <div className="flex items-center justify-between gap-2 relative">
               {/* Left: Creator info — full creator top bar */}
-              <div className="pointer-events-auto flex items-center gap-0 -ml-1 flex-shrink min-w-0">
+              <div
+                className="pointer-events-auto flex items-center gap-0 -ml-1 flex-shrink min-w-0"
+                onPointerDown={() => {
+                  // #region agent log
+                  fetch('http://127.0.0.1:7915/ingest/977d1c87-bfd5-48d4-8dd5-e632c283ea88',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'9f0b02'},body:JSON.stringify({sessionId:'9f0b02',location:'SpectatorPage.tsx:2269',message:'Top bar pointer-events-auto container pointerDown',data:{isBattle:!!spectatorBattle?.active},timestamp:Date.now(),hypothesisId:'H2-battle'})}).catch(()=>{});
+                  // #endregion
+                }}
+              >
                 <div
                   className="relative z-10 flex-shrink-0 cursor-pointer active:scale-95 transition-transform"
                   onClick={() => navigate(`/profile/${hostUserId}`)}

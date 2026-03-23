@@ -2251,7 +2251,7 @@ export default function SpectatorPage() {
                 </svg>
                 <span className="relative z-10 text-white text-[5px] font-black italic drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">VS</span>
               </div>
-              <span className="text-white text-[10px] font-black tabular-nums drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] translate-y-[3mm]">
+              <span className="text-white text-[10px] font-black tabular-nums drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
                 {formatTime(spectatorBattle.timeLeft)}
               </span>
             </div>

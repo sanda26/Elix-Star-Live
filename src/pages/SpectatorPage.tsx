@@ -282,7 +282,6 @@ export default function SpectatorPage() {
   const lastBattleScoreUpdateTraceSigRef = useRef('');
   /** When battle is active, gifts credit host (red) or opponent (blue) MVP tallies. */
   const [spectatorGiftBattleTarget, setSpectatorGiftBattleTarget] = useState<'host' | 'opponent'>('host');
-  const initialGiftTargetSetRef = useRef(false);
   /** From battle_state_sync — map /watch/:streamId to red vs blue team for gifts (defaults were always host). */
   const [battleStreamIds, setBattleStreamIds] = useState<{
     hostRoomId: string;
@@ -290,21 +289,6 @@ export default function SpectatorPage() {
     opponentRoomId: string;
     opponentUserId: string;
   } | null>(null);
-
-  useEffect(() => {
-    if (!battleStreamIds || !effectiveStreamId) return;
-    if (initialGiftTargetSetRef.current) return;
-    initialGiftTargetSetRef.current = true;
-    if (battleStreamIds.opponentRoomId && effectiveStreamId === battleStreamIds.opponentRoomId) {
-      setSpectatorGiftBattleTarget('opponent');
-    } else {
-      setSpectatorGiftBattleTarget('host');
-    }
-  }, [battleStreamIds, effectiveStreamId]);
-
-  useEffect(() => {
-    if (!spectatorBattle?.active) initialGiftTargetSetRef.current = false;
-  }, [spectatorBattle?.active]);
 
   const opponentVideoRef = useRef<HTMLVideoElement>(null);
   const opponentLkRoomRef = useRef<Room | null>(null);
@@ -1125,9 +1109,6 @@ export default function SpectatorPage() {
 
     const handleBattleStateSync = (data: any) => {
       if (!mounted) return;
-      const hRoom = typeof data.hostRoomId === 'string' ? data.hostRoomId : '';
-      const oRoom = typeof data.opponentRoomId === 'string' ? data.opponentRoomId : '';
-      if (hRoom && oRoom && hRoom !== effectiveStreamId && oRoom !== effectiveStreamId) return;
       const toScore = (value: unknown, fallback = 0) => {
         const n = Number(value);
         return Number.isFinite(n) ? n : fallback;
@@ -1181,13 +1162,19 @@ export default function SpectatorPage() {
         const n = Number(value);
         return Number.isFinite(n) ? n : fallback;
       };
-      setBattleStreamIds(prev => {
-        if (!prev) return prev;
-        const hUid = typeof data.hostUserId === 'string' && data.hostUserId ? data.hostUserId : prev.hostUserId;
-        const oUid = typeof data.opponentUserId === 'string' && data.opponentUserId ? data.opponentUserId : prev.opponentUserId;
-        if (hUid === prev.hostUserId && oUid === prev.opponentUserId) return prev;
-        return { ...prev, hostUserId: hUid, opponentUserId: oUid };
-      });
+      setBattleStreamIds(prev =>
+        prev
+          ? {
+              ...prev,
+              hostUserId:
+                typeof data.hostUserId === 'string' && data.hostUserId ? data.hostUserId : prev.hostUserId,
+              opponentUserId:
+                typeof data.opponentUserId === 'string' && data.opponentUserId
+                  ? data.opponentUserId
+                  : prev.opponentUserId,
+            }
+          : prev,
+      );
       const labels = battleTeamLabelsFromPayload(data);
       setSpectatorBattle(prev => ({
         active: prev?.active ?? true,
@@ -1624,9 +1611,7 @@ export default function SpectatorPage() {
         ? { battleTarget: spectatorGiftBattleTarget }
         : {}),
     });
-    // #region agent log
-    fetch('http://127.0.0.1:7915/ingest/977d1c87-bfd5-48d4-8dd5-e632c283ea88',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'9f0b02'},body:JSON.stringify({sessionId:'9f0b02',runId:'run1',hypothesisId:'H_CLIENT_SPEC',location:'SpectatorPage.tsx:handleSendGift',message:'spectator gift_sent payload',data:{giftId:gift.id,giftCoins:gift.coins,battleActive:!!spectatorBattle?.active,spectatorGiftBattleTarget,effectiveStreamId,wsConnected:websocket.isConnected()},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
+    
 
     setLastSentGift(gift);
     setComboCount(1);
@@ -2650,23 +2635,22 @@ export default function SpectatorPage() {
             <div className="fixed bottom-0 left-0 right-0 pointer-events-auto max-w-[480px] mx-auto" style={{ zIndex: 201 }}>
               {spectatorBattle?.active && (
                 <div className="px-3 pb-2 pt-1 flex items-center justify-center gap-2 bg-[#13151A]/95 border-t border-[#C9A96E]/20 rounded-t-xl">
-                  <span className="text-[10px] text-white/60 mr-1">Gift to:</span>
                   <div className="flex rounded-full overflow-hidden border border-[#C9A96E]/40">
                     <button
                       type="button"
-                      title="Gift red team (host)"
+                      title="Gift left side"
                       onClick={() => setSpectatorGiftBattleTarget('host')}
                       className={`px-4 py-1.5 text-[10px] font-bold transition-colors ${spectatorGiftBattleTarget === 'host' ? 'bg-[#DC143C]/90 text-white' : 'bg-[#13151A] text-white/70'}`}
                     >
-                      {spectatorBattle?.redTeamLabel || 'Red'}
+                      Left
                     </button>
                     <button
                       type="button"
-                      title="Gift blue team (opponent)"
+                      title="Gift right side"
                       onClick={() => setSpectatorGiftBattleTarget('opponent')}
                       className={`px-4 py-1.5 text-[10px] font-bold transition-colors ${spectatorGiftBattleTarget === 'opponent' ? 'bg-[#1E90FF]/90 text-white' : 'bg-[#13151A] text-white/70'}`}
                     >
-                      {spectatorBattle?.blueTeamLabel || 'Blue'}
+                      Right
                     </button>
                   </div>
                 </div>

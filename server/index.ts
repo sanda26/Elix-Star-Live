@@ -1351,9 +1351,6 @@ function addBattleScoreForTarget(
   points: number,
 ) {
   const session = battles.get(roomId);
-  // #region agent log
-  console.log('[DEBUG-9f0b02] addBattleScoreForTarget:entry', JSON.stringify({H:'H4_H5',roomId,target,points,found:!!session,status:session?.status??null,pg:isPostgresConfigured(),scores:session?{h:session.hostScore,o:session.opponentScore}:null}));
-  // #endregion
   if (!session || session.status !== "ACTIVE") return;
 
   if (isPostgresConfigured()) {
@@ -1361,9 +1358,6 @@ function addBattleScoreForTarget(
       const s = battles.get(roomId);
       if (!s || s.status !== "ACTIVE") return;
       const row = await dbAddBattleScoreAndFetchAll(roomId, target, points, battleSessionToScoreCtx(s));
-      // #region agent log
-      console.log('[DEBUG-9f0b02] addBattleScoreForTarget:dbResult', JSON.stringify({H:'H5',roomId,target,points,dbOk:!!row,post:row??null}));
-      // #endregion
       if (row) {
         s.hostScore = row.host;
         s.opponentScore = row.opponent;
@@ -2019,23 +2013,17 @@ async function handleMessage(client: Client, event: string, data: any) {
         // Auto-score gifts in active battles — use server-side gift value, NOT client
         // Look up battle by client's room first, then by userBattleRoom, then by opponentRoomId
         let battleRoomId = client.roomId;
-        let battleLookupPath = 'direct';
         if (!battles.has(battleRoomId)) {
           const fromUser = userBattleRoom.get(client.userId);
           if (fromUser) {
             battleRoomId = fromUser;
-            battleLookupPath = 'userBattleRoom';
           } else {
-            battleLookupPath = 'scan';
             for (const [rId, s] of battles) {
-              if (s.opponentRoomId === client.roomId) { battleRoomId = rId; battleLookupPath = 'opponentScan'; break; }
+              if (s.opponentRoomId === client.roomId) { battleRoomId = rId; break; }
             }
           }
         }
         const activeBattle = battles.get(battleRoomId);
-        // #region agent log
-        console.log('[DEBUG-9f0b02] gift_sent:battleLookup', JSON.stringify({H:'H1_H3_H4',clientRoom:client.roomId,userId:client.userId,battleRoom:battleRoomId,path:battleLookupPath,found:!!activeBattle,status:activeBattle?.status??null,giftId:String(data.giftId??''),srvVal:getGiftValue(String(data.giftId??'')),coins:data.coins??null,rawTarget:data.battleTarget??null,battles:battles.size}));
-        // #endregion
         if (activeBattle && activeBattle.status === "ACTIVE") {
           const giftIdRaw = String(data.giftId ?? "").trim();
           let serverGiftValue = getGiftValue(giftIdRaw);
@@ -2052,7 +2040,6 @@ async function handleMessage(client: Client, event: string, data: any) {
               client.userId === activeBattle.opponentUserId ||
               client.userId === activeBattle.player3UserId ||
               client.userId === activeBattle.player4UserId;
-
             if (!normalizedTarget && client.userId === activeBattle.opponentUserId) {
               normalizedTarget = "opponent";
             }
@@ -2065,6 +2052,7 @@ async function handleMessage(client: Client, event: string, data: any) {
             if (!normalizedTarget && activeBattle.player4UserId && client.userId === activeBattle.player4UserId) {
               normalizedTarget = "player4";
             }
+            // Spectators / ambiguous: credit only the room that matches host vs opponent — never dump everything on one side.
             if (!normalizedTarget) {
               if (
                 activeBattle.opponentRoomId &&
@@ -2080,9 +2068,6 @@ async function handleMessage(client: Client, event: string, data: any) {
             // #region agent log
             fetch('http://127.0.0.1:7765/ingest/504ee8d9-85af-4146-9e87-ee22d4845d37',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d3b772'},body:JSON.stringify({sessionId:'d3b772',runId:'run-current',hypothesisId:'H2',location:'server/index.ts:gift_sent',message:'server normalized battle target',data:{giftId:giftIdRaw,rawBattleTarget:data.battleTarget ?? null,normalizedTarget,serverGiftValue,clientRoomId:client.roomId,battleRoomId},timestamp:Date.now()})}).catch(()=>{});
             // #endregion
-            // #region agent log
-            console.log('[DEBUG-9f0b02] gift_sent:targetDecision', JSON.stringify({V:4,H:'H2',normTarget:normalizedTarget,srvVal:serverGiftValue,rawTarget:data.battleTarget??null,isParticipant:isBattleParticipant,userId:client.userId,hostUid:activeBattle.hostUserId,oppUid:activeBattle.opponentUserId,clientRoom:client.roomId,hostRoom:activeBattle.hostRoomId,oppRoom:activeBattle.opponentRoomId,willScore:!!normalizedTarget}));
-            // #endregion
             if (normalizedTarget) {
               addBattleScoreForTarget(battleRoomId, normalizedTarget, serverGiftValue);
             }
@@ -2093,9 +2078,6 @@ async function handleMessage(client: Client, event: string, data: any) {
 
       // ═══ BATTLE EVENTS — server-controlled ═══
       case "battle_create": {
-        // #region agent log
-        console.log('[DEBUG-9f0b02] battle_create:received', JSON.stringify({V:3,clientUid:client.userId,clientRoom:client.roomId,dataOppUid:data.opponentUserId??null,dataOppName:data.opponentName??null,dataOppRoom:data.opponentRoomId??null,dataHostName:data.hostName??null}));
-        // #endregion
         const existing = battles.get(client.roomId);
         if (existing) {
           if (existing.timer) clearInterval(existing.timer);
@@ -2113,12 +2095,8 @@ async function handleMessage(client: Client, event: string, data: any) {
           client.userId,
           data.hostName || client.displayName,
         );
-        let opponentUserId =
+        const opponentUserId =
           typeof data.opponentUserId === "string" ? data.opponentUserId : "";
-        if (opponentUserId === client.userId) {
-          console.log('[DEBUG-9f0b02] battle_create:SELF_AS_OPPONENT', JSON.stringify({clientUid:client.userId,oppUid:opponentUserId}));
-          opponentUserId = "";
-        }
         const opponentName =
           typeof data.opponentName === "string" ? data.opponentName : "";
         let opponentRoomId =

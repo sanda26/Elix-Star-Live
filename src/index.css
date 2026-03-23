@@ -577,6 +577,11 @@
   animation: slide-in-right 0.3s ease-out;
 }
 
+@keyframes slideInFromBottom {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
 /* Fade in and out */
 @keyframes fade-in-out {
   0%, 100% { opacity: 0; }

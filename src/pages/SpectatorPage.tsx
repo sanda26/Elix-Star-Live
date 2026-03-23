@@ -30,6 +30,8 @@ import {
   Plus,
   PlusCircle,
   ExternalLink,
+  Play,
+  Users,
 } from 'lucide-react';
 import { GiftPanel } from '../components/GiftPanel';
 import { GIFTS, resolveGiftAssetUrl } from '../lib/gifts';
@@ -293,6 +295,12 @@ export default function SpectatorPage() {
   const opponentVideoRef = useRef<HTMLVideoElement>(null);
   const opponentLkRoomRef = useRef<Room | null>(null);
   const [hasOpponentStream, setHasOpponentStream] = useState(false);
+  const [showOpponentPanel, setShowOpponentPanel] = useState(false);
+  const [opponentProfile, setOpponentProfile] = useState<{
+    displayName: string; username: string; avatarUrl: string;
+    followers: number; following: number; level: number; bio: string;
+  } | null>(null);
+  const opponentProfileFetchedRef = useRef('');
   /** One server +5 PK vote per spectator per battle (matches LiveStream `battleTapScoreRemainingRef`). */
   const spectatorBattleVoteRemainingRef = useRef(1);
   const prevSpectatorBattleActiveRef = useRef(false);
@@ -303,6 +311,36 @@ export default function SpectatorPage() {
     }
     prevSpectatorBattleActiveRef.current = active;
   }, [spectatorBattle?.active]);
+
+  const openOpponentPanel = useCallback(() => {
+    const oppId = battleStreamIds?.opponentUserId;
+    if (!oppId) return;
+    setShowOpponentPanel(true);
+    if (opponentProfileFetchedRef.current === oppId) return;
+    opponentProfileFetchedRef.current = oppId;
+    (async () => {
+      try {
+        const session = useAuthStore.getState().session;
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+        const res = await fetch(apiUrl(`/api/profiles/${encodeURIComponent(oppId)}`), {
+          method: 'GET', credentials: 'include', headers,
+        });
+        if (!res.ok) return;
+        const body = await res.json().catch(() => ({}));
+        const p = body?.profile || body?.data || {};
+        setOpponentProfile({
+          displayName: p.displayName || p.username || spectatorBattle?.opponentName || 'Opponent',
+          username: p.username || '',
+          avatarUrl: p.avatarUrl || '',
+          followers: Number(p.followersCount ?? p.followers ?? 0),
+          following: Number(p.followingCount ?? p.following ?? 0),
+          level: Number(p.level ?? 0),
+          bio: p.bio || '',
+        });
+      } catch { /* non-fatal */ }
+    })();
+  }, [battleStreamIds?.opponentUserId, spectatorBattle?.opponentName]);
 
   const handleSpectatorVote = useCallback((target: 'host' | 'opponent' | 'player3' | 'player4') => {
     if (!spectatorBattle?.active) return;
@@ -1764,7 +1802,10 @@ export default function SpectatorPage() {
                           </div>
                         )}
                       </div>
-                      <div className="w-1/2 h-full overflow-hidden relative bg-[#13151A]">
+                      <div
+                        className="w-1/2 h-full overflow-hidden relative bg-[#13151A] cursor-pointer"
+                        onClick={(e) => { e.stopPropagation(); openOpponentPanel(); }}
+                      >
                         <video
                           ref={opponentVideoRef}
                           className="absolute inset-0 w-full h-full object-cover"
@@ -1814,7 +1855,7 @@ export default function SpectatorPage() {
                         title="Watch opponent stream"
                         onClick={(e) => {
                           e.stopPropagation();
-                          navigate(`/watch/${spectatorBattle.opponentRoomId}`);
+                          openOpponentPanel();
                         }}
                       >
                         <ExternalLink className="w-3.5 h-3.5 text-white/90" strokeWidth={2} />
@@ -1912,6 +1953,89 @@ export default function SpectatorPage() {
                     })}
                   </div>
                 </div>
+
+                {/* Opponent profile bottom panel */}
+                {showOpponentPanel && spectatorBattle.opponentRoomId && (
+                  <div className="fixed inset-0 z-[200] flex flex-col justify-end" onClick={() => setShowOpponentPanel(false)}>
+                    <div className="absolute inset-0 bg-black/50" />
+                    <div
+                      className="relative z-10 bg-[#1C1E24] rounded-t-2xl overflow-hidden animate-[slideInFromBottom_0.25s_ease-out]"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div className="w-10 h-1 rounded-full bg-white/20 mx-auto mt-3 mb-2" />
+
+                      <div className="px-5 pb-2 flex items-start gap-3.5">
+                        {(opponentProfile?.avatarUrl) ? (
+                          <img src={opponentProfile.avatarUrl} alt="" className="w-14 h-14 rounded-full border-2 border-[#C9A96E] object-cover flex-shrink-0" />
+                        ) : (
+                          <div className="w-14 h-14 rounded-full border-2 border-[#C9A96E] bg-[#13151A] flex items-center justify-center flex-shrink-0">
+                            <span className="text-xl font-black text-[#C9A96E]">
+                              {(opponentProfile?.displayName || spectatorBattle.opponentName || 'O').charAt(0).toUpperCase()}
+                            </span>
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0 pt-1">
+                          <h3 className="text-white font-bold text-base truncate">
+                            {opponentProfile?.displayName || spectatorBattle.opponentName || 'Opponent'}
+                          </h3>
+                          {opponentProfile?.username && (
+                            <p className="text-white/50 text-xs truncate">@{opponentProfile.username}</p>
+                          )}
+                        </div>
+                      </div>
+
+                      {opponentProfile && (
+                        <div className="px-5 py-2.5 flex items-center gap-4">
+                          <div className="flex items-center gap-1.5">
+                            <Users size={13} className="text-white/40" />
+                            <span className="text-white/80 text-xs font-semibold">
+                              {opponentProfile.followers >= 1000 ? `${(opponentProfile.followers / 1000).toFixed(1)}K` : opponentProfile.followers}
+                            </span>
+                            <span className="text-white/40 text-xs">followers</span>
+                          </div>
+                          <span className="text-white/20">·</span>
+                          <span className="text-white/60 text-xs">{opponentProfile.following} following</span>
+                          {opponentProfile.level > 0 && (
+                            <>
+                              <span className="text-white/20">·</span>
+                              <span className="text-xs font-bold text-[#C9A96E]">Lv.{opponentProfile.level}</span>
+                            </>
+                          )}
+                        </div>
+                      )}
+
+                      {opponentProfile?.bio && (
+                        <p className="px-5 pb-2 text-white/50 text-xs line-clamp-2">{opponentProfile.bio}</p>
+                      )}
+
+                      <div className="px-5 pt-2 pb-5 flex gap-3">
+                        <button
+                          type="button"
+                          className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-[#C9A96E] active:scale-95 transition-transform"
+                          onClick={() => {
+                            setShowOpponentPanel(false);
+                            navigate(`/watch/${spectatorBattle.opponentRoomId}`);
+                          }}
+                        >
+                          <Play size={16} className="text-black" fill="black" />
+                          <span className="text-black font-bold text-sm">Watch LIVE</span>
+                        </button>
+                        <button
+                          type="button"
+                          className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-[#13151A] border border-[#C9A96E]/40 active:scale-95 transition-transform"
+                          onClick={() => {
+                            setShowOpponentPanel(false);
+                            if (battleStreamIds?.opponentUserId) {
+                              navigate(`/profile/${battleStreamIds.opponentUserId}`);
+                            }
+                          }}
+                        >
+                          <span className="text-[#C9A96E] font-bold text-sm">View Profile</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             );
           }

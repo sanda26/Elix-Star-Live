@@ -2366,6 +2366,9 @@ export default function LiveStream() {
     const handleBattleScore = (data: any) => {
       if (!mounted) return;
       applyBattleScores(data);
+      // #region agent log
+      fetch('http://127.0.0.1:7765/ingest/504ee8d9-85af-4146-9e87-ee22d4845d37',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d3b772'},body:JSON.stringify({sessionId:'d3b772',runId:'run-current',hypothesisId:'H4',location:'src/pages/LiveStream.tsx:handleBattleScore',message:'battle_score received',data:{hostScore:data?.hostScore,opponentScore:data?.opponentScore,player3Score:data?.player3Score,player4Score:data?.player4Score,target:data?.target,points:data?.points},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
     };
 
     /** Server ~300ms authoritative snapshot (same `battleId` / session as `battle_score`). */
@@ -2388,6 +2391,9 @@ export default function LiveStream() {
         hostUserId: battleStreamIdsRef.current.hostUserId,
         opponentUserId: battleStreamIdsRef.current.opponentUserId,
       });
+      // #region agent log
+      fetch('http://127.0.0.1:7765/ingest/504ee8d9-85af-4146-9e87-ee22d4845d37',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d3b772'},body:JSON.stringify({sessionId:'d3b772',runId:'run-current',hypothesisId:'H4',location:'src/pages/LiveStream.tsx:handleBattleScoreUpdate',message:'battle:score_update received',data:{teamA:data?.teamA,teamB:data?.teamB,A1:p?.A1,B1:p?.B1,A2:p?.A2,B2:p?.B2},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
     };
 
     const handleBattleCountdown = (data: any) => {
@@ -2814,6 +2820,9 @@ export default function LiveStream() {
         creator_name: hostName || 'Creator',
         ...(!isBroadcast && { host_user_id: effectiveStreamId }),
       });
+      // #region agent log
+      fetch('http://127.0.0.1:7765/ingest/504ee8d9-85af-4146-9e87-ee22d4845d37',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d3b772'},body:JSON.stringify({sessionId:'d3b772',runId:'run-current',hypothesisId:'H1',location:'src/pages/LiveStream.tsx:handleSendGift',message:'gift_sent payload target',data:{giftId:gift.id,giftTarget,isBattleMode,isBroadcast,effectiveStreamId,battleTarget:isBattleMode ? giftTarget : undefined},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
       
 
       // Handle Combo Logic
@@ -2954,6 +2963,9 @@ export default function LiveStream() {
         creator_name: hostName || 'Creator',
         ...(!isBroadcast && { host_user_id: effectiveStreamId }),
       });
+      // #region agent log
+      fetch('http://127.0.0.1:7765/ingest/504ee8d9-85af-4146-9e87-ee22d4845d37',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d3b772'},body:JSON.stringify({sessionId:'d3b772',runId:'run-current',hypothesisId:'H1',location:'src/pages/LiveStream.tsx:handleComboClick',message:'combo gift_sent payload target',data:{giftId:lastSentGift.id,giftTarget,isBattleMode,isBroadcast,effectiveStreamId,battleTarget:isBattleMode ? giftTarget : undefined},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
 
 
       // Handle Combo Logic

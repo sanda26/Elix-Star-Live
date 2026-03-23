@@ -649,12 +649,18 @@ export default function SpectatorPage() {
     const room = new Room({ adaptiveStream: true });
     liveKitRoomRef.current = room;
     const isCoHost = isCoHostFromUrl;
+    // #region agent log
+    fetch('http://127.0.0.1:7765/ingest/504ee8d9-85af-4146-9e87-ee22d4845d37',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d3b772'},body:JSON.stringify({sessionId:'d3b772',runId:'run-current',hypothesisId:'H5',location:'src/pages/SpectatorPage.tsx:livekitEffect:start',message:'spectator livekit effect start',data:{effectiveStreamId,userId:user?.id,streamIsLive,liveConnectRetryKey,isCoHost},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
 
     (async () => {
       try {
         // When watching (no ?cohost=1): subscribe-only token, never request or use microphone — listen only.
         const publishParam = isCoHost ? '&publish=1' : '&publish=0';
         const res = await fetch(apiUrl(`/api/live/token?room=${encodeURIComponent(effectiveStreamId)}${publishParam}`), { method: 'GET', credentials: 'include' });
+        // #region agent log
+        fetch('http://127.0.0.1:7765/ingest/504ee8d9-85af-4146-9e87-ee22d4845d37',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d3b772'},body:JSON.stringify({sessionId:'d3b772',runId:'run-current',hypothesisId:'H8',location:'src/pages/SpectatorPage.tsx:livekitEffect:tokenResponse',message:'spectator livekit token response',data:{effectiveStreamId,status:res.status,ok:res.ok,publishParam},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion
         if (!res.ok || !mounted) {
           if (res.status === 401) showToast('Please log in to watch');
           else if (res.status === 503) showToast('Live video is not configured on server');
@@ -787,6 +793,9 @@ export default function SpectatorPage() {
         coHostPublishStreamRef.current.getTracks().forEach((t) => t.stop());
         coHostPublishStreamRef.current = null;
       }
+      // #region agent log
+      fetch('http://127.0.0.1:7765/ingest/504ee8d9-85af-4146-9e87-ee22d4845d37',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d3b772'},body:JSON.stringify({sessionId:'d3b772',runId:'run-current',hypothesisId:'H5',location:'src/pages/SpectatorPage.tsx:livekitEffect:cleanup',message:'spectator livekit cleanup disconnect',data:{effectiveStreamId,userId:user?.id},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
       room.disconnect();
     };
   }, [streamIsLive, effectiveStreamId, user?.id, liveConnectRetryKey, isCoHostFromUrl]);
@@ -976,6 +985,9 @@ export default function SpectatorPage() {
           hostFoundInRoom = true;
         }
         syncMvpSlots();
+        // #region agent log
+        fetch('http://127.0.0.1:7765/ingest/504ee8d9-85af-4146-9e87-ee22d4845d37',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d3b772'},body:JSON.stringify({sessionId:'d3b772',runId:'run-current',hypothesisId:'H7',location:'src/pages/SpectatorPage.tsx:handleRoomState',message:'spectator room_state host detection',data:{effectiveStreamId,hostUserId:hid || null,hostFoundInRoom,viewerCount:viewers.length,roomUsersCount:roomUsers.length},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion
       }
       if (typeof data.live_likes === 'number' && Number.isFinite(data.live_likes)) {
         setActiveLikes(Math.max(0, data.live_likes));
@@ -1322,7 +1334,10 @@ export default function SpectatorPage() {
 
     connect();
 
-    const goOffline = async () => {
+    const goOffline = async (reason: string) => {
+      // #region agent log
+      fetch('http://127.0.0.1:7765/ingest/504ee8d9-85af-4146-9e87-ee22d4845d37',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d3b772'},body:JSON.stringify({sessionId:'d3b772',runId:'run-current',hypothesisId:'H6',location:'src/pages/SpectatorPage.tsx:goOffline',message:'spectator goOffline triggered',data:{effectiveStreamId,reason,hostFoundInRoom,roomStateReceived,roomUsersCount:roomUsers.length,hostUserId:hostUserIdRef.current || null},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
       if (!mounted) return;
       try {
         const url = apiUrl('/api/live/streams');
@@ -1347,14 +1362,14 @@ export default function SpectatorPage() {
       if (roomStateReceived && hid && !roomUsers.includes(hid)) {
         hostFoundInRoom = false;
       }
-      if (!hostFoundInRoom) goOffline();
+      if (!hostFoundInRoom) goOffline('host_not_found_after_connect_timeout');
     }, 15000);
 
     const videoTimeout = setTimeout(() => {
       if (!mounted) return;
       const vid = document.querySelector('video');
       const hasTrack = vid?.srcObject && (vid.srcObject as MediaStream).getVideoTracks().length > 0;
-      if (!hasTrack && !hostFoundInRoom) goOffline();
+      if (!hasTrack && !hostFoundInRoom) goOffline('no_video_track_and_host_not_found_after_video_timeout');
     }, 25000);
 
     return () => {

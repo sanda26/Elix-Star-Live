@@ -217,8 +217,24 @@ export async function handleGetLiveToken(req: Request, res: Response) {
     return res.status(400).json({ error: 'Query parameter "room" is required and must be alphanumeric.' });
   }
 
-  if (!publish && !activeStreams.has(roomName)) {
-    return res.status(404).json({ error: 'Stream not found or already ended.' });
+  if (!publish) {
+    let streamExists = activeStreams.has(roomName);
+    if (!streamExists) {
+      // After server restarts, memory can be empty while stream is still live in DB/LiveKit.
+      const dbRows = await dbGetLiveStreams();
+      streamExists = dbRows.some((row) => row.stream_key === roomName);
+    }
+    if (!streamExists) {
+      try {
+        const rooms = await listActiveRoomsFromLiveKit();
+        streamExists = rooms.some((r) => r.name === roomName);
+      } catch {
+        // Ignore LiveKit list errors and keep current streamExists result.
+      }
+    }
+    if (!streamExists) {
+      return res.status(404).json({ error: 'Stream not found or already ended.' });
+    }
   }
 
   try {

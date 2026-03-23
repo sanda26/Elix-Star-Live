@@ -1334,6 +1334,9 @@ function broadcastBattleScoreFromSession(
   };
   broadcastToRoom(roomId, "battle_score", scorePayload);
   broadcastToBattleParticipants(roomId, session, "battle_score", scorePayload);
+  // #region agent log
+  fetch('http://127.0.0.1:7765/ingest/504ee8d9-85af-4146-9e87-ee22d4845d37',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d3b772'},body:JSON.stringify({sessionId:'d3b772',runId:'run-current',hypothesisId:'H3',location:'server/index.ts:broadcastBattleScoreFromSession',message:'server battle_score broadcast',data:{roomId,target,points,hostScore:session.hostScore,opponentScore:session.opponentScore,player3Score:session.player3Score,player4Score:session.player4Score},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
   if (isBattlePkTrace()) {
     const A = session.hostScore + session.player3Score;
     const B = session.opponentScore + session.player4Score;
@@ -2062,6 +2065,9 @@ async function handleMessage(client: Client, event: string, data: any) {
                 normalizedTarget = null;
               }
             }
+            // #region agent log
+            fetch('http://127.0.0.1:7765/ingest/504ee8d9-85af-4146-9e87-ee22d4845d37',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d3b772'},body:JSON.stringify({sessionId:'d3b772',runId:'run-current',hypothesisId:'H2',location:'server/index.ts:gift_sent',message:'server normalized battle target',data:{giftId:giftIdRaw,rawBattleTarget:data.battleTarget ?? null,normalizedTarget,serverGiftValue,clientRoomId:client.roomId,battleRoomId},timestamp:Date.now()})}).catch(()=>{});
+            // #endregion
             if (normalizedTarget) {
               addBattleScoreForTarget(battleRoomId, normalizedTarget, serverGiftValue);
             }

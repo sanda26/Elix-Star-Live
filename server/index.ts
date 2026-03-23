@@ -2081,7 +2081,7 @@ async function handleMessage(client: Client, event: string, data: any) {
             fetch('http://127.0.0.1:7765/ingest/504ee8d9-85af-4146-9e87-ee22d4845d37',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d3b772'},body:JSON.stringify({sessionId:'d3b772',runId:'run-current',hypothesisId:'H2',location:'server/index.ts:gift_sent',message:'server normalized battle target',data:{giftId:giftIdRaw,rawBattleTarget:data.battleTarget ?? null,normalizedTarget,serverGiftValue,clientRoomId:client.roomId,battleRoomId},timestamp:Date.now()})}).catch(()=>{});
             // #endregion
             // #region agent log
-            console.log('[DEBUG-9f0b02] gift_sent:targetDecision', JSON.stringify({V:2,H:'H2',normTarget:normalizedTarget,srvVal:serverGiftValue,rawTarget:data.battleTarget??null,isParticipant:isBattleParticipant,userId:client.userId,hostUid:activeBattle.hostUserId,oppUid:activeBattle.opponentUserId,clientRoom:client.roomId,hostRoom:activeBattle.hostRoomId,oppRoom:activeBattle.opponentRoomId,willScore:!!normalizedTarget}));
+            console.log('[DEBUG-9f0b02] gift_sent:targetDecision', JSON.stringify({V:4,H:'H2',normTarget:normalizedTarget,srvVal:serverGiftValue,rawTarget:data.battleTarget??null,isParticipant:isBattleParticipant,userId:client.userId,hostUid:activeBattle.hostUserId,oppUid:activeBattle.opponentUserId,clientRoom:client.roomId,hostRoom:activeBattle.hostRoomId,oppRoom:activeBattle.opponentRoomId,willScore:!!normalizedTarget}));
             // #endregion
             if (normalizedTarget) {
               addBattleScoreForTarget(battleRoomId, normalizedTarget, serverGiftValue);

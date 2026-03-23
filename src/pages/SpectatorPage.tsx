@@ -1125,6 +1125,9 @@ export default function SpectatorPage() {
 
     const handleBattleStateSync = (data: any) => {
       if (!mounted) return;
+      const hRoom = typeof data.hostRoomId === 'string' ? data.hostRoomId : '';
+      const oRoom = typeof data.opponentRoomId === 'string' ? data.opponentRoomId : '';
+      if (hRoom && oRoom && hRoom !== effectiveStreamId && oRoom !== effectiveStreamId) return;
       const toScore = (value: unknown, fallback = 0) => {
         const n = Number(value);
         return Number.isFinite(n) ? n : fallback;

@@ -2166,9 +2166,6 @@ export default function SpectatorPage() {
                     const interactive = e.target.closest('button, a, input, textarea, select, [role="button"]');
                     if (interactive) return;
                   }
-                  // #region agent log
-                  fetch('http://127.0.0.1:7915/ingest/977d1c87-bfd5-48d4-8dd5-e632c283ea88',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'9f0b02'},body:JSON.stringify({sessionId:'9f0b02',location:'SpectatorPage.tsx:2164',message:'Video onPointerDown fired (like tap)',data:{targetTag:(e.target as Element)?.tagName,targetClass:(e.target as Element)?.className?.toString?.()?.slice(0,80)},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
-                  // #endregion
                   handleLikeTap(e);
                 }}
               >
@@ -2266,14 +2263,7 @@ export default function SpectatorPage() {
           <div className="px-3" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 6px)' }}>
             <div className="flex items-center justify-between gap-2 relative">
               {/* Left: Creator info — full creator top bar */}
-              <div
-                className="pointer-events-auto flex items-center gap-0 -ml-1 flex-shrink min-w-0"
-                onPointerDown={() => {
-                  // #region agent log
-                  fetch('http://127.0.0.1:7915/ingest/977d1c87-bfd5-48d4-8dd5-e632c283ea88',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'9f0b02'},body:JSON.stringify({sessionId:'9f0b02',location:'SpectatorPage.tsx:2269',message:'Top bar pointer-events-auto container pointerDown',data:{isBattle:!!spectatorBattle?.active},timestamp:Date.now(),hypothesisId:'H2-battle'})}).catch(()=>{});
-                  // #endregion
-                }}
-              >
+              <div className="pointer-events-auto flex items-center gap-0 -ml-1 flex-shrink min-w-0">
                 <div
                   className="relative z-10 flex-shrink-0 cursor-pointer active:scale-95 transition-transform"
                   onClick={() => navigate(`/profile/${hostUserId}`)}
@@ -2283,12 +2273,7 @@ export default function SpectatorPage() {
                 <div
                   className="flex flex-col justify-center -ml-3 pl-5 pr-16 h-8 rounded-full border border-[#C9A96E]/60 bg-[#13151A]/80 min-w-0 relative cursor-pointer"
                   style={{ borderTopLeftRadius: 0, borderBottomLeftRadius: 0, boxShadow: '0 0 8px rgba(201,169,110,0.25)' }}
-                  onClick={() => {
-                    // #region agent log
-                    fetch('http://127.0.0.1:7915/ingest/977d1c87-bfd5-48d4-8dd5-e632c283ea88',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'9f0b02'},body:JSON.stringify({sessionId:'9f0b02',location:'SpectatorPage.tsx:2276',message:'Aprecieri bar clicked',data:{hostUserId,hostName},timestamp:Date.now(),hypothesisId:'H1+H3'})}).catch(()=>{});
-                    // #endregion
-                    navigate(`/profile/${hostUserId}`);
-                  }}
+                  onClick={() => navigate(`/profile/${hostUserId}`)}
                 >
                   <span className="text-white text-[11px] font-bold truncate max-w-[100px] leading-tight">{hostName}</span>
                   <div className="flex items-center gap-1 -mt-0.5 flex-wrap">
@@ -2407,8 +2392,8 @@ export default function SpectatorPage() {
           </div>
         </div>
 
-        {/* CHAT — behind buttons, behind gift overlay, same as creator page */}
-        <div className="chat-zone fixed left-0 right-0 bottom-[calc(52px+max(8px,env(safe-area-inset-bottom)))] z-[5] flex justify-center pointer-events-none">
+        {/* CHAT — above battle container (z-80) but below bottom bar (z-120) and gift overlay */}
+        <div className="chat-zone fixed left-0 right-0 bottom-[calc(52px+max(8px,env(safe-area-inset-bottom)))] z-[100] flex justify-center pointer-events-none">
           <div className="w-full max-w-[480px] h-[calc(25dvh-30mm)] max-h-[calc(25dvh-30mm)] overflow-y-auto pointer-events-auto bg-transparent py-[15mm]">
             <ChatOverlay
               messages={messages}

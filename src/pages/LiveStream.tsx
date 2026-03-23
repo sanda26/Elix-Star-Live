@@ -1057,8 +1057,22 @@ export default function LiveStream() {
   const localBattleTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [giftTarget, setGiftTarget] = useState<'me' | 'opponent' | 'player3' | 'player4'>('me');
   const lastScreenTapRef = useRef<number>(0);
-  const battleScoreTapWindowRef = useRef<{ windowStart: number; count: number }>({ windowStart: 0, count: 0 });
-  /** Video battle grid (excludes score bar) — spectator taps delegate to handleScreenTap + coordinate mapping. */
+  /** Spectator tap score budget (reference: one +5 award per battle, then exhausted — not 5 taps/sec). */
+  const battleTapScoreRemainingRef = useRef(5);
+  /** Last `battle_state_sync` status — reset tap budget when transitioning into ACTIVE. */
+  const prevBattleSyncStatusRef = useRef<string | null>(null);
+  /** IDs from last battle_state_sync — map /watch/:streamId to host/opponent/P3/P4 for spectator +5 vote. */
+  const battleStreamIdsRef = useRef<{
+    hostRoomId: string;
+    hostUserId: string;
+    opponentRoomId: string;
+    opponentUserId: string;
+    player3UserId: string;
+    player4UserId: string;
+  } | null>(null);
+  /** Full battle overlay (spectators) — hit area when voting for the watched creator by stream id. */
+  const battleSpectatorOverlayRef = useRef<HTMLDivElement | null>(null);
+  /** Video battle grid — position fallback when watched stream id does not match any participant. */
   const battleVoteGridRef = useRef<HTMLDivElement | null>(null);
   const lastBattleTapTimeRef = useRef<number>(0);
   const battleFreeTapUsedRef = useRef<boolean>(false);
@@ -1185,7 +1199,7 @@ export default function LiveStream() {
 
   // Speed Challenge State
   // SPEED CHALLENGE
-  const SPEED_CHALLENGE_ENABLED = false;
+  const SPEED_CHALLENGE_ENABLED = true;
   const [speedChallengeActive, setSpeedChallengeActive] = useState(false);
   const [speedChallengeCountdown, setSpeedChallengeCountdown] = useState<number | null>(null); // 3,2,1 before start
   const [speedChallengeTime, setSpeedChallengeTime] = useState(10); // 10 seconds
@@ -1296,15 +1310,15 @@ export default function LiveStream() {
     } catch {}
   };
 
-  // 2v2: team totals = (host + P3) vs (opponent + P4). 1v1: P3/P4 stay 0.
+  // Team totals (same as server): red = hostScore + player3Score; blue = opponentScore + player4Score.
+  // 2-player: p3/p4 are 0. 'me' = red side won; 'opponent' = blue side won (layout: left=red, right=blue).
   const determine4PlayerWinner = useCallback(() => {
-    const hostAbs = battleUiRole === 'opponent' ? opponentScore : myScore;
-    const oppAbs = battleUiRole === 'opponent' ? myScore : opponentScore;
-    const teamA = hostAbs + player3Score;
-    const teamB = oppAbs + player4Score;
+    const s = battleServerTotalsRef.current;
+    const teamA = s.h + s.p3;
+    const teamB = s.o + s.p4;
     if (teamA === teamB) return 'draw';
     return teamA > teamB ? 'me' : 'opponent';
-  }, [myScore, opponentScore, player3Score, player4Score, battleUiRole]);
+  }, []);
 
     // Scores: battle_score + battle_state_sync + battle_ended. Battle countdown runs locally (no battle_tick).
 
@@ -1332,7 +1346,9 @@ export default function LiveStream() {
     setMutedPlayers({});
     reachedThresholdsRef.current.clear();
     battleFreeTapUsedRef.current = false;
-    battleScoreTapWindowRef.current = { windowStart: 0, count: 0 };
+    battleTapScoreRemainingRef.current = 5;
+    prevBattleSyncStatusRef.current = null;
+    battleStreamIdsRef.current = null;
     battleTripleTapRef.current = { target: null, lastTapAt: 0, count: 0 };
     setMiniProfile(null);
     setSpeedChallengeActive(false);
@@ -1395,7 +1411,9 @@ export default function LiveStream() {
     setOpponentCreatorName('');
     setMutedPlayers({});
     battleFreeTapUsedRef.current = false;
-    battleScoreTapWindowRef.current = { windowStart: 0, count: 0 };
+    battleTapScoreRemainingRef.current = 5;
+    prevBattleSyncStatusRef.current = null;
+    battleStreamIdsRef.current = null;
     battleTripleTapRef.current = { target: null, lastTapAt: 0, count: 0 };
     setBattleSlots([
       { userId: '', name: '', status: 'empty', avatar: '' },
@@ -1416,6 +1434,7 @@ export default function LiveStream() {
     setBattleState('IN_BATTLE');
     setBattleCountdown(null);
     setBattleTime(300);
+    battleTapScoreRemainingRef.current = 5;
     // Countdown: local useEffect when IN_BATTLE. Winner: server battle_ended.
     return () => {
       if (localBattleTimerRef.current) {
@@ -1511,11 +1530,11 @@ export default function LiveStream() {
     });
   }, [isBattleMode, effectiveStreamId, setPromo]);
 
-  const awardBattlePoints = useCallback((target: 'me' | 'opponent' | 'player3' | 'player4', points: number, isSpeedTap?: boolean) => {
+  const awardBattlePoints = useCallback((target: 'me' | 'opponent' | 'player3' | 'player4', points: number, _isSpeedTap?: boolean) => {
     if (!isBattleMode || battleTime <= 0 || battleWinner) return;
-    
-    const finalPoints = isSpeedTap && speedChallengeActiveRef.current ? points * speedMultiplierRef.current : points;
-    
+    const rawPoints = speedChallengeActiveRef.current ? points * speedMultiplierRef.current : points;
+    const finalPoints = points <= 5 ? Math.min(rawPoints, 5) : rawPoints;
+
     if (target === 'me') {
       setMyScore((prev) => prev + finalPoints);
     } else if (target === 'opponent') {
@@ -1614,7 +1633,32 @@ export default function LiveStream() {
     return target;
   }, [isBattleJoiner, isBroadcast]);
 
-  // Battle tap (viewers only): server still adds +5 per scored vote (`server/index.ts` battle_spectator_vote → addBattleScoreForTarget(..., 5)). This send only carries target; points are not deleted. Client rate-limits 5 scored taps/sec. Grid is absolute (red left, blue right).
+  /** 2-player: only P1 vs P2 — if UI still has P3/P4 selected, credit red (me) or blue (opponent). 4-player: P3/P4 only when slot accepted. */
+  const getResolvedBattleGiftTarget = useCallback((): 'me' | 'opponent' | 'player3' | 'player4' => {
+    if (!isBattleMode) return giftTarget;
+    const p3on = battleSlots[1].status === 'accepted';
+    const p4on = battleSlots[2].status === 'accepted';
+    if (giftTarget === 'player3' && !p3on) return 'me';
+    if (giftTarget === 'player4' && !p4on) return 'opponent';
+    return giftTarget;
+  }, [isBattleMode, giftTarget, battleSlots]);
+
+  /** Spectator: +5 goes to the creator whose stream URL matches (host / opponent / P3 / P4 room or user id). */
+  const resolveSpectatorVoteTargetFromWatchedStream = useCallback((): 'me' | 'opponent' | 'player3' | 'player4' | null => {
+    if (isBroadcast) return null;
+    const eid = effectiveStreamId;
+    if (!eid || eid === 'broadcast') return null;
+    const s = battleStreamIdsRef.current;
+    if (!s) return null;
+    const m = (a: string, b: string) => a.length > 0 && b.length > 0 && a === b;
+    if (m(eid, s.hostRoomId) || m(eid, s.hostUserId)) return 'me';
+    if (m(eid, s.opponentRoomId) || m(eid, s.opponentUserId)) return 'opponent';
+    if (m(eid, s.player3UserId)) return 'player3';
+    if (m(eid, s.player4UserId)) return 'player4';
+    return null;
+  }, [effectiveStreamId, isBroadcast]);
+
+  // Spectator taps: same order as reference — setGiftTarget, optional speed-challenge local points, else one server +5 (battle_spectator_vote) per battle per spectator.
   const handleBattleTap = useCallback((target: 'me' | 'opponent' | 'player3' | 'player4') => {
     if (isBroadcast) return;
     if (!isBattleMode || battleWinner || battleTime <= 0) return;
@@ -1622,22 +1666,23 @@ export default function LiveStream() {
     if (target === 'player3' && battleSlots[1].status !== 'accepted') return;
     if (target === 'player4' && battleSlots[2].status !== 'accepted') return;
 
-    const w = battleScoreTapWindowRef.current;
-    const now = Date.now();
-    if (now - w.windowStart >= 1000) {
-      w.windowStart = now;
-      w.count = 0;
-    }
-    if (w.count >= 5) return;
-    w.count += 1;
-
     setGiftTarget(target);
+
+    if (SPEED_CHALLENGE_ENABLED && speedChallengeActive) {
+      setSpeedChallengeTaps((prev) => ({ ...prev, [target]: (prev[target] ?? 0) + 1 }));
+      awardBattlePoints(target, 2, true);
+      return;
+    }
+
+    if (battleTapScoreRemainingRef.current <= 0) return;
+    battleTapScoreRemainingRef.current = 0;
+
     const serverTarget: 'host' | 'opponent' | 'player3' | 'player4' =
       target === 'me' ? 'host' :
       target === 'opponent' ? 'opponent' :
       target === 'player3' ? 'player3' : 'player4';
     websocket.send('battle_spectator_vote', { target: serverTarget });
-  }, [isBroadcast, battleWinner, battleTime, isBattleMode, battleSlots]);
+  }, [isBroadcast, battleWinner, battleTime, isBattleMode, battleSlots, speedChallengeActive, awardBattlePoints]);
 
   // ─── SPEED CHALLENGE LOGIC ───
   const startSpeedChallenge = useCallback(() => {
@@ -2306,6 +2351,19 @@ export default function LiveStream() {
 
     const handleBattleStateSync = (data: any) => {
       if (!mounted) return;
+      const syncStatus = typeof data.status === 'string' ? data.status : '';
+      if (syncStatus === 'ACTIVE' && prevBattleSyncStatusRef.current !== 'ACTIVE') {
+        battleTapScoreRemainingRef.current = 5;
+      }
+      prevBattleSyncStatusRef.current = syncStatus || null;
+      battleStreamIdsRef.current = {
+        hostRoomId: typeof data.hostRoomId === 'string' ? data.hostRoomId : '',
+        hostUserId: typeof data.hostUserId === 'string' ? data.hostUserId : '',
+        opponentRoomId: typeof data.opponentRoomId === 'string' ? data.opponentRoomId : '',
+        opponentUserId: typeof data.opponentUserId === 'string' ? data.opponentUserId : '',
+        player3UserId: typeof data.player3UserId === 'string' ? data.player3UserId : '',
+        player4UserId: typeof data.player4UserId === 'string' ? data.player4UserId : '',
+      };
       const selfId = user?.id || '';
       if (selfId && typeof data.hostUserId === 'string' && data.hostUserId === selfId) battleRoleRef.current = 'host';
       else if (selfId && typeof data.opponentUserId === 'string' && data.opponentUserId === selfId) battleRoleRef.current = 'opponent';
@@ -2392,11 +2450,10 @@ export default function LiveStream() {
       applyBattleScores(data);
       const winner = data.winner;
       const role = battleRoleRef.current || (isBattleJoiner ? 'opponent' : (isBroadcast ? 'host' : null));
+      // Server endBattle: winner is red team (host) vs blue (opponent) or draw — not individual P3/P4.
       if (winner === 'host') setBattleWinner(role === 'opponent' ? 'opponent' : 'me');
       else if (winner === 'opponent') setBattleWinner(role === 'opponent' ? 'me' : 'opponent');
-      else if (data.winner === 'player3') setBattleWinner('player3' as any); // cast for type safety
-      else if (data.winner === 'player4') setBattleWinner('player4' as any);
-      else setBattleWinner('draw' as any);
+      else setBattleWinner('draw');
       battleEndedTimeoutRef.current = setTimeout(() => {
         battleEndedTimeoutRef.current = null;
         if (mounted) endBattleCleanup();
@@ -2789,7 +2846,7 @@ export default function LiveStream() {
         avatar: giftMsg.avatar,
         video: gift.video || null,
         transactionId: `${user?.id || 'anon'}-${Date.now()}`,
-        battleTarget: isBattleMode ? resolveOutgoingBattleTarget(giftTarget) : undefined,
+        battleTarget: isBattleMode ? resolveOutgoingBattleTarget(getResolvedBattleGiftTarget()) : undefined,
         creator_name: hostName || 'Creator',
         ...(!isBroadcast && { host_user_id: effectiveStreamId }),
       });
@@ -2929,7 +2986,7 @@ export default function LiveStream() {
         avatar: giftMsg.avatar,
         video: lastSentGift.video || null,
         transactionId: `${user?.id || 'anon'}-${Date.now()}`,
-        battleTarget: isBattleMode ? resolveOutgoingBattleTarget(giftTarget) : undefined,
+        battleTarget: isBattleMode ? resolveOutgoingBattleTarget(getResolvedBattleGiftTarget()) : undefined,
         creator_name: hostName || 'Creator',
         ...(!isBroadcast && { host_user_id: effectiveStreamId }),
       });
@@ -3038,11 +3095,24 @@ export default function LiveStream() {
       }
     }
 
-    // Battle (spectators): taps anywhere on the video grid = same +5 vote as cells (max 5/sec on server)
+    // Battle (spectators): +5 to the creator they watch (URL matches battle participant), else by tap position on the grid.
     if (!isBroadcast && clientX !== undefined && clientY !== undefined && isBattleMode && battleTime > 0 && !battleWinner) {
-      const g = battleVoteGridRef.current;
-      if (g) {
-        const rect = g.getBoundingClientRect();
+      const watchedTarget = resolveSpectatorVoteTargetFromWatchedStream();
+      const overlayEl = battleSpectatorOverlayRef.current;
+      const gridEl = battleVoteGridRef.current;
+      if (watchedTarget) {
+        const hitEl = overlayEl || gridEl;
+        if (hitEl) {
+          const rect = hitEl.getBoundingClientRect();
+          if (clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom) {
+            handleBattleTap(watchedTarget);
+            setGiftTarget(watchedTarget);
+            spawnHeartFromClient(clientX, clientY, undefined, myCreatorName, myAvatar);
+            return;
+          }
+        }
+      } else if (gridEl) {
+        const rect = gridEl.getBoundingClientRect();
         if (clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom) {
           const nx = (clientX - rect.left) / rect.width;
           const ny = (clientY - rect.top) / rect.height;
@@ -3128,7 +3198,7 @@ export default function LiveStream() {
     setBattleServerTotals({ h: 0, o: 0, p3: 0, p4: 0 });
     setBattleWinner(null);
     battleFreeTapUsedRef.current = false;
-    battleScoreTapWindowRef.current = { windowStart: 0, count: 0 };
+    battleTapScoreRemainingRef.current = 5;
     setBattleTime(0);
     setBattleCountdown(null);
   };
@@ -3388,6 +3458,7 @@ export default function LiveStream() {
         {/* Battle Split Screen Overlay — shown whenever in battle mode */}
         {isBattleMode && (location.pathname.startsWith('/live') || location.pathname.startsWith('/watch')) && (
           <div
+            ref={battleSpectatorOverlayRef}
             className={`absolute inset-0 z-[80] flex flex-col ${isBroadcast ? 'pointer-events-none' : ''}`}
             style={{
               // Slightly lower than top overlays: safe-area + 90px

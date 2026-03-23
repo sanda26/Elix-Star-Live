@@ -973,6 +973,19 @@ function normalizeBattleTarget(
 
 // ═══════════════════════════════════════════════════════════════
 // BATTLE SYSTEM — Server-controlled sessions, timers, scoring
+//
+// Four creators (4-player layout) — one score bucket each (same for 2-player; P3/P4 stay 0 if empty):
+//
+//   P1 (host)     → hostScore      — red team
+//   P2 (opponent) → opponentScore  — blue team
+//   P3            → player3Score   — red team with P1
+//   P4            → player4Score   — blue team with P2
+//
+// Team totals: redTeam = hostScore + player3Score; blueTeam = opponentScore + player4Score.
+// Every scored action (gift, battle_spectator_vote) calls addBattleScoreForTarget(roomId, target, points)
+// with target ∈ { host, opponent, player3, player4 } — exactly one bucket per event.
+//
+// 2-player: only hostScore + opponentScore are used; player3Score/player4Score stay 0. Same API.
 // ═══════════════════════════════════════════════════════════════
 interface BattleSession {
   id: string;
@@ -1129,6 +1142,7 @@ function allowBattleSpectatorTapScore(userId: string, roomId: string, maxPerSec:
   return true;
 }
 
+/** Map client vote / gift target to one of four player buckets (see BATTLE SYSTEM header). */
 function normalizeSpectatorVoteTarget(raw: unknown): "host" | "opponent" | "player3" | "player4" | null {
   const s = typeof raw === "string" ? raw.toLowerCase().trim() : "";
   if (s === "host" || s === "a" || s === "red") return "host";
@@ -1138,6 +1152,7 @@ function normalizeSpectatorVoteTarget(raw: unknown): "host" | "opponent" | "play
   return null;
 }
 
+/** Add points to exactly one of P1–P4; broadcasts battle_score with all four totals + ids. */
 function addBattleScoreForTarget(
   roomId: string,
   target: "host" | "opponent" | "player3" | "player4",
@@ -1156,7 +1171,9 @@ function addBattleScoreForTarget(
     session.player4Score += points;
   }
   // #region agent log
-  console.log(`[DBG-7a7f0c] SCORE +${points} to ${target} → host=${session.hostScore} opp=${session.opponentScore} room=${roomId}`);
+  console.log(
+    `[DBG-7a7f0c] SCORE +${points} to ${target} → P1=${session.hostScore} P2=${session.opponentScore} P3=${session.player3Score} P4=${session.player4Score} room=${roomId}`,
+  );
   // #endregion
 
   const scorePayload = {
@@ -1168,6 +1185,8 @@ function addBattleScoreForTarget(
     points,
     hostUserId: session.hostUserId,
     opponentUserId: session.opponentUserId,
+    player3UserId: session.player3UserId,
+    player4UserId: session.player4UserId,
     hostName: session.hostName,
     opponentName: session.opponentName,
     player3Name: session.player3Name,
@@ -1754,6 +1773,12 @@ async function handleMessage(client: Client, event: string, data: any) {
             }
             if (!normalizedTarget && client.userId === activeBattle.hostUserId) {
               normalizedTarget = "host";
+            }
+            if (!normalizedTarget && activeBattle.player3UserId && client.userId === activeBattle.player3UserId) {
+              normalizedTarget = "player3";
+            }
+            if (!normalizedTarget && activeBattle.player4UserId && client.userId === activeBattle.player4UserId) {
+              normalizedTarget = "player4";
             }
             // Spectators / ambiguous "me": credit the stream room being watched (not always host room)
             if (!normalizedTarget) {

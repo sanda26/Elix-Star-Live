@@ -1612,18 +1612,13 @@ export default function LiveStream() {
     spawnHeartAt(x, y, '#FF2D55');
   }, [spawnHeartAt]);
 
-  /** Map UI cell → server bucket. Left = host (red), right = opponent (blue) for everyone watching; only the opponent *broadcaster* swaps me↔opponent when sending gifts from their own stream. */
+  /** Map UI cell → server bucket. Left = host (red), right = opponent (blue) for everyone (host, opponent, viewers). */
   const resolveOutgoingBattleTarget = useCallback((target: 'me' | 'opponent' | 'player3' | 'player4') => {
     if (target === 'player3' || target === 'player4') return target;
-    const role = battleRoleRef.current || (isBattleJoiner ? 'opponent' : (isBroadcast ? 'host' : null));
-    if (isBroadcast && role === 'opponent') {
-      if (target === 'me') return 'opponent';
-      if (target === 'opponent') return 'host';
-    }
     if (target === 'me') return 'host';
     if (target === 'opponent') return 'opponent';
     return target;
-  }, [isBattleJoiner, isBroadcast]);
+  }, []);
 
   /** Spectator: +5 goes to the creator whose stream URL matches (host / opponent / P3 / P4 room or user id). */
   const resolveSpectatorVoteTargetFromWatchedStream = useCallback((): 'me' | 'opponent' | 'player3' | 'player4' | null => {

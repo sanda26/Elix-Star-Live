@@ -1680,6 +1680,7 @@ export default function SpectatorPage() {
             const oS = spectatorBattle.opponentScore || 0;
             const p3s = spectatorBattle.player3Score ?? 0;
             const p4s = spectatorBattle.player4Score ?? 0;
+            /** 4-way tap zones only when co-host labels use "Name + Name"; per-bucket scores always shown under bar. */
             const showPkBreakdown =
               (spectatorBattle.redTeamLabel || '').includes(' + ') || (spectatorBattle.blueTeamLabel || '').includes(' + ');
             return (

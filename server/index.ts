@@ -216,6 +216,27 @@ app.get("/health", (_req, res) => {
     },
   });
 });
+
+/** Dev-only: confirm a single shared battle state (not per-socket). */
+if (process.env.NODE_ENV !== "production") {
+  app.get("/api/debug/battle", (_req, res) => {
+    const list = Array.from(battles.entries()).map(([hostRoomKey, s]) => ({
+      mapKey: hostRoomKey,
+      hostRoomId: s.hostRoomId,
+      opponentRoomId: s.opponentRoomId,
+      status: s.status,
+      players: {
+        A1: s.hostScore,
+        A2: s.player3Score,
+        B1: s.opponentScore,
+        B2: s.player4Score,
+      },
+      teamA: s.hostScore + s.player3Score,
+      teamB: s.opponentScore + s.player4Score,
+    }));
+    res.json({ sharedBattlesInMemory: list.length, battles: list });
+  });
+}
 app.get("/api/health", (_req, res) => {
   res.status(200).json({
     status: "ok",
@@ -1060,6 +1081,23 @@ function resolveActiveBattleRoomId(roomId: string, userId: string): string | nul
   return null;
 }
 
+/**
+ * Shared battle state is global (`battles` Map). Key is always the host's `hostRoomId`.
+ * Viewers who open the opponent's stream join WS with `roomId === opponentRoomId` — they must
+ * still receive the same session (otherwise they see empty scores until a random broadcast).
+ */
+function resolveBattleSessionForRoom(roomId: string): BattleSession | null {
+  if (!roomId) return null;
+  const direct = battles.get(roomId);
+  if (direct && direct.status !== "ENDED") return direct;
+  for (const [, session] of battles) {
+    if (session.status === "ENDED") continue;
+    if (session.hostRoomId === roomId) return session;
+    if (session.opponentRoomId && session.opponentRoomId === roomId) return session;
+  }
+  return null;
+}
+
 function buildBattleScoreUpdatePayload(session: BattleSession) {
   const players = {
     A1: session.hostScore,
@@ -1646,8 +1684,8 @@ wss.on("connection", async (ws: WebSocket, req) => {
     // Update viewer count
     await updateViewerCount(roomId);
 
-    // If there's an active battle in this room, send state to new joiner
-    const activeBattleOnJoin = battles.get(roomId);
+    // If there's a battle for this stream (host OR opponent room URL), send the same shared state
+    const activeBattleOnJoin = resolveBattleSessionForRoom(roomId);
     if (activeBattleOnJoin && activeBattleOnJoin.status !== "ENDED") {
       if (activeBattleOnJoin.endsAt > 0) {
         activeBattleOnJoin.timeLeft = Math.max(
@@ -1658,10 +1696,12 @@ wss.on("connection", async (ws: WebSocket, req) => {
       sendToClient(client, "battle_state_sync", {
         id: activeBattleOnJoin.id,
         status: activeBattleOnJoin.status,
+        hostRoomId: activeBattleOnJoin.hostRoomId,
         hostUserId: activeBattleOnJoin.hostUserId,
         hostName: activeBattleOnJoin.hostName,
         opponentUserId: activeBattleOnJoin.opponentUserId,
         opponentName: activeBattleOnJoin.opponentName,
+        opponentRoomId: activeBattleOnJoin.opponentRoomId,
         player3UserId: activeBattleOnJoin.player3UserId,
         player3Name: activeBattleOnJoin.player3Name,
         player4UserId: activeBattleOnJoin.player4UserId,
@@ -1673,6 +1713,8 @@ wss.on("connection", async (ws: WebSocket, req) => {
         timeLeft: activeBattleOnJoin.timeLeft,
         endsAt: activeBattleOnJoin.endsAt,
         winner: activeBattleOnJoin.winner,
+        hostReady: activeBattleOnJoin.hostReady,
+        opponentReady: activeBattleOnJoin.opponentReady,
       });
     }
   } catch (error) {
@@ -2130,16 +2172,16 @@ async function handleMessage(client: Client, event: string, data: any) {
       }
 
       case "battle_end": {
-        // Host manually ends battle
-        const bSession = battles.get(client.roomId);
+        // Host manually ends battle (works when WS roomId is host or opponent stream key)
+        const bSession = resolveBattleSessionForRoom(client.roomId);
         if (bSession && bSession.hostUserId === client.userId) {
-          endBattle(client.roomId);
+          endBattle(bSession.hostRoomId);
         }
         break;
       }
 
       case "battle_get_state": {
-        const currentBattle = battles.get(client.roomId);
+        const currentBattle = resolveBattleSessionForRoom(client.roomId);
         if (currentBattle) {
           if (currentBattle.endsAt > 0) {
             currentBattle.timeLeft = Math.max(
@@ -2150,10 +2192,12 @@ async function handleMessage(client: Client, event: string, data: any) {
           sendToClient(client, "battle_state_sync", {
             id: currentBattle.id,
             status: currentBattle.status,
+            hostRoomId: currentBattle.hostRoomId,
             hostUserId: currentBattle.hostUserId,
             hostName: currentBattle.hostName,
             opponentUserId: currentBattle.opponentUserId,
             opponentName: currentBattle.opponentName,
+            opponentRoomId: currentBattle.opponentRoomId,
             player3UserId: currentBattle.player3UserId,
             player3Name: currentBattle.player3Name,
             player4UserId: currentBattle.player4UserId,
@@ -2165,6 +2209,8 @@ async function handleMessage(client: Client, event: string, data: any) {
             timeLeft: currentBattle.timeLeft,
             endsAt: currentBattle.endsAt,
             winner: currentBattle.winner,
+            hostReady: currentBattle.hostReady,
+            opponentReady: currentBattle.opponentReady,
           });
         }
         break;

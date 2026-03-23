@@ -1612,78 +1612,17 @@ export default function LiveStream() {
     spawnHeartAt(x, y, '#FF2D55');
   }, [spawnHeartAt]);
 
-  /** Map UI cell → server bucket. Left = host (red), right = opponent (blue) for everyone (host, opponent, viewers). */
-  const resolveOutgoingBattleTarget = useCallback((target: 'me' | 'opponent' | 'player3' | 'player4') => {
-    if (target === 'player3' || target === 'player4') return target;
-    if (target === 'me') return 'host';
-    if (target === 'opponent') return 'opponent';
-    return target;
-  }, []);
-
-  /** Spectator: +5 goes to the creator whose stream URL matches (host / opponent / P3 / P4 room or user id). */
-  const resolveSpectatorVoteTargetFromWatchedStream = useCallback((): 'me' | 'opponent' | 'player3' | 'player4' | null => {
-    if (isBroadcast) return null;
-    const eid = effectiveStreamId;
-    if (!eid || eid === 'broadcast') return null;
-    const s = battleStreamIdsRef.current;
-    if (!s) return null;
-    const m = (a: string, b: string) => a.length > 0 && b.length > 0 && a === b;
-    if (m(eid, s.hostRoomId) || m(eid, s.hostUserId)) return 'me';
-    if (m(eid, s.opponentRoomId) || m(eid, s.opponentUserId)) return 'opponent';
-    if (m(eid, s.player3UserId)) return 'player3';
-    if (m(eid, s.player4UserId)) return 'player4';
-    return null;
-  }, [effectiveStreamId, isBroadcast]);
-
-  /** 2-player: only P1 vs P2 — if UI still has P3/P4 selected, credit red (me) or blue (opponent). 4-player: P3/P4 only when slot accepted. */
-  const getResolvedBattleGiftTarget = useCallback((): 'me' | 'opponent' | 'player3' | 'player4' => {
-    if (!isBattleMode) return giftTarget;
-    const p3on = battleSlots[1].status === 'accepted';
-    const p4on = battleSlots[2].status === 'accepted';
-    // Same PK layout for every URL: left = host (red), right = opponent (blue). Respect giftTarget — do not force
-    // opponent when watching the opponent stream URL; that made every gift credit blue (wrong).
-    if (!isBroadcast && isRegularViewer) {
-      const watched = resolveSpectatorVoteTargetFromWatchedStream();
-      if (watched === 'opponent') {
-        if (giftTarget === 'player3' && !p3on) return 'me';
-        if (giftTarget === 'player4' && !p4on) return 'opponent';
-        return giftTarget;
-      }
-      if (watched === 'player4' && p4on) return 'player4';
-      if (watched === 'player3' && p3on) return 'player3';
-      if (watched === 'player3' && !p3on) return 'me';
-      if (watched === 'player4' && !p4on) return 'opponent';
-    }
-    if (giftTarget === 'player3' && !p3on) return 'me';
-    if (giftTarget === 'player4' && !p4on) return 'opponent';
-    return giftTarget;
-  }, [isBattleMode, giftTarget, battleSlots, isBroadcast, isRegularViewer, resolveSpectatorVoteTargetFromWatchedStream]);
-
-  // Spectator taps: same order as reference — setGiftTarget, optional speed-challenge local points, else one server +5 (battle_spectator_vote) per battle per spectator.
+  // Battle Tap Logic: spectator taps broadcaster side → 5 points, once per match
   const handleBattleTap = useCallback((target: 'me' | 'opponent' | 'player3' | 'player4') => {
-    if (isBroadcast) return;
     if (!isBattleMode || battleWinner || battleTime <= 0) return;
-    if (target === 'opponent' && battleSlots[0].status !== 'accepted') return;
-    if (target === 'player3' && battleSlots[1].status !== 'accepted') return;
-    if (target === 'player4' && battleSlots[2].status !== 'accepted') return;
+    if (target !== 'me') return;
+    if (spectatorTapPointsRef.current > 0) return;
 
     setGiftTarget(target);
-
-    if (SPEED_CHALLENGE_ENABLED && speedChallengeActive) {
-      setSpeedChallengeTaps((prev) => ({ ...prev, [target]: (prev[target] ?? 0) + 1 }));
-      awardBattlePoints(target, 2, true);
-      return;
-    }
-
-    if (battleTapScoreRemainingRef.current <= 0) return;
-    battleTapScoreRemainingRef.current = 0;
-
-    const serverTarget: 'host' | 'opponent' | 'player3' | 'player4' =
-      target === 'me' ? 'host' :
-      target === 'opponent' ? 'opponent' :
-      target === 'player3' ? 'player3' : 'player4';
-    websocket.send('battle_spectator_vote', { target: serverTarget });
-  }, [isBroadcast, battleWinner, battleTime, isBattleMode, battleSlots, speedChallengeActive, awardBattlePoints]);
+    spectatorTapPointsRef.current = 1;
+    setSpectatorTapsUsed(1);
+    awardBattlePoints('me', 5, false);
+  }, [battleWinner, battleTime, awardBattlePoints, isBattleMode]);
 
   // ─── SPEED CHALLENGE LOGIC ───
   const startSpeedChallenge = useCallback(() => {
@@ -2871,7 +2810,7 @@ export default function LiveStream() {
         avatar: giftMsg.avatar,
         video: gift.video || null,
         transactionId: `${user?.id || 'anon'}-${Date.now()}`,
-        battleTarget: isBattleMode ? resolveOutgoingBattleTarget(getResolvedBattleGiftTarget()) : undefined,
+        battleTarget: isBattleMode ? giftTarget : undefined,
         creator_name: hostName || 'Creator',
         ...(!isBroadcast && { host_user_id: effectiveStreamId }),
       });
@@ -3011,7 +2950,7 @@ export default function LiveStream() {
         avatar: giftMsg.avatar,
         video: lastSentGift.video || null,
         transactionId: `${user?.id || 'anon'}-${Date.now()}`,
-        battleTarget: isBattleMode ? resolveOutgoingBattleTarget(getResolvedBattleGiftTarget()) : undefined,
+        battleTarget: isBattleMode ? giftTarget : undefined,
         creator_name: hostName || 'Creator',
         ...(!isBroadcast && { host_user_id: effectiveStreamId }),
       });

@@ -1200,33 +1200,41 @@ export default function SpectatorPage() {
         const n = Number(value);
         return Number.isFinite(n) ? n : fallback;
       };
-      setBattleStreamIds(prev =>
-        prev
-          ? {
-              ...prev,
-              hostUserId:
-                typeof data.hostUserId === 'string' && data.hostUserId ? data.hostUserId : prev.hostUserId,
-              opponentUserId:
-                typeof data.opponentUserId === 'string' && data.opponentUserId
-                  ? data.opponentUserId
-                  : prev.opponentUserId,
-            }
-          : prev,
-      );
+      setBattleStreamIds(prev => {
+        if (!prev) return prev;
+        const newHostUid = typeof data.hostUserId === 'string' && data.hostUserId ? data.hostUserId : prev.hostUserId;
+        const newOppUid = typeof data.opponentUserId === 'string' && data.opponentUserId ? data.opponentUserId : prev.opponentUserId;
+        if (newHostUid === prev.hostUserId && newOppUid === prev.opponentUserId) return prev;
+        return { ...prev, hostUserId: newHostUid, opponentUserId: newOppUid };
+      });
       const labels = battleTeamLabelsFromPayload(data);
-      setSpectatorBattle(prev => ({
-        active: prev?.active ?? true,
-        timeLeft: prev?.timeLeft ?? 300,
-        hostScore: toScore(data.hostScore, prev?.hostScore ?? 0),
-        opponentScore: toScore(data.opponentScore, prev?.opponentScore ?? 0),
-        player3Score: toScore(data.player3Score ?? data.player3_score, prev?.player3Score ?? 0),
-        player4Score: toScore(data.player4Score ?? data.player4_score, prev?.player4Score ?? 0),
-        opponentName: (typeof data.opponentName === 'string' && data.opponentName) || prev?.opponentName,
-        opponentRoomId: (typeof data.opponentRoomId === 'string' && data.opponentRoomId) || prev?.opponentRoomId,
-        winner: prev?.winner,
-        redTeamLabel: labels.red,
-        blueTeamLabel: labels.blue,
-      }));
+      setSpectatorBattle(prev => {
+        const newH = toScore(data.hostScore, prev?.hostScore ?? 0);
+        const newO = toScore(data.opponentScore, prev?.opponentScore ?? 0);
+        const newP3 = toScore(data.player3Score ?? data.player3_score, prev?.player3Score ?? 0);
+        const newP4 = toScore(data.player4Score ?? data.player4_score, prev?.player4Score ?? 0);
+        const newOppName = (typeof data.opponentName === 'string' && data.opponentName) || prev?.opponentName;
+        const newOppRoom = (typeof data.opponentRoomId === 'string' && data.opponentRoomId) || prev?.opponentRoomId;
+        if (prev?.active && newH === prev.hostScore && newO === prev.opponentScore &&
+            newP3 === (prev.player3Score ?? 0) && newP4 === (prev.player4Score ?? 0) &&
+            newOppName === prev.opponentName && newOppRoom === prev.opponentRoomId &&
+            labels.red === prev.redTeamLabel && labels.blue === prev.blueTeamLabel) {
+          return prev;
+        }
+        return {
+          active: prev?.active ?? true,
+          timeLeft: prev?.timeLeft ?? 300,
+          hostScore: newH,
+          opponentScore: newO,
+          player3Score: newP3,
+          player4Score: newP4,
+          opponentName: newOppName,
+          opponentRoomId: newOppRoom,
+          winner: prev?.winner,
+          redTeamLabel: labels.red,
+          blueTeamLabel: labels.blue,
+        };
+      });
     };
 
     const handleBattleEnded = (data: any) => {
@@ -1337,13 +1345,6 @@ export default function SpectatorPage() {
     websocket.on('stream_ended', handleStreamEnded);
     const handleBattleScoreUpdateColon = (data: any) => {
       if (!mounted) return;
-      if (import.meta.env.DEV) {
-        const sig = `${data?.teamA}|${data?.teamB}|${data?.players?.A1}|${data?.players?.B1}`;
-        if (lastBattleScoreUpdateTraceSigRef.current !== sig) {
-          lastBattleScoreUpdateTraceSigRef.current = sig;
-          console.log("CLIENT RECEIVED:", data);
-        }
-      }
       const p = data?.players;
       if (!p || typeof p !== 'object') return;
       setSpectatorBattle((prev) => {
@@ -1352,13 +1353,15 @@ export default function SpectatorPage() {
           const n = Number(value);
           return Number.isFinite(n) ? n : fallback;
         };
-        return {
-          ...prev,
-          hostScore: toScore(p.A1, prev.hostScore),
-          opponentScore: toScore(p.B1, prev.opponentScore),
-          player3Score: toScore(p.A2, prev.player3Score ?? 0),
-          player4Score: toScore(p.B2, prev.player4Score ?? 0),
-        };
+        const newH = Math.max(prev.hostScore, toScore(p.A1, prev.hostScore));
+        const newO = Math.max(prev.opponentScore, toScore(p.B1, prev.opponentScore));
+        const newP3 = Math.max(prev.player3Score ?? 0, toScore(p.A2, prev.player3Score ?? 0));
+        const newP4 = Math.max(prev.player4Score ?? 0, toScore(p.B2, prev.player4Score ?? 0));
+        if (newH === prev.hostScore && newO === prev.opponentScore &&
+            newP3 === (prev.player3Score ?? 0) && newP4 === (prev.player4Score ?? 0)) {
+          return prev;
+        }
+        return { ...prev, hostScore: newH, opponentScore: newO, player3Score: newP3, player4Score: newP4 };
       });
     };
     websocket.on('battle_state_sync', handleBattleStateSync);

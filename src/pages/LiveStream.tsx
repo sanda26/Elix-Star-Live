@@ -2366,38 +2366,29 @@ export default function LiveStream() {
     const handleBattleScore = (data: any) => {
       if (!mounted) return;
       applyBattleScores(data);
-      // #region agent log
-      fetch('http://127.0.0.1:7765/ingest/504ee8d9-85af-4146-9e87-ee22d4845d37',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'88a9f1'},body:JSON.stringify({sessionId:'88a9f1',runId:'run-pre',hypothesisId:'H3',location:'LiveStream.tsx:handleBattleScore',message:'battle_score',data:{h:data?.hostScore,o:data?.opponentScore,isBattleJoiner},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
     };
 
-    /** Server ~300ms authoritative snapshot (same `battleId` / session as `battle_score`). */
+    /** Server ~300ms authoritative snapshot — never let stale tick lower scores (async DB race). */
     const handleBattleScoreUpdate = (data: any) => {
       if (!mounted) return;
-      if (import.meta.env.DEV) {
-        const sig = `${data?.teamA}|${data?.teamB}|${data?.players?.A1}|${data?.players?.B1}`;
-        if (lastBattleScoreUpdateTraceSigRef.current !== sig) {
-          lastBattleScoreUpdateTraceSigRef.current = sig;
-          console.log("CLIENT RECEIVED:", data);
-        }
-      }
       const p = data?.players;
       if (!p || typeof p !== "object") return;
       const ids = battleStreamIdsRef.current;
-      // #region agent log
-      fetch('http://127.0.0.1:7765/ingest/504ee8d9-85af-4146-9e87-ee22d4845d37',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'88a9f1'},body:JSON.stringify({sessionId:'88a9f1',runId:'run-pre',hypothesisId:'H1',location:'LiveStream.tsx:handleBattleScoreUpdate',message:'before applyBattleScores',data:{idsNull:ids==null,A1:p?.A1,B1:p?.B1,isBattleJoiner},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
+      const prev = battleServerTotalsRef.current;
+      const toNum = (v: unknown) => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
+      const newH = Math.max(prev.h, toNum(p.A1));
+      const newO = Math.max(prev.o, toNum(p.B1));
+      const newP3 = Math.max(prev.p3, toNum(p.A2));
+      const newP4 = Math.max(prev.p4, toNum(p.B2));
+      if (newH === prev.h && newO === prev.o && newP3 === prev.p3 && newP4 === prev.p4) return;
       applyBattleScores({
-        hostScore: p.A1,
-        opponentScore: p.B1,
-        player3Score: p.A2,
-        player4Score: p.B2,
+        hostScore: newH,
+        opponentScore: newO,
+        player3Score: newP3,
+        player4Score: newP4,
         hostUserId: ids?.hostUserId,
         opponentUserId: ids?.opponentUserId,
       });
-      // #region agent log
-      fetch('http://127.0.0.1:7765/ingest/504ee8d9-85af-4146-9e87-ee22d4845d37',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'88a9f1'},body:JSON.stringify({sessionId:'88a9f1',runId:'run-pre',hypothesisId:'H2',location:'LiveStream.tsx:handleBattleScoreUpdate:after',message:'totals after apply',data:{h:battleServerTotalsRef.current.h,o:battleServerTotalsRef.current.o,role:battleRoleRef.current},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
     };
 
     const handleBattleCountdown = (data: any) => {

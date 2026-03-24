@@ -1971,13 +1971,13 @@ export default function SpectatorPage() {
 
                 <div className="w-full px-3 py-1.5 flex items-center justify-between flex-none z-30">
                   <div
-                    className="flex items-center gap-0 min-w-0 flex-1 justify-start pointer-events-auto"
+                    className="flex items-center gap-[0.5mm] min-w-0 flex-1 justify-start pointer-events-auto"
                     onClick={() => setShowViewersPanel(true)}
                   >
                     {[0, 1, 2].map((i) => {
                       const slot = mvpSlots.host[i];
                       return (
-                        <div key={`mvp-l-${i}`} className={`relative flex flex-col items-center ${i > 0 ? '-ml-1.5' : ''}`} style={{ zIndex: 3 - i }}>
+                        <div key={`mvp-l-${i}`} className="relative flex flex-col items-center" style={{ zIndex: 3 - i }}>
                           <GoldProfileFrame size={24}>
                             {slot ? (
                               <img src={resolveCircleAvatar(slot.avatar, slot.name)} alt="" className="h-full w-full rounded-full object-cover object-center" />
@@ -1990,13 +1990,13 @@ export default function SpectatorPage() {
                     })}
                   </div>
                   <div
-                    className="flex items-center gap-0 min-w-0 flex-1 justify-end pointer-events-auto"
+                    className="flex items-center gap-[0.5mm] min-w-0 flex-1 justify-end pointer-events-auto"
                     onClick={() => setShowViewersPanel(true)}
                   >
                     {[0, 1, 2].map((i) => {
                       const slot = mvpSlots.opponent[i];
                       return (
-                        <div key={`mvp-r-${i}`} className={`relative flex flex-col items-center ${i > 0 ? '-ml-1.5' : ''}`} style={{ zIndex: 3 - i }}>
+                        <div key={`mvp-r-${i}`} className="relative flex flex-col items-center" style={{ zIndex: 3 - i }}>
                           <GoldProfileFrame size={24}>
                             {slot ? (
                               <img src={resolveCircleAvatar(slot.avatar, slot.name)} alt="" className="h-full w-full rounded-full object-cover object-center" />
@@ -2378,9 +2378,9 @@ export default function SpectatorPage() {
                 </div>
               </div>
 
-              <div className="pointer-events-auto flex items-center gap-0 flex-shrink-0">
+              <div className="pointer-events-auto flex items-center gap-1.5 flex-shrink-0 min-w-0">
                 <div
-                  className="flex items-center gap-0 pointer-events-auto"
+                  className="flex items-center gap-[0.5mm] pointer-events-auto flex-shrink-0"
                   onClick={() => {
                     const list: { id: string; name: string; avatar: string; level?: number }[] = [];
                     const hid = hostUserIdRef.current || hostUserId || effectiveStreamId;
@@ -2396,7 +2396,7 @@ export default function SpectatorPage() {
                   {[0, 1, 2].map((i) => {
                     const slot = spectatorTopAvatars[i];
                     return (
-                      <div key={`spectator-top-mvp-${i}`} style={{ zIndex: 3 - i }} className={`relative ${i > 0 ? '-ml-1.5' : ''}`}>
+                      <div key={`spectator-top-mvp-${i}`} style={{ zIndex: 3 - i }} className="relative">
                         <GoldProfileFrame size={35}>
                           {slot ? (
                             <img

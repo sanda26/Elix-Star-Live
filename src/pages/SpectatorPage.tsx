@@ -1997,16 +1997,33 @@ export default function SpectatorPage() {
                         <div className="flex gap-2 flex-shrink-0">
                           <button
                             type="button"
-                            className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#C9A96E] active:scale-95 transition-transform"
-                            onClick={() => {
+                            className="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-[#C9A96E] active:scale-95 transition-transform"
+                            onClick={(e) => {
+                              e.stopPropagation();
                               const roomId = spectatorBattle.opponentRoomId;
                               setShowOpponentPanel(false);
-                              if (roomId) navigate(`/watch/${roomId}`);
+                              if (roomId) {
+                                window.location.href = `/watch/${roomId}`;
+                              }
                             }}
                           >
                             <Play size={12} className="text-black" fill="black" />
                             <span className="text-black font-bold text-[11px] whitespace-nowrap">Watch LIVE</span>
                           </button>
+                          {battleStreamIds?.opponentUserId && (
+                            <button
+                              type="button"
+                              className="flex items-center px-3 py-2 rounded-full border border-[#C9A96E]/40 active:scale-95 transition-transform"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const uid = battleStreamIds.opponentUserId;
+                                setShowOpponentPanel(false);
+                                navigate(`/profile/${uid}`);
+                              }}
+                            >
+                              <span className="text-[#C9A96E] font-bold text-[11px]">Profile</span>
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>

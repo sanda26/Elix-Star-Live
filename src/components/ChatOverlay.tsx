@@ -12,6 +12,7 @@ interface Message {
   avatar?: string;
   membershipIcon?: string;
   isMod?: boolean;
+  stickerUrl?: string;
 }
 
 interface ChatOverlayProps {
@@ -139,9 +140,13 @@ export function ChatOverlay({ messages, variant = 'panel', compact = false, clas
                   </div>
                 )}
                 
-                <span className={`text-[13px] leading-snug break-words ${msg.isGift ? 'text-white font-bold' : 'text-white/90'}`}>
+                {msg.stickerUrl ? (
+                  <img src={msg.stickerUrl} alt="sticker" className="w-16 h-16 object-contain rounded-lg" />
+                ) : (
+                  <span className={`text-[13px] leading-snug break-words ${msg.isGift ? 'text-white font-bold' : 'text-white/90'}`}>
                     {typeof msg.text === 'string' ? msg.text : ''}
-                </span>
+                  </span>
+                )}
               </div>
             </div>
 

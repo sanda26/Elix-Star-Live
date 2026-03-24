@@ -32,6 +32,8 @@ import {
   ExternalLink,
   Play,
   Users,
+  Smile,
+  Image,
 } from 'lucide-react';
 import { GiftPanel } from '../components/GiftPanel';
 import { GIFTS, resolveGiftAssetUrl } from '../lib/gifts';
@@ -112,6 +114,7 @@ type LiveMessage = {
   isSystem?: boolean;
   membershipIcon?: string;
   isMod?: boolean;
+  stickerUrl?: string;
 };
 
 export default function SpectatorPage() {
@@ -156,6 +159,12 @@ export default function SpectatorPage() {
   const [showFanClub, setShowFanClub] = useState(false);
   const [isSubscribing, setIsSubscribing] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
+
+  // Emoji & Sticker keyboards
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showStickerPanel, setShowStickerPanel] = useState(false);
+  const [creatorStickers, setCreatorStickers] = useState<{ id: number; image_url: string; label: string }[]>([]);
+  const stickersFetchedRef = useRef(false);
   const [streamEndedReceived, setStreamEndedReceived] = useState(false);
 
   const [showTestCoinsModal, setShowTestCoinsModal] = useState(false);
@@ -677,6 +686,15 @@ export default function SpectatorPage() {
     })();
   }, [effectiveStreamId, navigate, streamRetryKey]);
 
+  // Fetch creator's photo stickers when hostUserId is known
+  useEffect(() => {
+    if (!hostUserId || stickersFetchedRef.current) return;
+    stickersFetchedRef.current = true;
+    fetch(apiUrl(`/api/stickers/${hostUserId}`)).then(r => r.json()).then(d => {
+      if (d?.stickers) setCreatorStickers(d.stickers);
+    }).catch(() => {});
+  }, [hostUserId]);
+
   // LiveKit: spectator sees creator's live video/audio in real time — same room, subscribe to host tracks and attach to videoRef/audio
   const liveKitRoomRef = useRef<Room | null>(null);
   const coHostPublishStreamRef = useRef<MediaStream | null>(null);
@@ -1075,6 +1093,7 @@ export default function SpectatorPage() {
         text: typeof data.text === 'string' ? data.text : '',
         level: typeof data.level === 'number' && Number.isFinite(data.level) ? data.level : 1,
         avatar: typeof data.avatar === 'string' ? data.avatar : '',
+        stickerUrl: typeof data.stickerUrl === 'string' ? data.stickerUrl : undefined,
       };
       setMessages(prev => [...prev, msg]);
     };
@@ -1558,7 +1577,37 @@ export default function SpectatorPage() {
       avatar: viewerAvatar,
     });
     setInputValue('');
+    setShowEmojiPicker(false);
+    setShowStickerPanel(false);
   };
+
+  const handleSendEmoji = useCallback((emoji: string) => {
+    const newMsg: LiveMessage = {
+      id: Date.now().toString(),
+      username: viewerName,
+      text: emoji,
+      level: userLevel,
+      avatar: viewerAvatar,
+      isMod: isModerator,
+    };
+    setMessages(prev => [...prev, newMsg]);
+    websocket.send('chat_message', { text: emoji, level: userLevel, avatar: viewerAvatar });
+  }, [viewerName, userLevel, viewerAvatar, isModerator]);
+
+  const handleSendSticker = useCallback((stickerUrl: string) => {
+    const newMsg: LiveMessage = {
+      id: Date.now().toString(),
+      username: viewerName,
+      text: '',
+      level: userLevel,
+      avatar: viewerAvatar,
+      isMod: isModerator,
+      stickerUrl,
+    };
+    setMessages(prev => [...prev, newMsg]);
+    websocket.send('chat_message', { text: '', stickerUrl, level: userLevel, avatar: viewerAvatar });
+    setShowStickerPanel(false);
+  }, [viewerName, userLevel, viewerAvatar, isModerator]);
 
   // Spectator gift → creator: send to creator's room (broadcast so creator sees it and gets credit)
   const handleSendGift = async (gift: typeof GIFTS[0]) => {
@@ -2413,14 +2462,99 @@ export default function SpectatorPage() {
           </div>
         )}
 
+        {/* Emoji Picker Panel */}
+        {showEmojiPicker && (
+          <div className="fixed left-0 right-0 bottom-[calc(52px+max(8px,env(safe-area-inset-bottom)))] z-[119] flex justify-center pointer-events-auto">
+            <div className="w-full max-w-[480px] px-3">
+              <div className="bg-[#1C1E24]/95 backdrop-blur-xl rounded-2xl border border-[#C9A96E]/20 p-3 shadow-xl animate-[slideInFromBottom_0.15s_ease-out]">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[#C9A96E] text-[10px] font-bold uppercase tracking-wide">Emojis</span>
+                  <button type="button" onClick={() => setShowEmojiPicker(false)} className="text-white/40">
+                    <X size={14} />
+                  </button>
+                </div>
+                <div className="grid grid-cols-8 gap-1.5 max-h-[160px] overflow-y-auto">
+                  {['😀','😂','🥰','😍','😘','🤩','😎','🥳',
+                    '🔥','💯','❤️','💖','💎','👑','🎉','✨',
+                    '👏','🙌','💪','🤝','👍','🎯','⭐','🌟',
+                    '🦋','🌹','🍀','🎵','🎶','💫','🏆','🥇',
+                    '😱','😭','🤣','😊','🥺','😈','👀','💀',
+                    '🤑','💰','💸','🎁','🎊','🎆','💝','🫶'].map((emoji) => (
+                    <button
+                      key={emoji}
+                      type="button"
+                      className="text-xl p-1 rounded-lg hover:bg-white/10 active:scale-90 transition-all"
+                      onClick={() => handleSendEmoji(emoji)}
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Elix Live Sticker Panel */}
+        {showStickerPanel && creatorStickers.length > 0 && (
+          <div className="fixed left-0 right-0 bottom-[calc(52px+max(8px,env(safe-area-inset-bottom)))] z-[119] flex justify-center pointer-events-auto">
+            <div className="w-full max-w-[480px] px-3">
+              <div className="bg-[#1C1E24]/95 backdrop-blur-xl rounded-2xl border border-[#C9A96E]/20 p-3 shadow-xl animate-[slideInFromBottom_0.15s_ease-out]">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-4 h-4 rounded-full bg-gradient-to-br from-[#C9A96E] to-[#E8D5A3] flex items-center justify-center">
+                      <span className="text-[7px] font-black text-black">E</span>
+                    </div>
+                    <span className="text-[#C9A96E] text-[10px] font-bold uppercase tracking-wide">Elix Stickers</span>
+                    <span className="bg-[#C9A96E]/10 text-[#C9A96E] text-[7px] font-bold px-1.5 py-0.5 rounded-full border border-[#C9A96E]/20">SUBSCRIBER</span>
+                  </div>
+                  <button type="button" onClick={() => setShowStickerPanel(false)} className="text-white/40">
+                    <X size={14} />
+                  </button>
+                </div>
+                <div className="grid grid-cols-4 gap-2 max-h-[180px] overflow-y-auto">
+                  {creatorStickers.map((sticker) => (
+                    <button
+                      key={sticker.id}
+                      type="button"
+                      className="aspect-square rounded-xl bg-white/5 border border-[#C9A96E]/10 overflow-hidden hover:border-[#C9A96E]/40 active:scale-90 transition-all"
+                      onClick={() => handleSendSticker(sticker.image_url)}
+                    >
+                      <img src={sticker.image_url} alt={sticker.label} className="w-full h-full object-cover" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Bottom action bar — flush to viewport bottom + safe area */}
         <div className="fixed left-0 right-0 bottom-0 z-[120] pointer-events-auto flex justify-center">
           <div className="w-full max-w-[480px] px-3 pb-[max(8px,env(safe-area-inset-bottom))] pt-0 bg-transparent">
           <div className="flex items-end gap-2">
           <form
-            className="flex-1 flex items-center gap-2 bg-black/40 backdrop-blur-sm rounded-full px-3 py-2 border border-white/10 h-10 min-w-0"
+            className="flex-1 flex items-center gap-1.5 bg-black/40 backdrop-blur-sm rounded-full px-3 py-2 border border-white/10 h-10 min-w-0"
             onSubmit={(e) => { handleSendMessage(e); }}
           >
+            <button
+              type="button"
+              title="Emoji"
+              className={`flex-shrink-0 transition-colors ${showEmojiPicker ? 'text-[#C9A96E]' : 'text-white/40'}`}
+              onClick={() => { setShowEmojiPicker(v => !v); setShowStickerPanel(false); }}
+            >
+              <Smile size={18} />
+            </button>
+            {creatorStickers.length > 0 && (
+              <button
+                type="button"
+                title="Stickers"
+                className={`flex-shrink-0 transition-colors ${showStickerPanel ? 'text-[#C9A96E]' : 'text-white/40'}`}
+                onClick={() => { setShowStickerPanel(v => !v); setShowEmojiPicker(false); }}
+              >
+                <Image size={18} />
+              </button>
+            )}
             <input
               type="text"
               inputMode="text"
@@ -2430,6 +2564,7 @@ export default function SpectatorPage() {
               className="bg-transparent text-white text-xs outline-none flex-1 placeholder:text-white/30 min-w-0"
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
+              onFocus={() => { setShowEmojiPicker(false); setShowStickerPanel(false); }}
             />
             {inputValue.trim() && (
               <button type="submit" title="Send message" className="text-[#C9A96E] flex-shrink-0">

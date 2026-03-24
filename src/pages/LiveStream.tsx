@@ -104,6 +104,7 @@ type LiveMessage = {
   isSystem?: boolean;
   membershipIcon?: string;
   isMod?: boolean;
+  stickerUrl?: string;
 };
 
 type UniverseTickerMessage = {
@@ -2237,6 +2238,7 @@ export default function LiveStream() {
         text: typeof data.text === 'string' ? data.text : '',
         level: typeof data.level === 'number' && Number.isFinite(data.level) ? data.level : 1,
         avatar: typeof data.avatar === 'string' ? data.avatar : '',
+        stickerUrl: typeof data.stickerUrl === 'string' ? data.stickerUrl : undefined,
       };
       setMessages(prev => [...prev, msg]);
     };

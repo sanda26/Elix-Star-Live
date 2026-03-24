@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Trophy } from 'lucide-react';
-import { apiStub } from '../lib/apiStub';
+import { apiUrl } from '../lib/api';
 import { AvatarRing } from './AvatarRing';
 
 interface CreatorRanking {
@@ -10,7 +10,6 @@ interface CreatorRanking {
   display_name: string;
   avatar_url: string | null;
   total_diamonds: number;
-  total_coins?: number;
 }
 
 interface RankingPanelProps {
@@ -27,22 +26,21 @@ export function RankingPanel({ onClose }: RankingPanelProps) {
 
   const loadRanking = async () => {
     try {
-      const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 8000));
-      const rpcCall = apiStub.rpc('get_weekly_creator_ranking');
-      const result = await Promise.race([rpcCall, timeout]);
-      if (result && 'data' in result && !result.error && Array.isArray(result.data)) {
-        const mapped = result.data.map((r: any, i: number) => ({
+      const res = await fetch(apiUrl('/api/rankings/weekly'));
+      if (!res.ok) throw new Error('fetch failed');
+      const json = await res.json();
+      if (Array.isArray(json.data)) {
+        setRankings(json.data.map((r: any, i: number) => ({
           rank: r.rank ?? i + 1,
           user_id: r.user_id,
           username: r.username || '',
           display_name: r.display_name || r.username || '',
           avatar_url: r.avatar_url || null,
           total_diamonds: r.total_diamonds ?? r.total_coins ?? 0,
-        }));
-        setRankings(mapped);
+        })));
       }
     } catch {
-      // RPC not available
+      // endpoint not reachable
     } finally {
       setLoading(false);
     }

@@ -107,7 +107,7 @@ import { handleUploadVideo, handleUploadAvatar } from "./routes/upload";
 import { uploadToBunny, isBunnyConfigured } from "./services/bunny";
 import { isLiveKitConfigured } from "./services/livekit";
 import { getTokenFromRequest, verifyAuthToken } from "./routes/auth";
-import { dbGetCreatorStickers, dbAddCreatorSticker, dbDeleteCreatorSticker, dbSendDailyHeart, dbGetDailyHeartCount, dbGetTotalHeartCount, dbHasSentDailyHeart } from "./lib/postgres";
+import { getPool, dbGetCreatorStickers, dbAddCreatorSticker, dbDeleteCreatorSticker, dbSendDailyHeart, dbGetDailyHeartCount, dbGetTotalHeartCount, dbHasSentDailyHeart, dbLogGift, dbGetWeeklyRanking, dbGetCreatorMembershipStats } from "./lib/postgres";
 import { handleSendGift } from "./routes/gifts";
 import {
   handleGetProfile,
@@ -283,6 +283,64 @@ app.get("/api/hearts/daily/:creatorId", async (req, res) => {
     if (payload) hasSent = await dbHasSentDailyHeart(creatorId, payload.sub);
   }
   res.json({ todayCount, totalCount, hasSent });
+});
+
+// ── Weekly Ranking ──
+app.get("/api/rankings/weekly", async (_req, res) => {
+  try {
+    const rankings = await dbGetWeeklyRanking();
+    const profilesPool = getPool();
+    let enriched = rankings;
+    if (profilesPool) {
+      const userIds = rankings.map(r => r.user_id);
+      if (userIds.length > 0) {
+        const profileRes = await profilesPool.query(
+          `SELECT user_id, username, display_name, avatar_url FROM profiles WHERE user_id = ANY($1)`,
+          [userIds],
+        );
+        const profileMap = new Map(profileRes.rows.map((p: any) => [p.user_id, p]));
+        enriched = rankings.map((r, i) => {
+          const p = profileMap.get(r.user_id) as any;
+          return {
+            rank: i + 1,
+            user_id: r.user_id,
+            username: p?.username || '',
+            display_name: p?.display_name || p?.username || '',
+            avatar_url: p?.avatar_url || null,
+            total_diamonds: r.total_coins,
+          };
+        });
+      }
+    }
+    res.json({ data: enriched });
+  } catch (err) {
+    console.error("[rankings/weekly] error", err);
+    res.json({ data: [] });
+  }
+});
+
+// ── Creator Membership Stats ──
+app.get("/api/membership/:creatorId", async (req, res) => {
+  try {
+    const stats = await dbGetCreatorMembershipStats(req.params.creatorId);
+    const pool = getPool();
+    if (pool && stats.topGifters.length > 0) {
+      const ids = stats.topGifters.map(g => g.user_id);
+      const pRes = await pool.query(
+        `SELECT user_id, username, display_name, avatar_url FROM profiles WHERE user_id = ANY($1)`,
+        [ids],
+      );
+      const pMap = new Map(pRes.rows.map((p: any) => [p.user_id, p]));
+      stats.topGifters = stats.topGifters.map(g => {
+        const p = pMap.get(g.user_id) as any;
+        return { ...g, username: p?.display_name || p?.username || '', avatar_url: p?.avatar_url || null };
+      });
+    }
+    res.json(stats);
+  } catch (err) {
+    console.error("[membership] error", err);
+    res.json({ todayHearts: 0, totalHearts: 0, totalGiftCoins: 0, topGifters: [] });
+  }
 });
 
 // Health check endpoint (must be before static files)
@@ -2094,6 +2152,20 @@ async function handleMessage(client: Client, event: string, data: any) {
             status: "success",
             timestamp: now,
           });
+        }
+
+        // Log gift to Neon DB for weekly rankings / membership stats
+        {
+          const logGiftId = String(data.giftId ?? "").trim();
+          let logCoins = getGiftValue(logGiftId);
+          if (logCoins <= 0) {
+            const c = Number(data.coins);
+            if (Number.isFinite(c) && c > 0) logCoins = Math.min(Math.floor(c), 1_000_000_000);
+          }
+          if (logCoins > 0) {
+            const creatorId = client.roomId;
+            dbLogGift(client.userId, creatorId, client.roomId, logGiftId, logCoins).catch(() => {});
+          }
         }
 
         // Auto-score gifts in active battles — use server-side gift value, NOT client

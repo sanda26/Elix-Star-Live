@@ -279,6 +279,24 @@ export async function initPostgres(): Promise<void> {
       `CREATE INDEX IF NOT EXISTS idx_daily_hearts_creator_day ON daily_hearts(creator_user_id, day)`,
     ).catch(() => {});
 
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS gift_logs (
+        id SERIAL PRIMARY KEY,
+        sender_user_id TEXT NOT NULL,
+        creator_user_id TEXT NOT NULL,
+        room_id TEXT NOT NULL DEFAULT '',
+        gift_id TEXT NOT NULL,
+        coins INT NOT NULL DEFAULT 0,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+    await pool.query(
+      `CREATE INDEX IF NOT EXISTS idx_gift_logs_creator ON gift_logs(creator_user_id, created_at)`,
+    ).catch(() => {});
+    await pool.query(
+      `CREATE INDEX IF NOT EXISTS idx_gift_logs_sender ON gift_logs(sender_user_id, created_at)`,
+    ).catch(() => {});
+
     const userCount = await pool.query(`SELECT COUNT(*) as cnt FROM auth_users`);
     const profileCount = await pool.query(`SELECT COUNT(*) as cnt FROM profiles`);
     logger.info(`Tables ready — ${userCount.rows[0]?.cnt || 0} auth users, ${profileCount.rows[0]?.cnt || 0} profiles in DB`);
@@ -869,5 +887,61 @@ export async function dbHasSentDailyHeart(creatorUserId: string, memberUserId: s
   } catch (err) {
     logger.error({ err, creatorUserId, memberUserId }, "dbHasSentDailyHeart failed");
     return false;
+  }
+}
+
+// ── Gift Logs ──
+
+export async function dbLogGift(senderUserId: string, creatorUserId: string, roomId: string, giftId: string, coins: number): Promise<void> {
+  const p = getPool();
+  if (!p) return;
+  try {
+    await p.query(
+      `INSERT INTO gift_logs (sender_user_id, creator_user_id, room_id, gift_id, coins) VALUES ($1, $2, $3, $4, $5)`,
+      [senderUserId, creatorUserId, roomId, giftId, coins],
+    );
+  } catch (err) {
+    logger.error({ err, senderUserId, creatorUserId, giftId }, "dbLogGift failed");
+  }
+}
+
+export async function dbGetWeeklyRanking(): Promise<{ user_id: string; total_coins: number }[]> {
+  const p = getPool();
+  if (!p) return [];
+  try {
+    const res = await p.query(`
+      SELECT creator_user_id AS user_id, SUM(coins) AS total_coins
+      FROM gift_logs
+      WHERE created_at >= NOW() - INTERVAL '7 days'
+      GROUP BY creator_user_id
+      ORDER BY total_coins DESC
+      LIMIT 50
+    `);
+    return res.rows.map(r => ({ user_id: r.user_id, total_coins: Number(r.total_coins) || 0 }));
+  } catch (err) {
+    logger.error({ err }, "dbGetWeeklyRanking failed");
+    return [];
+  }
+}
+
+export async function dbGetCreatorMembershipStats(creatorUserId: string): Promise<{ todayHearts: number; totalHearts: number; totalGiftCoins: number; topGifters: { user_id: string; total_coins: number }[] }> {
+  const p = getPool();
+  if (!p) return { todayHearts: 0, totalHearts: 0, totalGiftCoins: 0, topGifters: [] };
+  try {
+    const [todayRes, totalRes, coinsRes, giftersRes] = await Promise.all([
+      p.query(`SELECT COUNT(*) as cnt FROM daily_hearts WHERE creator_user_id = $1 AND day = CURRENT_DATE`, [creatorUserId]),
+      p.query(`SELECT COUNT(*) as cnt FROM daily_hearts WHERE creator_user_id = $1`, [creatorUserId]),
+      p.query(`SELECT COALESCE(SUM(coins), 0) as total FROM gift_logs WHERE creator_user_id = $1`, [creatorUserId]),
+      p.query(`SELECT sender_user_id AS user_id, SUM(coins) AS total_coins FROM gift_logs WHERE creator_user_id = $1 GROUP BY sender_user_id ORDER BY total_coins DESC LIMIT 10`, [creatorUserId]),
+    ]);
+    return {
+      todayHearts: Number(todayRes.rows[0]?.cnt) || 0,
+      totalHearts: Number(totalRes.rows[0]?.cnt) || 0,
+      totalGiftCoins: Number(coinsRes.rows[0]?.total) || 0,
+      topGifters: giftersRes.rows.map(r => ({ user_id: r.user_id, total_coins: Number(r.total_coins) || 0 })),
+    };
+  } catch (err) {
+    logger.error({ err, creatorUserId }, "dbGetCreatorMembershipStats failed");
+    return { todayHearts: 0, totalHearts: 0, totalGiftCoins: 0, topGifters: [] };
   }
 }

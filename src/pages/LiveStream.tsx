@@ -524,20 +524,22 @@ export default function LiveStream() {
   const [hasJoinedToday, setHasJoinedToday] = useState(false);
   const [myHeartCount, setMyHeartCount] = useState(0);
   const [dailyHeartCount, setDailyHeartCount] = useState(0);
+  const [totalGiftCoins, setTotalGiftCoins] = useState(0);
+  const [topGifters, setTopGifters] = useState<{ user_id: string; total_coins: number; username?: string; avatar_url?: string }[]>([]);
 
-  // Fetch daily hearts count for creator
+  // Fetch membership stats for creator
   useEffect(() => {
     if (!user?.id) return;
-    fetch(apiUrl(`/api/hearts/daily/${user.id}`)).then(r => r.json()).then(d => {
-      if (typeof d.todayCount === 'number') setDailyHeartCount(d.todayCount);
-      if (typeof d.totalCount === 'number') setMyHeartCount(d.totalCount);
-    }).catch(() => {});
-    const interval = setInterval(() => {
-      fetch(apiUrl(`/api/hearts/daily/${user.id}`)).then(r => r.json()).then(d => {
-        if (typeof d.todayCount === 'number') setDailyHeartCount(d.todayCount);
-        if (typeof d.totalCount === 'number') setMyHeartCount(d.totalCount);
+    const fetchStats = () => {
+      fetch(apiUrl(`/api/membership/${user.id}`)).then(r => r.json()).then(d => {
+        if (typeof d.todayHearts === 'number') setDailyHeartCount(d.todayHearts);
+        if (typeof d.totalHearts === 'number') setMyHeartCount(d.totalHearts);
+        if (typeof d.totalGiftCoins === 'number') setTotalGiftCoins(d.totalGiftCoins);
+        if (Array.isArray(d.topGifters)) setTopGifters(d.topGifters);
       }).catch(() => {});
-    }, 30000);
+    };
+    fetchStats();
+    const interval = setInterval(fetchStats, 30000);
     return () => clearInterval(interval);
   }, [user?.id]);
 
@@ -4852,37 +4854,36 @@ export default function LiveStream() {
                      <div className="text-gold-metallic font-bold text-sm">
                       {dailyHeartCount} today
                     </div>
-                    <div className="text-white/50 text-[9px] font-bold mt-0.5">
+                     <div className="text-white/50 text-[9px] font-bold mt-0.5">
                       {myHeartCount} total hearts received
                     </div>
                    </div>
                  </div>
                </div>
-               
-               <p className="text-white/30 text-[10px] text-center mt-3 px-4">
-                 Join not tap tap one single heart
-               </p>
 
-               {/* Recent Supporters List */}
+               {/* Total Gift Coins */}
+               <div className="bg-white/5 rounded-xl p-3 border border-[#C9A96E]/20 mt-2">
+                 <div className="text-[#C9A96E]/60 text-[9px] font-bold uppercase tracking-wider">Total Gift Coins Received</div>
+                 <div className="text-gold-metallic font-bold text-lg">{totalGiftCoins.toLocaleString()}</div>
+               </div>
+
+               {/* Top Gifters */}
                <div className="mt-3">
-                 <h4 className="text-[#C9A96E]/60 text-[9px] font-bold uppercase tracking-wider mb-2 px-1">Recent Supporters</h4>
+                 <h4 className="text-[#C9A96E]/60 text-[9px] font-bold uppercase tracking-wider mb-2 px-1">Top Supporters</h4>
                  <div className="space-y-1">
-                   {hasJoinedToday && (
-                     <div className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-[#C9A96E]/5 border border-[#C9A96E]/15">
-                        <div className="relative">
-                          <img src={'/Icons/elix-logo.png'} alt="You" className="w-7 h-7 rounded-full object-cover object-center border border-[#C9A96E]/20" />
-                          <div className="absolute -bottom-0.5 -right-0.5 bg-[#C9A96E] w-3 h-3 rounded-full flex items-center justify-center border border-[#1C1E24]">
-                            <Heart size={6} className="text-black fill-black" />
-                          </div>
-                        </div>
-                        <div className="flex-1">
-                        <div className="text-[10px] font-bold text-white">You</div>
-                        <div className="text-[9px] text-white/50">Just joined the team!</div>
-                      </div>
-                        <div className="text-[#C9A96E]/50 text-[8px]">Now</div>
-                     </div>
+                   {topGifters.length === 0 && (
+                     <p className="text-white/30 text-[10px] text-center py-2">No gifts yet</p>
                    )}
-                   
+                   {topGifters.map((g, i) => (
+                     <div key={g.user_id} className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-[#C9A96E]/5 border border-[#C9A96E]/15">
+                       <div className="w-5 text-center font-bold text-[10px] text-[#C9A96E]/60">{i + 1}</div>
+                       <img src={g.avatar_url || '/Icons/elix-logo.png'} alt="" className="w-7 h-7 rounded-full object-cover border border-[#C9A96E]/20" />
+                       <div className="flex-1 min-w-0">
+                         <div className="text-[10px] font-bold text-white truncate">{g.username || g.user_id.slice(0, 8)}</div>
+                       </div>
+                       <div className="text-[#C9A96E] text-[10px] font-bold">{g.total_coins.toLocaleString()}</div>
+                     </div>
+                   ))}
                  </div>
                </div>
             </div>

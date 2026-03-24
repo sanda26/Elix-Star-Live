@@ -87,6 +87,7 @@ export default function Inbox() {
   const [followers, setFollowers] = useState<FollowerProfile[]>([]);
   const [followersTotalCount, setFollowersTotalCount] = useState(0);
   const [suggestedUsers, setSuggestedUsers] = useState<SuggestedUser[]>([]);
+  const [liveUserIds, setLiveUserIds] = useState<Set<string>>(new Set());
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<'main' | 'requests' | 'unread' | 'starred' | 'activity'>('main');
   const [showNewFollowersPanel, setShowNewFollowersPanel] = useState(false);
@@ -226,7 +227,8 @@ export default function Inbox() {
         ]);
         const profilesBody = await profilesRes.json().catch(() => ({ profiles: [] }));
         const liveBody = liveRes ? await liveRes.json().catch(() => ({ streams: [] })) : { streams: [] };
-        const liveSet = new Set((liveBody?.streams || []).map((s: any) => s.userId || s.user_id).filter(Boolean));
+        const liveSet = new Set<string>((liveBody?.streams || []).map((s: any) => s.userId || s.user_id).filter(Boolean));
+        setLiveUserIds(liveSet);
 
         const rows = Array.isArray(profilesBody?.profiles) ? profilesBody.profiles : [];
         const blocklist = ['', 'user', 'demo', 'test', 'unknown', 'anonymous', 'guest'];
@@ -329,7 +331,12 @@ export default function Inbox() {
   const followersCount = Math.max(followersTotalCount, myNewFollowers.length);
 
   /** Real followers only (for list + circles) — never mix in suggested users. */
-  const followersListForUi = myNewFollowers.filter(isRealUser);
+  const followersListForUi = myNewFollowers.filter(isRealUser)
+    .sort((a, b) => {
+      const aLive = liveUserIds.has(a.user_id);
+      const bLive = liveUserIds.has(b.user_id);
+      return aLive === bLive ? 0 : aLive ? -1 : 1;
+    });
 
   const followerIdSet = new Set(followersListForUi.map((f) => f.user_id));
   const suggestedUsersNotFollowers = suggestedUsers.filter((u) => u.id && !followerIdSet.has(u.id));
@@ -427,20 +434,25 @@ export default function Inbox() {
                     </button>
                 ))}
 
-                {followersListForUi.map((f) => (
+                {followersListForUi.map((f) => {
+                    const fLive = liveUserIds.has(f.user_id);
+                    return (
                     <button
                         key={f.user_id}
                         type="button"
-                        onClick={() => navigate(`/profile/${f.user_id}`)}
+                        onClick={() => fLive ? navigate(`/watch/${f.user_id}`) : navigate(`/profile/${f.user_id}`)}
                         className="flex-shrink-0 flex flex-col items-center gap-1" style={{ width: 95, minWidth: 95 }}
                     >
                         <StoryGoldRingAvatar
+                            live={fLive}
+                            data-avatar-circle={fLive ? 'live' : undefined}
                             src={f.avatar_url || '/Icons/Profile icon.png'}
                             alt={f.display_name || f.username || 'User'}
                         />
                         <div className="text-[11px] text-white/80 truncate w-full text-center">{f.display_name || f.username || 'User'}</div>
                     </button>
-                ))}
+                    );
+                })}
             </div>
         </div>
         </div>

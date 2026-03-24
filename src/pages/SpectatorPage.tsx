@@ -2430,7 +2430,7 @@ export default function SpectatorPage() {
                     const slot = spectatorTopAvatars[i];
                     return (
                       <div key={`spectator-top-mvp-${i}`} style={{ zIndex: 3 - i }} className="relative">
-                        <GoldProfileFrame size={24}>
+                        <GoldProfileFrame size={35}>
                           {slot ? (
                             <img
                               src={resolveCircleAvatar(slot.avatar, slot.name)}

@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-        <string>Elix Star Live</string>
+	<string>Elix Star Live</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -40,13 +40,40 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>UIStatusBarStyle</key>
+	<string>UIStatusBarStyleLightContent</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>audio</string>
+		<string>fetch</string>
+		<string>remote-notification</string>
+	</array>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>NSCameraUsageDescription</key>
 	<string>Elix Star Live uses your camera to record videos, go live, and make video calls.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Elix Star Live uses your microphone to capture audio when recording videos, going live, and during video calls.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>We use your photo library to let you pick videos to upload.</string>
+	<string>We use your photo library to let you pick videos and photos to upload.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>We use your photo library to save videos you create (optional).</string>
+	<string>We use your photo library to save videos and photos you create.</string>
+	<key>NSUserNotificationsUsageDescription</key>
+	<string>We send you notifications about live streams, new followers, and messages.</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<false/>
+		<key>NSExceptionDomains</key>
+		<dict>
+			<key>elixstarlive.co.uk</key>
+			<dict>
+				<key>NSIncludesSubdomains</key>
+				<true/>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<false/>
+			</dict>
+		</dict>
+	</dict>
 </dict>
 </plist>

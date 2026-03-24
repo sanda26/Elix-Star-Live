@@ -1480,7 +1480,6 @@ function broadcastBattleScoreFromSession(
   };
   broadcastToRoom(roomId, "battle_score", scorePayload);
   broadcastToBattleParticipants(roomId, session, "battle_score", scorePayload);
-  console.log(`[SCORE-DEBUG-9f0b02] broadcast battle_score: room=${roomId}, target=${target}, pts=${points}, H=${session.hostScore} O=${session.opponentScore} P3=${session.player3Score} P4=${session.player4Score}`);
   if (isBattlePkTrace()) {
     const A = session.hostScore + session.player3Score;
     const B = session.opponentScore + session.player4Score;
@@ -2182,7 +2181,6 @@ async function handleMessage(client: Client, event: string, data: any) {
           }
         }
         const activeBattle = battles.get(battleRoomId);
-        console.log(`[SCORE-DEBUG-9f0b02] gift_sent: battleRoomId=${battleRoomId}, hasBattle=${!!activeBattle}, status=${activeBattle?.status}, battlesCount=${battles.size}, clientRoom=${client.roomId}, userId=${client.userId}`);
         if (activeBattle && activeBattle.status === "ACTIVE") {
           const giftIdRaw = String(data.giftId ?? "").trim();
           let serverGiftValue = getGiftValue(giftIdRaw);
@@ -2192,7 +2190,6 @@ async function handleMessage(client: Client, event: string, data: any) {
               serverGiftValue = Math.min(Math.floor(c), 1_000_000_000);
             }
           }
-          console.log(`[SCORE-DEBUG-9f0b02] gift value: giftId=${giftIdRaw}, serverVal=${serverGiftValue}, clientCoins=${data.coins}`);
           if (serverGiftValue > 0) {
             let normalizedTarget = normalizeBattleTarget(data.battleTarget);
             const isBattleParticipant =
@@ -2225,12 +2222,9 @@ async function handleMessage(client: Client, event: string, data: any) {
                 normalizedTarget = null;
               }
             }
-            console.log(`[SCORE-DEBUG-9f0b02] target resolved: normalized=${normalizedTarget}, rawBattleTarget=${data.battleTarget}, clientRoom=${client.roomId}, hostRoom=${activeBattle.hostRoomId}, oppRoom=${activeBattle.opponentRoomId}`);
             if (normalizedTarget) {
               addBattleScoreForTarget(battleRoomId, normalizedTarget, serverGiftValue);
-              console.log(`[SCORE-DEBUG-9f0b02] scored! target=${normalizedTarget}, points=${serverGiftValue}, host=${activeBattle.hostScore}, opp=${activeBattle.opponentScore}`);
             } else {
-              console.log(`[SCORE-DEBUG-9f0b02] NO TARGET - gift not scored!`);
             }
           }
         }

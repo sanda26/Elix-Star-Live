@@ -4,7 +4,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { apiStub } from '../lib/apiStub';
 import { useAuthStore } from '../store/useAuthStore';
 import { nativeConfirm } from '../components/NativeDialog';
-import { Heart, UserPlus, Search, ShoppingBag, Archive, MicOff, Plus, Sword, X, ChevronRight, Trash2, Bookmark, MessageCircle, AtSign, Share2 } from 'lucide-react';
+import { Heart, UserPlus, Search, ShoppingBag, Archive, X, ChevronRight, Trash2, Bookmark, MessageCircle, AtSign, Share2 } from 'lucide-react';
 import { AvatarRing } from '../components/AvatarRing';
 import { StoryGoldRingAvatar } from '../components/StoryGoldRingAvatar';
 import { showToast } from '../lib/toast';
@@ -362,12 +362,6 @@ export default function Inbox() {
     }
     return 'Commented on your video';
   };
-
-  useEffect(() => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'inbox-followers-debug',hypothesisId:'F3',location:'src/pages/Inbox.tsx:263',message:'inbox followers counts',data:{currentUserId,followersCount,followersListLen:followersListForUi.length},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
-  }, [currentUserId, followersCount, followersListForUi.length]);
 
   return (
     <div className="fixed inset-0 bg-[#13151A] flex justify-center">

@@ -211,9 +211,6 @@ export default function Profile() {
 
       const res = await fetch(apiUrl(`/api/profiles/${effectiveUserId}`), { credentials: 'include', headers });
       if (!res.ok) {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'profile-persist-debug',hypothesisId:'P1',location:'src/pages/Profile.tsx:212',message:'loadProfile failed',data:{status:res.status,effectiveUserId},timestamp:Date.now()})}).catch(()=>{});
-        // #endregion
         setProfileData(effectiveUserId === user?.id ? fallback : null);
         setLoading(false);
         return;
@@ -250,9 +247,6 @@ export default function Profile() {
       } catch {}
 
       setProfileData(data);
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'profile-persist-debug',hypothesisId:'P2',location:'src/pages/Profile.tsx:248',message:'loadProfile success',data:{effectiveUserId,followers:data.followers_count,following:data.following_count,hasAvatar:!!data.avatar_url},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
       trackEvent('profile_view', { user_id: effectiveUserId, is_own: isOwnProfile });
       if (!isOwnProfile && user?.id) {
         await checkFollowing(data.user_id);
@@ -356,13 +350,6 @@ export default function Profile() {
         const body = await res.json();
         const ids: string[] = Array.isArray(body?.following) ? body.following : (Array.isArray(body) ? body : []);
         setIsFollowing(ids.includes(idToCheck));
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'profile-persist-debug',hypothesisId:'P3',location:'src/pages/Profile.tsx:351',message:'checkFollowing success',data:{status:res.status,userId:user.id,targetId:idToCheck,isFollowing:ids.includes(idToCheck),followingCount:ids.length},timestamp:Date.now()})}).catch(()=>{});
-        // #endregion
-      } else {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'profile-persist-debug',hypothesisId:'P3',location:'src/pages/Profile.tsx:353',message:'checkFollowing failed',data:{status:res.status,userId:user.id,targetId:idToCheck},timestamp:Date.now()})}).catch(()=>{});
-        // #endregion
       }
     } catch { /* ignore */ }
   };
@@ -385,9 +372,6 @@ export default function Profile() {
 
       const res = await fetch(endpoint, { method: 'POST', credentials: 'include', headers });
       if (!res.ok) throw new Error('Follow action failed');
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'profile-persist-debug',hypothesisId:'P4',location:'src/pages/Profile.tsx:374',message:'toggleFollow success',data:{status:res.status,targetProfileId,wasFollowing},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
 
       if (!wasFollowing) {
         trackEvent('user_follow', { target_user_id: targetProfileId });
@@ -407,9 +391,6 @@ export default function Profile() {
       });
       loadProfile();
     } catch {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'profile-persist-debug',hypothesisId:'P4',location:'src/pages/Profile.tsx:393',message:'toggleFollow failed',data:{targetProfileId,wasFollowing},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
       setIsFollowing(wasFollowing);
     }
   };
@@ -428,14 +409,8 @@ export default function Profile() {
       localStorage.setItem('elix_avatar_' + user.id, cdnUrl);
       updateUser({ avatar: cdnUrl });
       setProfileData(prev => (prev ? { ...prev, avatar_url: cdnUrl } : prev));
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Profile.tsx:handleAvatarFile',message:'avatar_upload_ok',data:{cdnHost:cdnUrl?.split('/')[2]??'',urlLen:cdnUrl?.length??0},timestamp:Date.now(),hypothesisId:'H-avatar-cdn'})}).catch(()=>{});
-      // #endregion
     } catch (err: any) {
       setAvatarError(err?.message || 'Failed');
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Profile.tsx:handleAvatarFile',message:'avatar_upload_err',data:{err:String(err?.message||err)},timestamp:Date.now(),hypothesisId:'H-avatar-cdn'})}).catch(()=>{});
-      // #endregion
     } finally {
       setIsUploadingAvatar(false);
     }

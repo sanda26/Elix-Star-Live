@@ -1,33 +1,25 @@
 # Elix Star Live - ProGuard Configuration
-# Optimized for React Native + Capacitor
+# Optimized for Capacitor
 
-# Keep React Native and Capacitor classes
+# Keep Capacitor classes
 -keep class com.capacitorjs.** { *; }
 -keep class com.getcapacitor.** { *; }
 -keep class org.apache.cordova.** { *; }
--keep class org.godotengine.godot.** { *; }
 
-# Keep React Native classes
--keep class com.facebook.react.** { *; }
--keep class com.facebook.hermes.** { *; }
--keep class com.facebook.jni.** { *; }
--keep class com.facebook.soloader.** { *; }
-
+# Keep Chromium / WebView internals
 -keep class org.chromium.** { *; }
 
 # Keep OkHttp for networking
 -keep class okhttp3.** { *; }
--keep class retrofit2.** { *; }
+-dontwarn okhttp3.**
 
 # Keep Gson for JSON parsing
 -keep class com.google.gson.** { *; }
 -keepattributes *Annotation*, Signature
 -dontwarn sun.misc.**
--keep class com.google.gson.examples.android.model.** { *; }
 
-# Keep model classes
+# Keep app classes
 -keep class com.elixstarlive.app.** { *; }
--keep class com.elixstarlive.** { *; }
 
 # Keep JavaScript interface for WebView
 -keepclassmembers class * {

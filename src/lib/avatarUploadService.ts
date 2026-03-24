@@ -28,15 +28,9 @@ export class AvatarUploadService {
    */
   async uploadAvatar(file: File, userId: string): Promise<AvatarUploadResult> {
     try {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'avatar-debug',hypothesisId:'H1',location:'src/lib/avatarUploadService.ts:31',message:'uploadAvatar start',data:{userId,fileType:file.type,fileSize:file.size},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
       // Validate file
       const validation = await this.validateImageFile(file);
       if (!validation.valid) {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'avatar-debug',hypothesisId:'H1',location:'src/lib/avatarUploadService.ts:35',message:'uploadAvatar validation failed',data:{userId,error:validation.error||''},timestamp:Date.now()})}).catch(()=>{});
-        // #endregion
         return { success: false, error: validation.error };
       }
 
@@ -52,9 +46,6 @@ export class AvatarUploadService {
         storagePath,
         "image/jpeg",
       );
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'avatar-debug',hypothesisId:'H2',location:'src/lib/avatarUploadService.ts:51',message:'uploadAvatar bunny upload success',data:{userId,storagePath,publicUrlPreview:(publicUrl||'').slice(0,120)},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
 
       // Update user profile with the new avatar URL (Hetzner backend)
       const patchRes = await fetch(apiUrl(`/api/profiles/${userId}`), {
@@ -68,9 +59,6 @@ export class AvatarUploadService {
         const errBody = (await patchRes.json().catch(() => ({}))) as {
           error?: string;
         };
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'avatar-debug',hypothesisId:'H3',location:'src/lib/avatarUploadService.ts:66',message:'uploadAvatar profile patch failed',data:{userId,status:patchRes.status,error:errBody.error||'',storagePath},timestamp:Date.now()})}).catch(()=>{});
-        // #endregion
         // Upload succeeded but profile update failed — clean up the orphaned file
         try {
           await bunnyDelete(storagePath);
@@ -82,14 +70,8 @@ export class AvatarUploadService {
         );
       }
 
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'avatar-debug',hypothesisId:'H4',location:'src/lib/avatarUploadService.ts:81',message:'uploadAvatar profile patch success',data:{userId,storagePath},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
       return { success: true, publicUrl };
     } catch (error) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({runId:'avatar-debug',hypothesisId:'H5',location:'src/lib/avatarUploadService.ts:85',message:'uploadAvatar exception',data:{userId,error:error instanceof Error?error.message:String(error)},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
       return {
         success: false,
         error: error instanceof Error ? error.message : "Upload failed",

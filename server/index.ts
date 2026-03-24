@@ -78,7 +78,11 @@ import { handleUploadVideo, handleUploadAvatar } from "./routes/upload";
 import { uploadToBunny, isBunnyConfigured } from "./services/bunny";
 import { isLiveKitConfigured } from "./services/livekit";
 import { getTokenFromRequest, verifyAuthToken } from "./routes/auth";
-import { handleSendGift } from "./routes/gifts";
+import {
+  handleSendGift,
+  handleGetGiftCatalog,
+  handleGetSounds,
+} from "./routes/gifts";
 import {
   handleGetProfile,
   handleGetProfileByUsername,
@@ -88,12 +92,21 @@ import {
   handleFollow,
   handleUnfollow,
   handleSeedProfile,
-  handleAddTestCoins,
 } from "./routes/profiles";
 import {
   handleGetWallet,
   handleGetWalletTransactions,
 } from "./routes/wallet";
+import {
+  handleRegisterDeviceToken,
+  handleDeleteDeviceToken,
+  handleSendNotificationToDevices,
+} from "./routes/deviceTokens";
+import {
+  handleGetTestCoinBalance,
+  handleMintTestCoins,
+  handleSpendTestCoinsForScore,
+} from "./routes/testCoins";
 import { addFeedSubscriber, removeFeedSubscriber, broadcastToFeedSubscribers } from "./feedBroadcast";
 import { logger } from "./lib/logger";
 
@@ -230,7 +243,21 @@ app.get("/api/live/token", handleGetLiveToken);
 // (route mounted above with express.raw)
 
 // Gifts (REST; real-time still via WebSocket in room)
+app.get("/api/gifts/catalog", handleGetGiftCatalog);
 app.post("/api/gifts/send", handleSendGift);
+
+// Sounds (for video upload / sound library)
+app.get("/api/sounds", handleGetSounds);
+
+// Push notifications: device tokens + send
+app.post("/api/device-tokens", handleRegisterDeviceToken);
+app.delete("/api/device-tokens", handleDeleteDeviceToken);
+app.post("/api/notifications/send", handleSendNotificationToDevices);
+
+// Test coins (separate system, score-only usage)
+app.get("/coins/test/balance", handleGetTestCoinBalance);
+app.post("/coins/test/mint", handleMintTestCoins);
+app.post("/coins/test/score", handleSpendTestCoinsForScore);
 
 // API Routes
 app.post("/api/create-checkout-session", createCheckoutSession);
@@ -241,7 +268,6 @@ app.get("/api/coin-packages", handleGetCoinPackages);
 app.post("/api/analytics", handleAnalytics);
 app.post("/api/analytics/track", handleAnalytics);
 app.post("/api/block-user", handleBlockUser);
-app.post("/api/test-coins", handleAddTestCoins);
 
 // Profiles
 app.get("/api/profiles/by-username/:username", handleGetProfileByUsername);
@@ -517,10 +543,6 @@ app.get("/env.js", (_req, res) => {
 const distPath = join(__dirname, "..", "dist");
 const indexPath = join(distPath, "index.html");
 
-// Log dist path on startup for debugging
-console.log(`Serving static files from: ${distPath}`);
-console.log(`Index path: ${indexPath}`);
-
 import fs from "fs";
 if (!fs.existsSync(indexPath)) {
   console.error(`ERROR: index.html not found at ${indexPath}`);
@@ -529,11 +551,6 @@ if (!fs.existsSync(indexPath)) {
     fs.existsSync(distPath)
       ? fs.readdirSync(distPath).join(", ")
       : "dist folder missing",
-  );
-} else {
-  console.log(
-    "index.html found successfully. Content preview:",
-    fs.readFileSync(indexPath, "utf8").substring(0, 200),
   );
 }
 
@@ -926,15 +943,13 @@ wss.on("connection", async (ws: WebSocket, req) => {
   let client: Client | null = null;
 
   try {
-    console.log("New connection");
-
     if (!req.url) {
       ws.close(1008, "Missing URL");
       return;
     }
 
     // Parse room and token from URL
-    const url = new URL(req.url, `http://${req.headers.host || "localhost"}`);
+    const url = new URL(req.url, `http://${req.headers.host || "0.0.0.0"}`);
     let roomId = url.searchParams.get("room");
     const token = url.searchParams.get("token");
 
@@ -1032,9 +1047,6 @@ wss.on("connection", async (ws: WebSocket, req) => {
       user_count: roomClients.size,
     });
 
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/index.ts:room_state_sent',message:'Sending room_state to client',data:{roomId,userId:client.userId,hasBattle:!!battles.get(roomId)},timestamp:Date.now(),hypothesisId:'C'})}).catch(()=>{});
-    // #endregion
     sendToClient(client, "room_state", {
       viewers,
     });
@@ -1178,8 +1190,6 @@ wss.on("connection", async (ws: WebSocket, req) => {
 
   // Handle disconnect
   ws.on("close", () => {
-    console.log("Client disconnected");
-
     if (!client) return;
 
     try {
@@ -1217,9 +1227,7 @@ wss.on("connection", async (ws: WebSocket, req) => {
           const isHost = battle.hostUserId === client.userId;
           const isOpponent = battle.opponentUserId === client.userId;
           if (isHost || isOpponent) {
-            console.log(
-              `Battle participant ${isHost ? "host" : "opponent"} disconnected, ending battle in room ${battleRoomId}`,
-            );
+            logger.info({ battleRoomId, role: isHost ? "host" : "opponent" }, "Battle participant disconnected, ending battle");
             endBattle(battleRoomId);
           }
         }
@@ -1352,9 +1360,6 @@ async function handleMessage(client: Client, event: string, data: any) {
 
       // ═══ BATTLE EVENTS — server-controlled ═══
       case "battle_create": {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/index.ts:battle_create',message:'battle_create received',data:{roomId:client.roomId,userId:client.userId,opponentUserId:data.opponentUserId,opponentName:data.opponentName},timestamp:Date.now(),hypothesisId:'D'})}).catch(()=>{});
-        // #endregion
         const existing = battles.get(client.roomId);
         if (existing) {
           if (existing.timer) clearInterval(existing.timer);
@@ -1390,27 +1395,17 @@ async function handleMessage(client: Client, event: string, data: any) {
       }
 
       case "battle_join": {
-        // #region agent log
-        const _bjBattle = battles.get(client.roomId);
-        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/index.ts:battle_join',message:'battle_join received',data:{roomId:client.roomId,userId:client.userId,opponentName:data.opponentName,battleExists:!!_bjBattle,battleStatus:_bjBattle?.status,battleOpponentUserId:_bjBattle?.opponentUserId},timestamp:Date.now(),hypothesisId:'C,D'})}).catch(()=>{});
-        // #endregion
         const battleSession = joinBattle(
           client.roomId,
           client.userId,
           data.opponentName || client.displayName,
         );
         if (!battleSession) {
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/index.ts:battle_join_FAILED',message:'joinBattle returned null!',data:{roomId:client.roomId,userId:client.userId},timestamp:Date.now(),hypothesisId:'D'})}).catch(()=>{});
-          // #endregion
           sendToClient(client, "battle_error", {
             message: "No battle to join",
           });
           break;
         }
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/index.ts:battle_join_OK',message:'joinBattle succeeded',data:{roomId:client.roomId,userId:client.userId,sessionStatus:battleSession.status},timestamp:Date.now(),hypothesisId:'D'})}).catch(()=>{});
-        // #endregion
         break;
       }
 
@@ -1430,14 +1425,8 @@ async function handleMessage(client: Client, event: string, data: any) {
       case "battle_spectator_vote": {
         const voteRoom = client.roomId;
         const voteBattle = battles.get(voteRoom);
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/index.ts:battle_spectator_vote',message:'incoming spectator vote',data:{roomId:voteRoom,hasBattle:!!voteBattle,status:voteBattle?.status,target:data?.target},timestamp:Date.now(),runId:'pre-fix',hypothesisId:'H2'})}).catch(()=>{});
-        // #endregion
         if (!voteBattle || voteBattle.status !== "ACTIVE") break;
         const voteTarget = data.target === "host" ? "host" : "opponent";
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/index.ts:battle_spectator_vote',message:'adding spectator vote points',data:{roomId:voteRoom,target:voteTarget,points:5},timestamp:Date.now(),runId:'pre-fix',hypothesisId:'H3'})}).catch(()=>{});
-        // #endregion
         addBattleScoreForTarget(voteRoom, voteTarget, 5);
         sendToClient(client, "battle_vote_ack", { target: voteTarget, points: 5 });
         break;
@@ -1513,9 +1502,6 @@ async function handleMessage(client: Client, event: string, data: any) {
         const hostUserId =
           typeof data.hostUserId === "string" ? data.hostUserId : "";
         if (!hostUserId) break;
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server/index.ts:battle_invite_accept',message:'Opponent accepted battle invite',data:{opponentUserId:client.userId,opponentRoom:client.roomId,hostUserId,streamKeyFromData:data.streamKey},timestamp:Date.now(),hypothesisId:'A'})}).catch(()=>{});
-        // #endregion
         sendToUserGlobal(hostUserId, "battle_invite_accepted", {
           requesterUserId: client.userId,
           requesterName: data.requesterName || client.displayName,

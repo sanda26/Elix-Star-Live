@@ -8,6 +8,7 @@ import { Request, Response } from "express";
 import { getTokenFromRequest, verifyAuthToken } from "./auth";
 import { getGiftCoinCost } from "../lib/giftCatalog";
 import { debitGiftCoins } from "../lib/walletStore";
+import { logger } from "../lib/logger";
 
 function requireAuth(req: Request, res: Response): { userId: string } | null {
   const token = getTokenFromRequest(req);
@@ -28,7 +29,11 @@ export async function handleSendGift(req: Request, res: Response) {
   const auth = requireAuth(req, res);
   if (!auth) return;
 
-  const { room_id, gift_id, transaction_id, streamKey, giftId: giftIdAlt } = req.body ?? {};
+  const { room_id, gift_id, transaction_id, streamKey, giftId: giftIdAlt, coin_type } = req.body ?? {};
+  if (coin_type === "test") {
+    logger.warn({ userId: auth.userId, route: req.originalUrl }, "Blocked cross-coin operation: test coin action on real gift route");
+    return res.status(400).json({ error: "coin_type_mismatch" });
+  }
   const roomId = typeof room_id === "string" ? room_id.trim() : (typeof streamKey === "string" ? streamKey.trim() : "");
   const giftId = typeof gift_id === "string" ? gift_id.trim() : (typeof giftIdAlt === "string" ? giftIdAlt.trim() : "");
   const clientTransactionId =

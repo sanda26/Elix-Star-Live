@@ -7,7 +7,7 @@
 
 import { Request, Response } from "express";
 import { getTokenFromRequest, verifyAuthToken } from "./auth";
-import { addManualCoins, getWalletBalance } from "../lib/walletStore";
+import { getWalletBalance } from "../lib/walletStore";
 
 export interface Profile {
   userId: string;
@@ -171,35 +171,6 @@ export function handleGetProfileByUsername(req: Request, res: Response): void {
     }
   }
   res.status(404).json({ error: "Profile not found" });
-}
-
-/** POST /api/test-coins — add test coins to current user */
-export function handleAddTestCoins(req: Request, res: Response): void {
-  if (process.env.NODE_ENV === "production") {
-    res.status(404).json({ error: "Not found" });
-    return;
-  }
-  const token = getTokenFromRequest(req);
-  const jwtUser = token ? verifyAuthToken(token) : null;
-  if (!jwtUser) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
-  const { amount } = req.body ?? {};
-  const numAmount = Number(amount);
-  if (!numAmount || numAmount <= 0 || numAmount > 100000000) {
-    res.status(400).json({ error: "Invalid amount" });
-    return;
-  }
-  const profile = getOrCreateProfile(jwtUser.sub);
-  const { newBalance } = addManualCoins({
-    userId: jwtUser.sub,
-    amount: numAmount,
-    reason: "test_topup",
-  });
-  profile.coins = newBalance;
-  profiles.set(jwtUser.sub, profile);
-  res.json({ success: true, coins: newBalance });
 }
 
 /** POST /api/profiles — seed/upsert (e.g. after auth); no auth required */

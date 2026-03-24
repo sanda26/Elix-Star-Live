@@ -168,9 +168,6 @@ export default function SpectatorPage() {
   const handleSpectatorVote = (target: 'host' | 'opponent') => {
     if (spectatorVoted || !spectatorBattle?.active) return;
     setSpectatorVoted(true);
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SpectatorPage.tsx:handleSpectatorVote',message:'spectator tap vote sent',data:{target},timestamp:Date.now(),runId:'pre-fix',hypothesisId:'H1'})}).catch(()=>{});
-    // #endregion
     websocket.send('battle_spectator_vote', { target });
   };
 
@@ -613,6 +610,7 @@ export default function SpectatorPage() {
     
     const persisted = getPersistedTestCoinsBalance(user.id);
     setCoinBalance(Math.max(0, persisted));
+
     setUserLevel(user.level || 1);
     setUserXP(0);
     refreshCoinBalance().catch(() => {});
@@ -1515,7 +1513,7 @@ export default function SpectatorPage() {
 
             {/* 6 MVP circles: 3 left (host gifters) + 3 right (opponent gifters) — placeholder until gifts are sent */}
             <div className="w-full px-3 py-1.5 flex items-center justify-between flex-none pointer-events-none z-30">
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-[0.5mm]">
                 {[1, 2, 3].map((i) => (
                   <div key={`mvp-l-${i}`} className="flex flex-col items-center">
                     <div className="relative">
@@ -1530,7 +1528,7 @@ export default function SpectatorPage() {
                   </div>
                 ))}
               </div>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-[0.5mm]">
                 {[1, 2, 3].map((i) => (
                   <div key={`mvp-r-${i}`} className="flex flex-col items-center">
                     <div className="relative">

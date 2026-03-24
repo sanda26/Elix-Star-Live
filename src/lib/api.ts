@@ -5,11 +5,9 @@
 
 const env = typeof window !== 'undefined' ? (window as any).__ENV as Record<string, string> | undefined : undefined;
 
-/** On localhost we use same-origin so Vite proxy (or backend on 8080) handles /api */
+/** In dev build we use same-origin so Vite proxy (or backend on 8080) handles /api */
 function isLocalDev(): boolean {
-  if (typeof window === "undefined") return false;
-  const host = window.location.hostname;
-  return host === "localhost" || host === "127.0.0.1";
+  return typeof import.meta !== "undefined" && import.meta.env?.DEV === true;
 }
 
 export function getApiBase(): string {
@@ -34,7 +32,7 @@ export function getWsUrl(): string {
   }
   if (ws.startsWith('https://')) ws = ws.replace('https://', 'wss://');
   else if (ws.startsWith('http://')) ws = ws.replace('http://', 'ws://');
-  if (!ws.startsWith('ws://localhost') && ws.startsWith('ws://')) ws = ws.replace('ws://', 'wss://');
+  if (!isLocalDev() && ws.startsWith("ws://")) ws = ws.replace("ws://", "wss://");
   return ws;
 }
 

@@ -263,7 +263,7 @@ export default function Create() {
     const start = async () => {
       try {
         setCameraError(null);
-        const isInsecure = typeof window !== 'undefined' && window.location.protocol !== 'https:' && window.location.hostname !== 'localhost';
+        const isInsecure = typeof window !== 'undefined' && window.location.protocol !== 'https:' && !(typeof import.meta !== 'undefined' && import.meta.env?.DEV);
         if (isInsecure) { setCameraError('Camera requires HTTPS.'); return; }
         if (!navigator.mediaDevices?.getUserMedia) { setCameraError('Camera not supported.'); return; }
 

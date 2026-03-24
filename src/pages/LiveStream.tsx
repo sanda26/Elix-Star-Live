@@ -264,6 +264,7 @@ export default function LiveStream() {
     
     const persisted = getPersistedTestCoinsBalance(user.id);
     setCoinBalance(Math.max(0, persisted));
+
     setUserLevel(user.level || 1);
     setUserXP(0);
     refreshCoinBalance().catch(() => {});
@@ -938,9 +939,6 @@ export default function LiveStream() {
           await room.localParticipant.publishTrack(new LocalAudioTrack(audioTrack), { name: 'mic' });
         }
 
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveStream.tsx:battleJoiner_published',message:'Battle opponent published tracks to host room',data:{room:effectiveStreamId,userId:user?.id},timestamp:Date.now(),hypothesisId:'A'})}).catch(()=>{});
-        // #endregion
       } catch (e) {
         console.error('[Battle] LiveKit publish failed:', e);
         showToast('Could not connect video to battle');
@@ -1946,9 +1944,6 @@ export default function LiveStream() {
 
       // Opponent: once connected to the room, tell the server we're joining the battle
       if (isBattleJoiner) {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveStream.tsx:handleRoomState_battle_join',message:'Sending battle_join from opponent',data:{streamId:effectiveStreamId,userId:user?.id,isBattleJoiner},timestamp:Date.now(),hypothesisId:'C'})}).catch(()=>{});
-        // #endregion
         websocket.send('battle_join', { opponentName: user?.username || user?.name || 'Player' });
       }
     };
@@ -2042,9 +2037,6 @@ export default function LiveStream() {
     // Server-controlled battle events — single source of truth
     const handleBattleStateSync = (data: any) => {
       if (!mounted) return;
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveStream.tsx:handleBattleStateSync',message:'battle_state_sync received',data:{status:data.status,opponentUserId:data.opponentUserId,opponentName:data.opponentName,isBroadcast,isBattleJoiner,timeLeft:data.timeLeft},timestamp:Date.now(),hypothesisId:'E'})}).catch(()=>{});
-      // #endregion
       if (data.status === 'WAITING') {
         setIsBattleMode(true);
         setBattleState('INVITING');
@@ -2190,9 +2182,6 @@ export default function LiveStream() {
     };
 
     const handleBattleInviteAccepted = (data: any) => {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveStream.tsx:handleBattleInviteAccepted',message:'battle_invite_accepted received',data:{isBroadcast,requesterUserId:data.requesterUserId,requesterName:data.requesterName,streamKey:data.streamKey},timestamp:Date.now(),hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
       if (!isBroadcast) return;
       const requesterId = data.requesterUserId as string | undefined;
       const requesterName = data.requesterName as string | undefined;
@@ -2202,9 +2191,6 @@ export default function LiveStream() {
       setBattleState('INVITING');
       setOpponentCreatorName(requesterName);
       const oppStreamKey = (data.streamKey as string) || '';
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/611a0f9e-8521-4b88-9b6c-9dfeb5de00cc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'LiveStream.tsx:handleBattleInviteAccepted_streamKey',message:'opponentStreamKey being set',data:{oppStreamKey,isHostOwnKey:oppStreamKey===effectiveStreamId},timestamp:Date.now(),hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
       if (oppStreamKey) setOpponentStreamKey(oppStreamKey);
       setBattleSlots(prev => {
         const next = [...prev];
@@ -3209,7 +3195,7 @@ export default function LiveStream() {
               const top3 = getTop3GiftersOverall();
               if (top3.length === 0) return null;
               return (
-                <div className="w-full flex justify-center gap-3 py-1.5 pointer-events-none flex-none z-30">
+                <div className="w-full flex justify-center gap-[0.5mm] py-1.5 pointer-events-none flex-none z-30">
                   {[0, 1, 2].map((i) => {
                     const g = top3[i];
                     if (!g) return (
@@ -3594,7 +3580,7 @@ export default function LiveStream() {
               {/* MVP Circles - outside below battle frame, 3 left + 3 right */}
             <div className="w-full px-3 py-2 flex items-center justify-between flex-none pointer-events-none mt-1 relative z-30">
               {/* Left side - MVP 1,2,3 for P1 */}
-              <div className="flex items-center gap-1 pointer-events-auto" onClick={() => setShowViewerList(true)}>
+              <div className="flex items-center gap-[0.5mm] pointer-events-auto" onClick={() => setShowViewerList(true)}>
                 {[0, 1, 2].map((i) => {
                   const g = getTopGifters('me')[i];
                   const fallbackViewer = activeViewers[i];
@@ -3626,7 +3612,7 @@ export default function LiveStream() {
               )}
 
               {/* Right side - MVP 1,2,3 for P2 */}
-              <div className="flex items-center gap-1 pointer-events-auto" onClick={() => setShowViewerList(true)}>
+              <div className="flex items-center gap-[0.5mm] pointer-events-auto" onClick={() => setShowViewerList(true)}>
                 {[0, 1, 2].map((i) => {
                   const g = getTopGifters('opponent')[i];
                   const fallbackViewer = activeViewers[3 + i];
@@ -3798,7 +3784,7 @@ export default function LiveStream() {
                       </div>
 
                       <div className="pointer-events-auto flex items-center gap-2 mt-5">
-                        <div className="flex items-center -space-x-1.5 pointer-events-auto flex-shrink-0" onClick={() => setShowViewerList(prev => !prev)}>
+                        <div className="flex items-center gap-[0.5mm] pointer-events-auto flex-shrink-0" onClick={() => setShowViewerList(prev => !prev)}>
                           {isBattleMode ? (
                             (() => {
                               const top3 = getTop3GiftersOverall();
@@ -4925,14 +4911,6 @@ export default function LiveStream() {
                     persistTestCoinsBalance(user?.id, newBal);
                     showToast(`+${amount.toLocaleString()} test added`);
                     setShowTestCoinsModal(false);
-                    if (user?.id) {
-                      const authToken = useAuthStore.getState().session?.access_token;
-                      fetch(apiUrl('/api/test-coins'), {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}) },
-                        body: JSON.stringify({ amount }),
-                      }).catch(() => {});
-                    }
                   }}
                 >
                   <p className="text-white/40 text-xs mb-3">These coins are for testing only and have no real value.</p>
@@ -4973,14 +4951,6 @@ export default function LiveStream() {
                         persistTestCoinsBalance(user?.id, newBal);
                         showToast(`+${amount.toLocaleString()} test added`);
                         setShowTestCoinsModal(false);
-                        if (user?.id) {
-                          const authToken = useAuthStore.getState().session?.access_token;
-                          fetch(apiUrl('/api/test-coins'), {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json', ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}) },
-                            body: JSON.stringify({ amount }),
-                          }).catch(() => {});
-                        }
                       }}
                       className="py-1.5 rounded-lg text-xs font-bold transition-colors bg-[#C9A96E]/30 text-[#C9A96E] hover:bg-[#C9A96E]/40 col-span-3"
                     >

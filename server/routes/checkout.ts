@@ -46,11 +46,14 @@ function getAuthenticatedUserId(req: Request): string | null {
 }
 
 function resolveOrigin(req: Request): string {
-  return (
+  const origin =
     (typeof req.headers.origin === "string" && req.headers.origin.trim()) ||
-    process.env.CLIENT_URL ||
-    "http://localhost:3000"
-  );
+    process.env.CLIENT_URL;
+  if (origin) return origin;
+  // Construct from request when behind proxy; require CLIENT_URL in production
+  const host = req.headers.host || req.headers["x-forwarded-host"];
+  const proto = req.headers["x-forwarded-proto"] === "https" ? "https" : "http";
+  return host ? `${proto}://${host}` : "http://127.0.0.1:3000";
 }
 
 export async function createCheckoutSession(req: Request, res: Response) {

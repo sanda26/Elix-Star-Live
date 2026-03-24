@@ -1957,84 +1957,57 @@ export default function SpectatorPage() {
                   </div>
                 </div>
 
-                {/* Opponent profile bottom panel */}
+                {/* Opponent profile panel — floating above bottom bar */}
                 {showOpponentPanel && spectatorBattle.opponentRoomId && (
-                  <div className="fixed inset-0 z-[200] flex flex-col justify-end" onClick={() => setShowOpponentPanel(false)}>
-                    <div className="absolute inset-0 bg-black/50" />
+                  <div className="fixed inset-0 z-[200]" onClick={() => setShowOpponentPanel(false)}>
+                    <div className="absolute inset-0 bg-black/40" />
                     <div
-                      className="relative z-10 bg-[#1C1E24] rounded-t-2xl overflow-hidden animate-[slideInFromBottom_0.25s_ease-out]"
+                      className="absolute left-1/2 -translate-x-1/2 w-[calc(100%-24px)] max-w-[456px] bg-[#1C1E24] rounded-2xl overflow-hidden shadow-xl border border-white/10 animate-[slideInFromBottom_0.2s_ease-out]"
+                      style={{ bottom: 'calc(70px + max(8px, env(safe-area-inset-bottom)))' }}
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <div className="w-10 h-1 rounded-full bg-white/20 mx-auto mt-3 mb-2" />
-
-                      <div className="px-5 pb-2 flex items-start gap-3.5">
+                      <div className="px-3.5 py-3 flex items-center gap-3">
                         {(opponentProfile?.avatarUrl) ? (
-                          <img src={opponentProfile.avatarUrl} alt="" className="w-14 h-14 rounded-full border-2 border-[#C9A96E] object-cover flex-shrink-0" />
+                          <img src={opponentProfile.avatarUrl} alt="" className="w-10 h-10 rounded-full border-[1.5px] border-[#C9A96E] object-cover flex-shrink-0" />
                         ) : (
-                          <div className="w-14 h-14 rounded-full border-2 border-[#C9A96E] bg-[#13151A] flex items-center justify-center flex-shrink-0">
-                            <span className="text-xl font-black text-[#C9A96E]">
+                          <div className="w-10 h-10 rounded-full border-[1.5px] border-[#C9A96E] bg-[#13151A] flex items-center justify-center flex-shrink-0">
+                            <span className="text-sm font-black text-[#C9A96E]">
                               {(opponentProfile?.displayName || spectatorBattle.opponentName || 'O').charAt(0).toUpperCase()}
                             </span>
                           </div>
                         )}
-                        <div className="flex-1 min-w-0 pt-1">
-                          <h3 className="text-white font-bold text-base truncate">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-white font-bold text-sm truncate leading-tight">
                             {opponentProfile?.displayName || spectatorBattle.opponentName || 'Opponent'}
                           </h3>
-                          {opponentProfile?.username && (
-                            <p className="text-white/50 text-xs truncate">@{opponentProfile.username}</p>
-                          )}
-                        </div>
-                      </div>
-
-                      {opponentProfile && (
-                        <div className="px-5 py-2.5 flex items-center gap-4">
-                          <div className="flex items-center gap-1.5">
-                            <Users size={13} className="text-white/40" />
-                            <span className="text-white/80 text-xs font-semibold">
-                              {opponentProfile.followers >= 1000 ? `${(opponentProfile.followers / 1000).toFixed(1)}K` : opponentProfile.followers}
-                            </span>
-                            <span className="text-white/40 text-xs">followers</span>
+                          <div className="flex items-center gap-1.5 text-[10px] text-white/50 leading-tight mt-0.5">
+                            {opponentProfile?.username && <span>@{opponentProfile.username}</span>}
+                            {opponentProfile && (
+                              <>
+                                <span>·</span>
+                                <span className="text-white/70 font-semibold">{opponentProfile.followers >= 1000 ? `${(opponentProfile.followers / 1000).toFixed(1)}K` : opponentProfile.followers}</span>
+                                <span>followers</span>
+                                {opponentProfile.level > 0 && (
+                                  <><span>·</span><span className="font-bold text-[#C9A96E]">Lv.{opponentProfile.level}</span></>
+                                )}
+                              </>
+                            )}
                           </div>
-                          <span className="text-white/20">·</span>
-                          <span className="text-white/60 text-xs">{opponentProfile.following} following</span>
-                          {opponentProfile.level > 0 && (
-                            <>
-                              <span className="text-white/20">·</span>
-                              <span className="text-xs font-bold text-[#C9A96E]">Lv.{opponentProfile.level}</span>
-                            </>
-                          )}
                         </div>
-                      )}
-
-                      {opponentProfile?.bio && (
-                        <p className="px-5 pb-2 text-white/50 text-xs line-clamp-2">{opponentProfile.bio}</p>
-                      )}
-
-                      <div className="px-5 pt-2 pb-5 flex gap-3">
-                        <button
-                          type="button"
-                          className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-[#C9A96E] active:scale-95 transition-transform"
-                          onClick={() => {
-                            setShowOpponentPanel(false);
-                            navigate(`/watch/${spectatorBattle.opponentRoomId}`);
-                          }}
-                        >
-                          <Play size={16} className="text-black" fill="black" />
-                          <span className="text-black font-bold text-sm">Watch LIVE</span>
-                        </button>
-                        <button
-                          type="button"
-                          className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-[#13151A] border border-[#C9A96E]/40 active:scale-95 transition-transform"
-                          onClick={() => {
-                            setShowOpponentPanel(false);
-                            if (battleStreamIds?.opponentUserId) {
-                              navigate(`/profile/${battleStreamIds.opponentUserId}`);
-                            }
-                          }}
-                        >
-                          <span className="text-[#C9A96E] font-bold text-sm">View Profile</span>
-                        </button>
+                        <div className="flex gap-2 flex-shrink-0">
+                          <button
+                            type="button"
+                            className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#C9A96E] active:scale-95 transition-transform"
+                            onClick={() => {
+                              const roomId = spectatorBattle.opponentRoomId;
+                              setShowOpponentPanel(false);
+                              if (roomId) navigate(`/watch/${roomId}`);
+                            }}
+                          >
+                            <Play size={12} className="text-black" fill="black" />
+                            <span className="text-black font-bold text-[11px] whitespace-nowrap">Watch LIVE</span>
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>

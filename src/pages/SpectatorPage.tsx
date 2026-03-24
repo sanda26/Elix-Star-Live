@@ -21,7 +21,6 @@ import {
   MicOff,
   Camera,
   CameraOff,
-  Keyboard,
   Coins,
   Lock,
   Crown,
@@ -31,8 +30,6 @@ import {
   ExternalLink,
   Play,
   Users,
-  Smile,
-  Image,
 } from 'lucide-react';
 import { GiftPanel } from '../components/GiftPanel';
 import { GIFTS, GIFT_COMBO_MAX, resolveGiftAssetUrl } from '../lib/gifts';
@@ -161,11 +158,6 @@ export default function SpectatorPage() {
   const [isSubscribing, setIsSubscribing] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
 
-  // Emoji & Sticker keyboards
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [showStickerPanel, setShowStickerPanel] = useState(false);
-  const [creatorStickers, setCreatorStickers] = useState<{ id: number; image_url: string; label: string }[]>([]);
-  const stickersFetchedRef = useRef(false);
   const [streamEndedReceived, setStreamEndedReceived] = useState(false);
 
   const [showTestCoinsModal, setShowTestCoinsModal] = useState(false);
@@ -191,7 +183,7 @@ export default function SpectatorPage() {
     comboTimerRef.current = setTimeout(() => { setShowComboButton(false); setComboCount(0); }, 8000);
   };
 
-  const chatInputRef = useRef<HTMLInputElement>(null);
+  const [spectatorCoHostRequestSent, setSpectatorCoHostRequestSent] = useState(false);
   const [showViewersPanel, setShowViewersPanel] = useState(false);
   const [viewersList, setViewersList] = useState<{ id: string; name: string; avatar: string; level?: number }[]>([]);
   const actualViewersRef = useRef<Map<string, { name: string; avatar: string; level: number }>>(new Map());
@@ -716,15 +708,6 @@ export default function SpectatorPage() {
       }
     })();
   }, [effectiveStreamId, navigate, streamRetryKey]);
-
-  // Fetch creator's photo stickers when hostUserId is known
-  useEffect(() => {
-    if (!hostUserId || stickersFetchedRef.current) return;
-    stickersFetchedRef.current = true;
-    fetch(apiUrl(`/api/stickers/${hostUserId}`)).then(r => r.json()).then(d => {
-      if (d?.stickers) setCreatorStickers(d.stickers);
-    }).catch(() => {});
-  }, [hostUserId]);
 
   // LiveKit: spectator sees creator's live video/audio in real time — same room, subscribe to host tracks and attach to videoRef/audio
   const liveKitRoomRef = useRef<Room | null>(null);
@@ -1582,37 +1565,7 @@ export default function SpectatorPage() {
       avatar: viewerAvatar,
     });
     setInputValue('');
-    setShowEmojiPicker(false);
-    setShowStickerPanel(false);
   };
-
-  const handleSendEmoji = useCallback((emoji: string) => {
-    const newMsg: LiveMessage = {
-      id: Date.now().toString(),
-      username: viewerName,
-      text: emoji,
-      level: userLevel,
-      avatar: viewerAvatar,
-      isMod: isModerator,
-    };
-    setMessages(prev => [...prev, newMsg]);
-    websocket.send('chat_message', { text: emoji, level: userLevel, avatar: viewerAvatar });
-  }, [viewerName, userLevel, viewerAvatar, isModerator]);
-
-  const handleSendSticker = useCallback((stickerUrl: string) => {
-    const newMsg: LiveMessage = {
-      id: Date.now().toString(),
-      username: viewerName,
-      text: '',
-      level: userLevel,
-      avatar: viewerAvatar,
-      isMod: isModerator,
-      stickerUrl,
-    };
-    setMessages(prev => [...prev, newMsg]);
-    websocket.send('chat_message', { text: '', stickerUrl, level: userLevel, avatar: viewerAvatar });
-    setShowStickerPanel(false);
-  }, [viewerName, userLevel, viewerAvatar, isModerator]);
 
   // Spectator gift → creator: send to creator's room (broadcast so creator sees it and gets credit)
   const handleSendGift = async (gift: typeof GIFTS[0], opts?: { fromCombo?: boolean }) => {
@@ -2306,11 +2259,17 @@ export default function SpectatorPage() {
                   onClick={() => navigate(`/profile/${hostUserId}`)}
                 >
                   <span className="text-white text-[11px] font-bold truncate max-w-[100px] leading-tight">{hostName}</span>
-                  <div className="flex items-center gap-1 -mt-0.5 flex-wrap">
-                    <span className="text-white/45 text-[7px] font-semibold shrink-0">Aprecieri</span>
-                    <Heart className="w-2.5 h-2.5 text-[#FF2D55] shrink-0" strokeWidth={2.5} fill="#FF2D55" />
+                  <button
+                    type="button"
+                    className="flex items-center gap-0.5 pointer-events-auto -mt-0.5"
+                    onPointerDown={(e) => {
+                      e.stopPropagation();
+                      handleLikeTap(e);
+                    }}
+                  >
+                    <Heart className="w-2 h-2 text-[#FF2D55]" strokeWidth={2.5} fill="#FF2D55" />
                     <span className="text-white/70 text-[8px] font-bold tabular-nums">{(typeof activeLikes === 'number' && Number.isFinite(activeLikes) ? activeLikes : 0).toLocaleString()}</span>
-                  </div>
+                  </button>
                   {/* Follow / Join — matches creator top bar exactly */}
                   <div className="absolute right-1 top-1/2 -translate-y-1/2 grid place-items-center pointer-events-auto">
                     {/* Join Button (Bottom layer) — visible after following */}
@@ -2475,9 +2434,9 @@ export default function SpectatorPage() {
           </div>
         </div>
 
-        {/* CHAT — above bottom bar; floating hearts (aprecieri) on right side of this panel */}
+        {/* CHAT — same pattern as LiveStream (!isBroadcast): scroll area tap sends like on empty space */}
         <div className="chat-zone fixed left-0 right-0 bottom-[calc(52px+max(8px,env(safe-area-inset-bottom)))] z-[100] flex justify-center pointer-events-none">
-          <div className="w-full max-w-[480px] h-[30dvh] max-h-[250px] relative">
+          <div className="w-full max-w-[480px] relative" style={{ height: 'calc(25dvh + 2cm + 4mm)', maxHeight: 'calc(25dvh + 2cm + 4mm)' }}>
             <div
               ref={spectatorChatHeartsRef}
               className="absolute inset-0 z-[25] overflow-hidden pointer-events-none"
@@ -2505,7 +2464,17 @@ export default function SpectatorPage() {
                 </div>
               ))}
             </div>
-            <div className="relative z-[10] h-full overflow-y-auto pointer-events-auto bg-transparent px-1">
+            <div
+              className="relative z-[10] h-full overflow-y-auto pointer-events-auto bg-transparent px-1"
+              onPointerDown={(e) => {
+                e.stopPropagation();
+                if (e.target instanceof Element) {
+                  const interactive = e.target.closest('button, a, input, textarea, select, [role="button"]');
+                  if (interactive) return;
+                }
+                handleLikeTap(e);
+              }}
+            >
               <ChatOverlay
                 messages={messages}
                 variant="panel"
@@ -2535,193 +2504,80 @@ export default function SpectatorPage() {
           </div>
         )}
 
-        {/* Emoji Picker Panel */}
-        {showEmojiPicker && (
-          <div className="fixed left-0 right-0 bottom-[calc(52px+max(8px,env(safe-area-inset-bottom)))] z-[119] flex justify-center pointer-events-auto">
-            <div className="w-full max-w-[480px] px-3">
-              <div className="bg-[#1C1E24]/95 backdrop-blur-xl rounded-2xl border border-[#C9A96E]/20 p-3 shadow-xl animate-[slideInFromBottom_0.15s_ease-out]">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-[#C9A96E] text-[10px] font-bold uppercase tracking-wide">Emojis</span>
-                  <button type="button" onClick={() => setShowEmojiPicker(false)} className="text-white/40">
-                    <X size={14} />
-                  </button>
-                </div>
-                <div className="grid grid-cols-8 gap-1.5 max-h-[160px] overflow-y-auto">
-                  {['😀','😂','🥰','😍','😘','🤩','😎','🥳',
-                    '🔥','💯','❤️','💖','💎','👑','🎉','✨',
-                    '👏','🙌','💪','🤝','👍','🎯','⭐','🌟',
-                    '🦋','🌹','🍀','🎵','🎶','💫','🏆','🥇',
-                    '😱','😭','🤣','😊','🥺','😈','👀','💀',
-                    '🤑','💰','💸','🎁','🎊','🎆','💝','🫶'].map((emoji) => (
-                    <button
-                      key={emoji}
-                      type="button"
-                      className="text-xl p-1 rounded-lg hover:bg-white/10 active:scale-90 transition-all"
-                      onClick={() => handleSendEmoji(emoji)}
-                    >
-                      {emoji}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Elix Live Sticker Panel */}
-        {showStickerPanel && creatorStickers.length > 0 && (
-          <div className="fixed left-0 right-0 bottom-[calc(52px+max(8px,env(safe-area-inset-bottom)))] z-[119] flex justify-center pointer-events-auto">
-            <div className="w-full max-w-[480px] px-3">
-              <div className="bg-[#1C1E24]/95 backdrop-blur-xl rounded-2xl border border-[#C9A96E]/20 p-3 shadow-xl animate-[slideInFromBottom_0.15s_ease-out]">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-4 h-4 rounded-full bg-gradient-to-br from-[#C9A96E] to-[#E8D5A3] flex items-center justify-center">
-                      <span className="text-[7px] font-black text-black">E</span>
-                    </div>
-                    <span className="text-[#C9A96E] text-[10px] font-bold uppercase tracking-wide">Elix Stickers</span>
-                    <span className="bg-[#C9A96E]/10 text-[#C9A96E] text-[7px] font-bold px-1.5 py-0.5 rounded-full border border-[#C9A96E]/20">SUBSCRIBER</span>
-                  </div>
-                  <button type="button" onClick={() => setShowStickerPanel(false)} className="text-white/40">
-                    <X size={14} />
-                  </button>
-                </div>
-                <div className="grid grid-cols-4 gap-2 max-h-[180px] overflow-y-auto">
-                  {creatorStickers.map((sticker) => (
-                    <button
-                      key={sticker.id}
-                      type="button"
-                      className="aspect-square rounded-xl bg-white/5 border border-[#C9A96E]/10 overflow-hidden hover:border-[#C9A96E]/40 active:scale-90 transition-all"
-                      onClick={() => handleSendSticker(sticker.image_url)}
-                    >
-                      <img src={sticker.image_url} alt={sticker.label} className="w-full h-full object-cover" />
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Bottom action bar — flush to viewport bottom + safe area */}
+        {/* Bottom bar — matches LiveStream spectator (!isBroadcast): chat + co-host + gift + share + more */}
         <div className="fixed left-0 right-0 bottom-0 z-[120] pointer-events-auto flex justify-center">
           <div className="w-full max-w-[480px] px-3 pb-[max(8px,env(safe-area-inset-bottom))] pt-0 bg-transparent">
-          <div className="flex items-end gap-2">
-          <form
-            className="flex-1 flex items-center gap-1.5 bg-black/40 backdrop-blur-sm rounded-full px-3 py-2 border border-white/10 h-10 min-w-0"
-            onSubmit={(e) => { handleSendMessage(e); }}
-          >
-            <button
-              type="button"
-              title="Open keyboard"
-              className="flex-shrink-0 transition-colors text-[#C9A96E] active:scale-95"
-              onClick={() => {
-                setShowEmojiPicker(false);
-                setShowStickerPanel(false);
-                window.setTimeout(() => chatInputRef.current?.focus(), 50);
-              }}
-            >
-              <Keyboard size={18} strokeWidth={2.2} />
-            </button>
-            <button
-              type="button"
-              title="Emoji"
-              className={`flex-shrink-0 transition-colors ${showEmojiPicker ? 'text-[#C9A96E]' : 'text-white/40'}`}
-              onClick={() => { setShowEmojiPicker(v => !v); setShowStickerPanel(false); }}
-            >
-              <Smile size={18} />
-            </button>
-            {creatorStickers.length > 0 && (
+            <div className="flex items-end gap-2 w-full max-w-[480px] pointer-events-auto">
+              <form
+                className="flex-1 flex items-center gap-2 bg-black/40 backdrop-blur-sm rounded-full px-3 py-2 border border-white/10 h-10 min-w-0"
+                onSubmit={(e) => { e.preventDefault(); handleSendMessage(e); }}
+              >
+                <input
+                  type="text"
+                  inputMode="text"
+                  enterKeyHint="send"
+                  autoComplete="off"
+                  placeholder="Say something..."
+                  className="bg-transparent text-white text-xs outline-none flex-1 placeholder:text-white/30 min-w-0"
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                />
+                {inputValue.trim() ? (
+                  <button type="submit" title="Send message" className="text-[#C9A96E] flex-shrink-0">
+                    <Send size={16} />
+                  </button>
+                ) : null}
+              </form>
               <button
                 type="button"
-                title="Stickers"
-                className={`flex-shrink-0 transition-colors ${showStickerPanel ? 'text-[#C9A96E]' : 'text-white/40'}`}
-                onClick={() => { setShowStickerPanel(v => !v); setShowEmojiPicker(false); }}
+                title={spectatorCoHostRequestSent ? 'Request sent' : 'Co-Host'}
+                disabled={spectatorCoHostRequestSent || !user?.id}
+                onClick={async () => {
+                  if (!user?.id || !effectiveStreamId || spectatorCoHostRequestSent) return;
+                  const requesterName = user?.username || user?.name || 'Someone';
+                  websocket.send('cohost_request_send', {
+                    hostUserId: effectiveStreamId,
+                    requesterName,
+                    requesterAvatar: user?.avatar || '',
+                  });
+                  setSpectatorCoHostRequestSent(true);
+                  showToast('Co-host request sent!');
+                }}
+                className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg relative disabled:opacity-60 active:scale-95 transition-transform flex-shrink-0"
               >
-                <Image size={18} />
+                <span className="flex items-center justify-center w-full h-full relative z-[2]">
+                  <UserPlus size={20} className="text-[#C9A96E] shrink-0" strokeWidth={2} />
+                </span>
+                <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-125 translate-y-0.5" />
               </button>
-            )}
-            <input
-              ref={chatInputRef}
-              type="text"
-              inputMode="text"
-              enterKeyHint="send"
-              autoComplete="off"
-              placeholder="Say something..."
-              className="bg-transparent text-white text-xs outline-none flex-1 placeholder:text-white/30 min-w-0"
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              onFocus={() => { setShowEmojiPicker(false); setShowStickerPanel(false); }}
-            />
-            {inputValue.trim() && (
-              <button type="submit" title="Send message" className="text-[#C9A96E] flex-shrink-0">
-                <Send size={16} />
+              <button
+                type="button"
+                title="Send gift"
+                onClick={() => setShowGiftPanel(true)}
+                className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform relative flex-shrink-0"
+              >
+                <Gift size={20} className="text-[#C9A96E] relative z-[2]" />
+                <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-125 translate-y-0.5" />
               </button>
-            )}
-          </form>
-
-          {/* Request co-host (spectator-initiated) */}
-          <button
-            type="button"
-            title="Request to co-host"
-            aria-label="Request to co-host"
-            onClick={() => setShowCoHostPanel(true)}
-            className="flex flex-col items-center justify-center w-12 active:scale-95 transition-transform select-none"
-          >
-            <div className="relative w-10 h-10 flex items-center justify-center rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 shadow-lg">
-              <span className="flex items-center justify-center w-full h-full relative z-[2]">
-                <UserPlus size={20} className="text-[#C9A96E] shrink-0" strokeWidth={2} />
-              </span>
-              <img
-                src="/Icons/Music Icon.png"
-                alt=""
-                className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-125 translate-y-0.5"
-              />
+              <button
+                type="button"
+                title="Share"
+                onClick={() => setShowSharePanel(true)}
+                className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform relative flex-shrink-0"
+              >
+                <Share2 size={20} className="text-[#C9A96E] relative z-[2]" />
+                <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-125 translate-y-0.5" />
+              </button>
+              <button
+                type="button"
+                title="More options"
+                onClick={() => setIsMoreMenuOpen(true)}
+                className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform relative flex-shrink-0"
+              >
+                <MoreVertical size={20} className="text-[#C9A96E] relative z-[2]" />
+                <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-125 translate-y-0.5" />
+              </button>
             </div>
-            <span className="text-[10px] font-semibold text-[#C9A96E] mt-0.5">Invite</span>
-          </button>
-
-          {/* Gift */}
-          <button
-            type="button"
-            title="Send gift"
-            onClick={() => setShowGiftPanel(true)}
-            className="flex flex-col items-center justify-center w-12 active:scale-95 transition-transform select-none"
-          >
-            <div className="relative w-10 h-10 flex items-center justify-center rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 shadow-lg">
-              <Gift size={20} className="text-[#C9A96E] relative z-[2]" />
-              <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[1] scale-125 translate-y-0.5" />
-            </div>
-            <span className="text-[10px] font-semibold text-[#C9A96E] mt-0.5">Gift</span>
-          </button>
-
-          {/* Share */}
-          <button
-            type="button"
-            title="Share"
-            onClick={() => setShowSharePanel(true)}
-            className="flex flex-col items-center justify-center w-12 active:scale-95 transition-transform select-none"
-          >
-            <div className="relative w-10 h-10 flex items-center justify-center rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 shadow-lg">
-              <Share2 size={20} className="text-[#C9A96E] relative z-[2]" />
-              <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[1] scale-125 translate-y-0.5" />
-            </div>
-            <span className="text-[10px] font-semibold text-[#C9A96E] mt-0.5">Share</span>
-          </button>
-
-          {/* More (3 dots) */}
-          <button
-            type="button"
-            title="More options"
-            onClick={() => setIsMoreMenuOpen(true)}
-            className="flex flex-col items-center justify-center w-12 active:scale-95 transition-transform select-none"
-          >
-            <div className="relative w-10 h-10 flex items-center justify-center rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 shadow-lg">
-              <MoreVertical size={20} className="text-[#C9A96E] relative z-[2]" />
-              <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[1] scale-125 translate-y-0.5" />
-            </div>
-            <span className="text-[10px] font-semibold text-[#C9A96E] mt-0.5">More</span>
-          </button>
-          </div>
           </div>
         </div>
 

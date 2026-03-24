@@ -4206,9 +4206,14 @@ export default function LiveStream() {
                             </div>
                           ))}
                         </div>
-                        <button onClick={() => setShowViewerList(prev => !prev)} className="flex items-center gap-0.5 pointer-events-auto">
+                        <button
+                          type="button"
+                          title="Viewers"
+                          onClick={() => setShowViewerList(prev => !prev)}
+                          className="flex items-center gap-1.5 px-0 py-1 rounded-full bg-transparent border-0 active:scale-95 transition-transform pointer-events-auto"
+                        >
                           <span className="text-white text-[9px] font-bold tabular-nums">{formatCountShort(viewerCount)}</span>
-                          <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+                          <UserPlus size={10} className="text-[#C9A96E]" strokeWidth={2.2} />
                         </button>
                         <button type="button" onClick={() => { if (!isBroadcast) { navigate('/feed', { replace: true }); } else if (isBattleMode) { toggleBattle(); } else { stopBroadcast(); } }} className="w-7 h-7 rounded-full flex items-center justify-center active:scale-95 transition-transform" title={isBroadcast ? (isBattleMode ? 'End battle' : 'End broadcast') : 'Leave'}>
                           <img src="/Icons/Gold power buton.png" alt="Close" className="w-5 h-5 object-contain" />

@@ -22,17 +22,21 @@ export const LevelIcon: React.FC<LevelIconProps> = ({
   text = 'lv',
 }) => {
   const safeLevel = typeof level === 'number' && Number.isFinite(level) && level > 0 ? Math.floor(level) : 1;
+  /** CSS px per mm (1in = 25.4mm, 1in = 96px). */
+  const MM_TO_PX = 96 / 25.4;
+  const shrinkMm = 3;
+  const shrinkPx = shrinkMm * MM_TO_PX;
+  const circleGrowMm = 4;
+  const circleGrowPx = circleGrowMm * MM_TO_PX;
   const rawSize = typeof size === 'number' && Number.isFinite(size) ? size : 40;
   const barBaseSize = Math.max(16, Math.floor(rawSize));
-  const circleSize = Math.max(
-    16,
-    Math.floor(
-      typeof circleSizeProp === 'number' && Number.isFinite(circleSizeProp) ? circleSizeProp : rawSize,
-    ),
-  );
+  const maxShrink = Math.max(0, rawSize - 16);
+  const circleSize =
+    typeof circleSizeProp === 'number' && Number.isFinite(circleSizeProp)
+      ? Math.max(16, Math.floor(circleSizeProp))
+      : Math.max(16, Math.floor(rawSize - Math.min(shrinkPx, maxShrink) + circleGrowPx));
   const barHeight = Math.round(barBaseSize * 0.72);
   const barWidth = Math.round(barBaseSize * 1.75);
-  /** Pull bar toward avatar using circle diameter so bar + big circle still meet */
   const overlap = Math.round(circleSize * 0.52);
 
   const getBarGradient = () => {
@@ -44,6 +48,9 @@ export const LevelIcon: React.FC<LevelIconProps> = ({
   };
 
   const goldScale = (circleSize + 28) / circleSize;
+  /** Avatar photo clip — same outer `circleSize` as ring; minimal inset so the face scales with the +4mm circle (incl. avatar). */
+  const avatarInsetPx = 3;
+  const avatarDiameter = Math.max(8, circleSize - avatarInsetPx);
 
   return (
     <div className={className} style={{ display: 'inline-flex', alignItems: 'center', flexShrink: 0, marginLeft: 8 }}>
@@ -62,8 +69,8 @@ export const LevelIcon: React.FC<LevelIconProps> = ({
             top: 'calc(50% - 0.4mm)',
             left: '50%',
             transform: 'translate(-50%, -50%)',
-            width: circleSize - 7,
-            height: circleSize - 7,
+            width: avatarDiameter,
+            height: avatarDiameter,
             borderRadius: 999,
             overflow: 'hidden',
           }}

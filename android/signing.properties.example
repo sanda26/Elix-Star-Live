@@ -1,0 +1,12 @@
+# Copy this file to signing.properties and fill in real values.
+# Never commit signing.properties or your keystore.
+
+# Path to the keystore file, relative to the android/ folder.
+# Examples:
+#   storeFile=elix-star-live-release.keystore
+#   storeFile=../elix-star-live-release.keystore   (keystore in repo root)
+storeFile=elix-star-live-release.keystore
+
+storePassword=your_keystore_password_here
+keyAlias=elixstarlive
+keyPassword=your_key_password_here

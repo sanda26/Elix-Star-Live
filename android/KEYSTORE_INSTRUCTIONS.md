@@ -18,7 +18,8 @@ keytool -genkey -v -keystore elix-star-live-release.keystore \
 - **Algorithm**: RSA 2048
 
 ### **Store Keystore Securely:**
-- ❌ **DO NOT** commit to git
+- ❌ **DO NOT** commit to git (`.keystore` / `signing.properties` are listed in `android/.gitignore`)
+- ✅ Copy `android/signing.properties.example` → `android/signing.properties` and set `storeFile`, passwords, and alias
 - ✅ Store in secure location
 - ✅ Backup in multiple secure places
 - ✅ Share only with trusted team members

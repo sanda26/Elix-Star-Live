@@ -1235,6 +1235,56 @@ export default function LiveStream() {
   const [showFanClub, setShowFanClub] = useState(false);
   const [isSubscribing, setIsSubscribing] = useState(false);
 
+  // Photo Stickers
+  const [creatorStickers, setCreatorStickers] = useState<{ id: number; image_url: string; label: string }[]>([]);
+  const [stickerUploading, setStickerUploading] = useState(false);
+  const stickersFetchedRef = useRef(false);
+
+  useEffect(() => {
+    if (!showFanClub || stickersFetchedRef.current || !user?.id) return;
+    stickersFetchedRef.current = true;
+    fetch(apiUrl(`/api/stickers/${user.id}`)).then(r => r.json()).then(d => {
+      if (d?.stickers) setCreatorStickers(d.stickers);
+    }).catch(() => {});
+  }, [showFanClub, user?.id]);
+
+  const uploadSticker = useCallback(() => {
+    const token = useAuthStore.getState().session?.access_token;
+    if (!token) return;
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      setStickerUploading(true);
+      try {
+        const buf = await file.arrayBuffer();
+        const res = await fetch(apiUrl('/api/stickers/upload'), {
+          method: 'POST',
+          headers: { 'Content-Type': file.type, Authorization: `Bearer ${token}` },
+          body: buf,
+        });
+        if (res.ok) {
+          const sticker = await res.json();
+          setCreatorStickers(prev => [...prev, sticker]);
+        }
+      } catch { /* ignore */ }
+      setStickerUploading(false);
+    };
+    input.click();
+  }, []);
+
+  const deleteSticker = useCallback(async (id: number) => {
+    const token = useAuthStore.getState().session?.access_token;
+    if (!token) return;
+    const res = await fetch(apiUrl(`/api/stickers/${id}`), {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) setCreatorStickers(prev => prev.filter(s => s.id !== id));
+  }, []);
+
   const handleSubscribe = async () => {
     setIsSubscribing(true);
     try {
@@ -4881,7 +4931,7 @@ export default function LiveStream() {
                   </div>
                 </div>
 
-                {/* Photo Stickers - Only for Subscribers */}
+                {/* Photo Stickers - Creator Upload */}
                 <div className="bg-white/5 rounded-xl p-3 border border-[#C9A96E]/20">
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="text-gold-metallic font-bold text-[10px] flex items-center gap-1">
@@ -4890,80 +4940,43 @@ export default function LiveStream() {
                       </div>
                       Photo Stickers
                     </h3>
-                    <span className="bg-[#C9A96E]/10 text-[#C9A96E] text-[7px] font-bold px-1.5 py-0.5 rounded-full border border-[#C9A96E]/20">SUBSCRIBER ONLY</span>
+                    <span className="bg-[#C9A96E]/10 text-[#C9A96E] text-[7px] font-bold px-1.5 py-0.5 rounded-full border border-[#C9A96E]/20">
+                      {creatorStickers.length}/20
+                    </span>
                   </div>
 
-                  <div className="grid grid-cols-4 gap-1">
-                    {['🔥', '💎', '👑', '🚀', '💯', '🎉', '💖', '👀'].map((emoji, i) => (
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {creatorStickers.map((sticker) => (
+                      <div key={sticker.id} className="aspect-square rounded-lg bg-white/5 border border-[#C9A96E]/10 relative overflow-hidden group">
+                        <img src={sticker.image_url} alt={sticker.label} className="w-full h-full object-cover" />
+                        <button
+                          className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-black/70 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => deleteSticker(sticker.id)}
+                        >
+                          <X size={8} className="text-red-400" />
+                        </button>
+                      </div>
+                    ))}
+                    {creatorStickers.length < 20 && (
                       <button
-                        key={i}
-                        className="aspect-square rounded-lg bg-white/5 hover:bg-white/10 active:scale-95 transition-all flex items-center justify-center text-sm border border-[#C9A96E]/10 relative overflow-hidden group"
-                        onClick={() => {
-                          // Simulate sending a sticker
-                          const newMessage: LiveMessage = {
-                            id: Date.now().toString(),
-                            username: 'You',
-                            text: emoji, // In a real app this would be an image URL
-                            level: userLevel,
-                            isGift: false, // Could be treated as a special message type
-                            avatar: '/Icons/elix-logo.png', // Fallback for now to avoid TS issues with User type
-                            isSystem: false
-                          };
-                          setMessages(prev => [...prev, newMessage]);
-                          setShowFanClub(false); // Close panel after sending
-                        }}
+                        className="aspect-square rounded-lg bg-white/5 hover:bg-white/10 active:scale-95 transition-all flex items-center justify-center border border-dashed border-[#C9A96E]/30 relative overflow-hidden"
+                        onClick={uploadSticker}
+                        disabled={stickerUploading}
                       >
-                        <span className="group-hover:scale-110 transition-transform duration-200">{emoji}</span>
-                        {!isSubscribing && (
-                          <div className="absolute inset-0 bg-[#13151A]/60 backdrop-blur-[1px] flex items-center justify-center">
-                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#C9A96E" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-80"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                        {stickerUploading ? (
+                          <div className="w-4 h-4 border-2 border-[#C9A96E]/30 border-t-[#C9A96E] rounded-full animate-spin" />
+                        ) : (
+                          <div className="flex flex-col items-center gap-0.5">
+                            <PlusCircle size={14} className="text-[#C9A96E]/60" />
+                            <span className="text-[6px] text-[#C9A96E]/60 font-bold uppercase">Upload</span>
                           </div>
                         )}
                       </button>
-                    ))}
-                    {/* Add Custom Sticker Upload Button */}
-                    <button
-                      className="aspect-square rounded-lg bg-white/5 hover:bg-white/10 active:scale-95 transition-all flex items-center justify-center border border-[#C9A96E]/10 relative overflow-hidden group"
-                      onClick={() => {
-                        if (!isSubscribing) return;
-                        const input = document.createElement('input');
-                        input.type = 'file';
-                        input.accept = 'image/*';
-                        input.onchange = (e) => {
-                          const file = (e.target as HTMLInputElement).files?.[0];
-                          if (file) {
-                            const reader = new FileReader();
-                            reader.onload = (ev) => {
-                              const newMessage: LiveMessage = {
-                                id: Date.now().toString(),
-                                username: 'You',
-                                text: ev.target?.result as string,
-                                level: userLevel,
-                                isGift: false, 
-                                avatar: '/Icons/elix-logo.png',
-                                isSystem: false
-                              };
-                              setMessages(prev => [...prev, newMessage]);
-                              setShowFanClub(false);
-                            };
-                            reader.readAsDataURL(file);
-                          }
-                        };
-                        input.click();
-                      }}
-                    >
-                      <div className="flex flex-col items-center gap-0.5">
-                        <PlusCircle size={12} className="text-[#C9A96E]/50 group-hover:text-[#C9A96E] transition-colors" />
-                        <span className="text-[6px] text-[#C9A96E]/50 font-bold uppercase">Upload</span>
-                      </div>
-                       {!isSubscribing && (
-                          <div className="absolute inset-0 bg-[#13151A]/60 backdrop-blur-[1px] flex items-center justify-center">
-                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#C9A96E" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-80"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                          </div>
-                        )}
-                    </button>
+                    )}
                   </div>
-                  <p className="text-white/30 text-[8px] text-center mt-1.5">Subscribe to unlock photo stickers and send them in chat!</p>
+                  {creatorStickers.length === 0 && (
+                    <p className="text-white/30 text-[8px] text-center mt-2">Upload photo stickers for your subscribers</p>
+                  )}
                 </div>
               </div>
             </div>

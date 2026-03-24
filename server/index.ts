@@ -107,6 +107,7 @@ import { handleUploadVideo, handleUploadAvatar } from "./routes/upload";
 import { uploadToBunny, isBunnyConfigured } from "./services/bunny";
 import { isLiveKitConfigured } from "./services/livekit";
 import { getTokenFromRequest, verifyAuthToken } from "./routes/auth";
+import { dbGetCreatorStickers, dbAddCreatorSticker, dbDeleteCreatorSticker } from "./lib/postgres";
 import { handleSendGift } from "./routes/gifts";
 import {
   handleGetProfile,
@@ -194,8 +195,67 @@ app.use(
   }),
 );
 
+// Sticker upload: raw body (binary image) — must be before express.json()
+app.use(
+  "/api/stickers/upload",
+  express.raw({
+    type: ["image/jpeg", "image/png", "image/webp", "image/gif"],
+    limit: "5mb",
+  }),
+);
+
 // Other routes use JSON
 app.use(express.json());
+
+// ── Creator Sticker CRUD ──
+app.get("/api/stickers/:userId", async (req, res) => {
+  const stickers = await dbGetCreatorStickers(req.params.userId);
+  res.json({ stickers });
+});
+
+app.post("/api/stickers/upload", async (req: any, res) => {
+  const token = getTokenFromRequest(req);
+  if (!token) return res.status(401).json({ error: "Not authenticated" });
+  const payload = verifyAuthToken(token);
+  if (!payload) return res.status(401).json({ error: "Invalid token" });
+  const userId = payload.sub;
+
+  const body = req.body;
+  if (!body || !(body instanceof Buffer) || body.length === 0) {
+    return res.status(400).json({ error: "Request body must be a non-empty image" });
+  }
+
+  if (!isBunnyConfigured()) {
+    return res.status(503).json({ error: "Storage not configured" });
+  }
+
+  const contentType = (req.headers["content-type"] || "image/png").split(";")[0].trim();
+  const extMap: Record<string, string> = { "image/jpeg": "jpg", "image/jpg": "jpg", "image/png": "png", "image/webp": "webp", "image/gif": "gif" };
+  const ext = extMap[contentType] || "png";
+  const path = `stickers/${userId}/${Date.now()}.${ext}`;
+
+  const result = await uploadToBunny(path, body, contentType);
+  if (!result.success) {
+    return res.status(502).json({ error: result.error || "Upload failed" });
+  }
+
+  const label = typeof req.query.label === "string" ? req.query.label.slice(0, 50) : "";
+  const sticker = await dbAddCreatorSticker(userId, result.cdnUrl || result.path, label);
+  if (!sticker) {
+    return res.status(400).json({ error: "Max 20 stickers reached or DB error" });
+  }
+
+  res.status(201).json(sticker);
+});
+
+app.delete("/api/stickers/:id", async (req, res) => {
+  const token = getTokenFromRequest(req);
+  if (!token) return res.status(401).json({ error: "Not authenticated" });
+  const payload = verifyAuthToken(token);
+  if (!payload) return res.status(401).json({ error: "Invalid token" });
+  const ok = await dbDeleteCreatorSticker(payload.sub, Number(req.params.id));
+  res.json({ deleted: ok });
+});
 
 // Health check endpoint (must be before static files)
 const BUILD_VERSION = "2026-03-15T07:00-inline-live-gift-fix";

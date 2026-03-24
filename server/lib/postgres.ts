@@ -251,6 +251,20 @@ export async function initPostgres(): Promise<void> {
       `CREATE INDEX IF NOT EXISTS idx_battle_creator_buckets_battle_id ON battle_creator_buckets(battle_id)`,
     ).catch(() => {});
 
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS creator_stickers (
+        id SERIAL PRIMARY KEY,
+        creator_user_id TEXT NOT NULL,
+        image_url TEXT NOT NULL,
+        label TEXT NOT NULL DEFAULT '',
+        sort_order INT NOT NULL DEFAULT 0,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+    await pool.query(
+      `CREATE INDEX IF NOT EXISTS idx_creator_stickers_user ON creator_stickers(creator_user_id)`,
+    ).catch(() => {});
+
     const userCount = await pool.query(`SELECT COUNT(*) as cnt FROM auth_users`);
     const profileCount = await pool.query(`SELECT COUNT(*) as cnt FROM profiles`);
     logger.info(`Tables ready — ${userCount.rows[0]?.cnt || 0} auth users, ${profileCount.rows[0]?.cnt || 0} profiles in DB`);
@@ -725,5 +739,54 @@ export async function dbDeleteBattleBuckets(hostRoomId: string): Promise<void> {
     await p.query(`DELETE FROM battle_creator_buckets WHERE host_room_id = $1`, [hostRoomId]);
   } catch (err) {
     logger.error({ err, hostRoomId }, "dbDeleteBattleBuckets failed");
+  }
+}
+
+// ── Creator Stickers ──
+
+export async function dbGetCreatorStickers(creatorUserId: string): Promise<{ id: number; image_url: string; label: string }[]> {
+  const p = getPool();
+  if (!p) return [];
+  try {
+    const res = await p.query(
+      `SELECT id, image_url, label FROM creator_stickers WHERE creator_user_id = $1 ORDER BY sort_order, id`,
+      [creatorUserId],
+    );
+    return res.rows;
+  } catch (err) {
+    logger.error({ err, creatorUserId }, "dbGetCreatorStickers failed");
+    return [];
+  }
+}
+
+export async function dbAddCreatorSticker(creatorUserId: string, imageUrl: string, label: string): Promise<{ id: number; image_url: string; label: string } | null> {
+  const p = getPool();
+  if (!p) return null;
+  try {
+    const count = await p.query(`SELECT COUNT(*) as cnt FROM creator_stickers WHERE creator_user_id = $1`, [creatorUserId]);
+    if (Number(count.rows[0]?.cnt) >= 20) return null;
+    const res = await p.query(
+      `INSERT INTO creator_stickers (creator_user_id, image_url, label, sort_order) VALUES ($1, $2, $3, COALESCE((SELECT MAX(sort_order) + 1 FROM creator_stickers WHERE creator_user_id = $1), 0)) RETURNING id, image_url, label`,
+      [creatorUserId, imageUrl, label],
+    );
+    return res.rows[0] || null;
+  } catch (err) {
+    logger.error({ err, creatorUserId }, "dbAddCreatorSticker failed");
+    return null;
+  }
+}
+
+export async function dbDeleteCreatorSticker(creatorUserId: string, stickerId: number): Promise<boolean> {
+  const p = getPool();
+  if (!p) return false;
+  try {
+    const res = await p.query(
+      `DELETE FROM creator_stickers WHERE id = $1 AND creator_user_id = $2`,
+      [stickerId, creatorUserId],
+    );
+    return (res.rowCount ?? 0) > 0;
+  } catch (err) {
+    logger.error({ err, stickerId, creatorUserId }, "dbDeleteCreatorSticker failed");
+    return false;
   }
 }

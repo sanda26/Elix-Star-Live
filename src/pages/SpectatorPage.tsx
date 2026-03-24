@@ -187,7 +187,7 @@ export default function SpectatorPage() {
   const comboTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const resetComboTimer = () => {
     if (comboTimerRef.current) clearTimeout(comboTimerRef.current);
-    comboTimerRef.current = setTimeout(() => { setShowComboButton(false); setComboCount(0); }, 5000);
+    comboTimerRef.current = setTimeout(() => { setShowComboButton(false); setComboCount(0); }, 8000);
   };
 
   const [showChatInput, setShowChatInput] = useState(false);
@@ -1711,7 +1711,7 @@ export default function SpectatorPage() {
 
   const handleComboClick = () => {
     if (!lastSentGift) return;
-    setComboCount(prev => prev + 1);
+    setComboCount(prev => Math.min(prev + 1, 10000));
     resetComboTimer();
     handleSendGift(lastSentGift);
   };
@@ -2454,9 +2454,12 @@ export default function SpectatorPage() {
             <button
               type="button"
               onClick={handleComboClick}
-              className="w-16 h-14 rounded-full bg-gradient-to-r from-[#C9A96E] to-[#D4A017] flex flex-col items-center justify-center animate-pulse active:scale-90 transition-transform shadow-[0_0_20px_rgba(201,169,110,0.5)] border-2 border-white/30"
+              disabled={comboCount >= 10000}
+              className="w-16 h-14 rounded-full bg-gradient-to-r from-[#C9A96E] to-[#D4A017] flex flex-col items-center justify-center animate-pulse active:scale-90 transition-transform shadow-[0_0_20px_rgba(201,169,110,0.5)] border-2 border-white/30 disabled:opacity-50 disabled:animate-none"
             >
-              <span className="text-xl font-black italic text-white drop-shadow-md">x{comboCount}</span>
+              <span className={`font-black italic text-white drop-shadow-md ${comboCount >= 1000 ? 'text-sm' : 'text-xl'}`}>
+                x{comboCount >= 1000 ? `${(comboCount / 1000).toFixed(comboCount % 1000 === 0 ? 0 : 1)}K` : comboCount}
+              </span>
               <span className="text-[9px] font-bold text-white uppercase tracking-widest">Combo</span>
             </button>
           </div>

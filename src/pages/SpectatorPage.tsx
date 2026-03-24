@@ -556,8 +556,9 @@ export default function SpectatorPage() {
 
   // Video ref for live stream (LiveKit)
   const videoRef = useRef<HTMLVideoElement>(null);
-  /** Tap-to-like / floating hearts — same coordinate space as host video (matches LiveStream stage). */
+  /** Tap-to-like / floating hearts — rendered in chat panel (right side), not over video. */
   const spectatorStageRef = useRef<HTMLDivElement>(null);
+  const spectatorChatHeartsRef = useRef<HTMLDivElement>(null);
   const [floatingHearts, setFloatingHearts] = useState<
     Array<{ id: string; x: number; y: number; dx: number; rot: number; size: number; color: string; username?: string; avatar?: string }>
   >([]);
@@ -576,18 +577,33 @@ export default function SpectatorPage() {
   }, []);
 
   const spawnHeartFromClient = useCallback((clientX: number, clientY: number, colorOverride?: string, likerName?: string, likerAvatar?: string) => {
-    const stage = spectatorStageRef.current;
-    if (!stage) return;
-    const rect = stage.getBoundingClientRect();
-    spawnHeartAt(clientX - rect.left, clientY - rect.top, colorOverride, likerName, likerAvatar);
+    const layer = spectatorChatHeartsRef.current;
+    if (!layer) return;
+    const rect = layer.getBoundingClientRect();
+    const inside =
+      clientX >= rect.left &&
+      clientX <= rect.right &&
+      clientY >= rect.top &&
+      clientY <= rect.bottom;
+    if (inside) {
+      spawnHeartAt(clientX - rect.left, clientY - rect.top, colorOverride, likerName, likerAvatar);
+      return;
+    }
+    const w = rect.width;
+    const h = rect.height;
+    const x = w * (0.58 + Math.random() * 0.35);
+    const y = h * (0.12 + Math.random() * 0.68);
+    spawnHeartAt(x, y, colorOverride ?? '#FF2D55', likerName, likerAvatar);
   }, [spawnHeartAt]);
 
   const spawnHeartAtSideSpectator = useCallback(() => {
-    const stage = spectatorStageRef.current;
-    if (!stage) return;
-    const rect = stage.getBoundingClientRect();
-    const x = rect.width * 0.25;
-    const y = rect.height * 0.62;
+    const layer = spectatorChatHeartsRef.current;
+    if (!layer) return;
+    const w = layer.clientWidth;
+    const h = layer.clientHeight;
+    if (w <= 0 || h <= 0) return;
+    const x = w * (0.58 + Math.random() * 0.35);
+    const y = h * (0.2 + Math.random() * 0.55);
     spawnHeartAt(x, y, '#FF2D55', viewerName, viewerAvatar);
   }, [spawnHeartAt, viewerName, viewerAvatar]);
 
@@ -1298,12 +1314,12 @@ export default function SpectatorPage() {
         return;
       }
       if (data.user_id === user?.id) return;
-      const stage = spectatorStageRef.current;
-      if (stage) {
-        const w = stage.clientWidth;
-        const h = stage.clientHeight;
-        const x = w * (0.6 + Math.random() * 0.3);
-        const y = h * (0.4 + Math.random() * 0.2);
+      const layer = spectatorChatHeartsRef.current;
+      if (layer && layer.clientWidth > 0 && layer.clientHeight > 0) {
+        const w = layer.clientWidth;
+        const h = layer.clientHeight;
+        const x = w * (0.58 + Math.random() * 0.35);
+        const y = h * (0.18 + Math.random() * 0.58);
         spawnHeartAt(x, y, undefined, typeof data.username === 'string' ? data.username : undefined, typeof data.avatar === 'string' ? data.avatar : undefined);
       }
       setActiveLikes((prev) => prev + 1);
@@ -2167,28 +2183,7 @@ export default function SpectatorPage() {
               }
             >
               <div ref={spectatorStageRef} className="relative flex w-full h-full min-h-0 flex-row overflow-hidden rounded-none">
-                {floatingHearts.map((h) => (
-                  <div
-                    key={h.id}
-                    className="pointer-events-none absolute elix-heart-float z-[200] flex items-center gap-1.5"
-                    style={{
-                      left: h.x,
-                      top: h.y,
-                      '--elix-heart-dx': '0px',
-                      '--elix-heart-rot': '0deg',
-                    } as React.CSSProperties}
-                  >
-                    <svg width={h.size} height={h.size} viewBox="0 0 24 24" fill={h.color} stroke="none" className="flex-shrink-0">
-                      <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
-                    </svg>
-                    {h.username && (
-                      <span className="text-[#C8CCD4] text-[11px] font-bold whitespace-nowrap drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]">
-                        {h.username}
-                      </span>
-                    )}
-                  </div>
-                ))}
-              {/* Left: host video — tap/double-tap to like (Aprecieri); excludes buttons/inputs */}
+              {/* Left: host video — tap/double-tap to like (Aprecieri); hearts render in chat panel */}
               <div
                 className={`touch-manipulation overflow-hidden rounded-none min-w-0 relative ${showGrid || spectatorBattle?.active ? 'w-1/2' : 'w-full'}`}
                 onPointerDown={(e) => {
@@ -2475,17 +2470,46 @@ export default function SpectatorPage() {
           </div>
         </div>
 
-        {/* CHAT — above bottom bar, below gift overlay */}
+        {/* CHAT — above bottom bar; floating hearts (aprecieri) on right side of this panel */}
         <div className="chat-zone fixed left-0 right-0 bottom-[calc(52px+max(8px,env(safe-area-inset-bottom)))] z-[100] flex justify-center pointer-events-none">
-          <div className="w-full max-w-[480px] h-[30dvh] max-h-[250px] overflow-y-auto pointer-events-auto bg-transparent px-1">
-            <ChatOverlay
-              messages={messages}
-              variant="panel"
-              compact
-              isModerator={isModerator}
-              onLike={handleLikeTap}
-              onProfileTap={() => {}}
-            />
+          <div className="w-full max-w-[480px] h-[30dvh] max-h-[250px] relative">
+            <div
+              ref={spectatorChatHeartsRef}
+              className="absolute inset-0 z-[25] overflow-hidden pointer-events-none"
+              aria-hidden
+            >
+              {floatingHearts.map((h) => (
+                <div
+                  key={h.id}
+                  className="absolute elix-heart-float z-[200] flex items-center gap-1.5"
+                  style={{
+                    left: h.x,
+                    top: h.y,
+                    '--elix-heart-dx': '0px',
+                    '--elix-heart-rot': '0deg',
+                  } as React.CSSProperties}
+                >
+                  <svg width={h.size} height={h.size} viewBox="0 0 24 24" fill={h.color} stroke="none" className="flex-shrink-0">
+                    <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+                  </svg>
+                  {h.username && (
+                    <span className="text-[#C8CCD4] text-[11px] font-bold whitespace-nowrap drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)] max-w-[min(160px,42vw)] truncate">
+                      {h.username}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+            <div className="relative z-[10] h-full overflow-y-auto pointer-events-auto bg-transparent px-1">
+              <ChatOverlay
+                messages={messages}
+                variant="panel"
+                compact
+                isModerator={isModerator}
+                onLike={handleLikeTap}
+                onProfileTap={() => {}}
+              />
+            </div>
           </div>
         </div>
 

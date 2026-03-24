@@ -2323,9 +2323,54 @@ export default function SpectatorPage() {
                     <Heart className="w-2.5 h-2.5 text-[#FF2D55] shrink-0" strokeWidth={2.5} fill="#FF2D55" />
                     <span className="text-white/70 text-[8px] font-bold tabular-nums">{(typeof activeLikes === 'number' && Number.isFinite(activeLikes) ? activeLikes : 0).toLocaleString()}</span>
                   </div>
-                  {/* Follow — spectator sees creator top bar; only creator bottom bar is hidden */}
-                  {!isFollowing && (
-                    <div className="absolute right-1 top-1/2 -translate-y-1/2 grid place-items-center pointer-events-auto">
+                  {/* Follow / Join — matches creator top bar exactly */}
+                  <div className="absolute right-1 top-1/2 -translate-y-1/2 grid place-items-center pointer-events-auto">
+                    {/* Join Button (Bottom layer) — visible after following */}
+                    <button
+                      type="button"
+                      className={`col-start-1 row-start-1 flex items-center justify-center gap-1 ${hasJoinedToday ? 'bg-[#C9A96E] border-[#C9A96E]' : 'bg-[#13151A] border-[#C9A96E]/40'} rounded-full px-1.5 py-0.5 shadow-sm border w-[58px] h-7 z-0 transition-colors duration-200`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (!hasJoinedToday && user?.id && effectiveStreamId) {
+                          const today = new Date().toISOString().split('T')[0];
+                          const storageKey = `joined_stream_${effectiveStreamId}_${user.id}_${today}`;
+                          localStorage.setItem(storageKey, 'true');
+                          const heartKey = `my_heart_count_${effectiveStreamId}_${user.id}`;
+                          const newCount = myHeartCount + 1;
+                          localStorage.setItem(heartKey, newCount.toString());
+                          setMyHeartCount(newCount);
+                          setHasJoinedToday(true);
+                          const newMessage: LiveMessage = {
+                            id: Date.now().toString(),
+                            username: viewerName,
+                            text: '\u2764\ufe0f Joined the team!',
+                            level: userLevel,
+                            isGift: false,
+                            avatar: viewerAvatar,
+                            isSystem: true,
+                            membershipIcon: '/icons/Membership.png'
+                          };
+                          setMessages(prev => [...prev, newMessage]);
+                          spawnHeartFromClient(e.clientX, e.clientY);
+                        }
+                      }}
+                    >
+                      <div className="relative">
+                        <Heart
+                          className={`w-3.5 h-3.5 ${hasJoinedToday ? 'text-white fill-white' : 'text-[#C9A96E] fill-[#C9A96E]'}`}
+                          strokeWidth={2.5}
+                        />
+                        {!hasJoinedToday && (
+                          <div className="absolute -top-1 -right-1 w-2 h-2 bg-[#C9A96E] rounded-full flex items-center justify-center border border-white">
+                            <span className="text-white text-[6px] font-bold leading-none">+</span>
+                          </div>
+                        )}
+                      </div>
+                      <span className={`${hasJoinedToday ? 'text-white' : 'text-[#C9A96E]'} text-[10px] font-bold`}>Join</span>
+                    </button>
+
+                    {/* Follow Button (Top layer) — covers Join until user follows */}
+                    {!isFollowing && (
                       <button
                         type="button"
                         className="col-start-1 row-start-1 z-20 relative flex items-center justify-center gap-1 bg-[#FF2D55] rounded-full px-1.5 py-0.5 shadow-sm border border-white/20 w-[58px] h-7"
@@ -2334,10 +2379,11 @@ export default function SpectatorPage() {
                           followHost(e);
                         }}
                       >
+                        <Plus size={12} className="text-white" strokeWidth={3} />
                         <span className="text-white text-[10px] font-bold">Follow</span>
                       </button>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               </div>
 

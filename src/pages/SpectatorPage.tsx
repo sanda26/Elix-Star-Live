@@ -1935,7 +1935,7 @@ export default function SpectatorPage() {
                     {[0, 1, 2].map((i) => {
                       const slot = mvpSlots.host[i];
                       return (
-                        <div key={`mvp-l-${i}`} className="relative flex flex-col items-center" style={{ zIndex: 3 - i }}>
+                        <div key={`mvp-l-${i}`} className={`relative flex flex-col items-center ${i > 0 ? '-ml-2' : ''}`} style={{ zIndex: 3 - i }}>
                           <GoldProfileFrame size={SPECTATOR_BATTLE_PROFILE_RING_PX}>
                             {slot ? (
                               <img src={resolveCircleAvatar(slot.avatar, slot.name)} alt="" className="h-full w-full rounded-full object-cover object-center" />
@@ -1954,7 +1954,7 @@ export default function SpectatorPage() {
                     {[0, 1, 2].map((i) => {
                       const slot = mvpSlots.opponent[i];
                       return (
-                        <div key={`mvp-r-${i}`} className="relative flex flex-col items-center" style={{ zIndex: 3 - i }}>
+                        <div key={`mvp-r-${i}`} className={`relative flex flex-col items-center ${i > 0 ? '-ml-2' : ''}`} style={{ zIndex: 3 - i }}>
                           <GoldProfileFrame size={SPECTATOR_BATTLE_PROFILE_RING_PX}>
                             {slot ? (
                               <img src={resolveCircleAvatar(slot.avatar, slot.name)} alt="" className="h-full w-full rounded-full object-cover object-center" />
@@ -2360,7 +2360,7 @@ export default function SpectatorPage() {
                   {[0, 1, 2].map((i) => {
                     const slot = spectatorTopAvatars[i];
                     return (
-                      <div key={`spectator-top-mvp-${i}`} style={{ zIndex: 3 - i }} className="relative">
+                      <div key={`spectator-top-mvp-${i}`} style={{ zIndex: 3 - i }} className={`relative ${i > 0 ? '-ml-2.5' : ''}`}>
                         <GoldProfileFrame size={SPECTATOR_MVP_PROFILE_RING_PX}>
                           {slot ? (
                             <img
@@ -2396,7 +2396,7 @@ export default function SpectatorPage() {
                   <span className="text-white text-[11px] font-bold tabular-nums">
                     {typeof viewerCount === 'number' && Number.isFinite(viewerCount) ? viewerCount.toLocaleString() : String(viewerCount)}
                   </span>
-                  <UserPlus size={10} className="text-[#C9A96E]" />
+                  <UserPlus size={16} className="text-[#C9A96E]" strokeWidth={2.2} />
                 </button>
                 <button
                   type="button"

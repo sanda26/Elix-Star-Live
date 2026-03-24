@@ -3999,7 +3999,7 @@ export default function LiveStream() {
             <div className="absolute bottom-1 left-0 right-0 px-3 py-2 flex items-center justify-between flex-none pointer-events-none relative z-30">
               <div className="flex items-center gap-0 min-w-0 flex-1 justify-start pointer-events-auto" onClick={() => setShowViewerList(true)}>
                 {[0, 1, 2].map((i) => (
-                  <div key={`mvp-l-${i}`} className="relative flex flex-col items-center" style={{ zIndex: 3 - i }}>
+                  <div key={`mvp-l-${i}`} className={`relative flex flex-col items-center ${i > 0 ? '-ml-2.5' : ''}`} style={{ zIndex: 3 - i }}>
                     <GoldProfileFrame size={LIVE_MVP_PROFILE_RING_PX}>
                       {topMvpHostBattle[i] ? (
                         <img src={resolveCircleAvatar(topMvpHostBattle[i].avatar, topMvpHostBattle[i].displayName || topMvpHostBattle[i].username)} alt="" className="h-full w-full rounded-full object-cover object-center" />
@@ -4012,7 +4012,7 @@ export default function LiveStream() {
               </div>
               <div className="flex items-center gap-0 min-w-0 flex-1 justify-end pointer-events-auto" onClick={() => setShowViewerList(true)}>
                 {[0, 1, 2].map((i) => (
-                  <div key={`mvp-r-${i}`} className="relative flex flex-col items-center" style={{ zIndex: 3 - i }}>
+                  <div key={`mvp-r-${i}`} className={`relative flex flex-col items-center ${i > 0 ? '-ml-2.5' : ''}`} style={{ zIndex: 3 - i }}>
                     <GoldProfileFrame size={LIVE_MVP_PROFILE_RING_PX}>
                       {topMvpOpponentBattle[i] ? (
                         <img src={resolveCircleAvatar(topMvpOpponentBattle[i].avatar, topMvpOpponentBattle[i].displayName || topMvpOpponentBattle[i].username)} alt="" className="h-full w-full rounded-full object-cover object-center" />
@@ -4190,7 +4190,7 @@ export default function LiveStream() {
                       <div className="pointer-events-auto flex items-center gap-1 mt-1">
                         <div className="flex items-center gap-0 pointer-events-auto flex-shrink-0" onClick={() => setShowViewerList(prev => !prev)}>
                           {[0, 1, 2].map((i) => (
-                            <div key={`top-viewers-${i}`} style={{ zIndex: 3 - i }} className="relative">
+                            <div key={`top-viewers-${i}`} style={{ zIndex: 3 - i }} className={`relative ${i > 0 ? '-ml-2.5' : ''}`}>
                               <GoldProfileFrame size={LIVE_MVP_PROFILE_RING_PX}>
                                 {topMvpViewers[i] ? (
                                   <img
@@ -4213,7 +4213,7 @@ export default function LiveStream() {
                           className="flex items-center gap-1.5 px-0 py-1 rounded-full bg-transparent border-0 active:scale-95 transition-transform pointer-events-auto"
                         >
                           <span className="text-white text-[9px] font-bold tabular-nums">{formatCountShort(viewerCount)}</span>
-                          <UserPlus size={10} className="text-[#C9A96E]" strokeWidth={2.2} />
+                          <UserPlus size={16} className="text-[#C9A96E]" strokeWidth={2.2} />
                         </button>
                         <button type="button" onClick={() => { if (!isBroadcast) { navigate('/feed', { replace: true }); } else if (isBattleMode) { toggleBattle(); } else { stopBroadcast(); } }} className="w-7 h-7 rounded-full flex items-center justify-center active:scale-95 transition-transform" title={isBroadcast ? (isBattleMode ? 'End battle' : 'End broadcast') : 'Leave'}>
                           <img src="/Icons/Gold power buton.png" alt="Close" className="w-5 h-5 object-contain" />

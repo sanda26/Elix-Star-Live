@@ -2348,7 +2348,7 @@ export default function SpectatorPage() {
                 </div>
               </div>
 
-              <div className="pointer-events-auto flex items-center gap-1 flex-shrink-0 min-w-0">
+              <div className="pointer-events-auto flex items-center gap-[0.5mm] flex-shrink-0 min-w-0">
                 <div
                   className="flex items-center gap-[0.5mm] pointer-events-auto flex-shrink-0"
                   onClick={() => {

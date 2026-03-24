@@ -33,9 +33,10 @@ import {
   Flag,
   Camera,
   CameraOff,
+  Eye,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { GIFTS, resolveGiftAssetUrl } from '../lib/gifts';
+import { GIFTS, GIFT_COMBO_MAX, resolveGiftAssetUrl } from '../lib/gifts';
 import { GiftOverlay } from '../components/GiftOverlay';
 import GiftAnimationOverlay from '../components/GiftAnimationOverlay';
 import { ChatOverlay } from '../components/ChatOverlay';
@@ -2982,6 +2983,7 @@ export default function LiveStream() {
 
   const handleComboClick = async () => {
       if (!lastSentGift) return;
+      if (comboCount >= GIFT_COMBO_MAX) return;
 
       // Check balance
       if (coinBalance < lastSentGift.coins) {
@@ -3089,7 +3091,7 @@ export default function LiveStream() {
 
 
       // Handle Combo Logic
-      setComboCount(prev => prev + 1);
+      setComboCount((prev) => Math.min(prev + 1, GIFT_COMBO_MAX));
       resetComboTimer();
   };
 
@@ -4208,6 +4210,14 @@ export default function LiveStream() {
                           <span className="text-white text-[9px] font-bold tabular-nums">{formatCountShort(viewerCount)}</span>
                           <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round"><polyline points="6 9 12 15 18 9"/></svg>
                         </button>
+                        <button
+                          type="button"
+                          title="View viewers"
+                          onClick={() => setShowViewerList(true)}
+                          className="w-7 h-7 rounded-full flex items-center justify-center active:scale-95 transition-transform pointer-events-auto"
+                        >
+                          <Eye size={16} className="text-[#C9A96E]" strokeWidth={2.2} />
+                        </button>
                         <button type="button" onClick={() => { if (!isBroadcast) { navigate('/feed', { replace: true }); } else if (isBattleMode) { toggleBattle(); } else { stopBroadcast(); } }} className="w-7 h-7 rounded-full flex items-center justify-center active:scale-95 transition-transform" title={isBroadcast ? (isBattleMode ? 'End battle' : 'End broadcast') : 'Leave'}>
                           <img src="/Icons/Gold power buton.png" alt="Close" className="w-5 h-5 object-contain" />
                         </button>
@@ -4271,9 +4281,12 @@ export default function LiveStream() {
               <button
                 type="button"
                 onClick={(e) => { e.stopPropagation(); handleComboClick(); }}
-                className="w-16 h-14 rounded-full bg-gradient-to-r from-secondary to-[#C9A96E] flex flex-col items-center justify-center animate-pulse active:scale-90 transition-transform shadow-[0_0_20px_rgba(201,169,110,0.5)] border-2 border-white/30"
+                disabled={comboCount >= GIFT_COMBO_MAX}
+                className="w-16 h-14 rounded-full bg-gradient-to-r from-secondary to-[#C9A96E] flex flex-col items-center justify-center animate-pulse active:scale-90 transition-transform shadow-[0_0_20px_rgba(201,169,110,0.5)] border-2 border-white/30 disabled:opacity-50 disabled:animate-none"
               >
-                <span className="text-xl font-black italic text-white drop-shadow-md">x{comboCount}</span>
+                <span className={`font-black italic text-white drop-shadow-md ${comboCount >= 1000 ? 'text-sm' : 'text-xl'}`}>
+                  x{comboCount >= 1000 ? `${(comboCount / 1000).toFixed(comboCount % 1000 === 0 ? 0 : 1)}K` : comboCount}
+                </span>
                 <span className="text-[9px] font-bold text-white uppercase tracking-widest">Combo</span>
               </button>
               <div className="mt-1 px-3 py-1 text-[10px] text-secondary font-bold bg-[#13151A]/60 rounded-full backdrop-blur-md border border-white/10 shadow-lg">

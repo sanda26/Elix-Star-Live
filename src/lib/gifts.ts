@@ -662,4 +662,7 @@ const giftUrl = (path: string) => resolveGiftAssetUrl(path);
     video: giftUrl('/gifts/lightning_hypercar.mp4'), 
     preview: giftUrl('/gifts/lightning_hypercar.png'), 
   }, 
-       ];
+       ]; 
+
+/** Max combo multiplier on the gift combo button (counts 1 … this value). */
+export const GIFT_COMBO_MAX = 5000;

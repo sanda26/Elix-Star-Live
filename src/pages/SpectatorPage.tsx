@@ -21,6 +21,7 @@ import {
   MicOff,
   Camera,
   CameraOff,
+  Keyboard,
   Coins,
   Lock,
   Crown,
@@ -34,7 +35,7 @@ import {
   Image,
 } from 'lucide-react';
 import { GiftPanel } from '../components/GiftPanel';
-import { GIFTS, resolveGiftAssetUrl } from '../lib/gifts';
+import { GIFTS, GIFT_COMBO_MAX, resolveGiftAssetUrl } from '../lib/gifts';
 import { GiftOverlay } from '../components/GiftOverlay';
 import GiftAnimationOverlay from '../components/GiftAnimationOverlay';
 import { ChatOverlay } from '../components/ChatOverlay';
@@ -189,7 +190,6 @@ export default function SpectatorPage() {
     comboTimerRef.current = setTimeout(() => { setShowComboButton(false); setComboCount(0); }, 8000);
   };
 
-  const [showChatInput, setShowChatInput] = useState(false);
   const chatInputRef = useRef<HTMLInputElement>(null);
   const [showViewersPanel, setShowViewersPanel] = useState(false);
   const [viewersList, setViewersList] = useState<{ id: string; name: string; avatar: string; level?: number }[]>([]);
@@ -1614,8 +1614,9 @@ export default function SpectatorPage() {
   }, [viewerName, userLevel, viewerAvatar, isModerator]);
 
   // Spectator gift → creator: send to creator's room (broadcast so creator sees it and gets credit)
-  const handleSendGift = async (gift: typeof GIFTS[0]) => {
+  const handleSendGift = async (gift: typeof GIFTS[0], opts?: { fromCombo?: boolean }) => {
     if (!gift) return;
+    if (opts?.fromCombo && comboCount >= GIFT_COMBO_MAX) return;
     const isGiftVideoFile = (value: string) => {
       const p = value.split('?')[0].toLowerCase();
       return p.endsWith('.mp4') || p.endsWith('.webm');
@@ -1708,16 +1709,19 @@ export default function SpectatorPage() {
     
 
     setLastSentGift(gift);
-    setComboCount(1);
+    if (opts?.fromCombo) {
+      setComboCount((prev) => Math.min(prev + 1, GIFT_COMBO_MAX));
+    } else {
+      setComboCount(1);
+    }
     setShowComboButton(true);
     resetComboTimer();
   };
 
   const handleComboClick = () => {
     if (!lastSentGift) return;
-    setComboCount(prev => Math.min(prev + 1, 10000));
-    resetComboTimer();
-    handleSendGift(lastSentGift);
+    if (comboCount >= GIFT_COMBO_MAX) return;
+    void handleSendGift(lastSentGift, { fromCombo: true });
   };
 
   if (streamIsLive === null) {
@@ -2436,6 +2440,24 @@ export default function SpectatorPage() {
                 </button>
                 <button
                   type="button"
+                  title="View viewers"
+                  onClick={() => {
+                    const list: { id: string; name: string; avatar: string; level?: number }[] = [];
+                    const hid = hostUserIdRef.current || hostUserId || effectiveStreamId;
+                    actualViewersRef.current.forEach((v, id) => {
+                      if (id !== user?.id && id !== hid && id !== effectiveStreamId) {
+                        list.push({ id, name: v.name, avatar: v.avatar, level: v.level });
+                      }
+                    });
+                    setViewersList(list);
+                    setShowViewersPanel(true);
+                  }}
+                  className="w-8 h-8 rounded-full bg-transparent border-0 flex items-center justify-center active:scale-90 transition-transform pointer-events-auto"
+                >
+                  <Eye size={18} className="text-[#C9A96E]" strokeWidth={2.2} />
+                </button>
+                <button
+                  type="button"
                   title="Leave stream"
                   onClick={() => {
                     websocket.disconnect();
@@ -2519,7 +2541,7 @@ export default function SpectatorPage() {
             <button
               type="button"
               onClick={handleComboClick}
-              disabled={comboCount >= 10000}
+              disabled={comboCount >= GIFT_COMBO_MAX}
               className="w-16 h-14 rounded-full bg-gradient-to-r from-[#C9A96E] to-[#D4A017] flex flex-col items-center justify-center animate-pulse active:scale-90 transition-transform shadow-[0_0_20px_rgba(201,169,110,0.5)] border-2 border-white/30 disabled:opacity-50 disabled:animate-none"
             >
               <span className={`font-black italic text-white drop-shadow-md ${comboCount >= 1000 ? 'text-sm' : 'text-xl'}`}>
@@ -2607,6 +2629,18 @@ export default function SpectatorPage() {
           >
             <button
               type="button"
+              title="Open keyboard"
+              className="flex-shrink-0 transition-colors text-[#C9A96E] active:scale-95"
+              onClick={() => {
+                setShowEmojiPicker(false);
+                setShowStickerPanel(false);
+                window.setTimeout(() => chatInputRef.current?.focus(), 50);
+              }}
+            >
+              <Keyboard size={18} strokeWidth={2.2} />
+            </button>
+            <button
+              type="button"
               title="Emoji"
               className={`flex-shrink-0 transition-colors ${showEmojiPicker ? 'text-[#C9A96E]' : 'text-white/40'}`}
               onClick={() => { setShowEmojiPicker(v => !v); setShowStickerPanel(false); }}
@@ -2624,6 +2658,7 @@ export default function SpectatorPage() {
               </button>
             )}
             <input
+              ref={chatInputRef}
               type="text"
               inputMode="text"
               enterKeyHint="send"

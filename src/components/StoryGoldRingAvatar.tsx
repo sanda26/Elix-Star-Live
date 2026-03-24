@@ -52,18 +52,25 @@ export function StoryGoldRingAvatar({
 
       {live && (
         <div
-          className="pointer-events-none absolute inset-0 rounded-full"
-          style={{ ...LIVE_RING_STYLE, zIndex: 2 }}
+          className="pointer-events-none absolute rounded-full"
+          style={{
+            ...LIVE_RING_STYLE,
+            zIndex: 2,
+            inset: '0.5mm',
+            top: '0mm',
+          }}
         />
       )}
 
-      <img
-        src={FRAME_SRC}
-        alt=""
-        className="pointer-events-none absolute inset-0 h-full w-full object-contain"
-        style={{ zIndex: 3 }}
-        draggable={false}
-      />
+      {!live && (
+        <img
+          src={FRAME_SRC}
+          alt=""
+          className="pointer-events-none absolute inset-0 h-full w-full object-contain"
+          style={{ zIndex: 3 }}
+          draggable={false}
+        />
+      )}
 
       {live && (
         <div className="pointer-events-none absolute bottom-[calc(2px+0.5mm)] left-1/2 z-[20] -translate-x-1/2 translate-y-[35%] whitespace-nowrap rounded-full bg-red-500 px-[0.7mm] py-[0.1mm] text-[6px] font-bold leading-none text-white">

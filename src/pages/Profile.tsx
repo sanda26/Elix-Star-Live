@@ -12,6 +12,7 @@ import ReportModal from '../components/ReportModal';
 import PromotePanel from '../components/PromotePanel';
 import { useVideoStore } from '../store/useVideoStore';
 import { apiUrl } from '../lib/api';
+import { fetchAllSharePanelContacts } from '../lib/sharePanelContacts';
 
 interface Video {
   id: string;
@@ -73,31 +74,12 @@ export default function Profile() {
   const openSharePanel = async () => {
     setShowSharePanel(true);
     setShareSent(new Set());
-    if (!user?.id) return;
     try {
-      const session = useAuthStore.getState().session;
-      const headers: Record<string, string> = {};
-      if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
-
-      const [followersRes, followingRes] = await Promise.all([
-        fetch(apiUrl(`/api/profiles/${user.id}/followers`), { credentials: 'include', headers }),
-        fetch(apiUrl(`/api/profiles/${user.id}/following`), { credentials: 'include', headers }),
-      ]);
-      const followerIds: string[] = followersRes.ok ? (await followersRes.json().catch(() => ({ followers: [] }))).followers || [] : [];
-      const followingIds: string[] = followingRes.ok ? (await followingRes.json().catch(() => ({ following: [] }))).following || [] : [];
-      const ids = new Set<string>([...followerIds, ...followingIds]);
-      ids.delete(user.id);
-      if (ids.size === 0) { setShareFollowers([]); return; }
-
-      const profilesRes = await fetch(apiUrl('/api/profiles'), { credentials: 'include', headers });
-      if (profilesRes.ok) {
-        const allProfiles = (await profilesRes.json()).profiles || [];
-        const filtered = allProfiles.filter((p: any) => ids.has(p.user_id));
-        setShareFollowers(filtered);
-      } else {
-        setShareFollowers([]);
-      }
-    } catch { setShareFollowers([]); }
+      const rows = await fetchAllSharePanelContacts(user?.id);
+      setShareFollowers(rows);
+    } catch {
+      setShareFollowers([]);
+    }
   };
 
   const sendShareTo = async (targetUserId: string) => {
@@ -555,7 +537,7 @@ export default function Profile() {
                       </div>
                       <span className="text-white/80 text-[11px] font-medium">Create</span>
                     </button>
-                    {shareFollowers.map((f) => (
+                    {shareFollowers.filter((f) => (f.username || '').toLowerCase().includes((shareQuery || '').toLowerCase())).map((f) => (
                       <button
                         key={f.user_id}
                         className="flex-shrink-0 flex flex-col items-center gap-1 active:scale-95 transition-transform"

@@ -47,6 +47,7 @@ import { GoldProfileFrame } from '../components/GoldProfileFrame';
 import { useAuthStore } from '../store/useAuthStore';
 import { clearCachedCameraStream, getCachedCameraStream } from '../lib/cameraStream';
 import { apiUrl, getLiveKitUrl } from '../lib/api';
+import { fetchAllSharePanelContacts } from '../lib/sharePanelContacts';
 import { LevelBadge } from '../components/LevelBadge';
 import ReportModal from '../components/ReportModal';
 import PromotePanel from '../components/PromotePanel';
@@ -1363,20 +1364,51 @@ export default function LiveStream() {
   const [shareSentTo, setShareSentTo] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    if (showSharePanel && user?.id) {
-      setShareFollowers([]);
-    } else {
+    if (!showSharePanel) {
       setShareSentTo(new Set());
+      return;
     }
+    let cancelled = false;
+    (async () => {
+      const rows = await fetchAllSharePanelContacts(user?.id);
+      if (!cancelled) setShareFollowers(rows);
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [showSharePanel, user?.id]);
 
   const sendShareToFollower = async (targetUserId: string) => {
     if (!user?.id || shareSentTo.has(targetUserId)) return;
+    const label = shareFollowers.find((f) => f.user_id === targetUserId)?.username || 'user';
     try {
-      await navigator.clipboard.writeText(window.location.href);
-      showToast('Link copied to clipboard');
-      setShareSentTo(prev => new Set(prev).add(targetUserId));
-    } catch {}
+      const session = useAuthStore.getState().session;
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+      const res = await fetch(apiUrl('/api/live-share'), {
+        method: 'POST',
+        credentials: 'include',
+        headers,
+        body: JSON.stringify({
+          targetUserId,
+          streamKey: effectiveStreamId,
+          hostUserId: user.id,
+          hostName: myCreatorName,
+          hostAvatar: myAvatar || '',
+          sharerName: user?.username || user?.name || 'Someone',
+          sharerAvatar: user?.avatar || '',
+        }),
+      });
+      const j = await res.json().catch(() => ({} as Record<string, unknown>));
+      if (!res.ok) {
+        showToast(typeof j?.error === 'string' ? j.error : 'Could not share');
+        return;
+      }
+      showToast(`Shared live with ${label}`);
+      setShareSentTo((prev) => new Set(prev).add(targetUserId));
+    } catch {
+      showToast('Could not share');
+    }
   };
 
   // Team totals (same as server): red = hostScore + player3Score; blue = opponentScore + player4Score.
@@ -5339,8 +5371,20 @@ export default function LiveStream() {
             <div className="flex justify-center pt-1 pb-2">
               <div className="w-10 h-1 bg-white/20 rounded-full" />
             </div>
+            <div className="flex items-center justify-between gap-2 px-4 pb-2 flex-shrink-0">
+              <h3 className="text-white font-bold whitespace-nowrap text-sm">Share to</h3>
+              <div className="flex-none w-[120px] bg-white/5 rounded-lg px-2 py-1.5 flex items-center gap-2">
+                <Search className="w-3.5 h-3.5 text-white/30" />
+                <input
+                  value={shareQuery}
+                  onChange={(e) => setShareQuery(e.target.value)}
+                  placeholder="Search..."
+                  className="bg-transparent text-white text-xs outline-none w-full placeholder:text-white/20"
+                />
+              </div>
+            </div>
 
-            {/* Create + Followers row — Create first, then people to share to */}
+            {/* Create + all users row — same as Spectator / watch share */}
             <div className="flex gap-3 overflow-x-auto overflow-y-hidden pb-3 flex-shrink-0 px-4 no-scrollbar">
               <button
                 type="button"

@@ -492,6 +492,49 @@ export default function EnhancedVideoPlayer({
     }
   }, [incrementViews, isActive, isDuetLayout, muteAllSounds, originalVideo, video?.url, video?.music?.previewUrl, videoId, volume]);
 
+  // Pause when tab/app is hidden; resume current slide when visible again (only if still active)
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.hidden) {
+        const v = videoRef.current;
+        if (v) {
+          try {
+            v.pause();
+            v.muted = true;
+          } catch {
+            void 0;
+          }
+        }
+        if (duetOriginalRef.current) {
+          try {
+            duetOriginalRef.current.pause();
+            duetOriginalRef.current.muted = true;
+          } catch {
+            void 0;
+          }
+        }
+        const a = audioRef.current;
+        if (a) {
+          try {
+            a.pause();
+            a.muted = true;
+            a.currentTime = 0;
+          } catch {
+            void 0;
+          }
+        }
+        setIsPlaying(false);
+      } else if (isActiveRef.current) {
+        const v = videoRef.current;
+        if (v) void v.play().catch(() => {});
+        const d = duetOriginalRef.current;
+        if (d) void d.play().catch(() => {});
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
+  }, []);
+
   useEffect(() => {
     if (!muteAllSounds) return;
     setIsMuted(true);
@@ -653,7 +696,7 @@ export default function EnhancedVideoPlayer({
                 loop
                 playsInline
                 muted
-                preload="auto"
+                preload={isActive ? 'auto' : 'none'}
                 poster={posterUrl}
               />
             </div>
@@ -664,9 +707,8 @@ export default function EnhancedVideoPlayer({
                 className="w-full h-full object-cover"
                 loop
                 playsInline
-                autoPlay
                 muted
-                preload="auto"
+                preload={isActive ? 'auto' : 'none'}
                 onClick={handleVideoClick}
                 poster={posterUrl}
                 onError={() => {
@@ -692,9 +734,8 @@ export default function EnhancedVideoPlayer({
           className="w-full h-full object-cover"
           loop
           playsInline
-          autoPlay
           muted
-          preload="auto"
+          preload={isActive ? 'auto' : 'none'}
           onClick={handleVideoClick}
           poster={posterUrl}
           onError={() => {

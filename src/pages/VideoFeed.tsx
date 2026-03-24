@@ -429,11 +429,61 @@ export default function VideoFeed() {
     feedLogRef.current = feedItems.length;
   }
 
-  /* ---- Scroll handling — use IntersectionObserver for reliable active detection ---- */
+  /* ---- Active slide: IntersectionObserver (only the most visible slide plays audio/video) ---- */
+  const feedKey = [
+    ...visibleLiveStreams.map((s) => s.streamKey),
+    ...videos.map((v) => v.id),
+  ].join("|");
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || feedItems.length === 0) return;
+
+    const ratios = new Map<Element, number>();
+    const pickActive = () => {
+      const slides = container.querySelectorAll("[data-feed-index]");
+      let bestIdx = 0;
+      let bestRatio = -1;
+      slides.forEach((el) => {
+        const idx = parseInt(el.getAttribute("data-feed-index") || "0", 10);
+        const r = ratios.get(el) ?? 0;
+        if (r > bestRatio) {
+          bestRatio = r;
+          bestIdx = idx;
+        }
+      });
+      if (bestRatio < 0.01) return;
+      setActiveIndex((prev) => (prev === bestIdx ? prev : bestIdx));
+    };
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e) => {
+          ratios.set(e.target, e.intersectionRatio);
+        });
+        pickActive();
+      },
+      {
+        root: container,
+        rootMargin: "0px",
+        threshold: [0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1],
+      },
+    );
+
+    const slides = container.querySelectorAll("[data-feed-index]");
+    slides.forEach((el) => {
+      ratios.set(el, 0);
+      observer.observe(el);
+    });
+    pickActive();
+
+    return () => observer.disconnect();
+  }, [feedKey]);
+
   const handleScroll = () => {
     if (!containerRef.current) return;
     const container = containerRef.current;
-    const children = container.querySelectorAll('[data-feed-index]');
+    const children = container.querySelectorAll("[data-feed-index]");
     const containerRect = container.getBoundingClientRect();
     const centerY = containerRect.top + containerRect.height / 2;
     let bestIndex = 0;
@@ -442,14 +492,14 @@ export default function VideoFeed() {
       const rect = child.getBoundingClientRect();
       const childCenter = rect.top + rect.height / 2;
       const dist = Math.abs(childCenter - centerY);
-      const idx = parseInt(child.getAttribute('data-feed-index') || '0', 10);
+      const idx = parseInt(child.getAttribute("data-feed-index") || "0", 10);
       if (dist < bestDist) {
         bestDist = dist;
         bestIndex = idx;
       }
     });
-    if (bestIndex >= 0 && bestIndex < feedItems.length && bestIndex !== activeIndex) {
-      setActiveIndex(bestIndex);
+    if (bestIndex >= 0 && bestIndex < feedItems.length) {
+      setActiveIndex((prev) => (prev === bestIndex ? prev : bestIndex));
     }
   };
 

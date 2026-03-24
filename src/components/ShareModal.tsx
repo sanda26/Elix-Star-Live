@@ -13,13 +13,14 @@ import {
   Trash2,
   Users2,
   Plus,
+  Search,
 } from 'lucide-react';
 import { apiStub } from '../lib/apiStub';
 import { useAuthStore } from '../store/useAuthStore';
 import { StoryGoldRingAvatar } from './StoryGoldRingAvatar';
 import PromotePanel from './PromotePanel';
 import { nativeConfirm } from './NativeDialog';
-import { apiUrl } from '../lib/api';
+import { fetchAllSharePanelContacts } from '../lib/sharePanelContacts';
 
 interface ShareModalProps {
   isOpen: boolean;
@@ -55,54 +56,16 @@ export default function ShareModal({ isOpen, onClose, video, onReport, onJoin, i
   const [sentTo, setSentTo] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    if (isOpen && user?.id) loadFollowers();
+    if (!isOpen) return;
+    let cancelled = false;
+    (async () => {
+      const rows = await fetchAllSharePanelContacts(user?.id);
+      if (!cancelled) setFollowers(rows);
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [isOpen, user?.id]);
-
-  const loadFollowers = async () => {
-    if (!user?.id) return;
-    try {
-      // Primary source: backend followers endpoint (same source used by Inbox circles).
-      const session = useAuthStore.getState().session;
-      const headers: Record<string, string> = {};
-      if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
-      const res = await fetch(
-        apiUrl(`/api/profiles/${encodeURIComponent(user.id)}/followers`),
-        { credentials: 'include', headers },
-      ).catch(() => null as Response | null);
-
-      if (res?.ok) {
-        const body = await res.json().catch(() => ({} as Record<string, unknown>));
-        const rawProfiles = Array.isArray(body?.follower_profiles) ? body.follower_profiles : [];
-        const fromBackend = rawProfiles
-          .map((p: Record<string, unknown>) => ({
-            user_id: String(p.user_id ?? ''),
-            username: String(p.username ?? 'user'),
-            avatar_url: p.avatar_url != null ? String(p.avatar_url) : null,
-          }))
-          .filter((p: { user_id: string }) => !!p.user_id && p.user_id !== user.id);
-        if (fromBackend.length > 0) {
-          setFollowers(fromBackend);
-          return;
-        }
-      }
-
-      // Fallback: legacy table path
-      const { data: followData } = await apiStub
-        .from('followers')
-        .select('follower_id')
-        .eq('following_id', user.id)
-        .limit(50);
-      const ids = (followData || []).map((f: { follower_id: string }) => f.follower_id);
-      if (ids.length === 0) { setFollowers([]); return; }
-      const { data: profiles } = await apiStub
-        .from('profiles')
-        .select('user_id, username, avatar_url')
-        .in('user_id', ids);
-      setFollowers(profiles || []);
-    } catch {
-      setFollowers([]);
-    }
-  };
 
   const sendShareTo = async (targetUserId: string) => {
     if (!user?.id || sentTo.has(targetUserId)) return;
@@ -172,8 +135,20 @@ export default function ShareModal({ isOpen, onClose, video, onReport, onJoin, i
             <img src="/Icons/Gold power buton.png" alt="" className="w-5 h-5 object-contain" />
           </button>
         </div>
+        <div className="flex items-center justify-between gap-2 px-4 pb-2 flex-shrink-0">
+          <h3 className="text-white font-bold whitespace-nowrap text-sm">Share to</h3>
+          <div className="flex-none w-[120px] bg-white/5 rounded-lg px-2 py-1.5 flex items-center gap-2">
+            <Search className="w-3.5 h-3.5 text-white/30" />
+            <input
+              value={shareQuery}
+              onChange={(e) => setShareQuery(e.target.value)}
+              placeholder="Search..."
+              className="bg-transparent text-white text-xs outline-none w-full placeholder:text-white/20"
+            />
+          </div>
+        </div>
 
-        {/* Create + Followers row — same as LiveStream share panel */}
+        {/* Create + all users — same as live / watch share */}
         <div className="flex gap-3 overflow-x-auto overflow-y-hidden pb-3 flex-shrink-0 px-4 no-scrollbar">
           <button
             type="button"
@@ -187,7 +162,7 @@ export default function ShareModal({ isOpen, onClose, video, onReport, onJoin, i
             </div>
             <span className="text-white/80 text-[11px] font-medium">Create</span>
           </button>
-          {filteredFollowers.length > 0 && filteredFollowers.map((f) => (
+          {filteredFollowers.map((f) => (
             <button
               key={f.user_id}
               className="flex-shrink-0 flex flex-col items-center gap-1 active:scale-95 transition-transform"

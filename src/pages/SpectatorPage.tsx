@@ -44,6 +44,7 @@ import { GoldProfileFrame } from '../components/GoldProfileFrame';
 import { useAuthStore } from '../store/useAuthStore';
 import { useVideoStore } from '../store/useVideoStore';
 import { apiUrl, getLiveKitUrl } from '../lib/api';
+import { fetchAllSharePanelContacts } from '../lib/sharePanelContacts';
 import { apiStub } from '../lib/apiStub';
 import ReportModal from '../components/ReportModal';
 import PromotePanel from '../components/PromotePanel';
@@ -1453,28 +1454,17 @@ export default function SpectatorPage() {
     };
   }, [effectiveStreamId, user?.id, streamIsLive, syncMvpSlots, spawnHeartAt]);
 
-  // Share panel contacts: show all platform users (and implicitly followers).
+  // Share panel contacts: all platform users (same list as live share / ShareModal).
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      try {
-        const res = await fetch(apiUrl('/api/profiles'));
-        if (!res.ok) throw new Error('Failed to load profiles');
-        const json = await res.json();
-        const list = Array.isArray(json?.profiles) ? json.profiles : [];
-        const mapped = list
-          .map((p: any) => ({
-            id: String(p.user_id ?? p.id ?? ''),
-            name: String(p.display_name ?? p.username ?? 'User'),
-            avatar: String(p.avatar_url ?? ''),
-          }))
-          .filter((p: { id: string }) => !!p.id && p.id !== user?.id);
-        const dedup = new Map<string, { id: string; name: string; avatar: string }>();
-        for (const p of mapped) dedup.set(p.id, p);
-        if (!cancelled) setShareContacts(Array.from(dedup.values()));
-      } catch {
-        if (!cancelled) setShareContacts([]);
-      }
+      const rows = await fetchAllSharePanelContacts(user?.id);
+      const mapped = rows.map((r) => ({
+        id: r.user_id,
+        name: r.username,
+        avatar: r.avatar_url || '',
+      }));
+      if (!cancelled) setShareContacts(mapped);
     })();
     return () => {
       cancelled = true;

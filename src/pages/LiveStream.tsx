@@ -3581,7 +3581,7 @@ export default function LiveStream() {
               {/* MVP Circles - outside below battle frame, 3 left + 3 right */}
             <div className="w-full px-3 py-2 flex items-center justify-between flex-none pointer-events-none mt-1 relative z-30">
               {/* Left side - MVP 1,2,3 for P1 */}
-              <div className="flex items-center gap-[0.5mm] pointer-events-auto" onClick={() => setShowViewerList(true)}>
+              <div className="flex items-center -space-x-1.5 pointer-events-auto" onClick={() => setShowViewerList(true)}>
                 {[0, 1, 2].map((i) => {
                   const g = getTopGifters('me')[i];
                   const fallbackViewer = activeViewers[i];
@@ -3613,7 +3613,7 @@ export default function LiveStream() {
               )}
 
               {/* Right side - MVP 1,2,3 for P2 */}
-              <div className="flex items-center gap-[0.5mm] pointer-events-auto" onClick={() => setShowViewerList(true)}>
+              <div className="flex items-center -space-x-1.5 pointer-events-auto" onClick={() => setShowViewerList(true)}>
                 {[0, 1, 2].map((i) => {
                   const g = getTopGifters('opponent')[i];
                   const fallbackViewer = activeViewers[3 + i];
@@ -3651,16 +3651,19 @@ export default function LiveStream() {
                     <div className="flex items-start justify-between gap-2">
                       <div className="pointer-events-auto flex flex-col gap-2">
                         {/* BROADCASTER INFO */}
-                        <div className="px-0 py-1 animate-luxury-fade-in -ml-2 relative">
-                          <div className="flex items-center relative">
+                        <div className="px-0 py-1 animate-luxury-fade-in -ml-2 relative max-w-[min(100%,calc(100vw-5.5rem))]">
+                          <div
+                            className="flex items-center relative origin-left"
+                            style={{ transform: 'scale(0.82)', marginBottom: '-0.35rem' }}
+                          >
                             <div 
                               className="relative z-10 flex-shrink-0 pointer-events-auto cursor-pointer active:scale-95 transition-transform"
                               onClick={(e) => { e.stopPropagation(); openMiniProfile(myCreatorName); }}
                             >
-                              <AvatarRing src={myAvatar} alt={myCreatorName} size={56} />
+                              <AvatarRing src={myAvatar} alt={myCreatorName} size={48} />
                             </div>
-                            <div className="flex flex-col justify-center -ml-4 pl-6 pr-16 h-9 rounded-full border border-[#C9A96E]/60 bg-[#13151A]/80 min-w-[140px] relative" style={{ borderTopLeftRadius: 0, borderBottomLeftRadius: 0, boxShadow: '0 0 8px rgba(201,169,110,0.25)' }}>
-                              <span className="text-white text-[10px] font-bold truncate max-w-[160px] leading-tight">{myCreatorName}</span>
+                            <div className="flex flex-col justify-center -ml-3 pl-4 pr-[3.75rem] h-8 rounded-full border border-[#C9A96E]/60 bg-[#13151A]/80 min-w-[118px] max-w-[200px] relative" style={{ borderTopLeftRadius: 0, borderBottomLeftRadius: 0, boxShadow: '0 0 8px rgba(201,169,110,0.25)' }}>
+                              <span className="text-white text-[9px] font-bold truncate max-w-[132px] leading-tight">{myCreatorName}</span>
                               <button
                   type="button"
                   className="flex items-center gap-0.5 pointer-events-auto -mt-0.5"
@@ -3680,7 +3683,7 @@ export default function LiveStream() {
                                     {/* Membership / Join Button (Bottom) */}
                                     <button
                                       type="button"
-                                      className={`col-start-1 row-start-1 flex items-center justify-center gap-1 ${hasJoinedToday ? 'bg-[#C9A96E] border-[#C9A96E]' : 'bg-[#13151A] border-[#C9A96E]/40'} rounded-full px-1.5 py-0.5 shadow-sm border w-[58px] h-7 z-0 transition-colors duration-200`}
+                                      className={`col-start-1 row-start-1 flex items-center justify-center gap-0.5 ${hasJoinedToday ? 'bg-[#C9A96E] border-[#C9A96E]' : 'bg-[#13151A] border-[#C9A96E]/40'} rounded-full px-1 py-0.5 shadow-sm border w-[50px] h-6 z-0 transition-colors duration-200`}
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         if (!hasJoinedToday && user?.id && effectiveStreamId) {
@@ -3719,30 +3722,30 @@ export default function LiveStream() {
                                     >
                                       <div className="relative">
                                         <Heart
-                                          className={`w-3.5 h-3.5 ${hasJoinedToday ? 'text-white fill-white' : 'text-[#C9A96E] fill-[#C9A96E]'}`}
+                                          className={`w-3 h-3 ${hasJoinedToday ? 'text-white fill-white' : 'text-[#C9A96E] fill-[#C9A96E]'}`}
                                           strokeWidth={2.5}
                                         />
                                         {!hasJoinedToday && (
-                                          <div className="absolute -top-1 -right-1 w-2 h-2 bg-[#C9A96E] rounded-full flex items-center justify-center border border-white">
-                                            <span className="text-white text-[6px] font-bold leading-none">+</span>
+                                          <div className="absolute -top-1 -right-1 w-1.5 h-1.5 bg-[#C9A96E] rounded-full flex items-center justify-center border border-white">
+                                            <span className="text-white text-[5px] font-bold leading-none">+</span>
                                           </div>
                                         )}
                                       </div>
-                                      <span className={`${hasJoinedToday ? 'text-white' : 'text-[#C9A96E]'} text-[10px] font-bold`}>Join</span>
+                                      <span className={`${hasJoinedToday ? 'text-white' : 'text-[#C9A96E]'} text-[9px] font-bold`}>Join</span>
                                     </button>
 
                                     {/* Follow Button (Top) - Shows "+ Follow" */}
                                     {!isFollowing && (
                                       <button
                                         type="button"
-                                        className="col-start-1 row-start-1 z-20 relative flex items-center justify-center gap-1 bg-[#FF2D55] rounded-full px-1.5 py-0.5 shadow-sm border border-white/20 w-[58px] h-7"
+                                        className="col-start-1 row-start-1 z-20 relative flex items-center justify-center gap-0.5 bg-[#FF2D55] rounded-full px-1 py-0.5 shadow-sm border border-white/20 w-[50px] h-6"
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           setIsFollowing(true);
                                         }}
                                       >
-                                        <Plus size={12} className="text-white" strokeWidth={3} />
-                                        <span className="text-white text-[10px] font-bold">Follow</span>
+                                        <Plus size={10} className="text-white" strokeWidth={3} />
+                                        <span className="text-white text-[9px] font-bold">Follow</span>
                                       </button>
                                     )}
                                   </div>
@@ -3750,7 +3753,7 @@ export default function LiveStream() {
                               })()}
                             </div>
                           </div>
-                          <div className="flex items-center gap-2 mt-0.5 ml-9 pointer-events-auto relative z-20 flex-wrap">
+                          <div className="flex items-center gap-2 mt-0.5 ml-7 pointer-events-auto relative z-20 flex-wrap">
                             <div 
                               className="flex items-center gap-1 bg-[#13151A] rounded-full px-2 py-0.5 border border-[#C9A96E]/40 shadow-sm cursor-pointer" 
                               onClick={(e) => {
@@ -3785,7 +3788,7 @@ export default function LiveStream() {
                       </div>
 
                       <div className="pointer-events-auto flex items-center gap-2 mt-5">
-                        <div className="flex items-center gap-[0.5mm] pointer-events-auto flex-shrink-0" onClick={() => setShowViewerList(prev => !prev)}>
+                        <div className="flex items-center -space-x-2 pointer-events-auto flex-shrink-0" onClick={() => setShowViewerList(prev => !prev)}>
                           {isBattleMode ? (
                             (() => {
                               const top3 = getTop3GiftersOverall();

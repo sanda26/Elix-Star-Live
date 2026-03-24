@@ -114,7 +114,13 @@ export function ChatOverlay({ messages, variant = 'panel', compact = false, clas
                 if (onProfileTap) onProfileTap(msg.username);
               }}
             >
-              <LevelBadge level={typeof msg.level === 'number' ? msg.level : 1} size={39} layout="fixed" avatar={typeof msg.avatar === 'string' ? msg.avatar : undefined} />
+              <LevelBadge
+                level={typeof msg.level === 'number' ? msg.level : 1}
+                size={28}
+                circleSize={39}
+                layout="fixed"
+                avatar={typeof msg.avatar === 'string' ? msg.avatar : undefined}
+              />
             </div>
             
             <div className="flex flex-col min-w-0 justify-center self-center">

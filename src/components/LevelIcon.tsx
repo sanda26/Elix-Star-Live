@@ -2,7 +2,10 @@ import React from 'react';
 
 export interface LevelIconProps {
   level: number;
+  /** Drives the LV pill (bar) size and typography when `circleSize` is set; otherwise drives both bar + circle */
   size?: number;
+  /** Optional larger avatar/profile circle only; bar stays sized from `size` */
+  circleSize?: number;
   className?: string;
   avatarUrl?: string;
   barColor?: string;
@@ -12,6 +15,7 @@ export interface LevelIconProps {
 export const LevelIcon: React.FC<LevelIconProps> = ({
   level,
   size = 40,
+  circleSize: circleSizeProp,
   className = '',
   avatarUrl,
   barColor,
@@ -19,9 +23,16 @@ export const LevelIcon: React.FC<LevelIconProps> = ({
 }) => {
   const safeLevel = typeof level === 'number' && Number.isFinite(level) && level > 0 ? Math.floor(level) : 1;
   const rawSize = typeof size === 'number' && Number.isFinite(size) ? size : 40;
-  const circleSize = Math.max(16, Math.floor(rawSize));
-  const barHeight = Math.round(circleSize * 0.72);
-  const barWidth = Math.round(circleSize * 1.75);
+  const barBaseSize = Math.max(16, Math.floor(rawSize));
+  const circleSize = Math.max(
+    16,
+    Math.floor(
+      typeof circleSizeProp === 'number' && Number.isFinite(circleSizeProp) ? circleSizeProp : rawSize,
+    ),
+  );
+  const barHeight = Math.round(barBaseSize * 0.72);
+  const barWidth = Math.round(barBaseSize * 1.75);
+  /** Pull bar toward avatar using circle diameter so bar + big circle still meet */
   const overlap = Math.round(circleSize * 0.52);
 
   const getBarGradient = () => {

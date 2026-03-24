@@ -3013,8 +3013,9 @@ export default function SpectatorPage() {
                 </div>
                 <div className="flex-1 overflow-y-auto no-scrollbar px-4 pb-4">
                   {viewersList.length === 0 ? (
-                    <div className="flex items-center justify-center h-full">
-                      <div className="w-6 h-6 border-2 border-[#C9A96E] border-t-transparent rounded-full animate-spin" />
+                    <div className="flex flex-col items-center justify-center h-full gap-2">
+                      <Eye size={28} className="text-white/10" />
+                      <p className="text-white/40 text-sm">No other viewers yet</p>
                     </div>
                   ) : (
                     viewersList.map((v, i) => (

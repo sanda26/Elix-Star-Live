@@ -25,6 +25,7 @@
     "cap:sync": "npm run build && npx cap sync && node scripts/patch-android-flatdir.mjs",
     "cap:add:android": "npx cap add android",
     "cap:add:ios": "npx cap add ios",
+    "patch:android-flatdir": "node scripts/patch-android-flatdir.mjs",
     "cap:open:android": "npx cap open android",
     "cap:open:ios": "npx cap open ios"
   },

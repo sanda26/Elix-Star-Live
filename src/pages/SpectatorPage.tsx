@@ -39,7 +39,13 @@ import { ChatOverlay } from '../components/ChatOverlay';
 import { AvatarRing } from '../components/AvatarRing';
 import { StoryGoldRingAvatar } from '../components/StoryGoldRingAvatar';
 import { GoldProfileFrame } from '../components/GoldProfileFrame';
-import { SPECTATOR_BATTLE_PROFILE_RING_PX, SPECTATOR_MVP_PROFILE_RING_PX } from '../lib/profileFrame';
+import {
+  CREATOR_NAME_PILL_CLASSNAME,
+  getCreatorNamePillStyle,
+  SPECTATOR_BATTLE_PROFILE_RING_PX,
+  SPECTATOR_MVP_PROFILE_RING_PX,
+  LIVE_TOP_AVATAR_RING_PX,
+} from '../lib/profileFrame';
 import { useAuthStore } from '../store/useAuthStore';
 import { useVideoStore } from '../store/useVideoStore';
 import { apiUrl, getLiveKitUrl } from '../lib/api';
@@ -1929,13 +1935,13 @@ export default function SpectatorPage() {
 
                 <div className="w-full px-3 py-1.5 flex items-center justify-between flex-none z-30">
                   <div
-                    className="flex items-center gap-0 min-w-0 flex-1 justify-start pointer-events-auto"
+                    className="flex items-center gap-[0.5mm] min-w-0 flex-1 justify-start pointer-events-auto"
                     onClick={() => setShowViewersPanel(true)}
                   >
                     {[0, 1, 2].map((i) => {
                       const slot = mvpSlots.host[i];
                       return (
-                        <div key={`mvp-l-${i}`} className={`relative flex flex-col items-center ${i > 0 ? '-ml-2' : ''}`} style={{ zIndex: 3 - i }}>
+                        <div key={`mvp-l-${i}`} className="relative flex flex-col items-center" style={{ zIndex: 3 - i }}>
                           <GoldProfileFrame size={SPECTATOR_BATTLE_PROFILE_RING_PX}>
                             {slot ? (
                               <img src={resolveCircleAvatar(slot.avatar, slot.name)} alt="" className="h-full w-full rounded-full object-cover object-center" />
@@ -1948,13 +1954,13 @@ export default function SpectatorPage() {
                     })}
                   </div>
                   <div
-                    className="flex items-center gap-0 min-w-0 flex-1 justify-end pointer-events-auto"
+                    className="flex items-center gap-[0.5mm] min-w-0 flex-1 justify-end pointer-events-auto"
                     onClick={() => setShowViewersPanel(true)}
                   >
                     {[0, 1, 2].map((i) => {
                       const slot = mvpSlots.opponent[i];
                       return (
-                        <div key={`mvp-r-${i}`} className={`relative flex flex-col items-center ${i > 0 ? '-ml-2' : ''}`} style={{ zIndex: 3 - i }}>
+                        <div key={`mvp-r-${i}`} className="relative flex flex-col items-center" style={{ zIndex: 3 - i }}>
                           <GoldProfileFrame size={SPECTATOR_BATTLE_PROFILE_RING_PX}>
                             {slot ? (
                               <img src={resolveCircleAvatar(slot.avatar, slot.name)} alt="" className="h-full w-full rounded-full object-cover object-center" />
@@ -2251,11 +2257,11 @@ export default function SpectatorPage() {
                   className="relative z-10 flex-shrink-0 cursor-pointer active:scale-95 transition-transform"
                   onClick={() => navigate(`/profile/${hostUserId}`)}
                 >
-                  <AvatarRing src={hostAvatar} alt={hostName} size={56} />
+                  <AvatarRing src={hostAvatar} alt={hostName} size={LIVE_TOP_AVATAR_RING_PX} />
                 </div>
                 <div
-                  className="flex flex-col justify-center -ml-3 pl-5 pr-16 h-8 rounded-full border border-[#C9A96E]/60 bg-[#13151A]/80 min-w-0 relative cursor-pointer"
-                  style={{ borderTopLeftRadius: 0, borderBottomLeftRadius: 0, boxShadow: '0 0 8px rgba(201,169,110,0.25)' }}
+                  className={`${CREATOR_NAME_PILL_CLASSNAME} cursor-pointer`}
+                  style={getCreatorNamePillStyle()}
                   onClick={() => navigate(`/profile/${hostUserId}`)}
                 >
                   <span className="text-white text-[11px] font-bold truncate max-w-[100px] leading-tight">{hostName}</span>
@@ -2344,7 +2350,7 @@ export default function SpectatorPage() {
 
               <div className="pointer-events-auto flex items-center gap-1 flex-shrink-0 min-w-0">
                 <div
-                  className="flex items-center gap-0 pointer-events-auto flex-shrink-0"
+                  className="flex items-center gap-[0.5mm] pointer-events-auto flex-shrink-0"
                   onClick={() => {
                     const list: { id: string; name: string; avatar: string; level?: number }[] = [];
                     const hid = hostUserIdRef.current || hostUserId || effectiveStreamId;
@@ -2360,7 +2366,7 @@ export default function SpectatorPage() {
                   {[0, 1, 2].map((i) => {
                     const slot = spectatorTopAvatars[i];
                     return (
-                      <div key={`spectator-top-mvp-${i}`} style={{ zIndex: 3 - i }} className={`relative ${i > 0 ? '-ml-2.5' : ''}`}>
+                      <div key={`spectator-top-mvp-${i}`} style={{ zIndex: 3 - i }} className="relative">
                         <GoldProfileFrame size={SPECTATOR_MVP_PROFILE_RING_PX}>
                           {slot ? (
                             <img

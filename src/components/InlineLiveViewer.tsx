@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Room, RoomEvent, RemoteTrackPublication } from "livekit-client";
 import { apiUrl, getLiveKitUrl } from "../lib/api";
 import { useAuthStore } from "../store/useAuthStore";
+import { INLINE_LIVE_PLACEHOLDER_AVATAR_PX } from "../lib/profileFrame";
 import { Radio } from "lucide-react";
 
 interface InlineLiveViewerProps {
@@ -187,7 +188,10 @@ export default function InlineLiveViewer({
       {!hasStream && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#13151A] gap-4 pointer-events-none">
           {creatorAvatar ? (
-            <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-[#C9A96E]/50 shrink-0">
+            <div
+              className="rounded-full overflow-hidden border-2 border-[#C9A96E]/50 shrink-0"
+              style={{ width: INLINE_LIVE_PLACEHOLDER_AVATAR_PX, height: INLINE_LIVE_PLACEHOLDER_AVATAR_PX }}
+            >
               <img
                 src={creatorAvatar}
                 alt=""
@@ -195,7 +199,10 @@ export default function InlineLiveViewer({
               />
             </div>
           ) : (
-            <div className="w-24 h-24 rounded-full bg-[#C9A96E]/20 flex items-center justify-center shrink-0">
+            <div
+              className="rounded-full bg-[#C9A96E]/20 flex items-center justify-center shrink-0"
+              style={{ width: INLINE_LIVE_PLACEHOLDER_AVATAR_PX, height: INLINE_LIVE_PLACEHOLDER_AVATAR_PX }}
+            >
               <span className="text-3xl font-bold text-[#C9A96E]/80">
                 {(creatorName || "C").charAt(0).toUpperCase()}
               </span>

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Eye, Radio, RefreshCw } from 'lucide-react';
 import { apiUrl, getWsUrl } from '../lib/api';
 import { useAuthStore } from '../store/useAuthStore';
+import { LIVE_DISCOVER_GRID_AVATAR_PX, LIVE_FEED_CARD_AVATAR_PX } from '../lib/profileFrame';
 
 type LiveCreator = {
   id: string;
@@ -221,7 +222,10 @@ export default function LiveDiscover() {
                   {/* Creator info at bottom */}
                   <div className="absolute bottom-0 left-0 right-0 p-2.5">
                     <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-full border-2 border-red-500/60 overflow-hidden flex-shrink-0 bg-[#1a1c22]">
+                      <div
+                        className="rounded-full border-2 border-red-500/60 overflow-hidden flex-shrink-0 bg-[#1a1c22]"
+                        style={{ width: LIVE_FEED_CARD_AVATAR_PX, height: LIVE_FEED_CARD_AVATAR_PX }}
+                      >
                         {c.thumbnail ? (
                           <img src={c.thumbnail} alt="" className="w-full h-full object-cover" />
                         ) : (

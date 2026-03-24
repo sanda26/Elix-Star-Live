@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Eye } from 'lucide-react';
+import { LIVE_FEED_CARD_AVATAR_PX } from '../lib/profileFrame';
 
 interface LivePreviewCardProps {
   streamKey: string;
@@ -80,7 +81,10 @@ export default function LivePreviewCard({
       <div className="absolute bottom-0 left-0 right-0 z-[5] pointer-events-none">
         <div className="bg-gradient-to-t from-black/80 via-black/40 to-transparent pt-20 pb-20 px-4">
           <div className="flex items-center gap-2 mb-1">
-            <div className="w-8 h-8 rounded-full border border-white/30 overflow-hidden bg-[#1a1a2e] flex-shrink-0">
+            <div
+              className="rounded-full border border-white/30 overflow-hidden bg-[#1a1a2e] flex-shrink-0"
+              style={{ width: LIVE_FEED_CARD_AVATAR_PX, height: LIVE_FEED_CARD_AVATAR_PX }}
+            >
               {avatar ? (
                 <img src={avatar} alt="" className="w-full h-full object-cover" />
               ) : (

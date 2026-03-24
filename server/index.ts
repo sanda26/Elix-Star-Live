@@ -56,6 +56,7 @@ import {
 import {
   initPostgres,
   loadVideosFromDb,
+  loadVideoByIdFromDb,
   saveVideoToDb,
   deleteVideoFromDb,
   dbUpdateViewerCount,
@@ -699,8 +700,15 @@ app.get("/api/videos", (_req, res) => {
   res.json({ videos, total: videos.length });
 });
 
-app.get("/api/videos/:id", (req, res) => {
-  const video = getVideo(req.params.id);
+app.get("/api/videos/:id", async (req, res) => {
+  let video = getVideo(req.params.id);
+  if (!video && isPostgresConfigured()) {
+    const fromDb = await loadVideoByIdFromDb(req.params.id);
+    if (fromDb && (fromDb.url || "").trim()) {
+      addVideo(fromDb);
+      video = fromDb;
+    }
+  }
   if (!video) return res.status(404).json({ error: "Video not found" });
   res.json(video);
 });

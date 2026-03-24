@@ -353,6 +353,41 @@ export async function loadVideosFromDb(): Promise<Video[]> {
   }
 }
 
+/** Single video by id — used when in-memory store misses (feed reads Postgres directly). */
+export async function loadVideoByIdFromDb(id: string): Promise<Video | null> {
+  if (!pool) return null;
+  const trimmed = String(id || "").trim();
+  if (!trimmed) return null;
+  try {
+    const res = await pool.query(`SELECT * FROM videos WHERE id = $1 LIMIT 1`, [trimmed]);
+    const row = res.rows?.[0] as Record<string, unknown> | undefined;
+    if (!row) return null;
+    return {
+      id: String(row.id),
+      url: firstNonEmptyString(row.url, row.video_url),
+      thumbnail: firstNonEmptyString(row.thumbnail, row.thumbnail_url),
+      duration: Number(row.duration ?? 0),
+      userId: String(row.userId ?? row.user_id ?? ""),
+      username: String(row.username ?? ""),
+      displayName: String(row.displayName ?? row.display_name ?? ""),
+      avatar: String(row.avatar ?? ""),
+      description: String(row.description ?? ""),
+      hashtags: Array.isArray(row.hashtags) ? row.hashtags : [],
+      music: row.music && typeof row.music === "object" ? (row.music as Video["music"]) : null,
+      views: Number(row.views ?? 0),
+      likes: Number(row.likes ?? 0),
+      comments: Number(row.comments ?? 0),
+      shares: Number(row.shares ?? 0),
+      saves: Number(row.saves ?? 0),
+      createdAt: firstNonEmptyString(row.createdAt, row.created_at),
+      privacy: String(row.privacy ?? "public"),
+    };
+  } catch (err) {
+    logger.error({ err, id: trimmed }, "loadVideoByIdFromDb failed");
+    return null;
+  }
+}
+
 export async function saveVideoToDb(video: Video): Promise<void> {
   if (!pool) {
     throw new Error("Postgres pool is not initialized");

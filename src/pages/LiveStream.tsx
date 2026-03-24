@@ -2785,10 +2785,15 @@ export default function LiveStream() {
       // Local/dev: always allow sending gifts, even if coinBalance is low,
       // so video gifts are never blocked from playing.
       if (gift.video && gift.video.trim()) {
-        const videoUrl = (gift.video.startsWith('http://') || gift.video.startsWith('https://'))
-          ? gift.video
-          : resolveGiftAssetUrl(gift.video.startsWith('/') ? gift.video : `/${gift.video}`);
-        if (videoUrl) setGiftQueue(prev => [...prev, { video: videoUrl }]);
+        const raw = gift.video;
+        const ext = raw.split('?')[0].toLowerCase();
+        const isVid = ext.endsWith('.mp4') || ext.endsWith('.webm');
+        if (isVid) {
+          const videoUrl = (raw.startsWith('http://') || raw.startsWith('https://'))
+            ? raw
+            : resolveGiftAssetUrl(raw.startsWith('/') ? raw : `/${raw}`);
+          if (videoUrl) setGiftQueue(prev => [...prev, { video: videoUrl }]);
+        }
       }
       
       let newLevel = userLevel;

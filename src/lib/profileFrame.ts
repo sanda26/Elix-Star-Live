@@ -20,8 +20,8 @@ export const SPECTATOR_MVP_PROFILE_RING_PX = profileRingOuterAddMm(35, PROFILE_R
 /** Spectator battle split rows: was 24px outer. */
 export const SPECTATOR_BATTLE_PROFILE_RING_PX = profileRingOuterAddMm(24, PROFILE_RING_SIZE_BUMP_MM);
 
-/** Chat LV pill `size` — scaled with {@link LIVE_MVP_PROFILE_RING_PX} vs old 36px ring. */
-export const CHAT_LEVEL_BADGE_SIZE_PX = Math.round((32 * LIVE_MVP_PROFILE_RING_PX) / 36);
+/** Chat LV green pill only; circle uses {@link LIVE_MVP_PROFILE_RING_PX}. Smaller base (22 vs 32) than legacy combined scale. */
+export const CHAT_LEVEL_PILL_SIZE_PX = Math.max(18, Math.round((22 * LIVE_MVP_PROFILE_RING_PX) / 36));
 
 /** Main host avatar in live top bar (round ring next to name pill): +3 mm vs former 56 px base. */
 export const LIVE_TOP_AVATAR_RING_PX = profileRingOuterAddMm(56, PROFILE_RING_SIZE_BUMP_MM);

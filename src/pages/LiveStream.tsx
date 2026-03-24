@@ -270,11 +270,6 @@ export default function LiveStream() {
     refreshCoinBalance().catch(() => {});
   }, [refreshCoinBalance, user?.id, user?.level]);
 
-  useEffect(() => {
-    if (!showGiftPanel || !user?.id) return;
-    refreshCoinBalance().catch(() => {});
-  }, [refreshCoinBalance, showGiftPanel, user?.id]);
-
   const [isMyStreamLive, setIsMyStreamLive] = useState(false);
   const creatorNameRef = useRef(creatorName);
   creatorNameRef.current = creatorName;
@@ -1179,6 +1174,12 @@ export default function LiveStream() {
 
   const [showSharePanel, setShowSharePanel] = useState(false);
   const [showGiftPanel, setShowGiftPanel] = useState(false);
+
+  useEffect(() => {
+    if (!showGiftPanel || !user?.id) return;
+    refreshCoinBalance().catch(() => {});
+  }, [refreshCoinBalance, showGiftPanel, user?.id]);
+
   const [showPromotePanel, setShowPromotePanel] = useState(false);
   const [shareQuery, setShareQuery] = useState('');
   const [shareFollowers, setShareFollowers] = useState<{ user_id: string; username: string; avatar_url: string | null }[]>([]);

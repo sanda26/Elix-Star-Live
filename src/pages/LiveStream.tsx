@@ -4153,8 +4153,8 @@ export default function LiveStream() {
                         </div>
                       </div>
 
-                      <div className="pointer-events-auto flex items-center gap-2 mt-5">
-                        <div className="flex items-center -space-x-1.5 pointer-events-auto flex-shrink-0" onClick={() => setShowViewerList(prev => !prev)}>
+                      <div className="pointer-events-auto flex items-center gap-2 mt-1">
+                        <div className="flex items-center gap-[1mm] pointer-events-auto flex-shrink-0" onClick={() => setShowViewerList(prev => !prev)}>
                           {[0, 1, 2].map((i) => (
                             <div key={`top-viewers-${i}`} style={{ zIndex: 3 - i }} className="relative">
                               <GoldProfileFrame size={36}>

@@ -2300,7 +2300,7 @@ export default function SpectatorPage() {
 
         {/* CREATOR TOP BAR — only connection to creator page: spectator has access to full creator top bar (avatar, name, likes, Follow, Weekly Ranking, Membership, viewer count, close). Rest is single video + spectator's own bottom bar. */}
         <div className="absolute top-0 left-0 right-0 z-[110] pointer-events-none">
-          <div className="px-3" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 6px)' }}>
+          <div className="px-3" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 2px)' }}>
             <div className="flex items-center justify-between gap-2 relative">
               {/* Left: Creator info — full creator top bar */}
               <div className="pointer-events-auto flex items-center gap-0 -ml-1 flex-shrink min-w-0">
@@ -2395,8 +2395,7 @@ export default function SpectatorPage() {
 
               <div className="pointer-events-auto flex items-center gap-0 flex-shrink-0">
                 <div
-                  className="flex items-center gap-0.5 pointer-events-auto"
-                  style={{ transform: 'translateX(-2mm)' }}
+                  className="flex items-center gap-[1mm] pointer-events-auto"
                   onClick={() => {
                     const list: { id: string; name: string; avatar: string; level?: number }[] = [];
                     const hid = hostUserIdRef.current || hostUserId || effectiveStreamId;

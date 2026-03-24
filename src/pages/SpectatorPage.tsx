@@ -2503,9 +2503,9 @@ export default function SpectatorPage() {
           </div>
         </div>
 
-        {/* CHAT — above battle container (z-80) but below bottom bar (z-120) and gift overlay */}
+        {/* CHAT — above bottom bar, below gift overlay */}
         <div className="chat-zone fixed left-0 right-0 bottom-[calc(52px+max(8px,env(safe-area-inset-bottom)))] z-[100] flex justify-center pointer-events-none">
-          <div className="w-full max-w-[480px] h-[calc(25dvh-30mm)] max-h-[calc(25dvh-30mm)] overflow-y-auto pointer-events-auto bg-transparent py-[15mm]">
+          <div className="w-full max-w-[480px] h-[30dvh] max-h-[250px] overflow-y-auto pointer-events-auto bg-transparent px-1">
             <ChatOverlay
               messages={messages}
               variant="panel"

@@ -87,6 +87,7 @@ function mapRawVideoRowToClientVideo(
     comments: [],
     quality: 'auto',
     privacy: v.privacy === 'private' ? 'private' : 'public',
+    ...(v.duetWithVideoId ? { duetWithVideoId: String(v.duetWithVideoId) } : {}),
   };
 }
 
@@ -170,6 +171,8 @@ interface VideoStore {
   fetchVideos: () => Promise<void>;
   fetchFriendVideos: () => Promise<void>;
   fetchStemVideos: () => Promise<void>;
+  /** Load a single video from API when missing from store (deep link / shared /video/:id). Returns true if loaded. */
+  fetchVideoById: (videoId: string) => Promise<boolean>;
   getVideoById: (videoId: string) => Video | undefined;
   addVideo: (video: Video) => void;
   removeVideo: (videoId: string) => void;
@@ -223,6 +226,42 @@ export const useVideoStore = create<VideoStore>()(
           videos.find((v) => v.id === videoId) ??
           stemVideos.find((v) => v.id === videoId)
         );
+      },
+
+      fetchVideoById: async (videoId: string) => {
+        const id = String(videoId || '').trim();
+        if (!id) return false;
+        if (get().getVideoById(id)) return true;
+        try {
+          const session = useAuthStore.getState().session;
+          const headers: Record<string, string> = {};
+          if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+          const res = await fetch(apiUrl(`/api/videos/${encodeURIComponent(id)}`), {
+            credentials: 'include',
+            headers,
+          });
+          if (!res.ok) return false;
+          const raw = await res.json();
+          const url = raw?.url != null ? String(raw.url).trim() : '';
+          if (!url) return false;
+          const { likedVideos, savedVideos, followingUsers } = get();
+          const likedSet = new Set(likedVideos);
+          const savedSet = new Set(savedVideos);
+          const followingSet = new Set(followingUsers);
+          const mapped = mapRawVideoRowToClientVideo(raw, likedSet, savedSet, followingSet);
+          set((state) => {
+            const idx = state.videos.findIndex((v) => v.id === mapped.id);
+            if (idx >= 0) {
+              const next = [...state.videos];
+              next[idx] = mapped;
+              return { videos: next };
+            }
+            return { videos: [mapped, ...state.videos] };
+          });
+          return true;
+        } catch {
+          return false;
+        }
       },
 
       fetchVideos: async () => {

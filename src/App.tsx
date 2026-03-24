@@ -18,7 +18,6 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import { OfflineBanner } from "./components/OfflineBanner";
 import { IncomingCallModal } from "./components/IncomingCallModal";
 import { subscribeToIncomingCalls } from "./lib/callService";
-import { apiStub } from "./lib/apiStub";
 import { showToast } from "./lib/toast";
 import { websocket } from "./lib/websocket";
 

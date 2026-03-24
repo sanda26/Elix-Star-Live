@@ -11,6 +11,7 @@ import {
   createPaymentIntent,
   createPromoteCheckoutSession,
   createSubscriptionSession,
+  handleGetCoinPackages,
 } from "./routes/checkout";
 import { handleStripeWebhook } from "./routes/webhook";
 import { handleLiveKitWebhook } from "./routes/livekit-webhook";
@@ -89,6 +90,10 @@ import {
   handleSeedProfile,
   handleAddTestCoins,
 } from "./routes/profiles";
+import {
+  handleGetWallet,
+  handleGetWalletTransactions,
+} from "./routes/wallet";
 import { addFeedSubscriber, removeFeedSubscriber, broadcastToFeedSubscribers } from "./feedBroadcast";
 import { logger } from "./lib/logger";
 
@@ -232,6 +237,7 @@ app.post("/api/create-checkout-session", createCheckoutSession);
 app.post("/api/create-promote-checkout", createPromoteCheckoutSession);
 app.post("/api/create-payment-intent", createPaymentIntent);
 app.post("/api/create-subscription", createSubscriptionSession);
+app.get("/api/coin-packages", handleGetCoinPackages);
 app.post("/api/analytics", handleAnalytics);
 app.post("/api/analytics/track", handleAnalytics);
 app.post("/api/block-user", handleBlockUser);
@@ -252,7 +258,10 @@ app.post("/api/report", handleReport);
 app.post("/api/live/moderation/check", handleLiveModerationCheck);
 app.post("/api/send-notification", handleSendNotification);
 app.post("/api/verify-purchase", handleVerifyPurchase);
+app.post("/api/iap/verify", handleVerifyPurchase);
 app.post("/api/promote-iap-complete", handlePromoteIAPComplete);
+app.get("/api/wallet", handleGetWallet);
+app.get("/api/wallet/transactions", handleGetWalletTransactions);
 
 // Feed & Recommendation API
 app.get("/api/feed/foryou", handleForYouFeed);

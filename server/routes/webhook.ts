@@ -1,6 +1,8 @@
 import { Request, Response } from "express";
 import Stripe from "stripe";
 import { getDb } from "../lib/backend";
+import { creditVerifiedPurchase } from "../lib/walletStore";
+import { recordPromotePurchase } from "../lib/promoteStore";
 
 // --- Configuration ---
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
@@ -119,7 +121,6 @@ async function insertPurchaseTransaction(_row: Record<string, unknown>) {
 }
 
 async function handleSuccessfulPayment(session: Stripe.Checkout.Session) {
-  if (!getDb()) return;
   const type = session.metadata?.type;
   const userId = session.metadata?.userId;
 
@@ -129,19 +130,31 @@ async function handleSuccessfulPayment(session: Stripe.Checkout.Session) {
     const contentId = session.metadata?.contentId || "";
     const amountGbp = session.amount_total ? session.amount_total / 100 : 0;
     try {
-      await getDb().from("promote_purchases").insert({
-        user_id: userId,
-        content_type: contentType,
-        content_id: contentId,
-        goal,
-        amount_gbp: amountGbp,
-        stripe_session_id: session.id,
-        status: "completed",
-      });
+      if (getDb()) {
+        await getDb().from("promote_purchases").insert({
+          user_id: userId,
+          content_type: contentType,
+          content_id: contentId,
+          goal,
+          amount_gbp: amountGbp,
+          stripe_session_id: session.id,
+          status: "completed",
+        });
+      }
       console.log("Promote purchase recorded: user=" + userId + " goal=" + goal);
     } catch (err) {
       console.error("Failed to insert promote purchase:", err);
     }
+    recordPromotePurchase({
+      userId: userId || "",
+      provider: "stripe",
+      providerTransactionId: session.id,
+      productId: `promote_${goal || "unknown"}`,
+      contentType,
+      contentId,
+      goal,
+      amountGbp,
+    });
     return;
   }
 
@@ -157,6 +170,30 @@ async function handleSuccessfulPayment(session: Stripe.Checkout.Session) {
 
   if (!userId || !coinPackageId || !coins) {
     console.error("Missing metadata in session:", session.metadata);
+    return;
+  }
+
+  if (!getDb()) {
+    const credit = creditVerifiedPurchase({
+      userId,
+      provider: "stripe",
+      providerTransactionId: session.id,
+      productId: coinPackageId,
+      coins,
+      rawReceipt: session.payment_intent?.toString() || session.id,
+      verification: {
+        source: "stripe_checkout_session",
+        sessionId: session.id,
+        paymentIntentId: session.payment_intent,
+        amountTotal: session.amount_total ?? null,
+        currency: session.currency ?? "usd",
+      },
+    });
+    console.log(
+      credit.alreadyProcessed
+        ? "Stripe session already credited: " + session.id
+        : "Wallet credited from Stripe session: " + session.id,
+    );
     return;
   }
 
@@ -176,6 +213,22 @@ async function handleSuccessfulPayment(session: Stripe.Checkout.Session) {
     });
 
     if (error) throw error;
+
+    creditVerifiedPurchase({
+      userId,
+      provider: "stripe",
+      providerTransactionId: session.id,
+      productId: coinPackageId,
+      coins,
+      rawReceipt: session.payment_intent?.toString() || session.id,
+      verification: {
+        source: "stripe_checkout_session",
+        sessionId: session.id,
+        paymentIntentId: session.payment_intent,
+        amountTotal: session.amount_total ?? null,
+        currency,
+      },
+    });
 
     console.log("Successfully added " + coins + " coins to user " + userId);
   } catch (err) {
@@ -197,13 +250,35 @@ async function handleSuccessfulPayment(session: Stripe.Checkout.Session) {
 }
 
 async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent) {
-  if (!getDb()) return;
   const userId = paymentIntent.metadata?.userId;
   const coins = parseInt(paymentIntent.metadata?.coins || "0", 10);
   const coinPackageId = paymentIntent.metadata?.coinPackageId;
 
   if (!userId || !coins) {
     console.error("Missing metadata in payment intent:", paymentIntent.metadata);
+    return;
+  }
+
+  if (!getDb()) {
+    const credit = creditVerifiedPurchase({
+      userId,
+      provider: "stripe",
+      providerTransactionId: paymentIntent.id,
+      productId: coinPackageId || "stripe_payment_intent",
+      coins,
+      rawReceipt: paymentIntent.latest_charge?.toString() || paymentIntent.id,
+      verification: {
+        source: "stripe_payment_intent",
+        paymentIntentId: paymentIntent.id,
+        amount: paymentIntent.amount ?? null,
+        currency: paymentIntent.currency ?? "usd",
+      },
+    });
+    console.log(
+      credit.alreadyProcessed
+        ? "Stripe payment intent already credited: " + paymentIntent.id
+        : "Wallet credited from Stripe payment intent: " + paymentIntent.id,
+    );
     return;
   }
 
@@ -223,6 +298,21 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
     });
 
     if (error) throw error;
+
+    creditVerifiedPurchase({
+      userId,
+      provider: "stripe",
+      providerTransactionId: paymentIntent.id,
+      productId: coinPackageId ?? "stripe_payment_intent",
+      coins,
+      rawReceipt: paymentIntent.latest_charge?.toString() || paymentIntent.id,
+      verification: {
+        source: "stripe_payment_intent",
+        paymentIntentId: paymentIntent.id,
+        amount: paymentIntent.amount ?? null,
+        currency,
+      },
+    });
 
     console.log("Successfully added " + coins + " coins to user " + userId);
   } catch (err) {

@@ -6,6 +6,8 @@
 
 import { Request, Response } from "express";
 import { getTokenFromRequest, verifyAuthToken } from "./auth";
+import { getGiftCoinCost } from "../lib/giftCatalog";
+import { debitGiftCoins } from "../lib/walletStore";
 
 function requireAuth(req: Request, res: Response): { userId: string } | null {
   const token = getTokenFromRequest(req);
@@ -29,19 +31,44 @@ export async function handleSendGift(req: Request, res: Response) {
   const { room_id, gift_id, transaction_id, streamKey, giftId: giftIdAlt } = req.body ?? {};
   const roomId = typeof room_id === "string" ? room_id.trim() : (typeof streamKey === "string" ? streamKey.trim() : "");
   const giftId = typeof gift_id === "string" ? gift_id.trim() : (typeof giftIdAlt === "string" ? giftIdAlt.trim() : "");
+  const clientTransactionId =
+    typeof transaction_id === "string" && transaction_id.trim()
+      ? transaction_id.trim()
+      : `${auth.userId}:${giftId}:${Date.now()}`;
 
   if (!roomId || !giftId) {
     return res.status(400).json({ error: "room_id and gift_id are required." });
   }
 
-  // Optional: validate gift_id against catalog and user balance (when DB exists).
-  // For now we accept and return success; actual delivery is via WebSocket in the live room.
+  const giftCoins = getGiftCoinCost(giftId);
+  if (!giftCoins) {
+    return res.status(400).json({ error: "Unknown gift." });
+  }
+
+  const debit = debitGiftCoins({
+    userId: auth.userId,
+    giftId,
+    roomId,
+    coins: giftCoins,
+    clientTransactionId,
+  });
+
+  if (!debit.success) {
+    return res.status(400).json({
+      error: debit.error === "insufficient_funds" ? "insufficient_funds" : "gift_send_failed",
+      new_balance: debit.newBalance,
+    });
+  }
+
   return res.status(200).json({
     ok: true,
     room_id: roomId,
     gift_id: giftId,
-    transaction_id: transaction_id || undefined,
-    message: "Gift sent. Delivery in room is via WebSocket.",
+    transaction_id: clientTransactionId,
+    new_balance: debit.newBalance,
+    message: debit.alreadyProcessed
+      ? "Gift already processed."
+      : "Gift accepted. Delivery in room is via WebSocket.",
   });
 }
 

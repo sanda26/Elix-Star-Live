@@ -93,9 +93,3 @@ self.addEventListener('notificationclick', (event) => {
     );
   }
 });
-
-// Handle notification close
-self.addEventListener('notificationclose', (event) => {
-  // Log notification close for analytics
-  console.log('Notification closed:', event.notification);
-});

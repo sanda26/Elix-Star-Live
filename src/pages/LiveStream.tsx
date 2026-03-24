@@ -50,13 +50,13 @@ import { AvatarRing } from '../components/AvatarRing';
 import { useAuthStore } from '../store/useAuthStore';
 import { clearCachedCameraStream, getCachedCameraStream } from '../lib/cameraStream';
 import { apiUrl, getLiveKitUrl } from '../lib/api';
+import { fetchWalletBalance } from '../lib/wallet';
 import { LevelBadge } from '../components/LevelBadge';
 import ReportModal from '../components/ReportModal';
 import PromotePanel from '../components/PromotePanel';
 import { GiftPanel } from '../components/GiftPanel';
 import { RankingPanel } from '../components/RankingPanel';
 import { websocket } from '../lib/websocket';
-import LiveAIFilters from '../components/LiveAIFilters';
 import { IS_STORE_BUILD } from '../config/build';
 import { Room, RoomEvent, LocalVideoTrack, LocalAudioTrack } from 'livekit-client';
 
@@ -156,6 +156,16 @@ export default function LiveStream() {
     if (!userId || typeof localStorage === 'undefined') return;
     try { localStorage.setItem(`elix_test_coins_balance_${userId}`, String(Math.max(0, balance))); } catch {}
   };
+  const refreshCoinBalance = useCallback(async () => {
+    if (!user?.id) return;
+    try {
+      const walletCoins = await fetchWalletBalance();
+      const persisted = getPersistedTestCoinsBalance(user.id);
+      setCoinBalance(prev => Math.max(prev, walletCoins, persisted));
+    } catch {
+      // Keep the current balance if the wallet refresh fails.
+    }
+  }, [user?.id]);
   const [showViewerList, setShowViewerList] = useState(false);
   const [moderators, setModerators] = useState<Set<string>>(new Set());
 
@@ -256,7 +266,13 @@ export default function LiveStream() {
     setCoinBalance(Math.max(0, persisted));
     setUserLevel(user.level || 1);
     setUserXP(0);
-  }, [user?.id, user?.level]);
+    refreshCoinBalance().catch(() => {});
+  }, [refreshCoinBalance, user?.id, user?.level]);
+
+  useEffect(() => {
+    if (!showGiftPanel || !user?.id) return;
+    refreshCoinBalance().catch(() => {});
+  }, [refreshCoinBalance, showGiftPanel, user?.id]);
 
   const [isMyStreamLive, setIsMyStreamLive] = useState(false);
   const creatorNameRef = useRef(creatorName);
@@ -2437,6 +2453,7 @@ export default function LiveStream() {
       }
       
       let newLevel = userLevel;
+      const clientTransactionId = `${user?.id || 'anon'}-${Date.now()}`;
       
       if (user?.id) {
         try {
@@ -2444,7 +2461,7 @@ export default function LiveStream() {
           const res = await fetch(apiUrl('/api/gifts/send'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}) },
-            body: JSON.stringify({ streamKey: effectiveStreamId, giftId: gift.id, channel: platform.name }),
+            body: JSON.stringify({ streamKey: effectiveStreamId, giftId: gift.id, transaction_id: clientTransactionId, channel: platform.name }),
           });
           const result = await res.json().catch(() => ({}));
 
@@ -2454,12 +2471,28 @@ export default function LiveStream() {
               showToast('Account is frozen. Contact support.');
               return;
             }
-            setCoinBalance(prev => { const n = Math.max(0, prev - gift.coins); persistTestCoinsBalance(user?.id, n); return n; });
+            if (result.new_balance != null) {
+              const nb = Number(result.new_balance);
+              setCoinBalance(nb);
+              persistTestCoinsBalance(user?.id, nb);
+            }
+            if (msg.includes('insufficient_funds')) {
+              showToast('Not enough coins');
+            } else {
+              showToast('Gift could not be sent');
+            }
+            return;
           } else {
             if (result.new_balance != null) {
               const nb = Number(result.new_balance);
               setCoinBalance(nb);
               persistTestCoinsBalance(user?.id, nb);
+            } else {
+              setCoinBalance(prev => {
+                const n = Math.max(0, prev - gift.coins);
+                persistTestCoinsBalance(user?.id, n);
+                return n;
+              });
             }
             if (result.new_level != null) {
               const updatedLevel = Number(result.new_level);
@@ -2472,7 +2505,8 @@ export default function LiveStream() {
             }
           }
         } catch {
-          setCoinBalance(prev => { const n = Math.max(0, prev - gift.coins); persistTestCoinsBalance(user?.id, n); return n; });
+          showToast('Gift could not be sent');
+          return;
         }
 
         const xpGained = gift.coins;
@@ -2526,7 +2560,7 @@ export default function LiveStream() {
         level: newLevel,
         avatar: giftMsg.avatar,
         video: gift.video || null,
-        transactionId: `${user?.id || 'anon'}-${Date.now()}`,
+        transactionId: clientTransactionId,
         battleTarget: isBattleMode ? giftTarget : undefined,
         creator_name: hostName || 'Creator',
         ...(!isBroadcast && { host_user_id: effectiveStreamId }),
@@ -2587,13 +2621,14 @@ export default function LiveStream() {
       }
 
       let newLevel = userLevel;
+      const clientTransactionId = `${user?.id || 'anon'}-${Date.now()}`;
       if (user?.id) {
         try {
           const authToken = useAuthStore.getState().session?.access_token;
           const res = await fetch(apiUrl('/api/gifts/send'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}) },
-            body: JSON.stringify({ streamKey: effectiveStreamId, giftId: lastSentGift.id, channel: platform.name }),
+            body: JSON.stringify({ streamKey: effectiveStreamId, giftId: lastSentGift.id, transaction_id: clientTransactionId, channel: platform.name }),
           });
           const result = await res.json().catch(() => ({}));
 
@@ -2603,12 +2638,24 @@ export default function LiveStream() {
               showToast('Not enough coins');
               return;
             }
-            setCoinBalance(prev => { const n = Math.max(0, prev - lastSentGift.coins); persistTestCoinsBalance(user?.id, n); return n; });
+            if (result.new_balance != null) {
+              const nb = Number(result.new_balance);
+              setCoinBalance(nb);
+              persistTestCoinsBalance(user?.id, nb);
+            }
+            if (msg.includes('frozen')) {
+              showToast('Account is frozen. Contact support.');
+            } else {
+              showToast('Gift could not be sent');
+            }
+            return;
           } else {
             if (result.new_balance != null) {
               const nb = Number(result.new_balance);
               setCoinBalance(nb);
               persistTestCoinsBalance(user?.id, nb);
+            } else {
+              setCoinBalance(prev => { const n = Math.max(0, prev - lastSentGift.coins); persistTestCoinsBalance(user?.id, n); return n; });
             }
             if (result.new_level != null) {
               newLevel = Number(result.new_level);
@@ -2618,7 +2665,8 @@ export default function LiveStream() {
             if (result.new_xp != null) setUserXP(Number(result.new_xp));
           }
         } catch {
-          setCoinBalance(prev => { const n = Math.max(0, prev - lastSentGift.coins); persistTestCoinsBalance(user?.id, n); return n; });
+          showToast('Gift could not be sent');
+          return;
         }
       } else {
         setCoinBalance(prev => { const n = Math.max(0, prev - lastSentGift.coins); persistTestCoinsBalance(user?.id, n); return n; });

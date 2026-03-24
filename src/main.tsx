@@ -5,11 +5,6 @@ import App from './App'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import './index.css'
 
-// Debug: catch any unhandled errors that cause white screen
-// Only show critical crashes in dev, or log in prod
-window.addEventListener('error', () => {
-});
-
 window.addEventListener('unhandledrejection', (e) => {
   // Ignore AbortError as it's usually benign (cancelled requests)
   if (e.reason?.name === 'AbortError' || e.reason?.message?.includes('aborted')) {

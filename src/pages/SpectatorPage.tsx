@@ -39,6 +39,7 @@ import { AvatarRing } from '../components/AvatarRing';
 import { useAuthStore } from '../store/useAuthStore';
 import { apiUrl, getLiveKitUrl } from '../lib/api';
 import { apiStub } from '../lib/apiStub';
+import { fetchWalletBalance } from '../lib/wallet';
 import ReportModal from '../components/ReportModal';
 import PromotePanel from '../components/PromotePanel';
 import { RankingPanel } from '../components/RankingPanel';
@@ -90,6 +91,16 @@ export default function SpectatorPage() {
     if (!userId || typeof localStorage === 'undefined') return;
     try { localStorage.setItem(`elix_test_coins_balance_${userId}`, String(Math.max(0, balance))); } catch {}
   };
+  const refreshCoinBalance = useCallback(async () => {
+    if (!user?.id) return;
+    try {
+      const walletCoins = await fetchWalletBalance();
+      const persisted = getPersistedTestCoinsBalance(user.id);
+      setCoinBalance(prev => Math.max(prev, walletCoins, persisted));
+    } catch {
+      // Keep the current balance if the wallet refresh fails.
+    }
+  }, [user?.id]);
 
   const [showGiftPanel, setShowGiftPanel] = useState(false);
   const [showSharePanel, setShowSharePanel] = useState(false);
@@ -604,7 +615,8 @@ export default function SpectatorPage() {
     setCoinBalance(Math.max(0, persisted));
     setUserLevel(user.level || 1);
     setUserXP(0);
-  }, [user?.id, user?.level]);
+    refreshCoinBalance().catch(() => {});
+  }, [refreshCoinBalance, user?.id, user?.level]);
 
   useEffect(() => {
     if (showTestCoinsModal) {
@@ -622,20 +634,9 @@ export default function SpectatorPage() {
   // Refresh coins when gift panel opens - use max of local, DB and persisted so test coins stay
   useEffect(() => {
     if (showGiftPanel && user?.id) {
-      apiStub
-        .from('profiles')
-        .select('coins')
-        .eq('user_id', user.id)
-        .maybeSingle()
-        .then(({ data }) => {
-          if (data?.coins != null) {
-            const dbCoins = Number(data.coins);
-            const persisted = getPersistedTestCoinsBalance(user.id);
-            setCoinBalance(prev => Math.max(prev, dbCoins, persisted));
-          }
-        });
+      refreshCoinBalance().catch(() => {});
     }
-  }, [showGiftPanel, user?.id]);
+  }, [refreshCoinBalance, showGiftPanel, user?.id]);
 
   const handleSubscribe = async () => {
     setIsSubscribing(true);
@@ -1063,10 +1064,57 @@ export default function SpectatorPage() {
       return;
     }
 
-    const prevBalance = coinBalance;
-    const afterDeduct = Math.max(0, coinBalance - gift.coins);
-    setCoinBalance(afterDeduct);
-    persistTestCoinsBalance(user?.id, afterDeduct);
+    const clientTransactionId = `${user?.id || 'anon'}-${Date.now()}`;
+
+    if (user?.id) {
+      try {
+        const authToken = useAuthStore.getState().session?.access_token;
+        const res = await fetch(apiUrl('/api/gifts/send'), {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+          },
+          body: JSON.stringify({
+            streamKey: effectiveStreamId,
+            giftId: gift.id,
+            transaction_id: clientTransactionId,
+            channel: 'spectator',
+          }),
+        });
+        const result = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+          if (result.new_balance != null) {
+            const nb = Number(result.new_balance);
+            setCoinBalance(nb);
+            persistTestCoinsBalance(user?.id, nb);
+          }
+          const msg = typeof result.error === 'string' ? result.error : '';
+          if (msg.includes('insufficient_funds')) {
+            showToast('Not enough coins');
+          } else if (msg.includes('frozen')) {
+            showToast('Account is frozen. Contact support.');
+          } else {
+            showToast('Gift could not be sent');
+          }
+          return;
+        }
+
+        if (result.new_balance != null) {
+          const nb = Number(result.new_balance);
+          setCoinBalance(nb);
+          persistTestCoinsBalance(user?.id, nb);
+        }
+      } catch {
+        showToast('Gift could not be sent');
+        return;
+      }
+    } else {
+      const afterDeduct = Math.max(0, coinBalance - gift.coins);
+      setCoinBalance(afterDeduct);
+      persistTestCoinsBalance(user?.id, afterDeduct);
+    }
 
     let newLevel = userLevel;
 
@@ -1112,7 +1160,7 @@ export default function SpectatorPage() {
       level: newLevel,
       avatar: viewerAvatar,
       video: gift.video || null,
-      transactionId: `${user?.id || 'anon'}-${Date.now()}`,
+      transactionId: clientTransactionId,
       creator_name: hostName || 'Creator',
       host_user_id: hostUserId || effectiveStreamId,
     });
@@ -2256,7 +2304,6 @@ export default function SpectatorPage() {
                       showToast(`+${amount.toLocaleString()} test added`);
                       setShowTestCoinsModal(false);
                       // In memory-only mode, coins are persisted locally
-                      console.log(`[Test Coins] Added ${amount} to user ${user?.id}`);
                     }}
                   >
                     <p className="text-white/40 text-xs mb-3">These coins are for testing only and have no real value.</p>
@@ -2298,7 +2345,6 @@ export default function SpectatorPage() {
                           showToast(`+${amount.toLocaleString()} test added`);
                           setShowTestCoinsModal(false);
                           // In memory-only mode, coins are persisted locally
-                          console.log(`[Test Coins] Added ${amount} to user ${user?.id}`);
                         }}
                         className="py-1.5 rounded-lg text-xs font-bold transition-colors bg-[#C9A96E]/30 text-[#C9A96E] hover:bg-[#C9A96E]/40 col-span-3"
                       >

@@ -4,7 +4,8 @@
  */
 
 import { platform } from './platform';
-import { apiStub } from './apiStub';
+import { apiUrl } from './api';
+import { useAuthStore } from '../store/useAuthStore';
 
 // Product IDs — must match App Store Connect / Google Play Console
 export const IAP_PRODUCTS = {
@@ -43,6 +44,7 @@ export interface IAPPurchaseResult {
   receipt?: string;
   error?: string;
   coins?: number;
+  newBalance?: number;
 }
 
 let _billingSupported: boolean | null = null;
@@ -94,14 +96,17 @@ export async function loadProducts(): Promise<IAPProduct[]> {
       productType: mod.PURCHASE_TYPE.INAPP,
     });
 
-    return products.map((p: any) => ({
-      id: p.identifier || p.productIdentifier,
+    return products.map((p: any) => {
+      const resolvedId = p.identifier || p.productIdentifier;
+      return {
+      id: resolvedId,
       title: p.title || '',
       description: p.description || '',
       price: p.priceString || `$${(p.priceAmountMicros / 1_000_000).toFixed(2)}`,
       priceAmountMicros: p.priceAmountMicros || 0,
-      coins: IAP_PRODUCTS[p.identifier as IAPProductId]?.coins ?? 0,
-    }));
+      coins: IAP_PRODUCTS[resolvedId as IAPProductId]?.coins ?? 0,
+    };
+    });
   } catch {
     return [];
   }
@@ -152,6 +157,7 @@ export async function purchaseProduct(productId: IAPProductId): Promise<IAPPurch
       transactionId,
       receipt,
       coins: IAP_PRODUCTS[productId]?.coins ?? 0,
+      newBalance: verifyResult.newBalance,
     };
   } catch (err: any) {
     const msg = err?.message || String(err);
@@ -203,21 +209,24 @@ async function verifyAndCreditPurchase(
   packageId: string,
   transactionId: string,
   receipt: string,
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string; newBalance?: number }> {
   try {
-    const { data: { session } } = await apiStub.auth.getSession();
-    if (!session) return { success: false, error: 'Not authenticated' };
+    const { user, session } = useAuthStore.getState();
+    if (!user?.id || !session?.access_token) {
+      return { success: false, error: 'Not authenticated' };
+    }
 
     const provider = platform.isIOS ? 'apple' : 'google';
 
-    const res = await fetch('/api/verify-purchase', {
+    const res = await fetch(apiUrl('/api/iap/verify'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${session.access_token}`,
       },
+      credentials: 'include',
       body: JSON.stringify({
-        userId: session.user.id,
+        userId: user.id,
         packageId,
         provider,
         receipt,
@@ -230,7 +239,8 @@ async function verifyAndCreditPurchase(
       return { success: false, error: body.error || 'Server verification failed' };
     }
 
-    return { success: true };
+    const body = await res.json().catch(() => ({})) as { newBalance?: number };
+    return { success: true, newBalance: body.newBalance };
   } catch {
     return { success: false, error: 'Could not reach verification server' };
   }

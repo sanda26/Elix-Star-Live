@@ -11,7 +11,6 @@ class CrashReportingService {
     try {
       if (IS_STORE_BUILD || import.meta.env.VITE_ENABLE_CRASH_REPORTING === 'true') {
         this.isInitialized = true;
-        if (isDev) console.log('Crash reporting initialized');
       }
     } catch {
       // Initialization failed silently in production
@@ -38,8 +37,11 @@ class CrashReportingService {
   async logMessage(message: string, level: 'info' | 'warning' | 'error' = 'info') {
     if (!this.isInitialized) return;
 
+    void message;
+    void level;
+
     try {
-      if (isDev) console.log('[' + level.toUpperCase() + '] ' + message);
+      if (isDev) return;
     } catch {
       // Logging failed silently
     }

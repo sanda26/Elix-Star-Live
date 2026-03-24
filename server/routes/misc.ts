@@ -1,5 +1,12 @@
 import { Request, Response } from 'express';
-import { getDb, getDbAdmin } from '../lib/backend';
+import crypto from 'crypto';
+import { getTokenFromRequest, verifyAuthToken } from './auth';
+import { recordPromotePurchase } from '../lib/promoteStore';
+import {
+  creditVerifiedPurchase,
+  findPurchaseByProviderTransaction,
+  getWalletBalance,
+} from '../lib/walletStore';
 
 // Rate limiting helper (simplified)
 const rateLimits = new Map<string, { count: number; timestamp: number }>();
@@ -140,20 +147,162 @@ async function verifyAppleReceipt(
   }
 }
 
+const IAP_PRODUCTS: Record<string, { coins: number }> = {
+  'com.elixstarlive.coins_100': { coins: 100 },
+  'com.elixstarlive.coins_500': { coins: 500 },
+  'com.elixstarlive.coins_1000': { coins: 1000 },
+  'com.elixstarlive.coins_5000': { coins: 5000 },
+};
+
+async function getGoogleAccessToken(): Promise<string | null> {
+  const clientEmail = process.env.GOOGLE_PLAY_SERVICE_ACCOUNT_EMAIL;
+  const privateKey = process.env.GOOGLE_PLAY_PRIVATE_KEY;
+
+  if (!clientEmail || !privateKey) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn('[IAP] Google Play service account not configured - skipping verification (dev only)');
+      return null;
+    }
+    throw new Error('google-play-service-account-not-configured');
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+  const header = Buffer.from(JSON.stringify({ alg: 'RS256', typ: 'JWT' })).toString('base64url');
+  const payload = Buffer.from(
+    JSON.stringify({
+      iss: clientEmail,
+      scope: 'https://www.googleapis.com/auth/androidpublisher',
+      aud: 'https://oauth2.googleapis.com/token',
+      iat: now,
+      exp: now + 3600,
+    }),
+  ).toString('base64url');
+
+  const signer = crypto.createSign('RSA-SHA256');
+  signer.update(`${header}.${payload}`);
+  signer.end();
+  const signature = signer.sign(privateKey.replace(/\\n/g, '\n'), 'base64url');
+  const assertion = `${header}.${payload}.${signature}`;
+
+  const resp = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+      assertion,
+    }).toString(),
+  });
+
+  if (!resp.ok) {
+    const body = await resp.text();
+    throw new Error(`google-oauth-${resp.status}:${body}`);
+  }
+
+  const json = await resp.json() as { access_token?: string };
+  return json.access_token ?? null;
+}
+
+async function acknowledgeGooglePurchase(
+  accessToken: string,
+  packageName: string,
+  productId: string,
+  purchaseToken: string,
+) {
+  const resp = await fetch(
+    `https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${encodeURIComponent(
+      packageName,
+    )}/purchases/products/${encodeURIComponent(productId)}/tokens/${encodeURIComponent(
+      purchaseToken,
+    )}:acknowledge`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ developerPayload: 'coins_purchase' }),
+    },
+  );
+
+  if (!resp.ok && resp.status !== 409) {
+    const body = await resp.text();
+    throw new Error(`google-ack-${resp.status}:${body}`);
+  }
+}
+
+async function verifyGooglePurchase(
+  productId: string,
+  purchaseToken: string,
+): Promise<{ valid: boolean; detail?: string; orderId?: string; productId?: string }> {
+  const packageName = process.env.GOOGLE_PLAY_PACKAGE_NAME || 'com.elixstarlive.app';
+
+  try {
+    const accessToken = await getGoogleAccessToken();
+    if (!accessToken) {
+      return {
+        valid: process.env.NODE_ENV !== 'production',
+        detail: 'google-service-account-not-configured-dev',
+        productId,
+      };
+    }
+
+    const resp = await fetch(
+      `https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${encodeURIComponent(
+        packageName,
+      )}/purchases/products/${encodeURIComponent(productId)}/tokens/${encodeURIComponent(
+        purchaseToken,
+      )}`,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      },
+    );
+
+    if (!resp.ok) {
+      const body = await resp.text();
+      return { valid: false, detail: `google-api-${resp.status}:${body}` };
+    }
+
+    const json = await resp.json() as {
+      purchaseState?: number;
+      acknowledgementState?: number;
+      orderId?: string;
+      productId?: string;
+    };
+
+    const valid = json.purchaseState === 0 && (!json.productId || json.productId === productId);
+    if (!valid) {
+      return { valid: false, detail: JSON.stringify(json) };
+    }
+
+    if (json.acknowledgementState === 0) {
+      await acknowledgeGooglePurchase(accessToken, packageName, productId, purchaseToken);
+    }
+
+    return {
+      valid: true,
+      detail: JSON.stringify(json),
+      orderId: json.orderId,
+      productId: json.productId || productId,
+    };
+  } catch (error: any) {
+    console.error('[IAP] Google verification error:', error);
+    return { valid: false, detail: error?.message || 'google-verification-failed' };
+  }
+}
+
 // --- Verify Purchase ---
 export async function handleVerifyPurchase(req: Request, res: Response) {
   if (req.method !== 'POST') return res.status(405).send('Method not allowed');
-  return res.status(501).json({ error: 'Verify purchase not available.' });
-  /*
-  const authHeader = req.headers.authorization;
-  if (!authHeader?.startsWith('Bearer ')) return res.status(401).json({ error: 'Unauthorized' });
-  
-  const token = authHeader.slice(7);
-  const { data: { user }, error: authError } = await getDb().auth.getUser(token);
-  if (authError || !user) return res.status(401).json({ error: 'Unauthorized' });
 
-  // Rate limit: 20 purchases per hour
-  const rateCheck = checkRateLimit(user.id, 'iap:verify', 20, 60 * 60 * 1000);
+  const token = getTokenFromRequest(req);
+  if (!token) return res.status(401).json({ error: 'Unauthorized' });
+
+  const user = verifyAuthToken(token);
+  if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+  const rateCheck = checkRateLimit(user.sub, 'iap:verify', 20, 60 * 60 * 1000);
   if (!rateCheck.allowed) return res.status(429).json({ error: 'Too many purchase attempts' });
 
   try {
@@ -162,66 +311,85 @@ export async function handleVerifyPurchase(req: Request, res: Response) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    if (userId !== user.id) return res.status(403).json({ error: 'Forbidden' });
+    if (userId !== user.sub) return res.status(403).json({ error: 'Forbidden' });
 
-    // Duplicate-transaction guard
-    const { data: existing } = await getDb()
-      .from('purchases')
-      .select('id')
-      .eq('provider_tx_id', transactionId)
-      .maybeSingle();
-
-    if (existing) {
-      return res.status(409).json({ error: 'Transaction already processed' });
+    const packageMeta = IAP_PRODUCTS[String(packageId)];
+    if (!packageMeta) {
+      return res.status(400).json({ error: 'Unknown coin package' });
     }
 
-    // Provider-specific verification
+    const safeProvider = provider === 'google' ? 'google' : provider === 'apple' ? 'apple' : null;
+    if (!safeProvider) {
+      return res.status(400).json({ error: `Unknown provider: ${provider}` });
+    }
+
+    const existing = findPurchaseByProviderTransaction(safeProvider, String(transactionId));
+    if (existing) {
+      return res.status(200).json({
+        success: true,
+        alreadyProcessed: true,
+        purchaseId: existing.id,
+        newBalance: getWalletBalance(userId),
+        coinsAdded: 0,
+        message: 'Purchase already processed',
+      });
+    }
+
     let isValid = false;
     let verificationResponse: any = {};
 
-    if (provider === 'apple') {
-      const apple = await verifyAppleReceipt(transactionId);
-      isValid = apple.valid;
+    if (safeProvider === 'apple') {
+      const apple = await verifyAppleReceipt(String(transactionId));
+      isValid =
+        apple.valid &&
+        (apple.productId
+          ? apple.productId === packageId
+          : process.env.NODE_ENV !== 'production');
       verificationResponse = {
         provider: 'apple',
         verified: apple.valid,
         productId: apple.productId,
         detail: apple.detail,
       };
-    } else if (provider === 'google') {
-      // TODO: implement Google Play verification when needed
-      isValid = true;
-      verificationResponse = { provider: 'google', verified: true, note: 'google-not-yet-verified' };
-    } else {
-      return res.status(400).json({ error: `Unknown provider: ${provider}` });
+    } else if (safeProvider === 'google') {
+      if (!receipt) {
+        return res.status(400).json({ error: 'Missing Google purchase token' });
+      }
+      const google = await verifyGooglePurchase(String(packageId), String(receipt));
+      isValid = google.valid && (!google.productId || google.productId === packageId);
+      verificationResponse = {
+        provider: 'google',
+        verified: google.valid,
+        productId: google.productId || packageId,
+        orderId: google.orderId,
+        detail: google.detail,
+      };
     }
 
     if (!isValid) return res.status(400).json({ error: 'Invalid receipt' });
 
-    const { data, error } = await getDb().rpc('verify_purchase', {
-      p_user_id: userId,
-      p_package_id: packageId,
-      p_provider: provider,
-      p_provider_tx_id: transactionId,
-      p_raw_receipt: receipt || '',
-      p_verification_response: verificationResponse,
+    const credit = creditVerifiedPurchase({
+      userId: String(userId),
+      provider: safeProvider,
+      providerTransactionId: String(transactionId),
+      productId: String(packageId),
+      coins: packageMeta.coins,
+      rawReceipt: String(receipt || transactionId),
+      verification: verificationResponse,
     });
-
-    if (error) {
-      console.error('Purchase verification DB error:', error);
-      return res.status(500).json({ error: error.message });
-    }
 
     return res.json({
       success: true,
-      purchaseId: data,
+      alreadyProcessed: credit.alreadyProcessed,
+      purchaseId: credit.purchase.id,
+      coinsAdded: credit.alreadyProcessed ? 0 : packageMeta.coins,
+      newBalance: credit.newBalance,
       message: 'Purchase verified and coins credited',
     });
   } catch (error: any) {
     console.error('Purchase verification error:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: error.message || 'Purchase verification failed' });
   }
-  */
 }
 
 // Promote IAP product IDs and server-side amounts (must match App Store Connect)
@@ -235,16 +403,13 @@ const PROMOTE_IAP_PRODUCTS: Record<string, { goal: string; amountGbp: number }> 
 // --- Promote IAP complete (Apple/Google) ---
 export async function handlePromoteIAPComplete(req: Request, res: Response) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-  return res.status(501).json({ error: 'Promote IAP not available.' });
-  /*
-  const authHeader = req.headers.authorization;
-  if (!authHeader?.startsWith('Bearer ')) return res.status(401).json({ error: 'Unauthorized' });
+  const token = getTokenFromRequest(req);
+  if (!token) return res.status(401).json({ error: 'Unauthorized' });
 
-  const token = authHeader.slice(7);
-  const { data: { user }, error: authError } = await getDbAdmin().auth.getUser(token);
-  if (authError || !user) return res.status(401).json({ error: 'Invalid auth token' });
+  const user = verifyAuthToken(token);
+  if (!user) return res.status(401).json({ error: 'Invalid auth token' });
 
-  const rateCheck = checkRateLimit(user.id, 'promote:iap', 10, 60 * 60 * 1000);
+  const rateCheck = checkRateLimit(user.sub, 'promote:iap', 10, 60 * 60 * 1000);
   if (!rateCheck.allowed) return res.status(429).json({ error: 'Too many promote attempts' });
 
   const body = req.body;
@@ -256,40 +421,35 @@ export async function handlePromoteIAPComplete(req: Request, res: Response) {
   if (!meta) return res.status(400).json({ error: 'Invalid promote product' });
 
   const { goal, amountGbp } = meta;
-
-  const { data: existing } = await getDbAdmin()
-    .from('promote_purchases')
-    .select('id')
-    .eq('provider_transaction_id', transactionId)
-    .maybeSingle();
-
-  if (existing) return res.status(409).json({ error: 'Transaction already processed' });
-
   const provider = body.provider === 'google' ? 'google' : 'apple';
   let valid = false;
   if (provider === 'apple') {
     const apple = await verifyAppleReceipt(transactionId);
-    valid = apple.valid && apple.productId === productId;
+    valid =
+      apple.valid &&
+      (apple.productId ? apple.productId === productId : process.env.NODE_ENV !== 'production');
   } else {
-    valid = true;
+    const google = await verifyGooglePurchase(String(productId), String(receipt || ''));
+    valid = google.valid && (!google.productId || google.productId === productId);
   }
 
   if (!valid) return res.status(400).json({ error: 'Invalid or unverified transaction' });
 
-  const { error: insertErr } = await getDbAdmin().from('promote_purchases').insert({
-    user_id: user.id,
-    content_type: String(contentType || 'video'),
-    content_id: String(contentId || ''),
+  const recorded = recordPromotePurchase({
+    userId: user.sub,
+    contentType: String(contentType || 'video'),
+    contentId: String(contentId || ''),
     goal,
-    amount_gbp: amountGbp,
-    stripe_session_id: null,
-    provider: provider,
-    provider_transaction_id: transactionId,
-    status: 'completed',
+    amountGbp,
+    provider,
+    providerTransactionId: String(transactionId),
+    productId: String(productId),
   });
 
-  if (insertErr) return res.status(500).json({ error: insertErr.message });
-
-  return res.json({ success: true, message: 'Promote purchase recorded' });
-  */
+  return res.json({
+    success: true,
+    alreadyProcessed: recorded.alreadyProcessed,
+    purchaseId: recorded.purchase.id,
+    message: 'Promote purchase recorded',
+  });
 }

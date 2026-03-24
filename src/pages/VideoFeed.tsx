@@ -43,7 +43,7 @@ type FeedItem =
 
 /* AutoJoinLiveSlide removed: auto-navigating caused an infinite loop when
    pressing X returned to /feed — the live card at the same index would
-   immediately re-trigger navigation. Users now tap LivePreviewCard to join. */
+   immediately re-trigger navigation. Users now tap the live card to join. */
 
 /* ------------------------------------------------------------------ */
 /*  Lightweight per-room WebSocket monitor                             */

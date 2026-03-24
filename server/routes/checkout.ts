@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import Stripe from "stripe";
 import { getDb } from "../lib/backend";
+import { getTokenFromRequest, verifyAuthToken } from "./auth";
 
 // Simple rate limiter map
 const rateLimits = new Map<string, { count: number; timestamp: number }>();
@@ -37,6 +38,21 @@ const stripe = stripeSecretKey
   ? new Stripe(stripeSecretKey, { apiVersion: "2025-01-27.acacia" })
   : (null as unknown as Stripe);
 
+function getAuthenticatedUserId(req: Request): string | null {
+  const token = getTokenFromRequest(req);
+  if (!token) return null;
+  const payload = verifyAuthToken(token);
+  return payload?.sub ?? null;
+}
+
+function resolveOrigin(req: Request): string {
+  return (
+    (typeof req.headers.origin === "string" && req.headers.origin.trim()) ||
+    process.env.CLIENT_URL ||
+    "http://localhost:3000"
+  );
+}
+
 export async function createCheckoutSession(req: Request, res: Response) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
@@ -49,14 +65,19 @@ export async function createCheckoutSession(req: Request, res: Response) {
 
     const { coinPackage, userId } = req.body ?? {};
     const headerUserId = req.headers["x-user-id"] as string | undefined;
-    const effectiveUserId =
+    const requestedUserId =
       (typeof userId === "string" && userId.trim()) || headerUserId;
+    const authUserId = getAuthenticatedUserId(req);
+    const effectiveUserId = authUserId;
 
     if (!coinPackage) {
       return res.status(400).json({ error: "Missing coin package" });
     }
-    if (!effectiveUserId) {
-      return res.status(400).json({ error: "Missing user id" });
+    if (!authUserId || !effectiveUserId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    if (authUserId && requestedUserId && requestedUserId !== authUserId) {
+      return res.status(403).json({ error: "Forbidden" });
     }
 
     // Rate limit: prevent checkout spam
@@ -105,7 +126,7 @@ export async function createCheckoutSession(req: Request, res: Response) {
     }
 
     // Stripe checkout — WEB ONLY (iOS/Android use Apple IAP / Google Play)
-    const origin = req.headers.origin || "http://localhost:3000";
+    const origin = resolveOrigin(req);
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       line_items: [
@@ -122,8 +143,8 @@ export async function createCheckoutSession(req: Request, res: Response) {
         },
       ],
       mode: "payment",
-      success_url: `${origin}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/payment-cancelled`,
+      success_url: `${origin}/purchase-coins?purchase=success&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}/purchase-coins?purchase=cancelled`,
       client_reference_id: effectiveUserId,
       metadata: {
         coinPackageId: coinPackage.id,
@@ -151,12 +172,16 @@ export async function createSubscriptionSession(req: Request, res: Response) {
 
     const { creatorId, userId } = req.body ?? {};
     const headerUserId = req.headers["x-user-id"] as string | undefined;
-    const authHeader = req.headers.authorization;
-    const effectiveUserId =
+    const requestedUserId =
       (typeof userId === "string" && userId.trim()) || headerUserId;
+    const authUserId = getAuthenticatedUserId(req);
+    const effectiveUserId = authUserId || requestedUserId;
 
     if (!effectiveUserId) {
-      return res.status(400).json({ error: "Missing user id" });
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    if (authUserId && requestedUserId && requestedUserId !== authUserId) {
+      return res.status(403).json({ error: "Forbidden" });
     }
 
     const rateCheck = checkRateLimit(effectiveUserId, "subscription");
@@ -168,7 +193,7 @@ export async function createSubscriptionSession(req: Request, res: Response) {
 
     const MEMBERSHIP_PRICE_GBP = 3.0;
     const amountCents = Math.round(MEMBERSHIP_PRICE_GBP * 100);
-    const origin = req.headers.origin || "http://localhost:3000";
+    const origin = resolveOrigin(req);
 
     // Resolve creator Stripe Connect account (creatorId may be stream_key or user_id)
     let creatorStripeAccountId: string | null = null;
@@ -267,11 +292,16 @@ export async function createPromoteCheckoutSession(
 
     const { userId, contentType, contentId, goal } = req.body ?? {};
     const headerUserId = req.headers["x-user-id"] as string | undefined;
-    const effectiveUserId =
+    const requestedUserId =
       (typeof userId === "string" && userId.trim()) || headerUserId;
+    const authUserId = getAuthenticatedUserId(req);
+    const effectiveUserId = authUserId;
 
-    if (!effectiveUserId) {
-      return res.status(400).json({ error: "Missing user id" });
+    if (!authUserId || !effectiveUserId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    if (authUserId && requestedUserId && requestedUserId !== authUserId) {
+      return res.status(403).json({ error: "Forbidden" });
     }
     if (!goal || !PROMOTE_PRICES_GBP[goal]) {
       return res.status(400).json({ error: "Invalid or missing goal" });
@@ -286,7 +316,7 @@ export async function createPromoteCheckoutSession(
 
     const priceGbp = PROMOTE_PRICES_GBP[goal];
     const amountCents = Math.round(priceGbp * 100);
-    const origin = req.headers.origin || "http://localhost:3000";
+    const origin = resolveOrigin(req);
 
     const goalLabels: Record<string, string> = {
       likes: "More likes & comments",
@@ -344,17 +374,25 @@ export async function createPaymentIntent(req: Request, res: Response) {
     }
 
     const { coinPackage, userId } = req.body ?? {};
+    const authUserId = getAuthenticatedUserId(req);
+    const requestedUserId =
+      (typeof userId === "string" && userId.trim()) ||
+      (req.headers["x-user-id"] as string | undefined);
+    const effectiveUserId = authUserId;
 
-    if (!coinPackage?.id || !userId) {
+    if (!authUserId || !coinPackage?.id || !effectiveUserId) {
       return res
-        .status(400)
+        .status(401)
         .json({
-          error: "Missing required parameters (coinPackage.id, userId)",
+          error: "Unauthorized",
         });
+    }
+    if (authUserId && requestedUserId && requestedUserId !== authUserId) {
+      return res.status(403).json({ error: "Forbidden" });
     }
 
     // Rate limit: prevent payment spam
-    const rateCheck = checkRateLimit(String(userId), "gift:send");
+    const rateCheck = checkRateLimit(String(effectiveUserId), "gift:send");
     if (!rateCheck.allowed) {
       return res
         .status(429)
@@ -407,7 +445,7 @@ export async function createPaymentIntent(req: Request, res: Response) {
         coinPackageId: coinPackage.id,
         coins: verifiedPackage.coins.toString(),
         label: verifiedPackage.label,
-        userId: userId.toString(),
+        userId: effectiveUserId.toString(),
       },
       automatic_payment_methods: {
         enabled: true,

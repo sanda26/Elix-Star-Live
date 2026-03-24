@@ -13,9 +13,8 @@ import { mediaRoutes } from "./routes/media";
 import { paymentRoutes } from "./routes/payments";
 import { analyticsRoutes } from "./routes/analytics";
 import { giftRoutes } from "./routes/gifts";
-import { videoRoutes } from "./routes/videos";
+import { soundRoutes, videoRoutes } from "./routes/videos";
 import { profileRoutes } from "./routes/profiles";
-import { soundRoutes } from "./routes/videos";
 
 const fastify = Fastify({
   logger: true,

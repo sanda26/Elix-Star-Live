@@ -7,6 +7,7 @@
 
 import { Request, Response } from "express";
 import { getTokenFromRequest, verifyAuthToken } from "./auth";
+import { addManualCoins, getWalletBalance } from "../lib/walletStore";
 
 export interface Profile {
   userId: string;
@@ -44,7 +45,7 @@ export function getOrCreateProfile(userId: string, seed?: Partial<Profile>): Pro
     followers: seed?.followers ?? 0,
     following: seed?.following ?? 0,
     videoCount: seed?.videoCount ?? 0,
-    coins: seed?.coins ?? 0,
+    coins: seed?.coins ?? getWalletBalance(userId),
     level: seed?.level ?? 1,
     isVerified: seed?.isVerified ?? false,
     createdAt: seed?.createdAt ?? now,
@@ -62,7 +63,7 @@ export function handleGetProfile(req: Request, res: Response): void {
     return;
   }
   const profile = getOrCreateProfile(userId);
-  res.json({ profile });
+  res.json({ profile: { ...profile, coins: getWalletBalance(userId) } });
 }
 
 /** GET /api/profiles/:userId/followers */
@@ -91,7 +92,7 @@ export function handlePatchProfile(req: Request, res: Response): void {
   }
 
   const profile = getOrCreateProfile(userId);
-  const allowed = ["username", "displayName", "avatarUrl", "bio", "website", "level", "coins"] as const;
+  const allowed = ["username", "displayName", "avatarUrl", "bio", "website", "level"] as const;
   for (const key of allowed) {
     const val = (req.body as Record<string, unknown>)[key];
     if (val !== undefined) {
@@ -174,6 +175,10 @@ export function handleGetProfileByUsername(req: Request, res: Response): void {
 
 /** POST /api/test-coins — add test coins to current user */
 export function handleAddTestCoins(req: Request, res: Response): void {
+  if (process.env.NODE_ENV === "production") {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
   const token = getTokenFromRequest(req);
   const jwtUser = token ? verifyAuthToken(token) : null;
   if (!jwtUser) {
@@ -187,9 +192,14 @@ export function handleAddTestCoins(req: Request, res: Response): void {
     return;
   }
   const profile = getOrCreateProfile(jwtUser.sub);
-  profile.coins += numAmount;
+  const { newBalance } = addManualCoins({
+    userId: jwtUser.sub,
+    amount: numAmount,
+    reason: "test_topup",
+  });
+  profile.coins = newBalance;
   profiles.set(jwtUser.sub, profile);
-  res.json({ success: true, coins: profile.coins });
+  res.json({ success: true, coins: newBalance });
 }
 
 /** POST /api/profiles — seed/upsert (e.g. after auth); no auth required */

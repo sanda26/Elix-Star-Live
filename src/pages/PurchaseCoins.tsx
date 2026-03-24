@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { apiStub } from '../lib/apiStub';
 import { Check, Sparkles, RotateCcw } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { trackEvent } from '../lib/analytics';
-import { getPaymentMethod, isStripeAllowed, platform } from '../lib/platform';
+import { isStripeAllowed, platform } from '../lib/platform';
 import {
   purchaseProduct,
   loadProducts as loadIAPProducts,
@@ -15,32 +14,58 @@ import {
 } from '../lib/iap';
 import { stripePaymentService, type CoinPackage } from '../lib/stripePaymentService';
 import { showToast } from '../lib/toast';
+import { useAuthStore } from '../store/useAuthStore';
+import { fetchWalletBalance } from '../lib/wallet';
 
 export default function PurchaseCoins() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const currentUserId = useAuthStore((s) => s.user?.id ?? null);
   const [packages, setPackages] = useState<CoinPackage[]>([]);
   const [nativeProducts, setNativeProducts] = useState<IAPProduct[]>([]);
   const [selectedPackage, setSelectedPackage] = useState<CoinPackage | null>(null);
   const [selectedNativeId, setSelectedNativeId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [walletBalance, setWalletBalance] = useState(0);
   const isNative = platform.isNative;
 
   useEffect(() => {
-    loadCurrentUser();
     if (isNative) {
       loadNativeProducts();
     } else {
       loadPackages();
     }
-  }, []);
+  }, [isNative]);
 
-  const loadCurrentUser = async () => {
+  useEffect(() => {
+    if (!currentUserId) {
+      setWalletBalance(0);
+      return;
+    }
+    refreshWalletBalance();
+  }, [currentUserId]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const purchaseState = params.get('purchase');
+    if (!purchaseState) return;
+
+    if (purchaseState === 'success') {
+      refreshWalletBalance();
+      showToast('Payment completed. Updating your coin balance...');
+    } else if (purchaseState === 'cancelled') {
+      showToast('Payment cancelled');
+    }
+
+    navigate('/purchase-coins', { replace: true });
+  }, [location.search]);
+
+  const refreshWalletBalance = async () => {
     try {
-      const { data } = await apiStub.auth.getUser();
-      setCurrentUserId(data.user?.id || null);
+      const nextBalance = await fetchWalletBalance();
+      setWalletBalance(nextBalance);
     } catch {
-      setCurrentUserId(null);
+      // Keep the page functional even if the wallet request fails.
     }
   };
 
@@ -109,6 +134,12 @@ export default function PurchaseCoins() {
         coins: product.coins,
         transaction_id: result.transactionId,
       });
+
+      if (typeof result.newBalance === 'number') {
+        setWalletBalance(result.newBalance);
+      } else {
+        await refreshWalletBalance();
+      }
 
       showToast(`+${product.coins.toLocaleString()} coins added!`);
     } catch (error) {
@@ -188,6 +219,14 @@ export default function PurchaseCoins() {
             </div>
             <h2 className="text-2xl font-bold mb-2">Buy Coins</h2>
             <p className="text-sm text-white/60">Send gifts, unlock features, and support creators</p>
+            {currentUserId && (
+              <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-[#C9A96E]/30 bg-white/5 px-4 py-2">
+                <Sparkles className="w-4 h-4 text-[#C9A96E]" />
+                <span className="text-sm font-semibold">
+                  Balance: {walletBalance.toLocaleString()} coins
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Products — Native (iOS/Android) */}

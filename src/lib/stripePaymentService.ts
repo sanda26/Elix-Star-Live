@@ -1,6 +1,8 @@
 import { loadStripe } from '@stripe/stripe-js';
-import { apiStub } from '../lib/apiStub';
+import { apiUrl } from '../lib/api';
 import { platform } from '../lib/platform';
+import { useAuthStore } from '../store/useAuthStore';
+import { STRIPE_CONFIG } from '../config/stripe';
 
 export interface CoinPackage {
   id: string;
@@ -21,6 +23,11 @@ export interface PaymentResult {
 export class StripePaymentService {
   private stripe: any = null;
 
+  private getAuthHeaders(): Record<string, string> {
+    const token = useAuthStore.getState().session?.access_token;
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  }
+
   constructor() {
     if (!platform.isNative) {
       this.initializeStripe();
@@ -39,22 +46,54 @@ export class StripePaymentService {
    */
   async getCoinPackages(): Promise<CoinPackage[]> {
     try {
-      const { data, error } = await apiStub
-        .from('coin_packages')
-        .select('*')
-        .eq('is_active', true)
-        .order('coins', { ascending: true });
+      const res = await fetch(apiUrl('/api/coin-packages'), {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          ...this.getAuthHeaders(),
+        },
+        credentials: 'include',
+      });
 
-      if (error) {
-
-        return [];
+      if (!res.ok) {
+        throw new Error('Failed to load coin packages');
       }
 
-      return data || [];
-    } catch (err) {
+      const data = await res.json().catch(() => ({})) as {
+        packages?: Array<{
+          id: string;
+          coins: number;
+          price: number;
+          label: string;
+          bonus_coins?: number;
+          is_popular?: boolean;
+        }>;
+      };
 
-      return [];
+      if (Array.isArray(data.packages) && data.packages.length > 0) {
+        return data.packages.map((pkg) => ({
+          id: pkg.id,
+          name: pkg.label,
+          coins: pkg.coins,
+          price: pkg.price,
+          bonus_coins: pkg.bonus_coins ?? 0,
+          is_popular: !!pkg.is_popular,
+          stripe_price_id: '',
+        }));
+      }
+    } catch {
+      // Fall back to the local price table if the backend package list is unavailable.
     }
+
+    return STRIPE_CONFIG.coinPackages.map((pkg) => ({
+      id: pkg.id,
+      name: pkg.label,
+      coins: pkg.coins,
+      price: pkg.price,
+      bonus_coins: 0,
+      is_popular: false,
+      stripe_price_id: '',
+    }));
   }
 
   /**
@@ -63,27 +102,43 @@ export class StripePaymentService {
   async createPaymentSession(
     packageId: string,
     userId: string
-  ): Promise<{ sessionId: string; error?: string }> {
+  ): Promise<{ sessionId?: string; url?: string; error?: string }> {
     try {
-      // Create payment session via backend
-      const { data, error } = await apiStub.functions.invoke('create-payment-session', {
-        body: {
-          packageId,
+      const coinPackage =
+        STRIPE_CONFIG.coinPackages.find((pkg) => pkg.id === packageId) ?? {
+          id: packageId,
+          coins: 0,
+          price: 0,
+          label: packageId,
+        };
+
+      const res = await fetch(apiUrl('/api/create-checkout-session'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': userId,
+          ...this.getAuthHeaders(),
+        },
+        credentials: 'include',
+        body: JSON.stringify({
           userId,
-          successUrl: `${window.location.origin}/purchase-success`,
-          cancelUrl: `${window.location.origin}/purchase-cancel`,
-        }
+          coinPackage,
+        }),
       });
 
-      if (error) {
+      const data = await res.json().catch(() => ({})) as {
+        sessionId?: string;
+        url?: string;
+        error?: string;
+      };
 
-        return { sessionId: '', error: error.message };
+      if (!res.ok) {
+        return { error: data.error || 'Failed to create payment session' };
       }
 
-      return { sessionId: data.sessionId };
-    } catch (err) {
-
-      return { sessionId: '', error: 'Failed to create payment session' };
+      return { sessionId: data.sessionId, url: data.url };
+    } catch {
+      return { error: 'Failed to create payment session' };
     }
   }
 
@@ -92,27 +147,34 @@ export class StripePaymentService {
    */
   async createSubscriptionSession(
     userId: string
-  ): Promise<{ sessionId: string; error?: string }> {
+  ): Promise<{ sessionId?: string; url?: string; error?: string }> {
     try {
-      // Create subscription session via backend
-      const { data, error } = await apiStub.functions.invoke('create-subscription-session', {
-        body: {
-          priceId: 'price_super_fan_gbp', // This would be the real Stripe Price ID
+      const res = await fetch(apiUrl('/api/create-subscription'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': userId,
+          ...this.getAuthHeaders(),
+        },
+        credentials: 'include',
+        body: JSON.stringify({
           userId,
-          successUrl: `${window.location.origin}/subscription-success`,
-          cancelUrl: `${window.location.origin}/subscription-cancel`,
-        }
+        }),
       });
 
-      if (error) {
+      const data = await res.json().catch(() => ({})) as {
+        sessionId?: string;
+        url?: string;
+        error?: string;
+      };
 
-        return { sessionId: '', error: error.message };
+      if (!res.ok) {
+        return { error: data.error || 'Failed to create subscription session' };
       }
 
-      return { sessionId: data.sessionId };
-    } catch (err) {
-
-      return { sessionId: '', error: 'Failed to create subscription session' };
+      return { sessionId: data.sessionId, url: data.url };
+    } catch {
+      return { error: 'Failed to create subscription session' };
     }
   }
 
@@ -136,9 +198,11 @@ export class StripePaymentService {
       }
       
       // Redirect to Stripe Checkout
-      const { error: redirectError } = await this.stripe.redirectToCheckout({
-        sessionId,
-      });
+      if (!sessionId) {
+        return { success: false, message: 'Missing checkout session id' };
+      }
+
+      const { error: redirectError } = await this.stripe.redirectToCheckout({ sessionId });
 
       if (redirectError) {
         return { success: false, message: redirectError.message };
@@ -190,53 +254,16 @@ export class StripePaymentService {
    * Verify payment and update user coins
    */
   async verifyPayment(sessionId: string): Promise<PaymentResult> {
-    try {
-      // Verify payment via backend
-      const { data, error } = await apiStub.functions.invoke('verify-payment', {
-        body: { sessionId }
-      });
-
-      if (error) {
-        return { success: false, message: error.message };
-      }
-
-      if (data.success) {
-        // Update local state if needed
-        return { 
-          success: true, 
-          message: 'Payment successful!',
-          newBalance: data.newBalance 
-        };
-      } else {
-        return { success: false, message: data.message || 'Payment verification failed' };
-      }
-    } catch (err) {
-
-      return { success: false, message: 'Payment verification failed' };
-    }
+    void sessionId;
+    return { success: false, message: 'Payment verification is handled by the backend webhook' };
   }
 
   /**
    * Get user's current coin balance
    */
   async getUserBalance(userId: string): Promise<number> {
-    try {
-      const { data, error } = await apiStub
-        .from('profiles')
-        .select('coins')
-        .eq('user_id', userId)
-        .single();
-
-      if (error) {
-
-        return 0;
-      }
-
-      return data?.coins || 0;
-    } catch (err) {
-
-      return 0;
-    }
+    void userId;
+    return 0;
   }
 
   /**

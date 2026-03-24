@@ -15,11 +15,12 @@ import {
   type IAPProduct,
 } from '@/lib/iap';
 import { showToast } from '@/lib/toast';
+import { fetchWalletBalance } from '@/lib/wallet';
 
 interface BuyCoinsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess?: (coins: number) => void;
+  onSuccess?: (newBalance: number) => void;
 }
 
 export const BuyCoinsModal: React.FC<BuyCoinsModalProps> = ({ isOpen, onClose, onSuccess }) => {
@@ -30,6 +31,21 @@ export const BuyCoinsModal: React.FC<BuyCoinsModalProps> = ({ isOpen, onClose, o
   const isNative = platform.isNative;
   const loading = false;
   const [customAmount, setCustomAmount] = useState('');
+
+  const syncWalletBalance = async (attempts = 5, delayMs = 800): Promise<number | null> => {
+    for (let i = 0; i < attempts; i += 1) {
+      try {
+        const balance = await fetchWalletBalance();
+        return balance;
+      } catch {
+        // Retry briefly because webhooks may lag behind the client payment confirmation.
+      }
+      if (i < attempts - 1) {
+        await new Promise((resolve) => window.setTimeout(resolve, delayMs));
+      }
+    }
+    return null;
+  };
 
   useEffect(() => {
     if (isOpen && isNative) {
@@ -62,7 +78,11 @@ export const BuyCoinsModal: React.FC<BuyCoinsModalProps> = ({ isOpen, onClose, o
     try {
       const result = await purchaseProduct(product.id as IAPProductId);
       if (result.success) {
-        if (onSuccess) onSuccess(product.coins);
+        const nextBalance =
+          typeof result.newBalance === 'number'
+            ? result.newBalance
+            : await syncWalletBalance();
+        if (onSuccess && typeof nextBalance === 'number') onSuccess(nextBalance);
         showToast(`+${product.coins.toLocaleString()} coins added!`);
         onClose();
       } else if (result.error !== 'Purchase cancelled') {
@@ -80,8 +100,11 @@ export const BuyCoinsModal: React.FC<BuyCoinsModalProps> = ({ isOpen, onClose, o
     setShowPaymentElement(true);
   };
 
-  const handlePaymentSuccess = () => {
-    if (onSuccess) onSuccess(selectedPackage.coins);
+  const handlePaymentSuccess = async () => {
+    const nextBalance = await syncWalletBalance();
+    if (onSuccess && typeof nextBalance === 'number') {
+      onSuccess(nextBalance);
+    }
     onClose();
   };
 

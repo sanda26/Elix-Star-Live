@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
 import { useAuthStore } from '@/store/useAuthStore';
 import { IS_STORE_BUILD } from '@/config/build';
-import { apiStub } from '@/lib/apiStub';
+import { apiUrl } from '@/lib/api';
 import { platform } from '@/lib/platform';
 
 const stripePromise = (!platform.isNative && hasStripeKey()) ? loadStripe(getStripeKey()) : null;
@@ -41,7 +41,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ amount, coinPackage, onSucces
       const { error, paymentIntent } = await stripe.confirmPayment({
         elements,
         confirmParams: {
-          return_url: window.location.origin + '/payment-success',
+          return_url: window.location.origin + '/purchase-coins?purchase=success',
         },
         redirect: 'if_required',
       });
@@ -80,7 +80,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ amount, coinPackage, onSucces
             Processing...
           </>
         ) : (
-          `Buy ${coinPackage.label} for $${amount}`
+          `Buy ${coinPackage.label} for £${amount.toFixed(2)}`
         )}
       </Button>
     </form>
@@ -104,6 +104,7 @@ export const StripePaymentElement: React.FC<StripePaymentElementProps> = ({
   onError 
 }) => {
   const user = useAuthStore((s) => s.user);
+  const token = useAuthStore((s) => s.session?.access_token);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -115,15 +116,37 @@ export const StripePaymentElement: React.FC<StripePaymentElementProps> = ({
     }
     const fetchClientSecret = async () => {
         try {
-            const { data, error } = await apiStub.functions.invoke('create-payment-intent', {
-                body: { 
-                    amount: Math.round(coinPackage.price * 100),
-                    currency: 'usd',
-                    coinPackageId: coinPackage.id 
-                }
+            if (!user?.id) {
+              throw new Error('Please log in to continue');
+            }
+
+            const res = await fetch(apiUrl('/api/create-payment-intent'), {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                'x-user-id': user.id,
+              },
+              credentials: 'include',
+              body: JSON.stringify({
+                userId: user.id,
+                coinPackage: {
+                  id: coinPackage.id,
+                  coins: coinPackage.coins,
+                  price: coinPackage.price,
+                  label: coinPackage.label,
+                },
+              }),
             });
 
-            if (error) throw error;
+            const data = await res.json().catch(() => ({})) as {
+              clientSecret?: string;
+              error?: string;
+            };
+
+            if (!res.ok) {
+              throw new Error(data.error || 'Failed to initialize payment system');
+            }
             
             if (data?.clientSecret) {
                 setClientSecret(data.clientSecret);
@@ -131,8 +154,7 @@ export const StripePaymentElement: React.FC<StripePaymentElementProps> = ({
                 throw new Error('No client secret returned');
             }
         } catch (err) {
-
-             onError('Failed to initialize payment system');
+             onError(err instanceof Error ? err.message : 'Failed to initialize payment system');
         } finally {
             setLoading(false);
         }
@@ -140,7 +162,7 @@ export const StripePaymentElement: React.FC<StripePaymentElementProps> = ({
     
     fetchClientSecret();
     
-  }, [coinPackage]);
+  }, [coinPackage, onError, token, user?.id]);
 
   const options = {
     clientSecret,

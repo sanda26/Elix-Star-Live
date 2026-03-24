@@ -44,6 +44,7 @@ import { useLivePromoStore } from '../store/useLivePromoStore';
 import { AvatarRing } from '../components/AvatarRing';
 import { StoryGoldRingAvatar } from '../components/StoryGoldRingAvatar';
 import { GoldProfileFrame } from '../components/GoldProfileFrame';
+import { LIVE_MVP_PROFILE_RING_PX } from '../lib/profileFrame';
 import { useAuthStore } from '../store/useAuthStore';
 import { clearCachedCameraStream, getCachedCameraStream } from '../lib/cameraStream';
 import { apiUrl, getLiveKitUrl } from '../lib/api';
@@ -3999,7 +4000,7 @@ export default function LiveStream() {
               <div className="flex items-center gap-0 min-w-0 flex-1 justify-start pointer-events-auto" onClick={() => setShowViewerList(true)}>
                 {[0, 1, 2].map((i) => (
                   <div key={`mvp-l-${i}`} className="relative flex flex-col items-center" style={{ zIndex: 3 - i }}>
-                    <GoldProfileFrame size={36}>
+                    <GoldProfileFrame size={LIVE_MVP_PROFILE_RING_PX}>
                       {topMvpHostBattle[i] ? (
                         <img src={resolveCircleAvatar(topMvpHostBattle[i].avatar, topMvpHostBattle[i].displayName || topMvpHostBattle[i].username)} alt="" className="h-full w-full rounded-full object-cover object-center" />
                       ) : (
@@ -4012,7 +4013,7 @@ export default function LiveStream() {
               <div className="flex items-center gap-0 min-w-0 flex-1 justify-end pointer-events-auto" onClick={() => setShowViewerList(true)}>
                 {[0, 1, 2].map((i) => (
                   <div key={`mvp-r-${i}`} className="relative flex flex-col items-center" style={{ zIndex: 3 - i }}>
-                    <GoldProfileFrame size={36}>
+                    <GoldProfileFrame size={LIVE_MVP_PROFILE_RING_PX}>
                       {topMvpOpponentBattle[i] ? (
                         <img src={resolveCircleAvatar(topMvpOpponentBattle[i].avatar, topMvpOpponentBattle[i].displayName || topMvpOpponentBattle[i].username)} alt="" className="h-full w-full rounded-full object-cover object-center" />
                       ) : (
@@ -4190,7 +4191,7 @@ export default function LiveStream() {
                         <div className="flex items-center gap-0 pointer-events-auto flex-shrink-0" onClick={() => setShowViewerList(prev => !prev)}>
                           {[0, 1, 2].map((i) => (
                             <div key={`top-viewers-${i}`} style={{ zIndex: 3 - i }} className="relative">
-                              <GoldProfileFrame size={36}>
+                              <GoldProfileFrame size={LIVE_MVP_PROFILE_RING_PX}>
                                 {topMvpViewers[i] ? (
                                   <img
                                     src={resolveCircleAvatar(topMvpViewers[i].avatar, topMvpViewers[i].displayName || topMvpViewers[i].username)}

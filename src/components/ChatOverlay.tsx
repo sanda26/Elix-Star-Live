@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { LevelBadge } from './LevelBadge';
+import { CHAT_LEVEL_BADGE_SIZE_PX, LIVE_MVP_PROFILE_RING_PX } from '../lib/profileFrame';
 import { Trash2, Ban, Shield } from 'lucide-react';
 
 interface Message {
@@ -116,8 +117,8 @@ export function ChatOverlay({ messages, variant = 'panel', compact = false, clas
             >
               <LevelBadge
                 level={typeof msg.level === 'number' ? msg.level : 1}
-                size={32}
-                circleSize={36}
+                size={CHAT_LEVEL_BADGE_SIZE_PX}
+                circleSize={LIVE_MVP_PROFILE_RING_PX}
                 layout="fixed"
                 avatar={typeof msg.avatar === 'string' ? msg.avatar : undefined}
               />

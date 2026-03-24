@@ -42,6 +42,7 @@ import { ChatOverlay } from '../components/ChatOverlay';
 import { AvatarRing } from '../components/AvatarRing';
 import { StoryGoldRingAvatar } from '../components/StoryGoldRingAvatar';
 import { GoldProfileFrame } from '../components/GoldProfileFrame';
+import { SPECTATOR_BATTLE_PROFILE_RING_PX, SPECTATOR_MVP_PROFILE_RING_PX } from '../lib/profileFrame';
 import { useAuthStore } from '../store/useAuthStore';
 import { useVideoStore } from '../store/useVideoStore';
 import { apiUrl, getLiveKitUrl } from '../lib/api';
@@ -1982,7 +1983,7 @@ export default function SpectatorPage() {
                       const slot = mvpSlots.host[i];
                       return (
                         <div key={`mvp-l-${i}`} className="relative flex flex-col items-center" style={{ zIndex: 3 - i }}>
-                          <GoldProfileFrame size={24}>
+                          <GoldProfileFrame size={SPECTATOR_BATTLE_PROFILE_RING_PX}>
                             {slot ? (
                               <img src={resolveCircleAvatar(slot.avatar, slot.name)} alt="" className="h-full w-full rounded-full object-cover object-center" />
                             ) : (
@@ -2001,7 +2002,7 @@ export default function SpectatorPage() {
                       const slot = mvpSlots.opponent[i];
                       return (
                         <div key={`mvp-r-${i}`} className="relative flex flex-col items-center" style={{ zIndex: 3 - i }}>
-                          <GoldProfileFrame size={24}>
+                          <GoldProfileFrame size={SPECTATOR_BATTLE_PROFILE_RING_PX}>
                             {slot ? (
                               <img src={resolveCircleAvatar(slot.avatar, slot.name)} alt="" className="h-full w-full rounded-full object-cover object-center" />
                             ) : (
@@ -2401,7 +2402,7 @@ export default function SpectatorPage() {
                     const slot = spectatorTopAvatars[i];
                     return (
                       <div key={`spectator-top-mvp-${i}`} style={{ zIndex: 3 - i }} className="relative">
-                        <GoldProfileFrame size={35}>
+                        <GoldProfileFrame size={SPECTATOR_MVP_PROFILE_RING_PX}>
                           {slot ? (
                             <img
                               src={resolveCircleAvatar(slot.avatar, slot.name)}

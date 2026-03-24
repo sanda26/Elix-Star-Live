@@ -2510,7 +2510,7 @@ export default function SpectatorPage() {
           </div>
         )}
 
-        {/* Bottom bar — matches LiveStream spectator (!isBroadcast): chat + co-host + gift + share + more */}
+        {/* Bottom bar — chat + Invite / Gift / Share / More (labels under icons, spectator) */}
         <div className="fixed left-0 right-0 bottom-0 z-[120] pointer-events-auto flex justify-center">
           <div className="w-full max-w-[480px] px-3 pb-[max(8px,env(safe-area-inset-bottom))] pt-0 bg-transparent">
             <div className="flex items-end gap-2 w-full max-w-[480px] pointer-events-auto">
@@ -2536,7 +2536,7 @@ export default function SpectatorPage() {
               </form>
               <button
                 type="button"
-                title={spectatorCoHostRequestSent ? 'Request sent' : 'Co-Host'}
+                title={spectatorCoHostRequestSent ? 'Request sent' : 'Request to co-host'}
                 disabled={spectatorCoHostRequestSent || !user?.id}
                 onClick={async () => {
                   if (!user?.id || !effectiveStreamId || spectatorCoHostRequestSent) return;
@@ -2549,39 +2549,51 @@ export default function SpectatorPage() {
                   setSpectatorCoHostRequestSent(true);
                   showToast('Co-host request sent!');
                 }}
-                className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg relative disabled:opacity-60 active:scale-95 transition-transform flex-shrink-0"
+                className="flex flex-col items-center justify-center w-12 active:scale-95 transition-transform select-none flex-shrink-0 disabled:opacity-60"
               >
-                <span className="flex items-center justify-center w-full h-full relative z-[2]">
-                  <UserPlus size={20} className="text-[#C9A96E] shrink-0" strokeWidth={2} />
-                </span>
-                <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-125 translate-y-0.5" />
+                <div className="relative w-10 h-10 flex items-center justify-center rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 shadow-lg">
+                  <span className="flex items-center justify-center w-full h-full relative z-[2]">
+                    <UserPlus size={20} className="text-[#C9A96E] shrink-0" strokeWidth={2} />
+                  </span>
+                  <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-125 translate-y-0.5" />
+                </div>
+                <span className="text-[10px] font-semibold text-[#C9A96E] mt-0.5">Invite</span>
               </button>
               <button
                 type="button"
                 title="Send gift"
                 onClick={() => setShowGiftPanel(true)}
-                className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform relative flex-shrink-0"
+                className="flex flex-col items-center justify-center w-12 active:scale-95 transition-transform select-none flex-shrink-0"
               >
-                <Gift size={20} className="text-[#C9A96E] relative z-[2]" />
-                <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-125 translate-y-0.5" />
+                <div className="relative w-10 h-10 flex items-center justify-center rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 shadow-lg">
+                  <Gift size={20} className="text-[#C9A96E] relative z-[2]" />
+                  <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[1] scale-125 translate-y-0.5" />
+                </div>
+                <span className="text-[10px] font-semibold text-[#C9A96E] mt-0.5">Gift</span>
               </button>
               <button
                 type="button"
                 title="Share"
                 onClick={() => setShowSharePanel(true)}
-                className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform relative flex-shrink-0"
+                className="flex flex-col items-center justify-center w-12 active:scale-95 transition-transform select-none flex-shrink-0"
               >
-                <Share2 size={20} className="text-[#C9A96E] relative z-[2]" />
-                <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-125 translate-y-0.5" />
+                <div className="relative w-10 h-10 flex items-center justify-center rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 shadow-lg">
+                  <Share2 size={20} className="text-[#C9A96E] relative z-[2]" />
+                  <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[1] scale-125 translate-y-0.5" />
+                </div>
+                <span className="text-[10px] font-semibold text-[#C9A96E] mt-0.5">Share</span>
               </button>
               <button
                 type="button"
                 title="More options"
                 onClick={() => setIsMoreMenuOpen(true)}
-                className="w-10 h-10 rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 flex items-center justify-center shadow-lg active:scale-95 transition-transform relative flex-shrink-0"
+                className="flex flex-col items-center justify-center w-12 active:scale-95 transition-transform select-none flex-shrink-0"
               >
-                <MoreVertical size={20} className="text-[#C9A96E] relative z-[2]" />
-                <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[3] scale-125 translate-y-0.5" />
+                <div className="relative w-10 h-10 flex items-center justify-center rounded-full bg-[#13151A] backdrop-blur-md border border-[#C9A96E]/40 shadow-lg">
+                  <MoreVertical size={20} className="text-[#C9A96E] relative z-[2]" />
+                  <img src="/Icons/Music Icon.png" alt="" className="absolute inset-0 w-full h-full object-contain pointer-events-none z-[1] scale-125 translate-y-0.5" />
+                </div>
+                <span className="text-[10px] font-semibold text-[#C9A96E] mt-0.5">More</span>
               </button>
             </div>
           </div>

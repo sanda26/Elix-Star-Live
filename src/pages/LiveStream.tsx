@@ -33,7 +33,6 @@ import {
   Flag,
   Camera,
   CameraOff,
-  Eye,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { GIFTS, GIFT_COMBO_MAX, resolveGiftAssetUrl } from '../lib/gifts';
@@ -3997,7 +3996,7 @@ export default function LiveStream() {
           })()}
 
             <div className="absolute bottom-1 left-0 right-0 px-3 py-2 flex items-center justify-between flex-none pointer-events-none relative z-30">
-              <div className="flex items-center gap-[0.5mm] min-w-0 flex-1 justify-start pointer-events-auto" onClick={() => setShowViewerList(true)}>
+              <div className="flex items-center gap-0 min-w-0 flex-1 justify-start pointer-events-auto" onClick={() => setShowViewerList(true)}>
                 {[0, 1, 2].map((i) => (
                   <div key={`mvp-l-${i}`} className="relative flex flex-col items-center" style={{ zIndex: 3 - i }}>
                     <GoldProfileFrame size={36}>
@@ -4010,7 +4009,7 @@ export default function LiveStream() {
                   </div>
                 ))}
               </div>
-              <div className="flex items-center gap-[0.5mm] min-w-0 flex-1 justify-end pointer-events-auto" onClick={() => setShowViewerList(true)}>
+              <div className="flex items-center gap-0 min-w-0 flex-1 justify-end pointer-events-auto" onClick={() => setShowViewerList(true)}>
                 {[0, 1, 2].map((i) => (
                   <div key={`mvp-r-${i}`} className="relative flex flex-col items-center" style={{ zIndex: 3 - i }}>
                     <GoldProfileFrame size={36}>
@@ -4187,8 +4186,8 @@ export default function LiveStream() {
                         </div>
                       </div>
 
-                      <div className="pointer-events-auto flex items-center gap-2 mt-1">
-                        <div className="flex items-center gap-[0.5mm] pointer-events-auto flex-shrink-0" onClick={() => setShowViewerList(prev => !prev)}>
+                      <div className="pointer-events-auto flex items-center gap-1 mt-1">
+                        <div className="flex items-center gap-0 pointer-events-auto flex-shrink-0" onClick={() => setShowViewerList(prev => !prev)}>
                           {[0, 1, 2].map((i) => (
                             <div key={`top-viewers-${i}`} style={{ zIndex: 3 - i }} className="relative">
                               <GoldProfileFrame size={36}>
@@ -4209,14 +4208,6 @@ export default function LiveStream() {
                         <button onClick={() => setShowViewerList(prev => !prev)} className="flex items-center gap-0.5 pointer-events-auto">
                           <span className="text-white text-[9px] font-bold tabular-nums">{formatCountShort(viewerCount)}</span>
                           <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round"><polyline points="6 9 12 15 18 9"/></svg>
-                        </button>
-                        <button
-                          type="button"
-                          title="View viewers"
-                          onClick={() => setShowViewerList(true)}
-                          className="w-7 h-7 rounded-full flex items-center justify-center active:scale-95 transition-transform pointer-events-auto"
-                        >
-                          <Eye size={16} className="text-[#C9A96E]" strokeWidth={2.2} />
                         </button>
                         <button type="button" onClick={() => { if (!isBroadcast) { navigate('/feed', { replace: true }); } else if (isBattleMode) { toggleBattle(); } else { stopBroadcast(); } }} className="w-7 h-7 rounded-full flex items-center justify-center active:scale-95 transition-transform" title={isBroadcast ? (isBattleMode ? 'End battle' : 'End broadcast') : 'Leave'}>
                           <img src="/Icons/Gold power buton.png" alt="Close" className="w-5 h-5 object-contain" />

@@ -1975,7 +1975,7 @@ export default function SpectatorPage() {
 
                 <div className="w-full px-3 py-1.5 flex items-center justify-between flex-none z-30">
                   <div
-                    className="flex items-center gap-[0.5mm] min-w-0 flex-1 justify-start pointer-events-auto"
+                    className="flex items-center gap-0 min-w-0 flex-1 justify-start pointer-events-auto"
                     onClick={() => setShowViewersPanel(true)}
                   >
                     {[0, 1, 2].map((i) => {
@@ -1994,7 +1994,7 @@ export default function SpectatorPage() {
                     })}
                   </div>
                   <div
-                    className="flex items-center gap-[0.5mm] min-w-0 flex-1 justify-end pointer-events-auto"
+                    className="flex items-center gap-0 min-w-0 flex-1 justify-end pointer-events-auto"
                     onClick={() => setShowViewersPanel(true)}
                   >
                     {[0, 1, 2].map((i) => {
@@ -2382,9 +2382,9 @@ export default function SpectatorPage() {
                 </div>
               </div>
 
-              <div className="pointer-events-auto flex items-center gap-1.5 flex-shrink-0 min-w-0">
+              <div className="pointer-events-auto flex items-center gap-1 flex-shrink-0 min-w-0">
                 <div
-                  className="flex items-center gap-[0.5mm] pointer-events-auto flex-shrink-0"
+                  className="flex items-center gap-0 pointer-events-auto flex-shrink-0"
                   onClick={() => {
                     const list: { id: string; name: string; avatar: string; level?: number }[] = [];
                     const hid = hostUserIdRef.current || hostUserId || effectiveStreamId;
@@ -2437,24 +2437,6 @@ export default function SpectatorPage() {
                     {typeof viewerCount === 'number' && Number.isFinite(viewerCount) ? viewerCount.toLocaleString() : String(viewerCount)}
                   </span>
                   <UserPlus size={10} className="text-[#C9A96E]" />
-                </button>
-                <button
-                  type="button"
-                  title="View viewers"
-                  onClick={() => {
-                    const list: { id: string; name: string; avatar: string; level?: number }[] = [];
-                    const hid = hostUserIdRef.current || hostUserId || effectiveStreamId;
-                    actualViewersRef.current.forEach((v, id) => {
-                      if (id !== user?.id && id !== hid && id !== effectiveStreamId) {
-                        list.push({ id, name: v.name, avatar: v.avatar, level: v.level });
-                      }
-                    });
-                    setViewersList(list);
-                    setShowViewersPanel(true);
-                  }}
-                  className="w-8 h-8 rounded-full bg-transparent border-0 flex items-center justify-center active:scale-90 transition-transform pointer-events-auto"
-                >
-                  <Eye size={18} className="text-[#C9A96E]" strokeWidth={2.2} />
                 </button>
                 <button
                   type="button"

@@ -1,4 +1,5 @@
 import React from 'react';
+import { PROFILE_RING_IMAGE_LIFT_MM, profileRingInnerPx } from '../lib/profileFrame';
 
 export interface LevelIconProps {
   level: number;
@@ -48,9 +49,8 @@ export const LevelIcon: React.FC<LevelIconProps> = ({
   };
 
   const goldScale = (circleSize + 28) / circleSize;
-  /** Avatar photo clip — same outer `circleSize` as ring; minimal inset so the face scales with the +4mm circle (incl. avatar). */
-  const avatarInsetPx = 3;
-  const avatarDiameter = Math.max(8, circleSize - avatarInsetPx);
+  /** Same inner-hole geometry as `GoldProfileFrame` so chat level avatars match MVP gold circles. */
+  const avatarDiameter = profileRingInnerPx(circleSize);
 
   return (
     <div className={className} style={{ display: 'inline-flex', alignItems: 'center', flexShrink: 0, marginLeft: 8 }}>
@@ -66,7 +66,7 @@ export const LevelIcon: React.FC<LevelIconProps> = ({
         <div
           style={{
             position: 'absolute',
-            top: 'calc(50% - 0.4mm)',
+            top: `calc(50% - ${PROFILE_RING_IMAGE_LIFT_MM}mm)`,
             left: '50%',
             transform: 'translate(-50%, -50%)',
             width: avatarDiameter,

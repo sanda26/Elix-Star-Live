@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { apiStub } from '../lib/apiStub';
@@ -91,6 +91,8 @@ export default function Inbox() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<'main' | 'requests' | 'unread' | 'starred' | 'activity'>('main');
   const [showNewFollowersPanel, setShowNewFollowersPanel] = useState(false);
+  /** IDs of users the current user follows — for Follow / Following in followers panel */
+  const [iFollowIds, setIFollowIds] = useState<Set<string>>(() => new Set());
   const [activityItems, setActivityItems] = useState<ActivityItem[]>([]);
   const [liveShareRequests, setLiveShareRequests] = useState<LiveShareRequestItem[]>([]);
   const deletedThreadIdsRef = useRef<Set<string>>(new Set());
@@ -116,6 +118,74 @@ export default function Inbox() {
   useEffect(() => {
     setCurrentUserId(user?.id ?? null);
   }, [user?.id]);
+
+  const loadMyFollowingIds = useCallback(async () => {
+    if (!currentUserId) return;
+    try {
+      const session = useAuthStore.getState().session;
+      const headers: Record<string, string> = {};
+      if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+      const res = await fetch(apiUrl(`/api/profiles/${encodeURIComponent(currentUserId)}/following`), {
+        credentials: 'include',
+        headers,
+      });
+      if (!res.ok) return;
+      const body = await res.json().catch(() => ({}));
+      const ids: string[] = Array.isArray(body?.following) ? body.following : [];
+      setIFollowIds(new Set(ids));
+    } catch {
+      /* ignore */
+    }
+  }, [currentUserId]);
+
+  useEffect(() => {
+    void loadMyFollowingIds();
+  }, [loadMyFollowingIds]);
+
+  useEffect(() => {
+    if (showNewFollowersPanel) void loadMyFollowingIds();
+  }, [showNewFollowersPanel, loadMyFollowingIds]);
+
+  const handleFollowToggle = useCallback(
+    async (targetUserId: string) => {
+      if (!currentUserId || targetUserId === currentUserId) return;
+      const wasFollowing = iFollowIds.has(targetUserId);
+      setIFollowIds((prev) => {
+        const r = new Set(prev);
+        if (wasFollowing) r.delete(targetUserId);
+        else r.add(targetUserId);
+        return r;
+      });
+      try {
+        const session = useAuthStore.getState().session;
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+        const endpoint = wasFollowing
+          ? apiUrl(`/api/profiles/${encodeURIComponent(targetUserId)}/unfollow`)
+          : apiUrl(`/api/profiles/${encodeURIComponent(targetUserId)}/follow`);
+        const res = await fetch(endpoint, { method: 'POST', credentials: 'include', headers });
+        if (!res.ok) throw new Error('failed');
+        const videoStore = useVideoStore.getState();
+        const cur = videoStore.followingUsers;
+        const updated = wasFollowing ? cur.filter((id) => id !== targetUserId) : [...cur, targetUserId];
+        useVideoStore.setState({
+          followingUsers: updated,
+          videos: videoStore.videos.map((v) =>
+            v.user.id === targetUserId ? { ...v, isFollowing: !wasFollowing } : v
+          ),
+        });
+      } catch {
+        setIFollowIds((prev) => {
+          const r = new Set(prev);
+          if (wasFollowing) r.add(targetUserId);
+          else r.delete(targetUserId);
+          return r;
+        });
+        showToast('Could not update follow');
+      }
+    },
+    [currentUserId, iFollowIds],
+  );
 
   useEffect(() => {
     if (!currentUserId) return;
@@ -815,25 +885,52 @@ export default function Inbox() {
             ) : (
               <div className="space-y-0.5 pb-2">
                 {myNewFollowers.map((f) => (
-                    <button
+                    <div
                       key={f.user_id}
-                      type="button"
-                      onClick={() => { setShowNewFollowersPanel(false); navigate(`/profile/${f.user_id}`); }}
-                      className="flex items-center gap-3 w-full text-left py-2.5 px-2 rounded-lg hover:bg-white/5 active:bg-white/10"
+                      className="flex items-center gap-2 w-full py-2.5 px-2 rounded-lg hover:bg-white/5 active:bg-white/10"
                     >
-                      <div className="relative w-11 h-11 rounded-full bg-[#13151A] flex items-center justify-center overflow-hidden flex-shrink-0 border border-[#C9A96E]/30">
-                        {f.avatar_url ? (
-                          <img src={f.avatar_url} alt="" className="w-full h-full object-cover" />
-                        ) : (
-                          <span className="text-[#C9A96E] font-bold text-lg">{(f.display_name || f.username || 'U').charAt(0).toUpperCase()}</span>
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-sm text-white truncate">{f.display_name || f.username || 'User'}</p>
-                        <p className="text-white/60 text-xs truncate">@{f.username}</p>
-                      </div>
-                      <ChevronRight className="w-5 h-5 text-[#C9A96E]/70 flex-shrink-0" />
-                    </button>
+                      <button
+                        type="button"
+                        className="flex items-center gap-3 flex-1 min-w-0 text-left"
+                        onClick={() => { setShowNewFollowersPanel(false); navigate(`/profile/${f.user_id}`); }}
+                      >
+                        <div className="relative w-11 h-11 rounded-full bg-[#13151A] flex items-center justify-center overflow-hidden flex-shrink-0 border border-[#C9A96E]/30">
+                          {f.avatar_url ? (
+                            <img src={f.avatar_url} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <span className="text-[#C9A96E] font-bold text-lg">{(f.display_name || f.username || 'U').charAt(0).toUpperCase()}</span>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-sm text-white truncate">{f.display_name || f.username || 'User'}</p>
+                          <p className="text-white/60 text-xs truncate">@{f.username}</p>
+                        </div>
+                      </button>
+                      {currentUserId && f.user_id !== currentUserId && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            void handleFollowToggle(f.user_id);
+                          }}
+                          className={`shrink-0 px-3 py-1.5 rounded-md text-xs font-bold transition ${
+                            iFollowIds.has(f.user_id)
+                              ? 'bg-white/10 text-white border border-white/25'
+                              : 'bg-[#FF2D55] text-white border border-[#FF2D55]'
+                          }`}
+                        >
+                          {iFollowIds.has(f.user_id) ? 'Following' : 'Follow'}
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        className="p-1 rounded-lg hover:bg-white/10 flex-shrink-0"
+                        onClick={() => { setShowNewFollowersPanel(false); navigate(`/profile/${f.user_id}`); }}
+                        aria-label="Open profile"
+                      >
+                        <ChevronRight className="w-5 h-5 text-[#C9A96E]/70" />
+                      </button>
+                    </div>
                   ))}
                 </div>
               )}

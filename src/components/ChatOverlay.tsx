@@ -116,8 +116,8 @@ export function ChatOverlay({ messages, variant = 'panel', compact = false, clas
             >
               <LevelBadge
                 level={typeof msg.level === 'number' ? msg.level : 1}
-                size={28}
-                circleSize={39}
+                size={32}
+                circleSize={36}
                 layout="fixed"
                 avatar={typeof msg.avatar === 'string' ? msg.avatar : undefined}
               />
@@ -156,7 +156,7 @@ export function ChatOverlay({ messages, variant = 'panel', compact = false, clas
             </div>
 
             {activeModMenu === msg.id && isModerator && (
-              <div className="absolute left-12 -top-1 z-50 flex items-center gap-1 bg-[#1C1E24] border border-white/20 rounded-lg px-1 py-1 shadow-xl pointer-events-auto">
+              <div className="absolute left-20 -top-1 z-50 flex items-center gap-1 bg-[#1C1E24] border border-white/20 rounded-lg px-1 py-1 shadow-xl pointer-events-auto">
                 <button
                   type="button"
                   onClick={(e) => {

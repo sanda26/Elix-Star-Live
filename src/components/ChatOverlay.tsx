@@ -108,17 +108,16 @@ export function ChatOverlay({ messages, variant = 'panel', compact = false, clas
             onPointerCancel={cancelLongPress}
           >
             <div 
-              className="flex-shrink-0 cursor-pointer relative z-10"
-              style={{ transform: 'translateY(4mm)' }}
+              className="flex-shrink-0 cursor-pointer relative z-10 self-center"
               onClick={(e) => {
                 e.stopPropagation();
                 if (onProfileTap) onProfileTap(msg.username);
               }}
             >
-              <LevelBadge level={typeof msg.level === 'number' ? msg.level : 1} size={28} layout="fixed" avatar={typeof msg.avatar === 'string' ? msg.avatar : undefined} />
+              <LevelBadge level={typeof msg.level === 'number' ? msg.level : 1} size={39} layout="fixed" avatar={typeof msg.avatar === 'string' ? msg.avatar : undefined} />
             </div>
             
-            <div className="flex flex-col min-w-0 justify-center">
+            <div className="flex flex-col min-w-0 justify-center self-center">
               <div className="flex items-center gap-1.5 flex-wrap">
                 {msg.isMod && (
                   <div className="bg-purple-600/80 px-1 py-0.5 rounded flex items-center gap-0.5 flex-shrink-0">

@@ -265,6 +265,20 @@ export async function initPostgres(): Promise<void> {
       `CREATE INDEX IF NOT EXISTS idx_creator_stickers_user ON creator_stickers(creator_user_id)`,
     ).catch(() => {});
 
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS daily_hearts (
+        id SERIAL PRIMARY KEY,
+        creator_user_id TEXT NOT NULL,
+        member_user_id TEXT NOT NULL,
+        day DATE NOT NULL DEFAULT CURRENT_DATE,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        UNIQUE(creator_user_id, member_user_id, day)
+      )
+    `);
+    await pool.query(
+      `CREATE INDEX IF NOT EXISTS idx_daily_hearts_creator_day ON daily_hearts(creator_user_id, day)`,
+    ).catch(() => {});
+
     const userCount = await pool.query(`SELECT COUNT(*) as cnt FROM auth_users`);
     const profileCount = await pool.query(`SELECT COUNT(*) as cnt FROM profiles`);
     logger.info(`Tables ready — ${userCount.rows[0]?.cnt || 0} auth users, ${profileCount.rows[0]?.cnt || 0} profiles in DB`);
@@ -787,6 +801,73 @@ export async function dbDeleteCreatorSticker(creatorUserId: string, stickerId: n
     return (res.rowCount ?? 0) > 0;
   } catch (err) {
     logger.error({ err, stickerId, creatorUserId }, "dbDeleteCreatorSticker failed");
+    return false;
+  }
+}
+
+// ── Daily Hearts ──
+
+export async function dbSendDailyHeart(creatorUserId: string, memberUserId: string): Promise<'sent' | 'already' | 'error'> {
+  const p = getPool();
+  if (!p) return 'error';
+  try {
+    await p.query(
+      `INSERT INTO daily_hearts (creator_user_id, member_user_id, day) VALUES ($1, $2, CURRENT_DATE) ON CONFLICT DO NOTHING`,
+      [creatorUserId, memberUserId],
+    );
+    const check = await p.query(
+      `SELECT 1 FROM daily_hearts WHERE creator_user_id = $1 AND member_user_id = $2 AND day = CURRENT_DATE`,
+      [creatorUserId, memberUserId],
+    );
+    return check.rows.length > 0 ? 'sent' : 'error';
+  } catch (err: any) {
+    if (err?.code === '23505') return 'already';
+    logger.error({ err, creatorUserId, memberUserId }, "dbSendDailyHeart failed");
+    return 'error';
+  }
+}
+
+export async function dbGetDailyHeartCount(creatorUserId: string): Promise<number> {
+  const p = getPool();
+  if (!p) return 0;
+  try {
+    const res = await p.query(
+      `SELECT COUNT(*) as cnt FROM daily_hearts WHERE creator_user_id = $1 AND day = CURRENT_DATE`,
+      [creatorUserId],
+    );
+    return Number(res.rows[0]?.cnt) || 0;
+  } catch (err) {
+    logger.error({ err, creatorUserId }, "dbGetDailyHeartCount failed");
+    return 0;
+  }
+}
+
+export async function dbGetTotalHeartCount(creatorUserId: string): Promise<number> {
+  const p = getPool();
+  if (!p) return 0;
+  try {
+    const res = await p.query(
+      `SELECT COUNT(*) as cnt FROM daily_hearts WHERE creator_user_id = $1`,
+      [creatorUserId],
+    );
+    return Number(res.rows[0]?.cnt) || 0;
+  } catch (err) {
+    logger.error({ err, creatorUserId }, "dbGetTotalHeartCount failed");
+    return 0;
+  }
+}
+
+export async function dbHasSentDailyHeart(creatorUserId: string, memberUserId: string): Promise<boolean> {
+  const p = getPool();
+  if (!p) return false;
+  try {
+    const res = await p.query(
+      `SELECT 1 FROM daily_hearts WHERE creator_user_id = $1 AND member_user_id = $2 AND day = CURRENT_DATE`,
+      [creatorUserId, memberUserId],
+    );
+    return res.rows.length > 0;
+  } catch (err) {
+    logger.error({ err, creatorUserId, memberUserId }, "dbHasSentDailyHeart failed");
     return false;
   }
 }

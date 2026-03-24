@@ -107,7 +107,7 @@ import { handleUploadVideo, handleUploadAvatar } from "./routes/upload";
 import { uploadToBunny, isBunnyConfigured } from "./services/bunny";
 import { isLiveKitConfigured } from "./services/livekit";
 import { getTokenFromRequest, verifyAuthToken } from "./routes/auth";
-import { dbGetCreatorStickers, dbAddCreatorSticker, dbDeleteCreatorSticker } from "./lib/postgres";
+import { dbGetCreatorStickers, dbAddCreatorSticker, dbDeleteCreatorSticker, dbSendDailyHeart, dbGetDailyHeartCount, dbGetTotalHeartCount, dbHasSentDailyHeart } from "./lib/postgres";
 import { handleSendGift } from "./routes/gifts";
 import {
   handleGetProfile,
@@ -255,6 +255,34 @@ app.delete("/api/stickers/:id", async (req, res) => {
   if (!payload) return res.status(401).json({ error: "Invalid token" });
   const ok = await dbDeleteCreatorSticker(payload.sub, Number(req.params.id));
   res.json({ deleted: ok });
+});
+
+// ── Daily Hearts ──
+app.post("/api/hearts/daily", async (req, res) => {
+  const token = getTokenFromRequest(req);
+  if (!token) return res.status(401).json({ error: "Not authenticated" });
+  const payload = verifyAuthToken(token);
+  if (!payload) return res.status(401).json({ error: "Invalid token" });
+  const creatorId = req.body?.creatorId;
+  if (!creatorId || typeof creatorId !== "string") return res.status(400).json({ error: "creatorId required" });
+  if (creatorId === payload.sub) return res.status(400).json({ error: "Cannot heart yourself" });
+  const result = await dbSendDailyHeart(creatorId, payload.sub);
+  const todayCount = await dbGetDailyHeartCount(creatorId);
+  const totalCount = await dbGetTotalHeartCount(creatorId);
+  res.json({ status: result, todayCount, totalCount });
+});
+
+app.get("/api/hearts/daily/:creatorId", async (req, res) => {
+  const creatorId = req.params.creatorId;
+  const todayCount = await dbGetDailyHeartCount(creatorId);
+  const totalCount = await dbGetTotalHeartCount(creatorId);
+  let hasSent = false;
+  const token = getTokenFromRequest(req);
+  if (token) {
+    const payload = verifyAuthToken(token);
+    if (payload) hasSent = await dbHasSentDailyHeart(creatorId, payload.sub);
+  }
+  res.json({ todayCount, totalCount, hasSent });
 });
 
 // Health check endpoint (must be before static files)

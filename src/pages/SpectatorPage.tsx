@@ -271,6 +271,21 @@ export default function SpectatorPage() {
 
   const [hasJoinedToday, setHasJoinedToday] = useState(false);
   const [myHeartCount, setMyHeartCount] = useState(0);
+  const [dailyHeartCount, setDailyHeartCount] = useState(0);
+  const dailyHeartFetchedRef = useRef(false);
+
+  useEffect(() => {
+    if (!hostUserId || dailyHeartFetchedRef.current) return;
+    dailyHeartFetchedRef.current = true;
+    const headers: Record<string, string> = {};
+    const token = useAuthStore.getState().session?.access_token;
+    if (token) headers.Authorization = `Bearer ${token}`;
+    fetch(apiUrl(`/api/hearts/daily/${hostUserId}`), { headers }).then(r => r.json()).then(d => {
+      if (typeof d.todayCount === 'number') setDailyHeartCount(d.todayCount);
+      if (typeof d.totalCount === 'number') setMyHeartCount(d.totalCount);
+      if (d.hasSent) setHasJoinedToday(true);
+    }).catch(() => {});
+  }, [hostUserId]);
 
   // ═══════════════════════════════════════════════════
   // BATTLE STATE (spectator sees host's battle status)
@@ -2329,17 +2344,13 @@ export default function SpectatorPage() {
                     <button
                       type="button"
                       className={`col-start-1 row-start-1 flex items-center justify-center gap-1 ${hasJoinedToday ? 'bg-[#C9A96E] border-[#C9A96E]' : 'bg-[#13151A] border-[#C9A96E]/40'} rounded-full px-1.5 py-0.5 shadow-sm border w-[58px] h-7 z-0 transition-colors duration-200`}
-                      onClick={(e) => {
+                      onClick={async (e) => {
                         e.stopPropagation();
-                        if (!hasJoinedToday && user?.id && effectiveStreamId) {
-                          const today = new Date().toISOString().split('T')[0];
-                          const storageKey = `joined_stream_${effectiveStreamId}_${user.id}_${today}`;
-                          localStorage.setItem(storageKey, 'true');
-                          const heartKey = `my_heart_count_${effectiveStreamId}_${user.id}`;
-                          const newCount = myHeartCount + 1;
-                          localStorage.setItem(heartKey, newCount.toString());
-                          setMyHeartCount(newCount);
+                        if (!hasJoinedToday && user?.id && hostUserId) {
+                          const token = useAuthStore.getState().session?.access_token;
+                          if (!token) return;
                           setHasJoinedToday(true);
+                          spawnHeartFromClient(e.clientX, e.clientY);
                           const newMessage: LiveMessage = {
                             id: Date.now().toString(),
                             username: viewerName,
@@ -2351,7 +2362,18 @@ export default function SpectatorPage() {
                             membershipIcon: '/icons/Membership.png'
                           };
                           setMessages(prev => [...prev, newMessage]);
-                          spawnHeartFromClient(e.clientX, e.clientY);
+                          try {
+                            const res = await fetch(apiUrl('/api/hearts/daily'), {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                              body: JSON.stringify({ creatorId: hostUserId }),
+                            });
+                            if (res.ok) {
+                              const d = await res.json();
+                              if (typeof d.todayCount === 'number') setDailyHeartCount(d.todayCount);
+                              if (typeof d.totalCount === 'number') setMyHeartCount(d.totalCount);
+                            }
+                          } catch { /* non-fatal */ }
                         }
                       }}
                     >

@@ -523,6 +523,24 @@ export default function LiveStream() {
   const [memberCount, setMemberCount] = useState(0);
   const [hasJoinedToday, setHasJoinedToday] = useState(false);
   const [myHeartCount, setMyHeartCount] = useState(0);
+  const [dailyHeartCount, setDailyHeartCount] = useState(0);
+
+  // Fetch daily hearts count for creator
+  useEffect(() => {
+    if (!user?.id) return;
+    fetch(apiUrl(`/api/hearts/daily/${user.id}`)).then(r => r.json()).then(d => {
+      if (typeof d.todayCount === 'number') setDailyHeartCount(d.todayCount);
+      if (typeof d.totalCount === 'number') setMyHeartCount(d.totalCount);
+    }).catch(() => {});
+    const interval = setInterval(() => {
+      fetch(apiUrl(`/api/hearts/daily/${user.id}`)).then(r => r.json()).then(d => {
+        if (typeof d.todayCount === 'number') setDailyHeartCount(d.todayCount);
+        if (typeof d.totalCount === 'number') setMyHeartCount(d.totalCount);
+      }).catch(() => {});
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [user?.id]);
+
   const [creatorQuery, setCreatorQuery] = useState('');
   const [creators, setCreators] = useState<{ id: string; name: string; username: string; followers: string; avatar: string; isLive: boolean }[]>([]);
   const [creatorsLoading, setCreatorsLoading] = useState(false);
@@ -4825,12 +4843,12 @@ export default function LiveStream() {
                      <Heart className="w-4 h-4 text-black fill-black" />
                    </div>
                    <div>
-                     <div className="text-[#C9A96E]/60 text-[9px] font-bold uppercase tracking-wider">Current Status</div>
+                     <div className="text-[#C9A96E]/60 text-[9px] font-bold uppercase tracking-wider">Member Hearts</div>
                      <div className="text-gold-metallic font-bold text-sm">
-                      {myHeartCount === 0 ? 'New Viewer' : myHeartCount < 5 ? 'Rising Fan' : myHeartCount < 20 ? 'Loyal Member' : 'Super Fan'}
+                      {dailyHeartCount} today
                     </div>
                     <div className="text-white/50 text-[9px] font-bold mt-0.5">
-                      {myHeartCount} Hearts Sent • {myHeartCount} Days Supported
+                      {myHeartCount} total hearts received
                     </div>
                    </div>
                  </div>

@@ -7,6 +7,7 @@ const config: CapacitorConfig = {
   server: {
     androidScheme: 'https',
     iosScheme: 'https',
+    hostname: 'www.elixstarlive.co.uk',
   },
   plugins: {
     SplashScreen: {

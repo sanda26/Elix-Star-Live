@@ -2357,8 +2357,9 @@ export default function SpectatorPage() {
                     >
                       <div className="relative">
                         <Heart
-                          className={`w-3.5 h-3.5 ${hasJoinedToday ? 'text-white fill-white' : 'text-[#C9A96E] fill-[#C9A96E]'}`}
+                          className={`w-3.5 h-3.5 ${hasJoinedToday ? 'text-white' : 'text-[#C9A96E]'}`}
                           strokeWidth={2.5}
+                          fill={hasJoinedToday ? 'white' : '#C9A96E'}
                         />
                         {!hasJoinedToday && (
                           <div className="absolute -top-1 -right-1 w-2 h-2 bg-[#C9A96E] rounded-full flex items-center justify-center border border-white">

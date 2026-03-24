@@ -150,11 +150,9 @@ function App() {
     } catch (_) {
       /* avoid crashing app */
     }
-    try {
-      notificationService.initialize();
-    } catch (_) {
-      /* avoid crashing app */
-    }
+    void notificationService.initialize().catch(() => {
+      /* async push init — never block app */
+    });
     try {
       initializeIAP();
     } catch (_) {

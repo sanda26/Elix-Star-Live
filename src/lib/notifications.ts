@@ -1,14 +1,20 @@
 // Push notifications — Capacitor native push; device tokens via POST /api/device-tokens.
+// If Android crashes with FirebaseApp / FCM errors, add google-services.json OR set
+// VITE_DISABLE_NATIVE_PUSH=true in your Vite env for that build.
 
 import { Capacitor } from "@capacitor/core";
-import {
-  PushNotifications,
+import type {
   Token,
   PushNotificationSchema,
 } from "@capacitor/push-notifications";
 import { apiUrl } from "./api";
 import { useAuthStore } from "../store/useAuthStore";
 import { trackEvent } from "./analytics";
+
+function isNativePushDisabled(): boolean {
+  const v = import.meta.env.VITE_DISABLE_NATIVE_PUSH;
+  return v === "true" || v === "1";
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -48,12 +54,16 @@ class NotificationService {
   /**
    * Initialize push notifications (native only).
    * Requests permission and registers the device token with the Hetzner backend.
+   * Uses dynamic import so a missing/misconfigured Firebase setup fails in one catch.
    */
   async initialize(): Promise<void> {
     if (!Capacitor.isNativePlatform()) return;
+    if (isNativePushDisabled()) return;
     if (this.isInitialized) return;
 
     try {
+      const { PushNotifications } = await import("@capacitor/push-notifications");
+
       const permStatus = await PushNotifications.requestPermissions();
 
       if (permStatus.receive === "granted") {
@@ -75,7 +85,7 @@ class NotificationService {
         this.isInitialized = true;
       }
     } catch {
-      // Fail silently — push notifications are non-critical
+      // Fail silently — push notifications are non-critical (e.g. no Firebase on device)
     }
   }
 

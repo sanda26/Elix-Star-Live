@@ -25,6 +25,7 @@ import {
   Plus,
   Check,
   Smile,
+  User,
   UserPlus,
   X,
   Sword,
@@ -158,6 +159,7 @@ export default function LiveStream() {
   const [viewerHasStream, setViewerHasStream] = useState(false);
   const setPromo = useLivePromoStore((s) => s.setPromo);
   const { user, updateUser } = useAuthStore();
+  const followingUsers = useVideoStore((s) => s.followingUsers);
   const _rawStreamId = streamId;
   const PROMOTE_LIKES_THRESHOLD_LIVE = 100;
   const _PROMOTE_LIKES_THRESHOLD_BATTLE = 50;
@@ -1310,6 +1312,8 @@ export default function LiveStream() {
     Array<{ id: string; x: number; y: number; dx: number; rot: number; size: number; color: string; username?: string; avatar?: string }>
   >([]);
   const [miniProfile, setMiniProfile] = useState<null | { id?: string; username: string; avatar: string; level: number | null; coins?: number; donated?: number; bio?: string; followers_count?: number; following_count?: number }>(null);
+  /** Synced from GET /following when panel user id is known; used so Follow matches server (does not touch host top-bar isFollowing). */
+  const [miniProfileFollowsThem, setMiniProfileFollowsThem] = useState<boolean | undefined>(undefined);
   const [showMembershipBar, setShowMembershipBar] = useState(false);
   const [showTeamStatus, setShowTeamStatus] = useState(false);
   const [showJoinAnimation, setShowJoinAnimation] = useState(false);
@@ -1333,6 +1337,38 @@ export default function LiveStream() {
       if (d?.stickers) setCreatorStickers(d.stickers);
     }).catch(() => {});
   }, [showFanClub, user?.id]);
+
+  useEffect(() => {
+    if (!miniProfile) {
+      setMiniProfileFollowsThem(undefined);
+      return;
+    }
+    if (!miniProfile.id || !user?.id || miniProfile.id === user.id) {
+      setMiniProfileFollowsThem(undefined);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const session = useAuthStore.getState().session;
+        const headers: Record<string, string> = {};
+        if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+        const res = await fetch(apiUrl(`/api/profiles/${encodeURIComponent(user.id)}/following`), {
+          credentials: 'include',
+          headers,
+        });
+        if (!res.ok || cancelled) return;
+        const body = await res.json().catch(() => ({ following: [] }));
+        const ids: string[] = Array.isArray(body?.following) ? body.following : [];
+        if (!cancelled) setMiniProfileFollowsThem(ids.includes(miniProfile.id!));
+      } catch {
+        if (!cancelled) setMiniProfileFollowsThem(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [miniProfile?.id, user?.id]);
 
   const uploadSticker = useCallback(() => {
     const token = useAuthStore.getState().session?.access_token;
@@ -3305,6 +3341,83 @@ export default function LiveStream() {
 
   const closeMiniProfile = () => setMiniProfile(null);
 
+  const handleMiniProfileFollowToggle = useCallback(async () => {
+    if (!miniProfile) return;
+    if (!user?.id) {
+      showToast('Log in to follow');
+      navigate('/login', { state: { from: location.pathname } });
+      return;
+    }
+    let targetId = miniProfile.id;
+    if (!targetId && miniProfile.username) {
+      try {
+        const authToken = useAuthStore.getState().session?.access_token;
+        const res = await fetch(apiUrl(`/api/profiles/by-username/${encodeURIComponent(miniProfile.username)}`), {
+          headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
+          credentials: 'include',
+        });
+        if (res.ok) {
+          const prof = await res.json();
+          if (prof?.user_id) {
+            targetId = prof.user_id;
+            setMiniProfile((prev) =>
+              prev && prev.username === miniProfile.username
+                ? {
+                    ...prev,
+                    id: prof.user_id,
+                    bio: prof.bio ?? prev.bio,
+                    avatar: prof.avatar_url || prev.avatar,
+                    level: prof.level ?? prev.level,
+                    followers_count: prof.followers_count ?? prev.followers_count,
+                    following_count: prof.following_count ?? prev.following_count,
+                  }
+                : prev,
+            );
+          }
+        }
+      } catch {
+        /* keep */
+      }
+    }
+    if (!targetId) {
+      showToast('Could not load profile. Try again.');
+      return;
+    }
+    if (targetId === user.id) return;
+
+    const wasFollowing =
+      miniProfileFollowsThem === true ||
+      (miniProfileFollowsThem === undefined && useVideoStore.getState().followingUsers.includes(targetId));
+
+    try {
+      const session = useAuthStore.getState().session;
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+      const endpoint = wasFollowing
+        ? apiUrl(`/api/profiles/${encodeURIComponent(targetId)}/unfollow`)
+        : apiUrl(`/api/profiles/${encodeURIComponent(targetId)}/follow`);
+      const res = await fetch(endpoint, { method: 'POST', credentials: 'include', headers });
+      if (!res.ok) throw new Error('follow failed');
+
+      const prev = useVideoStore.getState().followingUsers;
+      const nextIds = wasFollowing
+        ? prev.filter((id) => id !== targetId)
+        : prev.includes(targetId)
+          ? prev
+          : [...prev, targetId];
+      useVideoStore.setState({ followingUsers: nextIds });
+      setMiniProfileFollowsThem(!wasFollowing);
+      setMiniProfile((p) =>
+        p && p.id === targetId && typeof p.followers_count === 'number'
+          ? { ...p, followers_count: Math.max(0, p.followers_count + (wasFollowing ? -1 : 1)) }
+          : p,
+      );
+      showToast(wasFollowing ? 'Unfollowed' : 'Following');
+    } catch {
+      showToast('Could not update follow. Try again.');
+    }
+  }, [miniProfile, user?.id, miniProfileFollowsThem, navigate, location.pathname]);
+
   const _startBattleMatch = () => {
     if (!isBattleMode) return;
     setMyScore(0);
@@ -4631,7 +4744,12 @@ export default function LiveStream() {
                     <AvatarRing src={typeof miniProfile.avatar === 'string' ? miniProfile.avatar : ''} alt={typeof miniProfile.username === 'string' ? miniProfile.username : 'User'} size={80} />
                   </div>
                   <div className="min-w-0 pt-1">
-                    <div className="text-white font-black text-[16px] truncate">{typeof miniProfile.username === 'string' ? miniProfile.username : 'User'}</div>
+                    <div className="flex items-center gap-1 min-w-0">
+                      <div className="text-white font-black text-[16px] truncate">{typeof miniProfile.username === 'string' ? miniProfile.username : 'User'}</div>
+                      {miniProfile?.id && moderators.has(miniProfile.id) && (
+                        <User className="w-3.5 h-3.5 text-[#C9A96E] flex-shrink-0" strokeWidth={2.25} aria-hidden />
+                      )}
+                    </div>
                     <div className="text-white/70 text-[12px] font-bold">
                       {typeof miniProfile.level === 'number' ? (
                         <span className="inline-flex items-center gap-2">
@@ -4672,19 +4790,22 @@ export default function LiveStream() {
               </div>
 
               <div className="mt-5 grid grid-cols-4 gap-2">
-                <button type="button" onClick={async () => {
-                  if (!user?.id || !miniProfile?.id) return;
-                  try {
-                    const authToken = useAuthStore.getState().session?.access_token;
-                    await fetch(apiUrl(`/api/profiles/${miniProfile.id}/follow`), {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json', ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}) },
-                    });
-                    setIsFollowing(true);
-                    closeMiniProfile();
-                  } catch {}
-                }} className="h-9 rounded-lg bg-[#C9A96E] text-black text-[11px] font-black hover:bg-[#C9A96E]/90 active:scale-95 transition-all">
-                  Follow
+                <button
+                  type="button"
+                  onClick={() => void handleMiniProfileFollowToggle()}
+                  className={`h-9 rounded-lg text-[11px] active:scale-95 transition-all ${
+                    miniProfile?.id &&
+                    (miniProfileFollowsThem === true ||
+                      (miniProfileFollowsThem === undefined && followingUsers.includes(miniProfile.id)))
+                      ? 'bg-white/10 text-white border border-white/10 font-bold'
+                      : 'bg-[#C9A96E] text-black font-black hover:bg-[#C9A96E]/90'
+                  }`}
+                >
+                  {miniProfile?.id &&
+                  (miniProfileFollowsThem === true ||
+                    (miniProfileFollowsThem === undefined && followingUsers.includes(miniProfile.id)))
+                    ? 'Following'
+                    : 'Follow'}
                 </button>
                 <button 
                   type="button" 

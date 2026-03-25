@@ -41,8 +41,6 @@ export default function GiftAnimationOverlay({ streamId: _streamId }: GiftAnimat
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleGiftSent = (data: any) => {
-    /** Battle joiner (ex-spectator P2): gifts are chat-only — no top banner. */
-    if (data?.chatOnlyUi === true) return;
     const username = data.username ?? 'Someone';
     const giftName = data.giftName ?? data.gift_name ?? 'Gift';
     const quantity = data.quantity ?? 1;

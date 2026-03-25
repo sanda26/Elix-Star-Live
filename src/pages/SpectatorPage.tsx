@@ -2252,7 +2252,7 @@ export default function SpectatorPage() {
           <div className="px-3" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 2px)' }}>
             <div className="flex items-center justify-between gap-2 relative">
               {/* Left: Creator info — full creator top bar */}
-              <div className="pointer-events-auto flex items-center gap-0 -ml-1 flex-shrink min-w-0" style={{ transform: 'translateY(1mm)' }}>
+              <div className="pointer-events-auto flex items-center gap-0 -ml-1 flex-shrink min-w-0" style={{ transform: 'translateY(-3mm)' }}>
                 <div
                   className="relative z-10 flex-shrink-0 cursor-pointer active:scale-95 transition-transform"
                   onClick={() => navigate(`/profile/${hostUserId}`)}

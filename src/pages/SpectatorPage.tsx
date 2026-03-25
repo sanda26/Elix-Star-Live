@@ -1138,7 +1138,7 @@ export default function SpectatorPage() {
           setMessages(prev => [...prev, msg]);
         }
         // Match creator (LiveStream): only queue real video assets; prefer catalog path, else WS payload.
-        if (data.user_id !== user?.id) {
+        if (data.user_id !== user?.id && data?.chatOnlyUi !== true) {
           const isVideoFile = (value: string) => {
             const p = value.split('?')[0].toLowerCase();
             return p.endsWith('.mp4') || p.endsWith('.webm');

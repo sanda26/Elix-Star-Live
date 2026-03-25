@@ -2385,6 +2385,7 @@ export default function LiveStream() {
         setMessages(prev => [...prev, msg]);
         
 
+        const chatOnlyUi = data?.chatOnlyUi === true;
         const isVideoFile = (value: string) => {
           const p = value.split('?')[0].toLowerCase();
           return p.endsWith('.mp4') || p.endsWith('.webm');
@@ -2394,7 +2395,7 @@ export default function LiveStream() {
         const pickedRawVideo = defVideo && isVideoFile(defVideo)
           ? defVideo
           : (incomingVideo && isVideoFile(incomingVideo) ? incomingVideo : '');
-        if (pickedRawVideo && pickedRawVideo.trim()) {
+        if (!chatOnlyUi && pickedRawVideo && pickedRawVideo.trim()) {
           const videoUrl = (pickedRawVideo.startsWith('http://') || pickedRawVideo.startsWith('https://'))
             ? pickedRawVideo
             : resolveGiftAssetUrl(pickedRawVideo.startsWith('/') ? pickedRawVideo : `/${pickedRawVideo}`);
@@ -2869,7 +2870,7 @@ export default function LiveStream() {
     try {
       // Local/dev: always allow sending gifts, even if coinBalance is low,
       // so video gifts are never blocked from playing.
-      if (gift.video && gift.video.trim()) {
+      if (!isBattleJoiner && gift.video && gift.video.trim()) {
         const raw = gift.video;
         const ext = raw.split('?')[0].toLowerCase();
         const isVid = ext.endsWith('.mp4') || ext.endsWith('.webm');
@@ -2986,6 +2987,7 @@ export default function LiveStream() {
         battleTarget: serverBattleTarget,
         creator_name: hostName || 'Creator',
         ...(!isBroadcast && { host_user_id: effectiveStreamId }),
+        ...(isBattleJoiner ? { chatOnlyUi: true } : {}),
       });
       
 
@@ -3097,7 +3099,7 @@ export default function LiveStream() {
         maybeTriggerFaceARGift(lastSentGift);
       }
       
-      if (lastSentGift.video && lastSentGift.video.trim()) {
+      if (!isBattleJoiner && lastSentGift.video && lastSentGift.video.trim()) {
         const videoUrl = (lastSentGift.video.startsWith('http://') || lastSentGift.video.startsWith('https://'))
           ? lastSentGift.video
           : resolveGiftAssetUrl(lastSentGift.video.startsWith('/') ? lastSentGift.video : `/${lastSentGift.video}`);
@@ -3140,6 +3142,7 @@ export default function LiveStream() {
         battleTarget: serverBattleTargetCombo,
         creator_name: hostName || 'Creator',
         ...(!isBroadcast && { host_user_id: effectiveStreamId }),
+        ...(isBattleJoiner ? { chatOnlyUi: true } : {}),
       });
 
 

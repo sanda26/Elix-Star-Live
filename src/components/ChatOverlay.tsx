@@ -88,6 +88,7 @@ export function ChatOverlay({ messages, variant = 'panel', compact = false, clas
     alignItems: 'flex-start',
     width: '100%',
     pointerEvents: 'auto',
+    transform: 'translateX(-4mm)',
   };
 
   return (

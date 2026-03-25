@@ -51,6 +51,7 @@ import {
   LIVE_TOP_AVATAR_RING_PX,
 } from '../lib/profileFrame';
 import { useAuthStore } from '../store/useAuthStore';
+import { useVideoStore } from '../store/useVideoStore';
 import { clearCachedCameraStream, getCachedCameraStream } from '../lib/cameraStream';
 import { apiUrl, getLiveKitUrl } from '../lib/api';
 import { fetchAllSharePanelContacts } from '../lib/sharePanelContacts';
@@ -253,6 +254,68 @@ export default function LiveStream() {
   const viewerAvatar =
     user?.avatar || `https://ui-avatars.com/api/?name=&background=121212&color=C9A96E`;
   const universeGiftLabel = 'Universe';
+
+  const followCreatorLive = useCallback(
+    async (e?: React.MouseEvent) => {
+      e?.stopPropagation();
+      if (!user?.id) {
+        showToast('Log in to follow');
+        navigate('/login', { state: { from: location.pathname } });
+        return;
+      }
+      const targetId = effectiveStreamId;
+      if (!targetId || targetId === 'broadcast' || targetId === user.id) return;
+      try {
+        const session = useAuthStore.getState().session;
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+        const res = await fetch(apiUrl(`/api/profiles/${encodeURIComponent(targetId)}/follow`), {
+          method: 'POST',
+          credentials: 'include',
+          headers,
+        });
+        if (!res.ok) throw new Error('follow failed');
+        setIsFollowing(true);
+        const prev = useVideoStore.getState().followingUsers;
+        if (!prev.includes(targetId)) {
+          useVideoStore.setState({ followingUsers: [...prev, targetId] });
+        }
+        showToast('Following');
+      } catch {
+        showToast('Could not follow. Try again.');
+      }
+    },
+    [user?.id, effectiveStreamId, navigate, location.pathname],
+  );
+
+  useEffect(() => {
+    if (!user?.id || isBroadcast || !effectiveStreamId) return;
+    if (effectiveStreamId === user.id || effectiveStreamId === 'broadcast') {
+      setIsFollowing(false);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const session = useAuthStore.getState().session;
+        const headers: Record<string, string> = {};
+        if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+        const res = await fetch(apiUrl(`/api/profiles/${encodeURIComponent(user.id)}/following`), {
+          credentials: 'include',
+          headers,
+        });
+        if (!res.ok || cancelled) return;
+        const body = await res.json().catch(() => ({ following: [] }));
+        const ids: string[] = Array.isArray(body?.following) ? body.following : [];
+        if (!cancelled) setIsFollowing(ids.includes(effectiveStreamId));
+      } catch {
+        if (!cancelled) setIsFollowing(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, isBroadcast, effectiveStreamId]);
 
   // FaceAR State
   const faceARCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -4079,15 +4142,12 @@ export default function LiveStream() {
                                       <span className={`${hasJoinedToday ? 'text-white' : 'text-[#C9A96E]'} text-[10px] font-bold`}>Join</span>
                                     </button>
 
-                                    {/* Follow Button (Top) - Shows "+ Follow" */}
-                                    {!isFollowing && (
+                                    {/* Follow Button (Top) — viewers only; calls POST /api/profiles/:id/follow */}
+                                    {!isBroadcast && !isFollowing && (
                                       <button
                                         type="button"
                                         className="col-start-1 row-start-1 z-20 relative flex items-center justify-center gap-1 bg-[#FF2D55] rounded-full px-1.5 py-0.5 shadow-sm border border-white/20 w-[58px] h-7"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setIsFollowing(true);
-                                        }}
+                                        onClick={followCreatorLive}
                                       >
                                         <Plus size={12} className="text-white" strokeWidth={3} />
                                         <span className="text-white text-[10px] font-bold">Follow</span>

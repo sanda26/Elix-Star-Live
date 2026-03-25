@@ -1944,7 +1944,7 @@ export default function SpectatorPage() {
                         <div
                           key={`mvp-l-${i}`}
                           className="relative flex flex-col items-center"
-                          style={{ zIndex: 3 - i, marginLeft: i === 0 ? '0mm' : '-1mm' }}
+                          style={{ zIndex: 3 - i, marginLeft: i === 0 ? '0mm' : '-2mm' }}
                         >
                           <GoldProfileFrame size={SPECTATOR_BATTLE_PROFILE_RING_PX}>
                             {slot ? (
@@ -1967,7 +1967,7 @@ export default function SpectatorPage() {
                         <div
                           key={`mvp-r-${i}`}
                           className="relative flex flex-col items-center"
-                          style={{ zIndex: 3 - i, marginLeft: i === 0 ? '0mm' : '-1mm' }}
+                          style={{ zIndex: 3 - i, marginLeft: i === 0 ? '0mm' : '-2mm' }}
                         >
                           <GoldProfileFrame size={SPECTATOR_BATTLE_PROFILE_RING_PX}>
                             {slot ? (
@@ -2379,7 +2379,7 @@ export default function SpectatorPage() {
                     return (
                       <div
                         key={`spectator-top-mvp-${i}`}
-                        style={{ zIndex: 3 - i, marginLeft: i === 0 ? '0mm' : '-1mm' }}
+                        style={{ zIndex: 3 - i, marginLeft: i === 0 ? '0mm' : '-2mm' }}
                         className="relative"
                       >
                         <GoldProfileFrame size={SPECTATOR_MVP_PROFILE_RING_PX}>

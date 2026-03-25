@@ -4007,7 +4007,7 @@ export default function LiveStream() {
                   <div
                     key={`mvp-l-${i}`}
                     className="relative flex flex-col items-center"
-                    style={{ zIndex: 3 - i, marginLeft: i === 0 ? '0mm' : '-1mm' }}
+                    style={{ zIndex: 3 - i, marginLeft: i === 0 ? '0mm' : '-2mm' }}
                   >
                     <GoldProfileFrame size={LIVE_MVP_PROFILE_RING_PX}>
                       {topMvpHostBattle[i] ? (
@@ -4024,7 +4024,7 @@ export default function LiveStream() {
                   <div
                     key={`mvp-r-${i}`}
                     className="relative flex flex-col items-center"
-                    style={{ zIndex: 3 - i, marginLeft: i === 0 ? '0mm' : '-1mm' }}
+                    style={{ zIndex: 3 - i, marginLeft: i === 0 ? '0mm' : '-2mm' }}
                   >
                     <GoldProfileFrame size={LIVE_MVP_PROFILE_RING_PX}>
                       {topMvpOpponentBattle[i] ? (
@@ -4205,7 +4205,7 @@ export default function LiveStream() {
                           {[0, 1, 2].map((i) => (
                             <div
                               key={`top-viewers-${i}`}
-                              style={{ zIndex: 3 - i, marginLeft: i === 0 ? '0mm' : '-1mm' }}
+                              style={{ zIndex: 3 - i, marginLeft: i === 0 ? '0mm' : '-2mm' }}
                               className="relative"
                             >
                               <GoldProfileFrame size={LIVE_MVP_PROFILE_RING_PX}>

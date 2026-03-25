@@ -2444,7 +2444,7 @@ export default function SpectatorPage() {
         </div>
 
         {/* CHAT — same pattern as LiveStream (!isBroadcast): scroll area tap sends like on empty space */}
-        <div className="chat-zone fixed left-0 right-0 bottom-[calc(52px+max(8px,env(safe-area-inset-bottom)))] z-[100] flex justify-center pointer-events-none">
+        <div className="chat-zone fixed left-0 right-0 bottom-[calc(52px+max(8px,env(safe-area-inset-bottom)))] z-[100] flex justify-start pointer-events-none">
           <div className="w-full max-w-[480px] relative" style={{ height: 'calc(25dvh + 2cm + 4mm)', maxHeight: 'calc(25dvh + 2cm + 4mm)' }}>
             <div
               ref={spectatorChatHeartsRef}

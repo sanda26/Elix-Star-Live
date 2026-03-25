@@ -1935,7 +1935,7 @@ export default function SpectatorPage() {
 
                 <div className="w-full px-3 py-1.5 flex items-center justify-between flex-none z-30">
                   <div
-                    className="flex items-center gap-[0mm] min-w-0 flex-1 justify-start pointer-events-auto"
+                    className="flex items-center gap-[0.1mm] min-w-0 flex-1 justify-start pointer-events-auto"
                     onClick={() => setShowViewersPanel(true)}
                   >
                     {[0, 1, 2].map((i) => {
@@ -1954,7 +1954,7 @@ export default function SpectatorPage() {
                     })}
                   </div>
                   <div
-                    className="flex items-center gap-[0mm] min-w-0 flex-1 justify-end pointer-events-auto"
+                    className="flex items-center gap-[0.1mm] min-w-0 flex-1 justify-end pointer-events-auto"
                     onClick={() => setShowViewersPanel(true)}
                   >
                     {[0, 1, 2].map((i) => {
@@ -2348,9 +2348,9 @@ export default function SpectatorPage() {
                 </div>
               </div>
 
-              <div className="pointer-events-auto flex items-center gap-[0mm] flex-shrink-0 min-w-0">
+              <div className="pointer-events-auto flex items-center gap-[0.1mm] flex-shrink-0 min-w-0">
                 <div
-                  className="flex items-center gap-[0mm] pointer-events-auto flex-shrink-0"
+                  className="flex items-center gap-[0.1mm] pointer-events-auto flex-shrink-0"
                   onClick={() => {
                     const list: { id: string; name: string; avatar: string; level?: number }[] = [];
                     const hid = hostUserIdRef.current || hostUserId || effectiveStreamId;

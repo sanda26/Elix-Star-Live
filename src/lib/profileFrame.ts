@@ -39,7 +39,7 @@ export function getCreatorNamePillStyle(overrides?: Record<string, string | numb
     borderTopLeftRadius: 0,
     borderBottomLeftRadius: 0,
     boxShadow: '0 0 8px rgba(201,169,110,0.25)',
-    width: '30mm',
+    width: '20mm',
     paddingRight: CREATOR_NAME_PILL_PADDING_RIGHT,
     ...overrides,
   };

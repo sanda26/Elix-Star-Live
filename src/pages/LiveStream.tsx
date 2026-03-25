@@ -1227,8 +1227,7 @@ export default function LiveStream() {
   // SPEED CHALLENGE
   const SPEED_CHALLENGE_ENABLED = true;
   const [speedChallengeActive, setSpeedChallengeActive] = useState(false);
-  const [speedChallengeCountdown, setSpeedChallengeCountdown] = useState<number | null>(null); // 3,2,1 before start
-  const [speedChallengeTime, setSpeedChallengeTime] = useState(10); // 10 seconds
+  const [speedChallengeTime, setSpeedChallengeTime] = useState(60);
   const [speedChallengeTaps, setSpeedChallengeTaps] = useState<Record<string, number>>({ me: 0, opponent: 0, player3: 0, player4: 0 });
   const speedChallengeTapsRef = useRef<Record<string, number>>({ me: 0, opponent: 0, player3: 0, player4: 0 });
   const [speedChallengeResult, setSpeedChallengeResult] = useState<string | null>(null);
@@ -1242,7 +1241,6 @@ export default function LiveStream() {
   useEffect(() => { speedMultiplierRef.current = speedMultiplier; }, [speedMultiplier]);
 
   const speedChallengeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastSpeedChallengeRef = useRef<number>(0);
   const reachedThresholdsRef = useRef<Set<number>>(new Set());
   const [lastGifts, setLastGifts] = useState<{ opponent: string | null; player3: string | null; player4: string | null }>({ opponent: null, player3: null, player4: null });
   const [floatingHearts, setFloatingHearts] = useState<
@@ -1459,11 +1457,11 @@ export default function LiveStream() {
     battleTripleTapRef.current = { target: null, lastTapAt: 0, count: 0 };
     setMiniProfile(null);
     setSpeedChallengeActive(false);
-    setSpeedChallengeCountdown(null);
-    setSpeedChallengeTime(10);
+    setSpeedChallengeTime(60);
     setSpeedChallengeTaps({ me: 0, opponent: 0, player3: 0, player4: 0 });
     setSpeedChallengeResult(null);
     setSpeedMultiplier(1);
+    speedMultiplierRef.current = 1;
     if (localBattleTimerRef.current) {
       clearInterval(localBattleTimerRef.current);
       localBattleTimerRef.current = null;
@@ -1732,53 +1730,15 @@ export default function LiveStream() {
 
   // ─── SPEED CHALLENGE LOGIC ───
   const startSpeedChallenge = useCallback(() => {
-    if (!SPEED_CHALLENGE_ENABLED) return; // Guard
-    if (speedChallengeActive || speedChallengeCountdown !== null || !isBattleMode || battleWinner) return;
+    if (!SPEED_CHALLENGE_ENABLED) return;
+    if (speedChallengeActive || !isBattleMode || battleWinner) return;
     setSpeedChallengeTaps({ me: 0, opponent: 0, player3: 0, player4: 0 });
     setSpeedChallengeResult(null);
-    // Only reset multiplier to 1 if it's not already set (e.g. by score threshold)
-    setSpeedMultiplier(prev => prev > 1 ? prev : 1);
-    setSpeedChallengeCountdown(3); // 3, 2, 1 countdown
-  }, [speedChallengeActive, speedChallengeCountdown, isBattleMode, battleWinner, SPEED_CHALLENGE_ENABLED]);
+    setSpeedChallengeActive(true);
+    setSpeedChallengeTime(60);
+  }, [speedChallengeActive, isBattleMode, battleWinner, SPEED_CHALLENGE_ENABLED]);
 
-  // Auto-start speed challenge when 10+ viewers are active, at ~90s intervals
-  useEffect(() => {
-    if (!SPEED_CHALLENGE_ENABLED) return; // Guard
-    if (!isBattleMode || battleWinner || battleTime <= 0) return;
-    if (speedChallengeActive || speedChallengeCountdown !== null) return;
-    const timeSinceLast = (300 - battleTime) - lastSpeedChallengeRef.current;
-    const viewerCount = activeViewersRef.current.length;
-    if (viewerCount >= 10 && timeSinceLast >= 60) {
-      lastSpeedChallengeRef.current = 300 - battleTime;
-      startSpeedChallenge();
-    }
-  }, [battleTime, isBattleMode, battleWinner, speedChallengeActive, speedChallengeCountdown, startSpeedChallenge, SPEED_CHALLENGE_ENABLED]);
-
-  // Also trigger at fixed moments: 3:00 and 2:00
-  useEffect(() => {
-    if (!SPEED_CHALLENGE_ENABLED) return; // Guard
-    if (!isBattleMode || battleWinner) return;
-    if (battleTime === 300 || battleTime === 120) {
-      startSpeedChallenge();
-    }
-  }, [battleTime, isBattleMode, battleWinner, startSpeedChallenge, SPEED_CHALLENGE_ENABLED]);
-
-  // Speed challenge countdown: 3, 2, 1 → GO
-  useEffect(() => {
-    if (speedChallengeCountdown === null) return;
-    if (speedChallengeCountdown <= 0) {
-      // Start the challenge
-      setSpeedChallengeActive(true);
-      setSpeedChallengeTime(60);
-      setSpeedChallengeCountdown(null);
-      // Removed automatic closing of gift panel - let user decide
-      return;
-    }
-    const t = setTimeout(() => setSpeedChallengeCountdown(prev => (prev ?? 1) - 1), 1000);
-    return () => clearTimeout(t);
-  }, [speedChallengeCountdown]);
-
-  // Speed challenge timer: 10 → 0
+  // Speed challenge timer: 60 → 0
   useEffect(() => {
     if (!speedChallengeActive) return;
     if (speedChallengeTime <= 0) {
@@ -1808,6 +1768,7 @@ export default function LiveStream() {
         setTimeout(() => setSpeedChallengeResult(null), 3000);
       }
       setSpeedMultiplier(1);
+      speedMultiplierRef.current = 1;
       return;
     }
     const t = setTimeout(() => setSpeedChallengeTime(prev => prev - 1), 1000);
@@ -1816,49 +1777,37 @@ export default function LiveStream() {
   }, [speedChallengeActive, speedChallengeTime]);
 
 
-  // Auto-start speed challenge when score thresholds are reached
+  // Speed challenge: total battle score thresholds — 200 → x2, 1000 → x3, 5000 → x5 (each 60s once crossed)
   useEffect(() => {
     if (!SPEED_CHALLENGE_ENABLED || !isBattleMode || battleWinner) return;
-    
+    if (speedChallengeActive) return;
+
     const totalScore = myScore + opponentScore + player3Score + player4Score;
-    
-    // Check thresholds: 500 -> x2, 1000 -> x3, 2000 -> x5
-    let targetMultiplier = 1;
-    let threshold = 0;
-    if (totalScore >= 2000) { targetMultiplier = 5; threshold = 2000; }
-    else if (totalScore >= 1000) { targetMultiplier = 3; threshold = 1000; }
-    else if (totalScore >= 500) { targetMultiplier = 2; threshold = 500; }
-    
-    if (targetMultiplier > 1 && !speedChallengeActive && speedChallengeCountdown === null) {
-      // Only trigger if we haven't reached this specific threshold yet
-      if (!reachedThresholdsRef.current.has(threshold)) {
-        reachedThresholdsRef.current.add(threshold);
-        setSpeedMultiplier(targetMultiplier);
-        startSpeedChallenge();
-      }
+
+    if (totalScore >= 5000 && !reachedThresholdsRef.current.has(5000)) {
+      reachedThresholdsRef.current.add(5000);
+      reachedThresholdsRef.current.add(1000);
+      reachedThresholdsRef.current.add(200);
+      setSpeedMultiplier(5);
+      speedMultiplierRef.current = 5;
+      startSpeedChallenge();
+      return;
     }
-  }, [myScore, opponentScore, player3Score, player4Score, isBattleMode, battleWinner, speedChallengeActive, speedChallengeCountdown, speedMultiplier, startSpeedChallenge]);
-
-  // Rose trigger effect
-  useEffect(() => {
-    if (!SPEED_CHALLENGE_ENABLED || !isBattleMode || battleWinner) return;
-    if (speedChallengeActive || speedChallengeCountdown !== null) return;
-
-    // Trigger x2 challenge if 30 roses are reached, x3 if 60, x5 if 100
-    let targetMultiplier = 1;
-    let threshold = 0;
-    if (roseCount >= 100) { targetMultiplier = 5; threshold = 10000; } // Using high threshold values to avoid conflict with score thresholds
-    else if (roseCount >= 60) { targetMultiplier = 3; threshold = 6000; }
-    else if (roseCount >= 30) { targetMultiplier = 2; threshold = 3000; }
-
-    if (targetMultiplier > 1) {
-      if (!reachedThresholdsRef.current.has(threshold)) {
-        reachedThresholdsRef.current.add(threshold);
-        setSpeedMultiplier(targetMultiplier);
-        startSpeedChallenge();
-      }
+    if (totalScore >= 1000 && !reachedThresholdsRef.current.has(1000)) {
+      reachedThresholdsRef.current.add(1000);
+      reachedThresholdsRef.current.add(200);
+      setSpeedMultiplier(3);
+      speedMultiplierRef.current = 3;
+      startSpeedChallenge();
+      return;
     }
-  }, [roseCount, isBattleMode, battleWinner, speedChallengeActive, speedChallengeCountdown, startSpeedChallenge]);
+    if (totalScore >= 200 && !reachedThresholdsRef.current.has(200)) {
+      reachedThresholdsRef.current.add(200);
+      setSpeedMultiplier(2);
+      speedMultiplierRef.current = 2;
+      startSpeedChallenge();
+    }
+  }, [myScore, opponentScore, player3Score, player4Score, isBattleMode, battleWinner, speedChallengeActive, startSpeedChallenge]);
 
   // Auto-cycle multiplier during speed challenge (changes every 2-3s) - DISABLED to follow user's score-based rule
   /*
@@ -3602,23 +3551,6 @@ export default function LiveStream() {
 
 
 
-      {/* ═══ SPEED CHALLENGE OVERLAY ═══ */}
-      {SPEED_CHALLENGE_ENABLED && speedChallengeCountdown !== null && (
-              <div className="absolute inset-x-0 bottom-32 z-[270] pointer-events-none flex items-center justify-center">
-                <div className="flex flex-col items-center gap-2 px-6 py-4 rounded-2xl bg-[#13151A]/60 backdrop-blur-xl border border-white/15 shadow-[0_0_30px_rgba(0,0,0,0.6)]">
-                  <span className="text-white text-[12px] font-bold uppercase tracking-widest">
-                    Speed Challenge {speedMultiplier > 1 ? `x${speedMultiplier}` : ''}
-                  </span>
-                  <div className="text-white text-7xl font-black tabular-nums drop-shadow-[0_0_30px_rgba(230,179,106,1)] animate-pulse">
-                    {speedChallengeCountdown}
-                  </div>
-                  <span className="text-white/60 text-[10px] font-semibold">Get ready to tap!</span>
-                </div>
-              </div>
-            )}
-
-
-
             {SPEED_CHALLENGE_ENABLED && speedChallengeResult && !speedChallengeActive && (
               <div className="absolute inset-x-0 bottom-24 z-[270] pointer-events-none flex items-center justify-center">
                 <div className="flex flex-col items-center gap-1 px-6 py-3 rounded-xl bg-[#13151A]/70 backdrop-blur-md border border-white/15 shadow-[0_0_20px_rgba(0,0,0,0.6)]">
@@ -4040,7 +3972,7 @@ export default function LiveStream() {
 
             {SPEED_CHALLENGE_ENABLED && speedChallengeActive && (
               <div className="w-full px-3 py-2 flex items-center justify-center flex-none pointer-events-none mt-1 relative z-30" style={{ transform: 'translateY(-19mm)' }}>
-                <div className="flex items-center gap-3 px-5 py-1 rounded-full bg-[#13151A]/70 backdrop-blur-md border border-[#C9A96E]/30 shadow-[0_0_15px_rgba(201,169,110,0.3)] animate-luxury-fade-in">
+                <div className="flex items-center gap-3 px-5 py-1 rounded-full bg-[#B91C1C]/90 backdrop-blur-md border border-red-900/70 shadow-[0_0_15px_rgba(185,28,28,0.45)] animate-luxury-fade-in">
                   <span className="text-white text-[9px] font-bold uppercase tracking-[0.1em]">⚡ Speed</span>
                   <span className="text-white text-[14px] font-black tabular-nums">{speedChallengeTime}s</span>
                   {speedMultiplier > 1 && (

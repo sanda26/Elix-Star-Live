@@ -285,6 +285,8 @@ export default function Shop() {
                   <StoryGoldRingAvatar
                     size={SHOP_LIVE_RING}
                     live
+                    innerTranslateYmm={0.5}
+                    innerDiameterAddMm={1}
                     src={u.avatar || '/Icons/Profile icon.png'}
                     alt={u.name}
                   />

@@ -1,6 +1,9 @@
 import React from 'react';
 import { storyRingInnerPx, PROFILE_RING_IMAGE_LIFT_MM } from '../lib/profileFrame';
 
+/** CSS px per mm (1in = 96px, 1in = 25.4mm). */
+const MM_TO_PX = 96 / 25.4;
+
 const FRAME_SRC = '/Icons/Profile icon.png';
 
 const LIVE_RING_STYLE: React.CSSProperties = {
@@ -18,6 +21,10 @@ export function StoryGoldRingAvatar({
   alt = '',
   live = false,
   className = '',
+  /** Extra inner photo diameter in mm (positive = larger). */
+  innerDiameterAddMm = 0,
+  /** Nudge inner photo vertically in mm (positive = down). */
+  innerTranslateYmm = 0,
   'data-avatar-circle': dataAvatarCircle,
 }: {
   size?: number;
@@ -25,9 +32,11 @@ export function StoryGoldRingAvatar({
   alt?: string;
   live?: boolean;
   className?: string;
+  innerDiameterAddMm?: number;
+  innerTranslateYmm?: number;
   'data-avatar-circle'?: string;
 }) {
-  const inner = storyRingInnerPx(size);
+  const inner = Math.max(2, Math.round(storyRingInnerPx(size) + innerDiameterAddMm * MM_TO_PX));
   const safeSrc = src?.length ? src : FRAME_SRC;
 
   return (
@@ -43,7 +52,10 @@ export function StoryGoldRingAvatar({
           height: inner,
           top: `calc(50% - ${PROFILE_RING_IMAGE_LIFT_MM}mm)`,
           left: '50%',
-          transform: 'translate(-50%, -50%)',
+          transform:
+            innerTranslateYmm !== 0
+              ? `translate(-50%, calc(-50% + ${innerTranslateYmm}mm))`
+              : 'translate(-50%, -50%)',
           zIndex: 1,
         }}
       >

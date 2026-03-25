@@ -1933,7 +1933,7 @@ export default function SpectatorPage() {
                   </div>
                 </div>
 
-                <div className="w-full px-3 py-1.5 flex items-center justify-between flex-none z-30" style={{ transform: 'translateY(6mm)' }}>
+                <div className="w-full px-3 py-1.5 flex items-center justify-between flex-none z-30" style={{ transform: 'translateY(1mm)' }}>
                   <div
                     className="flex items-center gap-[0mm] min-w-0 flex-1 justify-start pointer-events-auto"
                     style={{ transform: 'translateX(-3mm)' }}

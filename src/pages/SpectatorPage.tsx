@@ -1936,6 +1936,7 @@ export default function SpectatorPage() {
                 <div className="w-full px-3 py-1.5 flex items-center justify-between flex-none z-30">
                   <div
                     className="flex items-center gap-[0mm] min-w-0 flex-1 justify-start pointer-events-auto"
+                    style={{ transform: 'translateX(-3mm)' }}
                     onClick={() => setShowViewersPanel(true)}
                   >
                     {[0, 1, 2].map((i) => {
@@ -1959,6 +1960,7 @@ export default function SpectatorPage() {
                   </div>
                   <div
                     className="flex items-center gap-[0mm] min-w-0 flex-1 justify-end pointer-events-auto"
+                    style={{ transform: 'translateX(3mm)' }}
                     onClick={() => setShowViewersPanel(true)}
                   >
                     {[0, 1, 2].map((i) => {
@@ -2437,7 +2439,7 @@ export default function SpectatorPage() {
             {/* Second row: Weekly Ranking + Membership — spectator sees same creator top bar */}
             <div
               className="flex items-center gap-2 mt-0.5 ml-9 pointer-events-auto relative z-20 flex-wrap"
-              style={{ transform: 'translateY(-6mm)' }}
+              style={{ transform: 'translateY(0mm)' }}
             >
               <div
                 className="flex items-center gap-1 bg-[#13151A] rounded-full px-2 py-0.5 border border-[#C9A96E]/40 shadow-sm cursor-pointer active:scale-95 transition-transform"

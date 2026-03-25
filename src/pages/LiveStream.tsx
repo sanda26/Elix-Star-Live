@@ -4002,7 +4002,7 @@ export default function LiveStream() {
           })()}
 
             <div className="absolute bottom-1 left-0 right-0 px-3 py-2 flex items-center justify-between flex-none pointer-events-none relative z-30">
-              <div className="flex items-center gap-[0mm] min-w-0 flex-1 justify-start pointer-events-auto" onClick={() => setShowViewerList(true)}>
+              <div className="flex items-center gap-[0mm] min-w-0 flex-1 justify-start pointer-events-auto" style={{ transform: 'translateX(-3mm)' }} onClick={() => setShowViewerList(true)}>
                 {[0, 1, 2].map((i) => (
                   <div
                     key={`mvp-l-${i}`}
@@ -4019,7 +4019,7 @@ export default function LiveStream() {
                   </div>
                 ))}
               </div>
-              <div className="flex items-center gap-[0mm] min-w-0 flex-1 justify-end pointer-events-auto" onClick={() => setShowViewerList(true)}>
+              <div className="flex items-center gap-[0mm] min-w-0 flex-1 justify-end pointer-events-auto" style={{ transform: 'translateX(3mm)' }} onClick={() => setShowViewerList(true)}>
                 {[0, 1, 2].map((i) => (
                   <div
                     key={`mvp-r-${i}`}
@@ -4166,7 +4166,7 @@ export default function LiveStream() {
                               })()}
                             </div>
                           </div>
-                          <div className="flex items-center gap-2 mt-0.5 ml-9 pointer-events-auto relative z-20 flex-wrap" style={{ transform: 'translateY(-6mm)' }}>
+                          <div className="flex items-center gap-2 mt-0.5 ml-9 pointer-events-auto relative z-20 flex-wrap" style={{ transform: 'translateY(0mm)' }}>
                             <div 
                               className="flex items-center gap-1 bg-[#13151A] rounded-full px-2 py-0.5 border border-[#C9A96E]/40 shadow-sm cursor-pointer" 
                               onClick={(e) => {

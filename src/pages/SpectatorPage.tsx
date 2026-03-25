@@ -2439,7 +2439,7 @@ export default function SpectatorPage() {
             {/* Second row: Weekly Ranking + Membership — spectator sees same creator top bar */}
             <div
               className="flex items-center gap-2 mt-0.5 ml-9 pointer-events-auto relative z-20 flex-wrap"
-              style={{ transform: 'translateY(0mm)' }}
+              style={{ transform: 'translateY(-2mm)' }}
             >
               <div
                 className="flex items-center gap-1 bg-[#13151A] rounded-full px-2 py-0.5 border border-[#C9A96E]/40 shadow-sm cursor-pointer active:scale-95 transition-transform"

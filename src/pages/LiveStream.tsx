@@ -155,6 +155,8 @@ export default function LiveStream() {
   const coHostVideoRefs = useRef<Map<string, HTMLVideoElement>>(new Map());
   const battlePeerRef = useRef<{ close: () => void } | null>(null);
   const stageRef = useRef<HTMLDivElement>(null);
+  /** Like/hearts only in bottom chat strip — not over battle/video (see SpectatorPage `spectatorChatHeartsRef`). */
+  const chatHeartLayerRef = useRef<HTMLDivElement>(null);
   const cameraStreamRef = useRef<MediaStream | null>(null);
   const [viewerHasStream, setViewerHasStream] = useState(false);
   const setPromo = useLivePromoStore((s) => s.setPromo);
@@ -255,6 +257,9 @@ export default function LiveStream() {
   const viewerName = user?.username || user?.name || 'viewer_123';
   const viewerAvatar =
     user?.avatar || `https://ui-avatars.com/api/?name=&background=121212&color=C9A96E`;
+  /** Floating like hearts: host shows self; spectator shows their own name (not the creator’s). */
+  const heartFloatName = isBroadcast ? myCreatorName : viewerName;
+  const heartFloatAvatar = isBroadcast ? (user?.avatar || myAvatar || '') : viewerAvatar;
   const universeGiftLabel = 'Universe';
 
   const followCreatorLive = useCallback(
@@ -1800,20 +1805,38 @@ export default function LiveStream() {
   }, []);
 
   const spawnHeartFromClient = (clientX: number, clientY: number, colorOverride?: string, likerName?: string, likerAvatar?: string) => {
-    const stage = stageRef.current;
-    if (!stage) return;
-    const rect = stage.getBoundingClientRect();
-    spawnHeartAt(clientX - rect.left, clientY - rect.top, colorOverride, likerName, likerAvatar);
+    const layer = chatHeartLayerRef.current;
+    if (!layer) return;
+    const rect = layer.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return;
+    const inside =
+      clientX >= rect.left &&
+      clientX <= rect.right &&
+      clientY >= rect.top &&
+      clientY <= rect.bottom;
+    if (inside) {
+      const x = Math.max(8, Math.min(rect.width - 8, clientX - rect.left));
+      const y = Math.max(8, Math.min(rect.height - 8, clientY - rect.top));
+      spawnHeartAt(x, y, colorOverride, likerName, likerAvatar);
+      return;
+    }
+    const w = rect.width;
+    const h = rect.height;
+    const x = w * (0.58 + Math.random() * 0.35);
+    const y = h * (0.12 + Math.random() * 0.68);
+    spawnHeartAt(x, y, colorOverride ?? '#FF2D55', likerName, likerAvatar);
   };
 
   const spawnHeartAtSide = useCallback((target: 'me' | 'opponent') => {
-    const stage = stageRef.current;
-    if (!stage) return;
-    const rect = stage.getBoundingClientRect();
-    const x = rect.width * (target === 'me' ? 0.25 : 0.75);
-    const y = rect.height * 0.62;
-    spawnHeartAt(x, y, '#FF2D55');
-  }, [spawnHeartAt]);
+    const layer = chatHeartLayerRef.current;
+    if (!layer) return;
+    const w = layer.clientWidth;
+    const h = layer.clientHeight;
+    if (w <= 0 || h <= 0) return;
+    const x = w * (target === 'me' ? 0.35 : 0.65);
+    const y = h * (0.55 + Math.random() * 0.15);
+    spawnHeartAt(x, y, '#FF2D55', heartFloatName, heartFloatAvatar);
+  }, [spawnHeartAt, heartFloatName, heartFloatAvatar]);
 
   // Battle Tap Logic: spectator taps broadcaster side → 5 points, once per match
   const handleBattleTap = useCallback((target: 'me' | 'opponent' | 'player3' | 'player4') => {
@@ -2586,11 +2609,12 @@ export default function LiveStream() {
         addLiveLikes(1);
       }
       if (data.user_id === user?.id) return;
-      const stage = stageRef.current;
-      if (stage) {
-        const rect = stage.getBoundingClientRect();
-        const x = rect.width * (0.6 + Math.random() * 0.3);
-        const y = rect.height * (0.4 + Math.random() * 0.2);
+      const layer = chatHeartLayerRef.current;
+      if (layer && layer.clientWidth > 0 && layer.clientHeight > 0) {
+        const w = layer.clientWidth;
+        const h = layer.clientHeight;
+        const x = w * (0.58 + Math.random() * 0.35);
+        const y = h * (0.18 + Math.random() * 0.58);
         spawnHeartAt(x, y, undefined, data.username, data.avatar);
       }
     };
@@ -3258,7 +3282,7 @@ export default function LiveStream() {
           if (clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom) {
             handleBattleTap(watchedTarget);
             setGiftTarget(watchedTarget);
-            spawnHeartFromClient(clientX, clientY, undefined, myCreatorName, myAvatar);
+            spawnHeartFromClient(clientX, clientY, undefined, heartFloatName, heartFloatAvatar);
             return;
           }
         }
@@ -3273,14 +3297,14 @@ export default function LiveStream() {
             : (nx < 0.5 ? (ny < 0.5 ? 'me' : 'player3') : (ny < 0.5 ? 'opponent' : 'player4'));
           handleBattleTap(target);
           setGiftTarget(target);
-          spawnHeartFromClient(clientX, clientY, undefined, myCreatorName, myAvatar);
+          spawnHeartFromClient(clientX, clientY, undefined, heartFloatName, heartFloatAvatar);
           return;
         }
       }
     }
 
     if (clientX !== undefined && clientY !== undefined) {
-      spawnHeartFromClient(clientX, clientY, undefined, myCreatorName, myAvatar);
+      spawnHeartFromClient(clientX, clientY, undefined, heartFloatName, heartFloatAvatar);
     } else {
       spawnHeartAtSide('me');
     }
@@ -3298,7 +3322,7 @@ export default function LiveStream() {
         clientY = (e as React.MouseEvent).clientY;
       }
       if (clientX !== undefined && clientY !== undefined) {
-        spawnHeartFromClient(clientX, clientY, undefined, myCreatorName, myAvatar);
+        spawnHeartFromClient(clientX, clientY, undefined, heartFloatName, heartFloatAvatar);
       }
     }
     addLiveLikes(1);
@@ -3462,29 +3486,6 @@ export default function LiveStream() {
         <div className="absolute inset-0 z-0 bg-[#13151A] overflow-hidden">
           <div className="video-zone relative w-full h-full">
             <div ref={stageRef} className="relative w-full h-full">
-            {/* FLOATING HEARTS */}
-            {floatingHearts.map((h) => (
-              <div
-                key={h.id}
-                className="absolute elix-heart-float z-[200] flex items-center gap-1.5"
-                style={{
-                  left: h.x,
-                  top: h.y,
-                  '--elix-heart-dx': '0px',
-                  '--elix-heart-rot': '0deg',
-                } as React.CSSProperties}
-              >
-                <svg width={h.size} height={h.size} viewBox="0 0 24 24" fill={h.color} stroke="none" className="flex-shrink-0">
-                  <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
-                </svg>
-                {h.username && (
-                  <span className="text-[#C8CCD4] text-[11px] font-bold whitespace-nowrap drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]">
-                    {h.username}
-                  </span>
-                )}
-              </div>
-            ))}
-            
             {/* Base Video Layer */}
         {!isBattleMode && (() => {
           const hasAnyCoHost = coHosts.length > 0;
@@ -3747,7 +3748,7 @@ export default function LiveStream() {
                     <div
                       className="relative w-full overflow-hidden cursor-pointer pointer-events-auto"
                       style={{ minHeight: is4Player ? '20px' : '16px' }}
-                      onClick={(e) => { e.stopPropagation(); if (isBroadcast) { toggleBattle(); } else { spawnHeartFromClient(e.clientX, e.clientY); } }}
+                      onClick={(e) => { e.stopPropagation(); if (isBroadcast) { toggleBattle(); } else { spawnHeartFromClient(e.clientX, e.clientY, undefined, heartFloatName, heartFloatAvatar); } }}
                     >
                       <div className="absolute inset-0 flex">
                         <div
@@ -4234,7 +4235,7 @@ export default function LiveStream() {
                                             membershipIcon: '/icons/Membership.png'
                                           };
                                           setMessages(prev => [...prev, newMessage]);
-                                          spawnHeartFromClient(e.clientX, e.clientY);
+                                          spawnHeartFromClient(e.clientX, e.clientY, undefined, 'You', '/Icons/elix-logo.png');
 
                                         } else if (hasJoinedToday) {
                                           setShowTeamStatus(true);
@@ -4353,35 +4354,66 @@ export default function LiveStream() {
               </div>
             </div>
 
-            {/* MIDDLE ZONE: CHAT (Scrollable) */}
+            {/* MIDDLE ZONE: CHAT (Scrollable) — floating hearts only here, not over battle/video */}
             <div className="chat-zone fixed left-0 right-0 bottom-[calc(52px+max(8px,env(safe-area-inset-bottom)))] z-[20] flex justify-center pointer-events-none">
-              <div 
-                className="w-full max-w-[480px] overflow-y-auto pointer-events-auto bg-transparent"
+              <div
+                className="w-full max-w-[480px] relative"
                 style={{ height: 'calc(25dvh + 2cm + 4mm)', maxHeight: 'calc(25dvh + 2cm + 4mm)' }}
-                onPointerDown={(e) => {
-                  e.stopPropagation();
-                  if (e.target instanceof Element) {
-                    const interactive = e.target.closest('button, a, input, textarea, select, [role="button"]');
-                    if (interactive) return;
-                  }
-                  handleLikeTap(e);
-                }}
               >
-                {isChatVisible && (
-                  <ChatOverlay
-                    messages={messages}
-                    variant="panel"
-                    isModerator={isBroadcast || moderators.has(user?.id || '')}
-                    onLike={() => handleLikeTap()}
-                    onHeartSpawn={(cx, cy) => handleLikeTap()}
-                    onProfileTap={(username) => openMiniProfile(username)}
-                    onDeleteMessage={(msgId) => setMessages(prev => prev.filter(m => m.id !== msgId))}
-                    onBlockUser={(username) => {
-                      setMessages(prev => prev.filter(m => m.username !== username));
-                      showToast(`@${username} blocked from chat`);
-                    }}
-                  />
-                )}
+                <div
+                  ref={chatHeartLayerRef}
+                  className="absolute inset-0 z-[25] overflow-hidden pointer-events-none"
+                  aria-hidden
+                >
+                  {floatingHearts.map((h) => (
+                    <div
+                      key={h.id}
+                      className="absolute elix-heart-float z-[200] flex items-center gap-1.5"
+                      style={{
+                        left: h.x,
+                        top: h.y,
+                        '--elix-heart-dx': '0px',
+                        '--elix-heart-rot': '0deg',
+                      } as React.CSSProperties}
+                    >
+                      <svg width={h.size} height={h.size} viewBox="0 0 24 24" fill={h.color} stroke="none" className="flex-shrink-0">
+                        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                      </svg>
+                      {h.username && (
+                        <span className="text-[#C8CCD4] text-[11px] font-bold whitespace-nowrap drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)] max-w-[min(160px,42vw)] truncate">
+                          {h.username}
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <div
+                  className="relative z-[10] h-full overflow-y-auto pointer-events-auto bg-transparent"
+                  onPointerDown={(e) => {
+                    e.stopPropagation();
+                    if (e.target instanceof Element) {
+                      const interactive = e.target.closest('button, a, input, textarea, select, [role="button"]');
+                      if (interactive) return;
+                    }
+                    handleLikeTap(e);
+                  }}
+                >
+                  {isChatVisible && (
+                    <ChatOverlay
+                      messages={messages}
+                      variant="panel"
+                      isModerator={isBroadcast || moderators.has(user?.id || '')}
+                      onLike={() => handleLikeTap()}
+                      onHeartSpawn={(cx, cy) => handleLikeTap()}
+                      onProfileTap={(username) => openMiniProfile(username)}
+                      onDeleteMessage={(msgId) => setMessages(prev => prev.filter(m => m.id !== msgId))}
+                      onBlockUser={(username) => {
+                        setMessages(prev => prev.filter(m => m.username !== username));
+                        showToast(`@${username} blocked from chat`);
+                      }}
+                    />
+                  )}
+                </div>
               </div>
             </div>
 

@@ -4001,7 +4001,7 @@ export default function LiveStream() {
             );
           })()}
 
-            <div className="absolute bottom-1 left-0 right-0 px-3 py-2 flex items-center justify-between flex-none pointer-events-none relative z-30">
+            <div className="absolute bottom-1 left-0 right-0 px-3 py-2 flex items-center justify-between flex-none pointer-events-none relative z-30" style={{ transform: 'translateY(2mm)' }}>
               <div className="flex items-center gap-[0mm] min-w-0 flex-1 justify-start pointer-events-auto" style={{ transform: 'translateX(-3mm)' }} onClick={() => setShowViewerList(true)}>
                 {[0, 1, 2].map((i) => (
                   <div

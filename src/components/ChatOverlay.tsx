@@ -103,6 +103,7 @@ export function ChatOverlay({ messages, variant = 'panel', compact = false, clas
           <div
             key={typeof msg.id === 'string' ? msg.id : `msg-${idx}`}
             className="flex items-center gap-2 animate-in slide-in-from-left-2 duration-200 relative"
+            style={{ transform: 'translateX(-6mm)' }}
             onPointerDown={() => startLongPress(msg.id)}
             onPointerUp={cancelLongPress}
             onPointerLeave={cancelLongPress}

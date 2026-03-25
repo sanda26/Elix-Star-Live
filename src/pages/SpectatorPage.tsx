@@ -2252,7 +2252,7 @@ export default function SpectatorPage() {
           <div className="px-3" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 2px)' }}>
             <div className="flex items-center justify-between gap-2 relative">
               {/* Left: Creator info — full creator top bar */}
-              <div className="pointer-events-auto flex items-center gap-0 -ml-1 flex-shrink min-w-0" style={{ transform: 'translateY(-5mm)' }}>
+              <div className="pointer-events-auto flex items-center gap-0 -ml-1 flex-shrink min-w-0" style={{ transform: 'translateY(1mm)' }}>
                 <div
                   className="relative z-10 flex-shrink-0 cursor-pointer active:scale-95 transition-transform"
                   onClick={() => navigate(`/profile/${hostUserId}`)}
@@ -2422,7 +2422,7 @@ export default function SpectatorPage() {
             {/* Second row: Weekly Ranking + Membership — spectator sees same creator top bar */}
             <div
               className="flex items-center gap-2 mt-0.5 ml-9 pointer-events-auto relative z-20 flex-wrap"
-              style={{ transform: 'translateY(-6mm)' }}
+              style={{ transform: 'translateY(4mm)' }}
             >
               <div
                 className="flex items-center gap-1 bg-[#13151A] rounded-full px-2 py-0.5 border border-[#C9A96E]/40 shadow-sm cursor-pointer active:scale-95 transition-transform"

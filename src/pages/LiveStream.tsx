@@ -3602,30 +3602,9 @@ export default function LiveStream() {
 
 
 
-      {/* ═══ SPEED CHALLENGE OVERLAY ═══ */}
-      {SPEED_CHALLENGE_ENABLED && speedChallengeCountdown !== null && (
-              <div
-                className="absolute inset-x-0 bottom-32 z-[270] pointer-events-none flex items-center justify-center"
-                style={{ bottom: 'calc(8rem + 50mm)' }}
-              >
-                <div className="flex flex-col items-center gap-2 px-6 py-4 rounded-2xl bg-[#13151A]/60 backdrop-blur-xl border border-white/15 shadow-[0_0_30px_rgba(0,0,0,0.6)]">
-                  <span className="text-white text-[12px] font-bold uppercase tracking-widest">
-                    Speed Challenge {speedMultiplier > 1 ? `x${speedMultiplier}` : ''}
-                  </span>
-                  <div className="text-white text-7xl font-black tabular-nums drop-shadow-[0_0_30px_rgba(230,179,106,1)] animate-pulse">
-                    {speedChallengeCountdown}
-                  </div>
-                  <span className="text-white/60 text-[10px] font-semibold">Get ready to tap!</span>
-                </div>
-              </div>
-            )}
-
-
-
             {SPEED_CHALLENGE_ENABLED && speedChallengeResult && !speedChallengeActive && (
               <div
                 className="absolute inset-x-0 bottom-24 z-[270] pointer-events-none flex items-center justify-center"
-                style={{ bottom: 'calc(6rem + 50mm)' }}
               >
                 <div className="flex flex-col items-center gap-1 px-6 py-3 rounded-xl bg-[#13151A]/70 backdrop-blur-md border border-white/15 shadow-[0_0_20px_rgba(0,0,0,0.6)]">
                   <span className="text-white text-[10px] font-bold uppercase tracking-widest">⚡ Speed Challenge Result</span>
@@ -4039,7 +4018,7 @@ export default function LiveStream() {
             {SPEED_CHALLENGE_ENABLED && speedChallengeActive && (
               <div
                 className="w-full px-3 py-2 flex items-center justify-center flex-none pointer-events-none mt-1 relative z-30"
-                style={{ marginTop: '-50mm' }}
+                style={{ transform: 'translateY(-50mm)' }}
               >
                 <div className="flex items-center gap-3 px-5 py-1 rounded-full bg-[#13151A]/70 backdrop-blur-md border border-[#C9A96E]/30 shadow-[0_0_15px_rgba(201,169,110,0.3)] animate-luxury-fade-in">
                   <span className="text-white text-[9px] font-bold uppercase tracking-[0.1em]">⚡ Speed</span>
@@ -4068,7 +4047,7 @@ export default function LiveStream() {
                     <div className="flex items-start justify-between gap-2">
                       <div className="pointer-events-auto flex flex-col gap-2">
                         {/* BROADCASTER INFO */}
-                        <div className="px-0 py-1 animate-luxury-fade-in -ml-2 relative" style={{ transform: 'translateY(-5mm)' }}>
+                        <div className="px-0 py-1 animate-luxury-fade-in -ml-2 relative" style={{ transform: 'translateY(1mm)' }}>
                           <div className="flex items-center relative">
                             <div 
                               className="relative z-10 flex-shrink-0 pointer-events-auto cursor-pointer active:scale-95 transition-transform"
@@ -4169,7 +4148,7 @@ export default function LiveStream() {
                           </div>
                           <div
                             className="flex items-center gap-2 mt-0.5 ml-9 pointer-events-auto relative z-20 flex-wrap"
-                            style={{ transform: 'translateY(-6mm)' }}
+                            style={{ transform: 'translateY(4mm)' }}
                           >
                             <div 
                               className="flex items-center gap-1 bg-[#13151A] rounded-full px-2 py-0.5 border border-[#C9A96E]/40 shadow-sm cursor-pointer" 

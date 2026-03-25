@@ -15,10 +15,10 @@ export const PROFILE_RING_SIZE_BUMP_MM = 3;
 export const LIVE_MVP_PROFILE_RING_PX = profileRingOuterAddMm(36, PROFILE_RING_SIZE_BUMP_MM);
 
 /** Spectator top bar MVP row: was 35px outer. */
-export const SPECTATOR_MVP_PROFILE_RING_PX = LIVE_MVP_PROFILE_RING_PX;
+export const SPECTATOR_MVP_PROFILE_RING_PX = profileRingOuterAddMm(35, PROFILE_RING_SIZE_BUMP_MM);
 
 /** Spectator battle split rows: was 24px outer. */
-export const SPECTATOR_BATTLE_PROFILE_RING_PX = LIVE_MVP_PROFILE_RING_PX;
+export const SPECTATOR_BATTLE_PROFILE_RING_PX = profileRingOuterAddMm(24, PROFILE_RING_SIZE_BUMP_MM);
 
 /** Chat LV green pill only; circle uses {@link LIVE_MVP_PROFILE_RING_PX}. Smaller base (22 vs 32) than legacy combined scale. */
 export const CHAT_LEVEL_PILL_SIZE_PX = Math.max(18, Math.round((22 * LIVE_MVP_PROFILE_RING_PX) / 36));

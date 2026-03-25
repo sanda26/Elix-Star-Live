@@ -3604,10 +3604,7 @@ export default function LiveStream() {
 
       {/* ═══ SPEED CHALLENGE OVERLAY ═══ */}
       {SPEED_CHALLENGE_ENABLED && speedChallengeCountdown !== null && (
-              <div
-                className="absolute inset-x-0 bottom-32 z-[270] pointer-events-none flex items-center justify-center"
-                style={{ bottom: 'calc(8rem + 50mm)' }}
-              >
+              <div className="absolute inset-x-0 bottom-32 z-[270] pointer-events-none flex items-center justify-center">
                 <div className="flex flex-col items-center gap-2 px-6 py-4 rounded-2xl bg-[#13151A]/60 backdrop-blur-xl border border-white/15 shadow-[0_0_30px_rgba(0,0,0,0.6)]">
                   <span className="text-white text-[12px] font-bold uppercase tracking-widest">
                     Speed Challenge {speedMultiplier > 1 ? `x${speedMultiplier}` : ''}
@@ -3623,10 +3620,7 @@ export default function LiveStream() {
 
 
             {SPEED_CHALLENGE_ENABLED && speedChallengeResult && !speedChallengeActive && (
-              <div
-                className="absolute inset-x-0 bottom-24 z-[270] pointer-events-none flex items-center justify-center"
-                style={{ bottom: 'calc(6rem + 50mm)' }}
-              >
+              <div className="absolute inset-x-0 bottom-24 z-[270] pointer-events-none flex items-center justify-center">
                 <div className="flex flex-col items-center gap-1 px-6 py-3 rounded-xl bg-[#13151A]/70 backdrop-blur-md border border-white/15 shadow-[0_0_20px_rgba(0,0,0,0.6)]">
                   <span className="text-white text-[10px] font-bold uppercase tracking-widest">⚡ Speed Challenge Result</span>
                   <span className="text-white text-lg font-black drop-shadow-[0_0_15px_rgba(230,179,106,0.8)] animate-bounce">{speedChallengeResult}</span>
@@ -4008,7 +4002,7 @@ export default function LiveStream() {
           })()}
 
             <div className="absolute bottom-1 left-0 right-0 px-3 py-2 flex items-center justify-between flex-none pointer-events-none relative z-30">
-              <div className="flex items-center gap-[0.1mm] min-w-0 flex-1 justify-start pointer-events-auto" onClick={() => setShowViewerList(true)}>
+              <div className="flex items-center gap-[0.5mm] min-w-0 flex-1 justify-start pointer-events-auto" onClick={() => setShowViewerList(true)}>
                 {[0, 1, 2].map((i) => (
                   <div key={`mvp-l-${i}`} className="relative flex flex-col items-center" style={{ zIndex: 3 - i }}>
                     <GoldProfileFrame size={LIVE_MVP_PROFILE_RING_PX}>
@@ -4021,7 +4015,7 @@ export default function LiveStream() {
                   </div>
                 ))}
               </div>
-              <div className="flex items-center gap-[0.1mm] min-w-0 flex-1 justify-end pointer-events-auto" onClick={() => setShowViewerList(true)}>
+              <div className="flex items-center gap-[0.5mm] min-w-0 flex-1 justify-end pointer-events-auto" onClick={() => setShowViewerList(true)}>
                 {[0, 1, 2].map((i) => (
                   <div key={`mvp-r-${i}`} className="relative flex flex-col items-center" style={{ zIndex: 3 - i }}>
                     <GoldProfileFrame size={LIVE_MVP_PROFILE_RING_PX}>
@@ -4037,10 +4031,7 @@ export default function LiveStream() {
             </div>
 
             {SPEED_CHALLENGE_ENABLED && speedChallengeActive && (
-              <div
-                className="w-full px-3 py-2 flex items-center justify-center flex-none pointer-events-none mt-1 relative z-30"
-                style={{ marginTop: '-50mm' }}
-              >
+              <div className="w-full px-3 py-2 flex items-center justify-center flex-none pointer-events-none mt-1 relative z-30">
                 <div className="flex items-center gap-3 px-5 py-1 rounded-full bg-[#13151A]/70 backdrop-blur-md border border-[#C9A96E]/30 shadow-[0_0_15px_rgba(201,169,110,0.3)] animate-luxury-fade-in">
                   <span className="text-white text-[9px] font-bold uppercase tracking-[0.1em]">⚡ Speed</span>
                   <span className="text-white text-[14px] font-black tabular-nums">{speedChallengeTime}s</span>
@@ -4068,7 +4059,7 @@ export default function LiveStream() {
                     <div className="flex items-start justify-between gap-2">
                       <div className="pointer-events-auto flex flex-col gap-2">
                         {/* BROADCASTER INFO */}
-                        <div className="px-0 py-1 animate-luxury-fade-in -ml-2 relative" style={{ transform: 'translateY(-5mm)' }}>
+                        <div className="px-0 py-1 animate-luxury-fade-in -ml-2 relative">
                           <div className="flex items-center relative">
                             <div 
                               className="relative z-10 flex-shrink-0 pointer-events-auto cursor-pointer active:scale-95 transition-transform"
@@ -4167,10 +4158,7 @@ export default function LiveStream() {
                               })()}
                             </div>
                           </div>
-                          <div
-                            className="flex items-center gap-2 mt-0.5 ml-9 pointer-events-auto relative z-20 flex-wrap"
-                            style={{ transform: 'translateY(-6mm)' }}
-                          >
+                          <div className="flex items-center gap-2 mt-0.5 ml-9 pointer-events-auto relative z-20 flex-wrap">
                             <div 
                               className="flex items-center gap-1 bg-[#13151A] rounded-full px-2 py-0.5 border border-[#C9A96E]/40 shadow-sm cursor-pointer" 
                               onClick={(e) => {
@@ -4204,8 +4192,8 @@ export default function LiveStream() {
                         </div>
                       </div>
 
-                      <div className="pointer-events-auto flex items-center gap-[0.1mm] mt-1">
-                        <div className="flex items-center gap-[0.1mm] pointer-events-auto flex-shrink-0" onClick={() => setShowViewerList(prev => !prev)}>
+                      <div className="pointer-events-auto flex items-center gap-[0.5mm] mt-1">
+                        <div className="flex items-center gap-[0.5mm] pointer-events-auto flex-shrink-0" onClick={() => setShowViewerList(prev => !prev)}>
                           {[0, 1, 2].map((i) => (
                             <div key={`top-viewers-${i}`} style={{ zIndex: 3 - i }} className="relative">
                               <GoldProfileFrame size={LIVE_MVP_PROFILE_RING_PX}>

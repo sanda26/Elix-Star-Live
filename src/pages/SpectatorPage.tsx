@@ -1935,7 +1935,7 @@ export default function SpectatorPage() {
 
                 <div className="w-full px-3 py-1.5 flex items-center justify-between flex-none z-30">
                   <div
-                    className="flex items-center gap-[0.1mm] min-w-0 flex-1 justify-start pointer-events-auto"
+                    className="flex items-center gap-[0.5mm] min-w-0 flex-1 justify-start pointer-events-auto"
                     onClick={() => setShowViewersPanel(true)}
                   >
                     {[0, 1, 2].map((i) => {
@@ -1954,7 +1954,7 @@ export default function SpectatorPage() {
                     })}
                   </div>
                   <div
-                    className="flex items-center gap-[0.1mm] min-w-0 flex-1 justify-end pointer-events-auto"
+                    className="flex items-center gap-[0.5mm] min-w-0 flex-1 justify-end pointer-events-auto"
                     onClick={() => setShowViewersPanel(true)}
                   >
                     {[0, 1, 2].map((i) => {
@@ -2252,7 +2252,7 @@ export default function SpectatorPage() {
           <div className="px-3" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 2px)' }}>
             <div className="flex items-center justify-between gap-2 relative">
               {/* Left: Creator info — full creator top bar */}
-              <div className="pointer-events-auto flex items-center gap-0 -ml-1 flex-shrink min-w-0" style={{ transform: 'translateY(-5mm)' }}>
+              <div className="pointer-events-auto flex items-center gap-0 -ml-1 flex-shrink min-w-0">
                 <div
                   className="relative z-10 flex-shrink-0 cursor-pointer active:scale-95 transition-transform"
                   onClick={() => navigate(`/profile/${hostUserId}`)}
@@ -2348,9 +2348,9 @@ export default function SpectatorPage() {
                 </div>
               </div>
 
-              <div className="pointer-events-auto flex items-center gap-[0.1mm] flex-shrink-0 min-w-0">
+              <div className="pointer-events-auto flex items-center gap-[0.5mm] flex-shrink-0 min-w-0">
                 <div
-                  className="flex items-center gap-[0.1mm] pointer-events-auto flex-shrink-0"
+                  className="flex items-center gap-[0.5mm] pointer-events-auto flex-shrink-0"
                   onClick={() => {
                     const list: { id: string; name: string; avatar: string; level?: number }[] = [];
                     const hid = hostUserIdRef.current || hostUserId || effectiveStreamId;
@@ -2420,10 +2420,7 @@ export default function SpectatorPage() {
             </div>
 
             {/* Second row: Weekly Ranking + Membership — spectator sees same creator top bar */}
-            <div
-              className="flex items-center gap-2 mt-0.5 ml-9 pointer-events-auto relative z-20 flex-wrap"
-              style={{ transform: 'translateY(-6mm)' }}
-            >
+            <div className="flex items-center gap-2 mt-0.5 ml-9 pointer-events-auto relative z-20 flex-wrap">
               <div
                 className="flex items-center gap-1 bg-[#13151A] rounded-full px-2 py-0.5 border border-[#C9A96E]/40 shadow-sm cursor-pointer active:scale-95 transition-transform"
                 onClick={() => { setShowGiftPanel(false); setShowRankingPanel(true); }}

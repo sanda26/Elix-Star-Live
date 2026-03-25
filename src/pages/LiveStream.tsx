@@ -4067,7 +4067,7 @@ export default function LiveStream() {
                     <div className="flex items-start justify-between gap-2">
                       <div className="pointer-events-auto flex flex-col gap-2">
                         {/* BROADCASTER INFO */}
-                        <div className="px-0 py-1 animate-luxury-fade-in -ml-2 relative" style={{ transform: 'translateY(-5mm)' }}>
+                        <div className="px-0 py-1 animate-luxury-fade-in -ml-2 relative" style={{ transform: 'translateY(-2mm)' }}>
                           <div className="flex items-center relative">
                             <div 
                               className="relative z-10 flex-shrink-0 pointer-events-auto cursor-pointer active:scale-95 transition-transform"

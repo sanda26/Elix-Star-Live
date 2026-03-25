@@ -2264,7 +2264,7 @@ export default function SpectatorPage() {
               {/* Left: Creator info — full creator top bar */}
               <div
                 className="pointer-events-auto flex items-center gap-0 -ml-1 flex-shrink min-w-0"
-                style={{ transform: 'translateY(-5mm)' }}
+                style={{ transform: 'translateY(-2mm)' }}
               >
                 <div
                   className="relative z-10 flex-shrink-0 cursor-pointer active:scale-95 transition-transform"

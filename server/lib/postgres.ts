@@ -30,8 +30,8 @@ export function getPool(): pg.Pool | null {
 
 export function isPostgresConfigured(): boolean {
   return Boolean(
-    (process.env.DATABASE_URL ||
-      process.env.NEON_DATABASE_URL ||
+    (process.env.NEON_DATABASE_URL ||
+      process.env.DATABASE_URL ||
       process.env.POSTGRES_URL ||
       process.env.PG_URL ||
       "").trim(),
@@ -64,8 +64,8 @@ export async function ensurePostgresReady(): Promise<boolean> {
 
 export async function initPostgres(): Promise<void> {
   const url = (
-    process.env.DATABASE_URL ||
     process.env.NEON_DATABASE_URL ||
+    process.env.DATABASE_URL ||
     process.env.POSTGRES_URL ||
     process.env.PG_URL ||
     ""

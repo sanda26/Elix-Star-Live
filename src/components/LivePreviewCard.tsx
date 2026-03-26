@@ -44,7 +44,7 @@ export default function LivePreviewCard({
       className="w-full h-full relative bg-black overflow-hidden"
       title="Tap to join live"
     >
-      {/* Live thumbnail — full screen, updated every 10s by broadcaster when Supabase live_streams is used */}
+      {/* Live thumbnail — full screen, updated every 10s by broadcaster when live_streams persistence is used */}
       {previewImg ? (
         <img
           src={previewImg}

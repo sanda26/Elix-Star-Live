@@ -81,6 +81,8 @@ export async function initPostgres(): Promise<void> {
       ...(needsSsl ? { ssl: { rejectUnauthorized: false } } : {}),
     });
     await pool.query("SELECT 1");
+    // Neon may not have pgcrypto enabled by default; gen_random_uuid() depends on it.
+    await pool.query(`CREATE EXTENSION IF NOT EXISTS pgcrypto`).catch(() => {});
     logger.info("PostgreSQL connected successfully");
     await pool.query(`
       CREATE TABLE IF NOT EXISTS videos (

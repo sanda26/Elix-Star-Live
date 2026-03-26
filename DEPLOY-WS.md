@@ -44,7 +44,7 @@ After changing `VITE_*`, **rebuild and redeploy** (Vite embeds at build time unl
 
 1. **Build:** Dockerfile buildpack, base directory repo root (`COOLIFY.md`).
 2. **Network:** Map public HTTPS → container port **8080**.
-3. **Env:** Set `VITE_WS_URL`, `VITE_API_URL`, `JWT`/Supabase secrets, `PORT=8080` if needed, LiveKit, DB, etc. (`DEPLOY.md` / Coolify env UI).
+3. **Env:** Set `VITE_WS_URL`, `VITE_API_URL`, `JWT`/Neon DB secrets, `PORT=8080` if needed, LiveKit, DB, etc. (`DEPLOY.md` / Coolify env UI).
 4. **Redeploy** after env changes that affect the **built** frontend (`VITE_*`).
 
 ---

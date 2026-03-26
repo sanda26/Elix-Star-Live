@@ -41,6 +41,9 @@ const followsFile = path.join(__dirname_p, "..", "data", "follows.json");
 
 const followsMap = new Map<string, Set<string>>();
 
+let followsGraphReady = false;
+let followsLoadedFromDb = false;
+
 function loadFollowsFromDisk(): void {
   try {
     if (!fs.existsSync(followsFile)) return;
@@ -63,12 +66,29 @@ function saveFollowsToDisk(): void {
   } catch { /* ignore */ }
 }
 
-loadFollowsFromDisk();
+async function ensureFollowsGraphReady(): Promise<void> {
+  if (followsGraphReady) return;
+
+  // Clear in-memory state; we will repopulate from Postgres (preferred) or disk.
+  followsMap.clear();
+  const db = getPool();
+
+  if (db) {
+    await loadFollowsFromDb();
+    followsLoadedFromDb = true;
+  } else {
+    loadFollowsFromDisk();
+    followsLoadedFromDb = false;
+  }
+
+  followsGraphReady = true;
+}
 
 export async function loadFollowsFromDb(): Promise<void> {
   const db = getPool();
   if (!db) return;
   try {
+    followsMap.clear();
     await ensureFollowsTable();
     const res = await db.query(`SELECT follower_id, following_id FROM follows`);
     for (const row of res.rows || []) {
@@ -79,24 +99,6 @@ export async function loadFollowsFromDb(): Promise<void> {
       followsMap.set(fid, set);
     }
     logger.info({ rows: res.rowCount ?? 0 }, "Follows loaded from Postgres into memory");
-    // Push any edges that only lived in follows.json (or memory) into Neon so deploys/refreshes keep data
-    let synced = 0;
-    for (const [followerId, set] of followsMap) {
-      for (const followingId of set) {
-        try {
-          const ins = await db.query(
-            `INSERT INTO follows (follower_id, following_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-            [followerId, followingId],
-          );
-          if ((ins.rowCount ?? 0) > 0) synced += 1;
-        } catch (e) {
-          logger.error({ err: e, followerId, followingId }, "sync follow edge to Postgres failed");
-        }
-      }
-    }
-    if (synced > 0) {
-      logger.info({ synced }, "Follow edges synced from disk/memory into Postgres");
-    }
   } catch (err) {
     logger.error({ err }, "loadFollowsFromDb failed — follow lists may be empty until fixed");
   }
@@ -367,7 +369,9 @@ async function getOrCreateProfileAsync(userId: string, seed?: Partial<Profile>):
   const needsNameFix = !profile || isFallbackName(profile.displayName) || isFallbackName(profile.username);
 
   if (needsNameFix) {
-    const authUser = (await lookupAuthUser(userId)) ?? lookupAuthUserFromDisk(userId);
+    const authUserFromDb = await lookupAuthUser(userId);
+    // Disk fallback only when Neon/Postgres is not connected.
+    const authUser = authUserFromDb ?? (getPool() ? null : lookupAuthUserFromDisk(userId));
     if (authUser) {
       const rawUsername = authUser.username?.trim() || "";
       const rawDisplayName = authUser.display_name?.trim() || "";
@@ -422,6 +426,7 @@ export async function handleGetProfile(req: Request, res: Response): Promise<voi
     res.status(400).json({ error: "userId is required" });
     return;
   }
+  await ensureFollowsGraphReady();
   const profile = await getOrCreateProfileAsync(userId);
   // Source of truth for counts is the follows graph (Neon `follows` + followsMap), not denormalized profiles columns
   const followersFromGraph = getFollowerIds(userId).length;
@@ -441,7 +446,9 @@ export async function handleListProfiles(_req: Request, res: Response): Promise<
   const merged = new Map<string, Profile>();
   for (const p of profiles.values()) merged.set(p.userId, p);
 
-  const users = [...readUsersFromDisk(), ...(await readUsersFromDb())];
+  const db = getPool();
+  const diskUsers = db ? [] : readUsersFromDisk();
+  const users = [...diskUsers, ...(await readUsersFromDb())];
   for (const u of users) {
     if (!u?.id) continue;
     const username =
@@ -475,6 +482,7 @@ export async function handleListProfiles(_req: Request, res: Response): Promise<
 /** GET /api/profiles/:userId/followers — ids from follows graph; profiles from Neon when available */
 export async function handleGetFollowers(req: Request, res: Response): Promise<void> {
   const userId = req.params.userId;
+  await ensureFollowsGraphReady();
   const profile = await getOrCreateProfileAsync(userId);
   const followerIds: string[] = [];
   for (const [fid, set] of followsMap) {
@@ -533,6 +541,7 @@ export async function handleGetFollowers(req: Request, res: Response): Promise<v
 /** GET /api/profiles/:userId/following */
 export async function handleGetFollowing(req: Request, res: Response): Promise<void> {
   const userId = req.params.userId;
+  await ensureFollowsGraphReady();
   const profile = await getOrCreateProfileAsync(userId);
   const followingIds = getFollowingIds(userId);
   res.json({ count: profile.following, following: followingIds });
@@ -603,6 +612,7 @@ export async function handleFollow(req: Request, res: Response): Promise<void> {
     return;
   }
 
+  await ensureFollowsGraphReady();
   const myFollows = followsMap.get(jwtUser.sub) ?? new Set<string>();
   if (myFollows.has(userId)) {
     const p = await getOrCreateProfileAsync(userId);
@@ -620,7 +630,7 @@ export async function handleFollow(req: Request, res: Response): Promise<void> {
       if (code === "23505") {
         myFollows.add(userId);
         followsMap.set(jwtUser.sub, myFollows);
-        saveFollowsToDisk();
+        if (!followsLoadedFromDb) saveFollowsToDisk();
         void import("./feed")
           .then((m) => {
             m.invalidateFeedCache(jwtUser.sub);
@@ -648,7 +658,7 @@ export async function handleFollow(req: Request, res: Response): Promise<void> {
   profiles.set(jwtUser.sub, follower);
   saveProfileToDb(target).catch(() => {});
   saveProfileToDb(follower).catch(() => {});
-  saveFollowsToDisk();
+  if (!followsLoadedFromDb) saveFollowsToDisk();
   void import("./feed")
     .then((m) => {
       m.invalidateFeedCache(jwtUser.sub);
@@ -669,6 +679,7 @@ export async function handleUnfollow(req: Request, res: Response): Promise<void>
     return;
   }
 
+  await ensureFollowsGraphReady();
   const myFollows = followsMap.get(jwtUser.sub);
   if (!myFollows || !myFollows.has(userId)) {
     const p = await getOrCreateProfileAsync(userId);
@@ -696,7 +707,7 @@ export async function handleUnfollow(req: Request, res: Response): Promise<void>
   profiles.set(jwtUser.sub, follower);
   saveProfileToDb(target).catch(() => {});
   saveProfileToDb(follower).catch(() => {});
-  saveFollowsToDisk();
+  if (!followsLoadedFromDb) saveFollowsToDisk();
   void import("./feed")
     .then((m) => {
       m.invalidateFeedCache(jwtUser.sub);

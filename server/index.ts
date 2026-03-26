@@ -1790,7 +1790,7 @@ async function updateViewerCount(roomId: string) {
   dbUpdateViewerCount(roomId, count).catch(() => {});
 }
 
-// WebSocket heartbeat: detect and clean up ghost connections every 30s
+// WebSocket heartbeat: detect and clean up stale connections every 30s
 const HEARTBEAT_INTERVAL = 30_000;
 const aliveClients = new WeakSet<WebSocket>();
 
@@ -1832,80 +1832,87 @@ wss.on("close", () => {
 // Start server
 logger.info({ port: PORT, nodeEnv: process.env.NODE_ENV }, "Starting server...");
 
-try {
-  // Bind to 0.0.0.0 to work in all environments
-  server.listen(PORT, "0.0.0.0", async () => {
+(async () => {
+  try {
+    // Initialize Neon/Postgres before accepting traffic
     await initPostgres();
     const dbVideos = await loadVideosFromDb();
-    if (dbVideos.length > 0) {
-      replaceVideos(dbVideos);
-      logger.info({ count: dbVideos.length }, "Videos loaded from database");
-    }
 
-    // Remove any leftover demo/seed videos
-    const allVids = getAllVideos();
-    for (const v of allVids) {
-      if (v.userId?.startsWith('demo_user_') || v.id?.startsWith('seed_')) {
-        deleteVideo(v.id);
+    // Bind to 0.0.0.0 to work in all environments
+    server.listen(PORT, "0.0.0.0", () => {
+      if (dbVideos.length > 0) {
+        replaceVideos(dbVideos);
+        logger.info({ count: dbVideos.length }, "Videos loaded from database");
       }
-    }
 
-    // No more demo videos — real uploads only
-    if (false) {
-      const sampleVideos: Video[] = [
-        {
-          id: "seed_big_buck_bunny",
-          url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-          thumbnail:
-            "https://storage.googleapis.com/gtv-videos-bucket/sample/images/BigBuckBunny.jpg",
-          duration: 60,
-          userId: "demo_user_big_buck_bunny",
-          username: "bigbunny",
-          displayName: "Big Buck Bunny",
-          avatar: "",
-          description: "Big Buck Bunny — demo video",
-          hashtags: ["bigbuckbunny", "demo", "elixstar"],
-          music: null,
-          views: 0,
-          likes: 0,
-          comments: 0,
-          shares: 0,
-          saves: 0,
-          createdAt: new Date().toISOString(),
-          privacy: "public",
-        },
-        {
-          id: "seed_sintel",
-          url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4",
-          thumbnail:
-            "https://storage.googleapis.com/gtv-videos-bucket/sample/images/Sintel.jpg",
-          duration: 60,
-          userId: "demo_user_sintel",
-          username: "sintel",
-          displayName: "Sintel",
-          avatar: "",
-          description: "Sintel — demo video",
-          hashtags: ["sintel", "demo", "elixstar"],
-          music: null,
-          views: 0,
-          likes: 0,
-          comments: 0,
-          shares: 0,
-          saves: 0,
-          createdAt: new Date().toISOString(),
-          privacy: "public",
-        },
-      ];
-      for (const v of sampleVideos) addVideo(v);
-      logger.info({ count: sampleVideos.length }, "Seed demo videos added (Big Buck Bunny, Sintel)");
-    }
+      // Remove any leftover demo/seed videos
+      const allVids = getAllVideos();
+      for (const v of allVids) {
+        if (v.userId?.startsWith("demo_user_") || v.id?.startsWith("seed_")) {
+          deleteVideo(v.id);
+        }
+      }
 
-    logger.info({ port: PORT, version: BUILD_VERSION }, "Server running successfully");
-  });
-} catch (error) {
-  logger.fatal({ err: error }, "Failed to start server");
-  process.exit(1);
-}
+      // No more demo videos — real uploads only
+      if (false) {
+        const sampleVideos: Video[] = [
+          {
+            id: "seed_big_buck_bunny",
+            url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+            thumbnail:
+              "https://storage.googleapis.com/gtv-videos-bucket/sample/images/BigBuckBunny.jpg",
+            duration: 60,
+            userId: "demo_user_big_buck_bunny",
+            username: "bigbunny",
+            displayName: "Big Buck Bunny",
+            avatar: "",
+            description: "Big Buck Bunny — demo video",
+            hashtags: ["bigbuckbunny", "demo", "elixstar"],
+            music: null,
+            views: 0,
+            likes: 0,
+            comments: 0,
+            shares: 0,
+            saves: 0,
+            createdAt: new Date().toISOString(),
+            privacy: "public",
+          },
+          {
+            id: "seed_sintel",
+            url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4",
+            thumbnail:
+              "https://storage.googleapis.com/gtv-videos-bucket/sample/images/Sintel.jpg",
+            duration: 60,
+            userId: "demo_user_sintel",
+            username: "sintel",
+            displayName: "Sintel",
+            avatar: "",
+            description: "Sintel — demo video",
+            hashtags: ["sintel", "demo", "elixstar"],
+            music: null,
+            views: 0,
+            likes: 0,
+            comments: 0,
+            shares: 0,
+            saves: 0,
+            createdAt: new Date().toISOString(),
+            privacy: "public",
+          },
+        ];
+        for (const v of sampleVideos) addVideo(v);
+        logger.info(
+          { count: sampleVideos.length },
+          "Seed demo videos added (Big Buck Bunny, Sintel)",
+        );
+      }
+
+      logger.info({ port: PORT, version: BUILD_VERSION }, "Server running successfully");
+    });
+  } catch (error) {
+    logger.fatal({ err: error }, "Failed to start server");
+    process.exit(1);
+  }
+})();
 
 // Prevent server crash on unhandled errors
 process.on("unhandledRejection", (reason) => {

@@ -2,14 +2,14 @@
   "name": "elix-star-live-server",
   "version": "1.0.0",
   "description": "Fastify backend for Elix Star Live",
-  "main": "src/index.ts",
+  "main": "index.ts",
   "type": "module",
   "scripts": {
-    "start": "tsx watch src/index.ts",
-    "dev": "tsx watch src/index.ts",
+    "start": "tsx index.ts",
+    "dev": "tsx watch index.ts",
     "build": "tsc",
     "test": "jest",
-    "lint": "eslint src --ext .ts"
+    "lint": "eslint ."
   },
   "dependencies": {
     "@fastify/cors": "^8.5.0",

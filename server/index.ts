@@ -39,6 +39,7 @@ import {
   type Video,
 } from "./lib/videoStore";
 import { initPostgres, loadVideosFromDb, saveVideoToDb, dbUpdateViewerCount } from "./lib/postgres";
+import { isPostgresConfigured } from "./lib/postgres";
 import {
   handleGetCreatorBalance,
   handleGetCreatorEarnings,
@@ -211,7 +212,7 @@ app.get("/health", (_req, res) => {
     services: {
       livekit: isLiveKitConfigured(),
       bunnyStorage: isBunnyConfigured(),
-      database: Boolean(process.env.DATABASE_URL),
+      database: isPostgresConfigured(),
       livekitUrl: Boolean(process.env.LIVEKIT_URL),
       viteEnvCount: Object.keys(process.env).filter(k => k.startsWith("VITE_")).length,
     },
@@ -228,7 +229,7 @@ app.get("/api/health", (_req, res) => {
     services: {
       livekit: isLiveKitConfigured(),
       bunnyStorage: isBunnyConfigured(),
-      database: Boolean(process.env.DATABASE_URL),
+      database: isPostgresConfigured(),
       livekitUrl: Boolean(process.env.LIVEKIT_URL),
       viteEnvCount: Object.keys(process.env).filter(k => k.startsWith("VITE_")).length,
     },

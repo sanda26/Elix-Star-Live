@@ -11,6 +11,8 @@ import { initWalletPaymentTables } from "./walletNeon";
 const { Pool } = pg;
 
 let pool: pg.Pool | null = null;
+let ensureInFlight: Promise<boolean> | null = null;
+let lastEnsureAttemptMs = 0;
 
 function firstNonEmptyString(
   ...values: Array<unknown>
@@ -27,11 +29,47 @@ export function getPool(): pg.Pool | null {
 }
 
 export function isPostgresConfigured(): boolean {
-  return Boolean((process.env.DATABASE_URL || "").trim());
+  return Boolean(
+    (process.env.DATABASE_URL ||
+      process.env.NEON_DATABASE_URL ||
+      process.env.POSTGRES_URL ||
+      process.env.PG_URL ||
+      "").trim(),
+  );
+}
+
+/**
+ * Shared lazy DB readiness check used by route handlers.
+ * Tries to initialize Postgres when pool is missing and coalesces concurrent calls.
+ */
+export async function ensurePostgresReady(): Promise<boolean> {
+  if (pool) return true;
+  if (ensureInFlight) return ensureInFlight;
+
+  const now = Date.now();
+  if (now - lastEnsureAttemptMs < 3000) return Boolean(pool);
+  lastEnsureAttemptMs = now;
+
+  ensureInFlight = (async () => {
+    try {
+      await initPostgres();
+      return Boolean(pool);
+    } finally {
+      ensureInFlight = null;
+    }
+  })();
+
+  return ensureInFlight;
 }
 
 export async function initPostgres(): Promise<void> {
-  const url = (process.env.DATABASE_URL || "").trim();
+  const url = (
+    process.env.DATABASE_URL ||
+    process.env.NEON_DATABASE_URL ||
+    process.env.POSTGRES_URL ||
+    process.env.PG_URL ||
+    ""
+  ).trim();
   if (!url) {
     logger.warn("DATABASE_URL is not set — all data will be stored in memory only and lost on restart!");
     return;

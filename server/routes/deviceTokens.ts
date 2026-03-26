@@ -5,9 +5,10 @@
 
 import { Request, Response } from "express";
 import { getTokenFromRequest, verifyAuthToken } from "./auth";
-import { getPool } from "../lib/postgres";
+import { ensurePostgresReady, getPool } from "../lib/postgres";
 
 let deviceTokensTableEnsured = false;
+
 async function ensureDeviceTokensTable(): Promise<void> {
   if (deviceTokensTableEnsured) return;
   const pool = getPool();
@@ -41,6 +42,10 @@ export async function handleRegisterDeviceToken(req: Request, res: Response): Pr
   }
   if (jwtUser.sub !== userId) {
     res.status(403).json({ error: "Forbidden" });
+    return;
+  }
+  if (!(await ensurePostgresReady())) {
+    res.status(503).json({ error: "Database not configured" });
     return;
   }
   const pool = getPool();
@@ -79,6 +84,10 @@ export async function handleDeleteDeviceToken(req: Request, res: Response): Prom
     return;
   }
 
+  if (!(await ensurePostgresReady())) {
+    res.status(503).json({ error: "Database not configured" });
+    return;
+  }
   const pool = getPool();
   if (!pool) {
     res.status(503).json({ error: "Database not configured" });

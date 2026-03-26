@@ -6,7 +6,7 @@ import {
   neonInsertPromotePurchase,
   neonIsIapProcessed,
 } from '../lib/walletNeon';
-import { getPool } from '../lib/postgres';
+import { ensurePostgresReady, getPool } from '../lib/postgres';
 
 // Rate limiting helper (simplified)
 const rateLimits = new Map<string, { count: number; timestamp: number }>();
@@ -53,6 +53,7 @@ export async function handleReport(req: Request, res: Response) {
   const token = getTokenFromRequest(req);
   const user = token ? verifyAuthToken(token) : null;
   if (!user) return res.status(401).json({ error: 'Unauthorized' });
+  if (!(await ensurePostgresReady())) return res.status(503).json({ error: 'Database not configured' });
   const db = getPool();
   if (!db) return res.status(503).json({ error: 'Database not configured' });
   const body = req.body ?? {};
@@ -192,7 +193,7 @@ export async function handleVerifyPurchase(req: Request, res: Response) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
     if (userId !== user.sub) return res.status(403).json({ error: 'Forbidden' });
-    if (!getPool()) return res.status(503).json({ error: 'Database not configured' });
+    if (!(await ensurePostgresReady())) return res.status(503).json({ error: 'Database not configured' });
 
     const safeProvider = provider === 'google' ? 'google' : provider === 'apple' ? 'apple' : '';
     if (!safeProvider) return res.status(400).json({ error: `Unknown provider: ${provider}` });
@@ -281,7 +282,7 @@ export async function handlePromoteIAPComplete(req: Request, res: Response) {
   const body = req.body ?? {};
   const { transactionId, productId, contentType, contentId } = body;
   if (!transactionId || !productId) return res.status(400).json({ error: 'Missing transactionId or productId' });
-  if (!getPool()) return res.status(503).json({ error: 'Database not configured' });
+  if (!(await ensurePostgresReady())) return res.status(503).json({ error: 'Database not configured' });
 
   const meta = PROMOTE_IAP_PRODUCTS[String(productId)];
   if (!meta) return res.status(400).json({ error: 'Invalid promote product' });
@@ -327,7 +328,7 @@ export async function handleMembershipIAPComplete(req: Request, res: Response) {
   if (!transactionId || !provider) {
     return res.status(400).json({ error: 'transactionId and provider required' });
   }
-  if (!getPool()) return res.status(503).json({ error: 'Database not configured' });
+  if (!(await ensurePostgresReady())) return res.status(503).json({ error: 'Database not configured' });
 
   if (provider === 'apple') {
     const apple = await verifyAppleReceipt(transactionId);

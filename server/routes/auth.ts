@@ -5,7 +5,7 @@
 
 import { Request, Response } from 'express';
 import crypto from 'crypto';
-import { getPool } from '../lib/postgres';
+import { ensurePostgresReady, getPool } from '../lib/postgres';
 
 const COOKIE_NAME = 'auth_token';
 const TOKEN_EXPIRY_SEC = 60 * 60 * 24 * 7; // 7 days
@@ -237,7 +237,7 @@ export async function handleLogin(req: Request, res: Response) {
   if (!e || !password) {
     return res.status(400).json({ error: 'Please enter both email and password.' });
   }
-  if (!getPool()) return res.status(503).json({ error: 'Database not configured' });
+  if (!(await ensurePostgresReady())) return res.status(503).json({ error: 'Database not configured' });
   const user = await dbFindUserByEmail(e);
   if (!user || !verifyPassword(password, user.passwordHash)) {
     return res.status(401).json({ error: 'Invalid login credentials.' });
@@ -256,7 +256,7 @@ export async function handleLogin(req: Request, res: Response) {
  * No password required; intended only for local testing / demos.
  */
 export async function handleGuestLogin(_req: Request, res: Response) {
-  if (!getPool()) return res.status(503).json({ error: 'Database not configured' });
+  if (!(await ensurePostgresReady())) return res.status(503).json({ error: 'Database not configured' });
   let guest: StoredUser | null = await dbFindUserByEmail('guest@example.com');
   if (!guest) {
     const id = crypto.randomUUID();
@@ -293,7 +293,7 @@ export async function handleRegister(req: Request, res: Response) {
     return res.status(400).json({ error: 'Email and password are required.' });
   }
   const key = e.toLowerCase();
-  if (!getPool()) return res.status(503).json({ error: 'Database not configured' });
+  if (!(await ensurePostgresReady())) return res.status(503).json({ error: 'Database not configured' });
   const existing = await dbFindUserByEmail(e);
   if (existing) {
     return res.status(409).json({ error: 'An account with this email already exists.' });
@@ -336,7 +336,7 @@ export async function handleMe(req: Request, res: Response) {
   if (!token) return res.status(401).json({ error: 'Not authenticated.' });
   const payload = verifyAuthToken(token);
   if (!payload) return res.status(401).json({ error: 'Invalid or expired session.' });
-  if (!getPool()) return res.status(503).json({ error: 'Database not configured' });
+  if (!(await ensurePostgresReady())) return res.status(503).json({ error: 'Database not configured' });
   const user = await dbFindUserById(payload.sub);
   if (!user) return res.status(401).json({ error: 'User not found.' });
   return res.status(200).json({
@@ -352,7 +352,7 @@ export async function handleDeleteAccount(req: Request, res: Response) {
   const payload = verifyAuthToken(token);
   if (!payload) return res.status(401).json({ error: 'Invalid or expired session.' });
 
-  if (!getPool()) return res.status(503).json({ error: 'Database not configured' });
+  if (!(await ensurePostgresReady())) return res.status(503).json({ error: 'Database not configured' });
   const user = await dbFindUserById(payload.sub);
   if (!user) {
     return res.status(404).json({ error: 'User not found.' });
@@ -401,6 +401,7 @@ export async function handleResetPassword(req: Request, res: Response) {
 
   const user = await dbFindUserById(payload.sub);
   if (!user) return res.status(404).json({ error: 'User not found.' });
+  if (!(await ensurePostgresReady())) return res.status(503).json({ error: 'Database not configured' });
   const pool = getPool();
   if (!pool) return res.status(503).json({ error: 'Database not configured' });
   await ensureAuthUsersTable();

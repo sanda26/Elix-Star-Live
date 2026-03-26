@@ -11,6 +11,15 @@ const envPath = path.join(rootDir, '.env');
 const envProdPath = path.join(rootDir, '.env.production');
 const nodeEnv = process.env.NODE_ENV || 'development';
 
+// Accept common database env aliases used in deployments (Neon/Coolify/manual setups).
+if (!process.env.DATABASE_URL) {
+  const aliasDbUrl = process.env.NEON_DATABASE_URL || process.env.POSTGRES_URL || process.env.PG_URL;
+  if (typeof aliasDbUrl === 'string' && aliasDbUrl.trim()) {
+    process.env.DATABASE_URL = aliasDbUrl.trim();
+    console.log('[config] DATABASE_URL sourced from alias env var');
+  }
+}
+
 // Coolify injects placeholder values like "Set JWT_SECRET in Coolify"
 // for any env var the user hasn't configured. These break the app.
 // Remove them so dotenv can fill in the real values from .env file.

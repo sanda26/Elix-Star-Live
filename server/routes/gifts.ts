@@ -6,7 +6,7 @@
 
 import { Request, Response } from "express";
 import { getTokenFromRequest, verifyAuthToken } from "./auth";
-import { getPool } from "../lib/postgres";
+import { ensurePostgresReady, getPool } from "../lib/postgres";
 import { neonDebitGift, neonEnsureBalanceFromFile } from "../lib/walletNeon";
 
 function requireAuth(req: Request, res: Response): { userId: string } | null {
@@ -36,6 +36,7 @@ export async function handleSendGift(req: Request, res: Response) {
     return res.status(400).json({ error: "room_id and gift_id are required." });
   }
 
+  if (!(await ensurePostgresReady())) return res.status(503).json({ error: "Database not configured" });
   const pool = getPool();
   if (!pool) return res.status(503).json({ error: "Database not configured" });
 

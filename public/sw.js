@@ -1,7 +1,7 @@
 // Service Worker for Push Notifications
 // File: public/sw.js
 
-const CACHE_NAME = 'elix-star-live-v1';
+const CACHE_NAME = 'elix-star-live-v2-20260326';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -12,6 +12,7 @@ const urlsToCache = [
 
 // Install service worker and cache assets
 self.addEventListener('install', (event) => {
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => cache.addAll(urlsToCache))
@@ -31,6 +32,7 @@ self.addEventListener('activate', (event) => {
       );
     })
   );
+  self.clients.claim();
 });
 
 // Fetch requests - serve from cache when offline

@@ -45,3 +45,22 @@ if ((process.env.NODE_ENV || nodeEnv) === 'production' && fs.existsSync(envProdP
 if (!fs.existsSync(envPath) && !fs.existsSync(envProdPath)) {
   console.log('[config] No .env or .env.production found, using system env');
 }
+
+// Neon / Coolify: baked `.env` from `.env.example` may set a fake `DATABASE_URL`.
+// Shared vars may set `DATABASE_URL` to localhost. When `NEON_DATABASE_URL` is set, it must win.
+const neonUrl = (process.env.NEON_DATABASE_URL || "").trim();
+if (neonUrl) {
+  process.env.DATABASE_URL = neonUrl;
+  process.env.NEON_DATABASE_URL = neonUrl;
+} else {
+  const dbUrl = (process.env.DATABASE_URL || "").trim();
+  if (
+    dbUrl &&
+    (dbUrl.includes("user:password@host") ||
+      dbUrl.includes("@host/dbname") ||
+      /^postgresql:\/\/user:/i.test(dbUrl))
+  ) {
+    delete process.env.DATABASE_URL;
+    console.log("[config] Removed placeholder DATABASE_URL from .env.example");
+  }
+}

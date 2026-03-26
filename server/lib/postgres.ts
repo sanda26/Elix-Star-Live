@@ -12,7 +12,6 @@ const { Pool } = pg;
 
 let pool: pg.Pool | null = null;
 let ensureInFlight: Promise<boolean> | null = null;
-let lastEnsureAttemptMs = 0;
 
 function firstNonEmptyString(
   ...values: Array<unknown>
@@ -45,10 +44,6 @@ export function isPostgresConfigured(): boolean {
 export async function ensurePostgresReady(): Promise<boolean> {
   if (pool) return true;
   if (ensureInFlight) return ensureInFlight;
-
-  const now = Date.now();
-  if (now - lastEnsureAttemptMs < 3000) return Boolean(pool);
-  lastEnsureAttemptMs = now;
 
   ensureInFlight = (async () => {
     try {

@@ -6,6 +6,8 @@
 
 import { Request, Response } from "express";
 import { getTokenFromRequest, verifyAuthToken } from "./auth";
+import { getPool } from "../lib/postgres";
+import { neonDebitGift, neonEnsureBalanceFromFile } from "../lib/walletNeon";
 
 function requireAuth(req: Request, res: Response): { userId: string } | null {
   const token = getTokenFromRequest(req);
@@ -34,13 +36,51 @@ export async function handleSendGift(req: Request, res: Response) {
     return res.status(400).json({ error: "room_id and gift_id are required." });
   }
 
-  // Optional: validate gift_id against catalog and user balance (when DB exists).
-  // For now we accept and return success; actual delivery is via WebSocket in the live room.
+  const pool = getPool();
+  if (!pool) return res.status(503).json({ error: "Database not configured" });
+
+  const coinCost = Number(DEFAULT_GIFTS.find((g) => g.gift_id === giftId)?.coin_cost ?? 0);
+  const clientTransactionId =
+    typeof transaction_id === "string" && transaction_id.trim()
+      ? transaction_id.trim()
+      : `${auth.userId}:${roomId}:${giftId}:${Date.now()}`;
+
+  if (coinCost > 0) {
+    await neonEnsureBalanceFromFile(auth.userId);
+    const debited = await neonDebitGift({
+      userId: auth.userId,
+      giftId,
+      roomId,
+      coins: coinCost,
+      clientTransactionId,
+    });
+    if (!debited.ok) {
+      return res.status(400).json({
+        error: debited.error,
+        new_balance: debited.newBalance,
+      });
+    }
+    await pool.query(
+      `INSERT INTO elix_gift_transactions (user_id, room_id, gift_id, coins, client_transaction_id, created_at)
+       VALUES ($1, $2, $3, $4, $5, NOW())
+       ON CONFLICT (client_transaction_id) DO NOTHING`,
+      [auth.userId, roomId, giftId, coinCost, clientTransactionId],
+    );
+    return res.status(200).json({
+      ok: true,
+      room_id: roomId,
+      gift_id: giftId,
+      transaction_id: clientTransactionId,
+      new_balance: debited.newBalance,
+      message: "Gift sent. Delivery in room is via WebSocket.",
+    });
+  }
+
   return res.status(200).json({
     ok: true,
     room_id: roomId,
     gift_id: giftId,
-    transaction_id: transaction_id || undefined,
+    transaction_id: clientTransactionId,
     message: "Gift sent. Delivery in room is via WebSocket.",
   });
 }

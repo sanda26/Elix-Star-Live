@@ -5,10 +5,7 @@
 
 import { Request, Response } from 'express';
 import crypto from 'crypto';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import { getPool } from "../lib/postgres";
+import { getPool } from '../lib/postgres';
 
 const COOKIE_NAME = 'auth_token';
 const TOKEN_EXPIRY_SEC = 60 * 60 * 24 * 7; // 7 days
@@ -52,29 +49,20 @@ function signToken(payload: { sub: string; email: string }): string {
   return `${part1}.${part2}.${sig}`;
 }
 
-const LEGACY_SECRETS = [
-  'elix-auth-dev-secret-change-in-production',
-  'elix-prod-jwt-secret-2026',
-  'Set JWT_SECRET in Coolify',
-];
-
 function verifyToken(token: string): { sub: string; email: string } | null {
-  const secrets = [getSecret(), ...LEGACY_SECRETS];
-  for (const secret of secrets) {
-    try {
-      const parts = token.split('.');
-      if (parts.length !== 3) return null;
-      const [, payloadB64, sig] = parts;
-      const expectedSig = crypto.createHmac('sha256', secret).update(`${parts[0]}.${payloadB64}`).digest('base64url');
-      if (sig !== expectedSig) continue;
-      const payload = JSON.parse(Buffer.from(payloadB64, 'base64url').toString());
-      if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) return null;
-      return { sub: payload.sub, email: payload.email ?? '' };
-    } catch {
-      continue;
-    }
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+    const [, payloadB64, sig] = parts;
+    const secret = getSecret();
+    const expectedSig = crypto.createHmac('sha256', secret).update(`${parts[0]}.${payloadB64}`).digest('base64url');
+    if (sig !== expectedSig) return null;
+    const payload = JSON.parse(Buffer.from(payloadB64, 'base64url').toString());
+    if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) return null;
+    return { sub: payload.sub, email: payload.email ?? '' };
+  } catch {
+    return null;
   }
-  return null;
 }
 
 export function getTokenFromRequest(req: Request): string | null {
@@ -101,191 +89,161 @@ function clearAuthCookie(res: Response) {
   res.setHeader('Set-Cookie', `${COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`);
 }
 
-// In-memory user store with simple JSON persistence on disk
 interface StoredUser {
   id: string;
   email: string;
   passwordHash: string;
   username: string;
-  display_name: string;
   avatar_url: string;
   created_at: string;
 }
-const usersByEmail = new Map<string, StoredUser>();
-const usersById = new Map<string, StoredUser>();
-let usersLoadedFromStore = false;
-let usersDbReady = false;
+let authTableEnsured = false;
+let sessionTableEnsured = false;
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const USERS_FILE = path.join(__dirname, '..', 'data', 'users.json');
-
-function loadUsersFromDisk() {
-  try {
-    if (!fs.existsSync(USERS_FILE)) return;
-    const raw = fs.readFileSync(USERS_FILE, 'utf8');
-    if (!raw.trim()) return;
-    const parsed = JSON.parse(raw) as { users?: StoredUser[] };
-    if (!parsed.users || !Array.isArray(parsed.users)) return;
-    usersByEmail.clear();
-    usersById.clear();
-    for (const u of parsed.users) {
-      if (!u || !u.email || !u.id) continue;
-      if (!u.display_name) u.display_name = u.username || u.email.split('@')[0];
-      usersByEmail.set(u.email.toLowerCase(), u);
-      usersById.set(u.id, u);
-    }
-  } catch (err) {
-    console.error('Failed to load users from disk:', err);
-  }
-}
-
-async function ensureUsersTable(): Promise<void> {
-  if (usersDbReady) return;
-  const db = getPool();
-  if (!db) return;
-  await db.query(`
-    CREATE TABLE IF NOT EXISTS auth_users (
+async function ensureAuthUsersTable(): Promise<void> {
+  if (authTableEnsured) return;
+  const pool = getPool();
+  if (!pool) return;
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS elix_auth_users (
       id TEXT PRIMARY KEY,
-      email TEXT UNIQUE NOT NULL,
+      email TEXT NOT NULL,
+      email_lower TEXT NOT NULL UNIQUE,
       password_hash TEXT NOT NULL,
-      username TEXT DEFAULT '',
-      display_name TEXT DEFAULT '',
+      username TEXT NOT NULL,
       avatar_url TEXT DEFAULT '',
       created_at TIMESTAMPTZ DEFAULT NOW()
     )
   `);
-  usersDbReady = true;
+  authTableEnsured = true;
 }
 
-async function loadUsersFromDb(): Promise<boolean> {
-  const db = getPool();
-  if (!db) return false;
-  await ensureUsersTable();
-  const res = await db.query(`
-    SELECT id, email, password_hash, username, display_name, avatar_url, created_at
-    FROM auth_users
+async function ensureAuthSessionsTable(): Promise<void> {
+  if (sessionTableEnsured) return;
+  const pool = getPool();
+  if (!pool) return;
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS elix_auth_sessions (
+      token_hash TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      expires_at TIMESTAMPTZ NOT NULL
+    )
   `);
-  usersByEmail.clear();
-  usersById.clear();
-  for (const r of res.rows || []) {
-    const u: StoredUser = {
-      id: String(r.id),
-      email: String(r.email),
-      passwordHash: String(r.password_hash),
-      username: String(r.username || '').trim() || String(r.email).split('@')[0],
-      display_name: String(r.display_name || '').trim() || String(r.username || '').trim() || String(r.email).split('@')[0],
-      avatar_url: String(r.avatar_url || ''),
-      created_at: r.created_at instanceof Date ? r.created_at.toISOString() : String(r.created_at || new Date().toISOString()),
-    };
-    usersByEmail.set(u.email.toLowerCase(), u);
-    usersById.set(u.id, u);
-  }
-  return true;
+  await pool.query(
+    `CREATE INDEX IF NOT EXISTS idx_elix_auth_sessions_user ON elix_auth_sessions(user_id, expires_at DESC)`,
+  ).catch(() => {});
+  sessionTableEnsured = true;
 }
 
-async function ensureUsersLoaded(): Promise<void> {
-  if (usersLoadedFromStore) return;
-  let source: "db" | "disk" | "disk_fallback" = "disk";
-  try {
-    const loadedDb = await loadUsersFromDb();
-    if (!loadedDb) {
-      loadUsersFromDisk();
-      source = "disk";
-    } else {
-      source = "db";
-    }
-  } catch (err) {
-    console.error("[AUTH] Failed to load users from DB, falling back to disk:", err);
-    loadUsersFromDisk();
-    source = "disk_fallback";
-  }
-  usersLoadedFromStore = true;
-  console.log(`[AUTH] Users loaded from ${source} — ${usersById.size} user(s) in memory, DATABASE_URL configured: ${Boolean(process.env.DATABASE_URL)}`);
+function hashSessionToken(token: string): string {
+  return crypto.createHash('sha256').update(token).digest('hex');
 }
 
-async function saveUserToDb(u: StoredUser): Promise<void> {
-  const db = getPool();
-  if (!db) {
-    console.warn("[AUTH] No database pool — user will NOT persist:", u.email);
-    return;
-  }
-  await ensureUsersTable();
-  await db.query(
-    `INSERT INTO auth_users (id, email, password_hash, username, display_name, avatar_url, created_at)
-     VALUES ($1,$2,$3,$4,$5,$6,$7)
-     ON CONFLICT (id) DO UPDATE SET
-       email = EXCLUDED.email,
-       password_hash = EXCLUDED.password_hash,
-       username = EXCLUDED.username,
-       display_name = EXCLUDED.display_name,
-       avatar_url = EXCLUDED.avatar_url`,
-    [u.id, u.email, u.passwordHash, u.username, u.display_name, u.avatar_url, u.created_at]
+function rowToStoredUser(row: Record<string, unknown>): StoredUser {
+  return {
+    id: String(row.id),
+    email: String(row.email ?? ''),
+    passwordHash: String(row.password_hash ?? ''),
+    username: String(row.username ?? ''),
+    avatar_url: String(row.avatar_url ?? ''),
+    created_at: row.created_at instanceof Date ? row.created_at.toISOString() : String(row.created_at ?? new Date().toISOString()),
+  };
+}
+
+async function dbFindUserByEmail(email: string): Promise<StoredUser | null> {
+  const pool = getPool();
+  if (!pool) return null;
+  await ensureAuthUsersTable();
+  const r = await pool.query(
+    `SELECT id, email, password_hash, username, avatar_url, created_at
+       FROM elix_auth_users
+      WHERE email_lower = $1
+      LIMIT 1`,
+    [email.toLowerCase()],
   );
-  console.log("[AUTH] User saved to database:", u.email);
+  if (!r.rowCount) return null;
+  return rowToStoredUser(r.rows[0] as Record<string, unknown>);
 }
 
-async function deleteUserFromDb(id: string): Promise<void> {
-  const db = getPool();
-  if (!db) return;
-  await ensureUsersTable();
-  await db.query(`DELETE FROM auth_users WHERE id = $1`, [id]);
+async function dbFindUserById(id: string): Promise<StoredUser | null> {
+  const pool = getPool();
+  if (!pool) return null;
+  await ensureAuthUsersTable();
+  const r = await pool.query(
+    `SELECT id, email, password_hash, username, avatar_url, created_at
+       FROM elix_auth_users
+      WHERE id = $1
+      LIMIT 1`,
+    [id],
+  );
+  if (!r.rowCount) return null;
+  return rowToStoredUser(r.rows[0] as Record<string, unknown>);
 }
 
-function saveUsersToDisk() {
-  try {
-    const dir = path.dirname(USERS_FILE);
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    const users: StoredUser[] = Array.from(usersById.values());
-    fs.writeFileSync(USERS_FILE, JSON.stringify({ users }, null, 2), 'utf8');
-  } catch (err) {
-    console.error('Failed to persist users to disk:', err);
-  }
+async function dbInsertUser(user: StoredUser): Promise<void> {
+  const pool = getPool();
+  if (!pool) return;
+  await ensureAuthUsersTable();
+  await pool.query(
+    `INSERT INTO elix_auth_users (id, email, email_lower, password_hash, username, avatar_url, created_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    [user.id, user.email, user.email.toLowerCase(), user.passwordHash, user.username, user.avatar_url, user.created_at],
+  );
 }
 
-// Load existing users once on startup
-loadUsersFromDisk();
+async function dbDeleteUserById(id: string): Promise<void> {
+  const pool = getPool();
+  if (!pool) return;
+  await ensureAuthUsersTable();
+  await pool.query(`DELETE FROM elix_auth_users WHERE id = $1`, [id]);
+}
+
+async function dbUpsertSession(userId: string, token: string): Promise<void> {
+  const pool = getPool();
+  if (!pool) return;
+  await ensureAuthSessionsTable();
+  const tokenHash = hashSessionToken(token);
+  await pool.query(
+    `INSERT INTO elix_auth_sessions (token_hash, user_id, expires_at)
+     VALUES ($1, $2, NOW() + INTERVAL '7 days')
+     ON CONFLICT (token_hash) DO UPDATE
+       SET user_id = EXCLUDED.user_id, expires_at = EXCLUDED.expires_at`,
+    [tokenHash, userId],
+  );
+}
+
+async function dbDeleteSessionByToken(token: string): Promise<void> {
+  const pool = getPool();
+  if (!pool) return;
+  await ensureAuthSessionsTable();
+  await pool.query(`DELETE FROM elix_auth_sessions WHERE token_hash = $1`, [hashSessionToken(token)]);
+}
 
 function toAuthUser(u: StoredUser): { id: string; email?: string; user_metadata?: Record<string, unknown>; email_confirmed_at?: string; created_at?: string } {
   return {
     id: u.id,
     email: u.email,
-    user_metadata: {
-      username: u.username,
-      full_name: u.display_name || u.username,
-      avatar_url: u.avatar_url,
-    },
+    user_metadata: { username: u.username, full_name: u.username, avatar_url: u.avatar_url },
     email_confirmed_at: new Date().toISOString(),
     created_at: u.created_at,
   };
 }
 
 export async function handleLogin(req: Request, res: Response) {
-  await ensureUsersLoaded();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
   const { email, password } = req.body ?? {};
   const e = typeof email === 'string' ? email.trim() : '';
   if (!e || !password) {
     return res.status(400).json({ error: 'Please enter both email and password.' });
   }
-
-  let user = usersByEmail.get(e.toLowerCase());
-
-  // Allow signing in with just the email prefix (e.g. "bericaandrei1" matches "bericaandrei1@gmail.com")
-  if (!user && !e.includes('@')) {
-    const prefix = e.toLowerCase();
-    for (const [storedEmail, storedUser] of usersByEmail) {
-      if (storedEmail.split('@')[0] === prefix) {
-        user = storedUser;
-        break;
-      }
-    }
-  }
-
+  if (!getPool()) return res.status(503).json({ error: 'Database not configured' });
+  const user = await dbFindUserByEmail(e);
   if (!user || !verifyPassword(password, user.passwordHash)) {
     return res.status(401).json({ error: 'Invalid login credentials.' });
   }
   const token = signToken({ sub: user.id, email: user.email });
+  await dbUpsertSession(user.id, token);
   setAuthCookie(res, token);
   return res.status(200).json({
     user: toAuthUser(user),
@@ -298,9 +256,8 @@ export async function handleLogin(req: Request, res: Response) {
  * No password required; intended only for local testing / demos.
  */
 export async function handleGuestLogin(_req: Request, res: Response) {
-  await ensureUsersLoaded();
-  // Reuse a single in-memory guest to avoid unbounded growth.
-  let guest = usersByEmail.get('guest@example.com');
+  if (!getPool()) return res.status(503).json({ error: 'Database not configured' });
+  let guest: StoredUser | null = await dbFindUserByEmail('guest@example.com');
   if (!guest) {
     const id = crypto.randomUUID();
     const uname = 'Guest';
@@ -313,21 +270,14 @@ export async function handleGuestLogin(_req: Request, res: Response) {
       email: 'guest@example.com',
       passwordHash: hashPassword(crypto.randomUUID()),
       username: uname,
-      display_name: uname,
       avatar_url,
       created_at,
     };
-    usersByEmail.set('guest@example.com', guest);
-    usersById.set(id, guest);
-    saveUsersToDisk();
-    try {
-      await saveUserToDb(guest);
-    } catch (dbErr) {
-      console.error("[AUTH] FAILED to save guest to database:", dbErr);
-    }
+    await dbInsertUser(guest);
   }
 
   const token = signToken({ sub: guest.id, email: guest.email });
+  await dbUpsertSession(guest.id, token);
   setAuthCookie(res, token);
   return res.status(200).json({
     user: toAuthUser(guest),
@@ -336,41 +286,33 @@ export async function handleGuestLogin(_req: Request, res: Response) {
 }
 
 export async function handleRegister(req: Request, res: Response) {
-  await ensureUsersLoaded();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-  const { email, password, username, displayName, name: bodyName } = req.body ?? {};
+  const { email, password, username } = req.body ?? {};
   const e = typeof email === 'string' ? email.trim() : '';
   if (!e || !password) {
     return res.status(400).json({ error: 'Email and password are required.' });
   }
   const key = e.toLowerCase();
-  if (usersByEmail.has(key)) {
+  if (!getPool()) return res.status(503).json({ error: 'Database not configured' });
+  const existing = await dbFindUserByEmail(e);
+  if (existing) {
     return res.status(409).json({ error: 'An account with this email already exists.' });
   }
   const id = crypto.randomUUID();
   const uname = typeof username === 'string' && username.trim() ? username.trim() : e.split('@')[0];
-  const rawDisplayName = displayName || bodyName;
-  const dname = typeof rawDisplayName === 'string' && rawDisplayName.trim() ? rawDisplayName.trim() : uname;
-  const avatar_url = `https://ui-avatars.com/api/?name=${encodeURIComponent(dname)}&background=random`;
+  const avatar_url = `https://ui-avatars.com/api/?name=${encodeURIComponent(uname)}&background=random`;
   const created_at = new Date().toISOString();
   const stored: StoredUser = {
     id,
     email: e,
     passwordHash: hashPassword(password),
     username: uname,
-    display_name: dname,
     avatar_url,
     created_at,
   };
-  usersByEmail.set(key, stored);
-  usersById.set(id, stored);
-  saveUsersToDisk();
-  try {
-    await saveUserToDb(stored);
-  } catch (dbErr) {
-    console.error("[AUTH] FAILED to save user to database:", e, dbErr);
-  }
+  await dbInsertUser(stored);
   const token = signToken({ sub: id, email: e });
+  await dbUpsertSession(id, token);
   setAuthCookie(res, token);
   return res.status(201).json({
     user: toAuthUser(stored),
@@ -380,18 +322,22 @@ export async function handleRegister(req: Request, res: Response) {
 
 export async function handleLogout(req: Request, res: Response) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  const token = getTokenFromRequest(req);
+  if (token) {
+    await dbDeleteSessionByToken(token).catch(() => {});
+  }
   clearAuthCookie(res);
   return res.status(200).json({ ok: true });
 }
 
 export async function handleMe(req: Request, res: Response) {
-  await ensureUsersLoaded();
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
   const token = getTokenFromRequest(req);
   if (!token) return res.status(401).json({ error: 'Not authenticated.' });
   const payload = verifyAuthToken(token);
   if (!payload) return res.status(401).json({ error: 'Invalid or expired session.' });
-  const user = usersById.get(payload.sub);
+  if (!getPool()) return res.status(503).json({ error: 'Database not configured' });
+  const user = await dbFindUserById(payload.sub);
   if (!user) return res.status(401).json({ error: 'User not found.' });
   return res.status(200).json({
     user: toAuthUser(user),
@@ -400,20 +346,19 @@ export async function handleMe(req: Request, res: Response) {
 }
 
 export async function handleDeleteAccount(req: Request, res: Response) {
-  await ensureUsersLoaded();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
   const token = getTokenFromRequest(req);
   if (!token) return res.status(401).json({ error: 'Not authenticated.' });
   const payload = verifyAuthToken(token);
   if (!payload) return res.status(401).json({ error: 'Invalid or expired session.' });
 
-  const user = usersById.get(payload.sub);
-  if (user) {
-    usersById.delete(user.id);
-    usersByEmail.delete(user.email.toLowerCase());
-    saveUsersToDisk();
-    await deleteUserFromDb(user.id).catch((err) => console.error("[AUTH] Failed to delete user from DB:", err));
+  if (!getPool()) return res.status(503).json({ error: 'Database not configured' });
+  const user = await dbFindUserById(payload.sub);
+  if (!user) {
+    return res.status(404).json({ error: 'User not found.' });
   }
+
+  await dbDeleteUserById(user.id);
 
   clearAuthCookie(res);
   return res.status(200).json({ ok: true });
@@ -432,4 +377,36 @@ export async function handleResendConfirmation(req: Request, res: Response) {
 export async function handleAppleStart(req: Request, res: Response) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
   return res.status(501).json({ error: 'Apple Sign-In is not configured. Use email/password for now.' });
+}
+
+export async function handleForgotPassword(req: Request, res: Response) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  const { email } = req.body ?? {};
+  if (!email || typeof email !== 'string') {
+    return res.status(400).json({ error: 'Email is required.' });
+  }
+  return res.status(200).json({ message: 'If an account exists, reset instructions were sent.' });
+}
+
+export async function handleResetPassword(req: Request, res: Response) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  const { password } = req.body ?? {};
+  if (!password || typeof password !== 'string' || password.length < 6) {
+    return res.status(400).json({ error: 'Valid password is required.' });
+  }
+  const token = getTokenFromRequest(req);
+  if (!token) return res.status(401).json({ error: 'Unauthorized' });
+  const payload = verifyAuthToken(token);
+  if (!payload) return res.status(401).json({ error: 'Invalid or expired session.' });
+
+  const user = await dbFindUserById(payload.sub);
+  if (!user) return res.status(404).json({ error: 'User not found.' });
+  const pool = getPool();
+  if (!pool) return res.status(503).json({ error: 'Database not configured' });
+  await ensureAuthUsersTable();
+  await pool.query(`UPDATE elix_auth_users SET password_hash = $2 WHERE id = $1`, [
+    user.id,
+    hashPassword(password),
+  ]);
+  return res.status(200).json({ success: true });
 }

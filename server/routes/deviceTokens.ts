@@ -5,14 +5,27 @@
 
 import { Request, Response } from "express";
 import { getTokenFromRequest, verifyAuthToken } from "./auth";
+import { getPool } from "../lib/postgres";
 
-const deviceTokens = new Map<
-  string,
-  { userId: string; token: string; platform: string; updatedAt: string }
->();
+let deviceTokensTableEnsured = false;
+async function ensureDeviceTokensTable(): Promise<void> {
+  if (deviceTokensTableEnsured) return;
+  const pool = getPool();
+  if (!pool) return;
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS elix_device_tokens (
+      user_id TEXT NOT NULL,
+      platform TEXT NOT NULL,
+      token TEXT NOT NULL,
+      updated_at TIMESTAMPTZ DEFAULT NOW(),
+      PRIMARY KEY (user_id, platform)
+    )
+  `);
+  deviceTokensTableEnsured = true;
+}
 
 /** POST /api/device-tokens — register push token; auth required */
-export function handleRegisterDeviceToken(req: Request, res: Response): void {
+export async function handleRegisterDeviceToken(req: Request, res: Response): Promise<void> {
   const token = getTokenFromRequest(req);
   const jwtUser = token ? verifyAuthToken(token) : null;
   if (!jwtUser) {
@@ -30,19 +43,24 @@ export function handleRegisterDeviceToken(req: Request, res: Response): void {
     res.status(403).json({ error: "Forbidden" });
     return;
   }
-
-  const key = `${userId}:${platform}`;
-  deviceTokens.set(key, {
-    userId,
-    token: deviceToken,
-    platform,
-    updatedAt: new Date().toISOString(),
-  });
+  const pool = getPool();
+  if (!pool) {
+    res.status(503).json({ error: "Database not configured" });
+    return;
+  }
+  await ensureDeviceTokensTable();
+  await pool.query(
+    `INSERT INTO elix_device_tokens (user_id, platform, token, updated_at)
+     VALUES ($1, $2, $3, NOW())
+     ON CONFLICT (user_id, platform) DO UPDATE
+       SET token = EXCLUDED.token, updated_at = NOW()`,
+    [userId, platform, deviceToken],
+  );
   res.json({ success: true });
 }
 
 /** DELETE /api/device-tokens — unregister; auth required */
-export function handleDeleteDeviceToken(req: Request, res: Response): void {
+export async function handleDeleteDeviceToken(req: Request, res: Response): Promise<void> {
   const token = getTokenFromRequest(req);
   const jwtUser = token ? verifyAuthToken(token) : null;
   if (!jwtUser) {
@@ -61,8 +79,13 @@ export function handleDeleteDeviceToken(req: Request, res: Response): void {
     return;
   }
 
-  const key = `${userId}:${platform}`;
-  deviceTokens.delete(key);
+  const pool = getPool();
+  if (!pool) {
+    res.status(503).json({ error: "Database not configured" });
+    return;
+  }
+  await ensureDeviceTokensTable();
+  await pool.query(`DELETE FROM elix_device_tokens WHERE user_id = $1 AND platform = $2`, [userId, platform]);
   res.json({ success: true });
 }
 

@@ -6,6 +6,7 @@
 import pg from "pg";
 import type { Video } from "./videoStore";
 import { logger } from "./logger";
+import { initWalletPaymentTables } from "./walletNeon";
 
 const { Pool } = pg;
 
@@ -150,6 +151,43 @@ export async function initPostgres(): Promise<void> {
         created_at TIMESTAMPTZ DEFAULT NOW()
       )
     `);
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS elix_auth_sessions (
+        token_hash TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        expires_at TIMESTAMPTZ NOT NULL
+      )
+    `);
+    await pool.query(
+      `CREATE INDEX IF NOT EXISTS idx_elix_auth_sessions_user ON elix_auth_sessions(user_id, expires_at DESC)`,
+    ).catch(() => {});
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS elix_device_tokens (
+        user_id TEXT NOT NULL,
+        platform TEXT NOT NULL,
+        token TEXT NOT NULL,
+        updated_at TIMESTAMPTZ DEFAULT NOW(),
+        PRIMARY KEY (user_id, platform)
+      )
+    `);
+    await pool.query(
+      `CREATE INDEX IF NOT EXISTS idx_elix_device_tokens_user ON elix_device_tokens(user_id)`,
+    ).catch(() => {});
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS elix_gift_transactions (
+        id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+        user_id TEXT NOT NULL,
+        room_id TEXT NOT NULL,
+        gift_id TEXT NOT NULL,
+        coins INTEGER NOT NULL DEFAULT 0,
+        client_transaction_id TEXT NOT NULL UNIQUE,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+    await pool.query(
+      `CREATE INDEX IF NOT EXISTS idx_elix_gift_transactions_user_time ON elix_gift_transactions(user_id, created_at DESC)`,
+    ).catch(() => {});
 
     await pool.query(`
       CREATE TABLE IF NOT EXISTS profiles (
@@ -193,6 +231,34 @@ export async function initPostgres(): Promise<void> {
     await pool
       .query(`ALTER TABLE messages ADD COLUMN IF NOT EXISTS read BOOLEAN DEFAULT FALSE`)
       .catch(() => {});
+    await pool.query(
+      `CREATE INDEX IF NOT EXISTS idx_chat_threads_user1_last ON chat_threads(user1_id, last_at DESC)`,
+    ).catch(() => {});
+    await pool.query(
+      `CREATE INDEX IF NOT EXISTS idx_chat_threads_user2_last ON chat_threads(user2_id, last_at DESC)`,
+    ).catch(() => {});
+    await pool.query(
+      `CREATE INDEX IF NOT EXISTS idx_messages_thread_created ON messages(thread_id, created_at ASC)`,
+    ).catch(() => {});
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS shop_items (
+        id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+        user_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        description TEXT DEFAULT '',
+        price NUMERIC NOT NULL DEFAULT 0,
+        image_url TEXT,
+        category TEXT DEFAULT 'other',
+        is_active BOOLEAN NOT NULL DEFAULT TRUE,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+    await pool.query(
+      `CREATE INDEX IF NOT EXISTS idx_shop_items_active_created ON shop_items(is_active, created_at DESC)`,
+    ).catch(() => {});
+    await pool.query(
+      `CREATE INDEX IF NOT EXISTS idx_shop_items_user_created ON shop_items(user_id, created_at DESC)`,
+    ).catch(() => {});
 
     await pool.query(`
       CREATE TABLE IF NOT EXISTS follows (
@@ -299,6 +365,7 @@ export async function initPostgres(): Promise<void> {
 
     const userCount = await pool.query(`SELECT COUNT(*) as cnt FROM auth_users`);
     const profileCount = await pool.query(`SELECT COUNT(*) as cnt FROM profiles`);
+    await initWalletPaymentTables(pool);
     logger.info(`Tables ready — ${userCount.rows[0]?.cnt || 0} auth users, ${profileCount.rows[0]?.cnt || 0} profiles in DB`);
   } catch (err) {
     logger.error({ err }, "PostgreSQL init FAILED — data will NOT persist across restarts. Check DATABASE_URL and ensure PostgreSQL is running.");
@@ -978,5 +1045,357 @@ export async function dbGetCreatorMembershipStats(creatorUserId: string): Promis
   } catch (err) {
     logger.error({ err, creatorUserId }, "dbGetCreatorMembershipStats failed");
     return { todayHearts: 0, totalHearts: 0, totalGiftCoins: 0, topGifters: [] };
+  }
+}
+
+export type DbChatThreadRow = {
+  id: string;
+  user1_id: string;
+  user2_id: string;
+  last_at: string;
+  last_message: string;
+  created_at: string;
+};
+
+export type DbChatMessageRow = {
+  id: string;
+  thread_id: string;
+  sender_id: string;
+  text: string;
+  created_at: string;
+  read: boolean;
+};
+
+export async function dbEnsureChatThread(userId: string, otherUserId: string): Promise<DbChatThreadRow | null> {
+  const p = getPool();
+  if (!p || !userId || !otherUserId || userId === otherUserId) return null;
+  try {
+    const existing = await p.query(
+      `SELECT id, user1_id, user2_id, last_at, last_message, created_at
+       FROM chat_threads
+       WHERE (user1_id = $1 AND user2_id = $2) OR (user1_id = $2 AND user2_id = $1)
+       LIMIT 1`,
+      [userId, otherUserId],
+    );
+    if (existing.rows[0]) {
+      const row = existing.rows[0];
+      return {
+        id: String(row.id),
+        user1_id: String(row.user1_id),
+        user2_id: String(row.user2_id),
+        last_at: new Date(row.last_at).toISOString(),
+        last_message: String(row.last_message ?? ""),
+        created_at: new Date(row.created_at).toISOString(),
+      };
+    }
+    const inserted = await p.query(
+      `INSERT INTO chat_threads (user1_id, user2_id, last_message, last_at, created_at)
+       VALUES ($1, $2, '', NOW(), NOW())
+       RETURNING id, user1_id, user2_id, last_at, last_message, created_at`,
+      [userId, otherUserId],
+    );
+    const row = inserted.rows[0];
+    return {
+      id: String(row.id),
+      user1_id: String(row.user1_id),
+      user2_id: String(row.user2_id),
+      last_at: new Date(row.last_at).toISOString(),
+      last_message: String(row.last_message ?? ""),
+      created_at: new Date(row.created_at).toISOString(),
+    };
+  } catch (err) {
+    logger.error({ err }, "dbEnsureChatThread failed");
+    return null;
+  }
+}
+
+export async function dbListChatThreadsForUser(userId: string, limit: number): Promise<DbChatThreadRow[]> {
+  const p = getPool();
+  if (!p || !userId) return [];
+  try {
+    const lim = Math.max(1, Math.min(100, limit || 50));
+    const res = await p.query(
+      `SELECT id, user1_id, user2_id, last_at, last_message, created_at
+       FROM chat_threads
+       WHERE user1_id = $1 OR user2_id = $1
+       ORDER BY last_at DESC
+       LIMIT $2`,
+      [userId, lim],
+    );
+    return res.rows.map((row) => ({
+      id: String(row.id),
+      user1_id: String(row.user1_id),
+      user2_id: String(row.user2_id),
+      last_at: new Date(row.last_at).toISOString(),
+      last_message: String(row.last_message ?? ""),
+      created_at: new Date(row.created_at).toISOString(),
+    }));
+  } catch (err) {
+    logger.error({ err }, "dbListChatThreadsForUser failed");
+    return [];
+  }
+}
+
+export async function dbGetChatThread(threadId: string, userId: string): Promise<DbChatThreadRow | null> {
+  const p = getPool();
+  if (!p) return null;
+  try {
+    const res = await p.query(
+      `SELECT id, user1_id, user2_id, last_at, last_message, created_at
+       FROM chat_threads
+       WHERE id = $1 AND (user1_id = $2 OR user2_id = $2)
+       LIMIT 1`,
+      [threadId, userId],
+    );
+    const row = res.rows[0];
+    if (!row) return null;
+    return {
+      id: String(row.id),
+      user1_id: String(row.user1_id),
+      user2_id: String(row.user2_id),
+      last_at: new Date(row.last_at).toISOString(),
+      last_message: String(row.last_message ?? ""),
+      created_at: new Date(row.created_at).toISOString(),
+    };
+  } catch (err) {
+    logger.error({ err }, "dbGetChatThread failed");
+    return null;
+  }
+}
+
+export async function dbListChatMessages(threadId: string, userId: string, limit: number): Promise<DbChatMessageRow[]> {
+  const p = getPool();
+  if (!p) return [];
+  const thread = await dbGetChatThread(threadId, userId);
+  if (!thread) return [];
+  try {
+    const lim = Math.max(1, Math.min(500, limit || 200));
+    const res = await p.query(
+      `SELECT id, thread_id, sender_id, text, created_at, read
+       FROM messages
+       WHERE thread_id = $1
+       ORDER BY created_at ASC
+       LIMIT $2`,
+      [threadId, lim],
+    );
+    return res.rows.map((row) => ({
+      id: String(row.id),
+      thread_id: String(row.thread_id),
+      sender_id: String(row.sender_id),
+      text: String(row.text ?? ""),
+      created_at: new Date(row.created_at).toISOString(),
+      read: Boolean(row.read),
+    }));
+  } catch (err) {
+    logger.error({ err }, "dbListChatMessages failed");
+    return [];
+  }
+}
+
+export async function dbAppendChatMessage(
+  threadId: string,
+  senderId: string,
+  text: string,
+): Promise<DbChatMessageRow | null> {
+  const p = getPool();
+  if (!p) return null;
+  const thread = await dbGetChatThread(threadId, senderId);
+  if (!thread) return null;
+  const trimmed = String(text || "").trim().slice(0, 8000);
+  if (!trimmed) return null;
+  const client = await p.connect();
+  try {
+    await client.query("BEGIN");
+    const msgRes = await client.query(
+      `INSERT INTO messages (thread_id, sender_id, text, created_at, read)
+       VALUES ($1, $2, $3, NOW(), FALSE)
+       RETURNING id, thread_id, sender_id, text, created_at, read`,
+      [threadId, senderId, trimmed],
+    );
+    await client.query(
+      `UPDATE chat_threads
+       SET last_message = $2, last_at = NOW()
+       WHERE id = $1`,
+      [threadId, trimmed],
+    );
+    await client.query("COMMIT");
+    const row = msgRes.rows[0];
+    return {
+      id: String(row.id),
+      thread_id: String(row.thread_id),
+      sender_id: String(row.sender_id),
+      text: String(row.text ?? ""),
+      created_at: new Date(row.created_at).toISOString(),
+      read: Boolean(row.read),
+    };
+  } catch (err) {
+    try {
+      await client.query("ROLLBACK");
+    } catch {
+      /* noop */
+    }
+    logger.error({ err }, "dbAppendChatMessage failed");
+    return null;
+  } finally {
+    client.release();
+  }
+}
+
+export async function dbUnreadCountForThread(threadId: string, readerId: string): Promise<number> {
+  const p = getPool();
+  if (!p) return 0;
+  const thread = await dbGetChatThread(threadId, readerId);
+  if (!thread) return 0;
+  try {
+    const res = await p.query(
+      `SELECT COUNT(*)::int AS c
+       FROM messages
+       WHERE thread_id = $1 AND sender_id <> $2 AND read = FALSE`,
+      [threadId, readerId],
+    );
+    return Number(res.rows[0]?.c ?? 0);
+  } catch {
+    return 0;
+  }
+}
+
+export type DbShopItemRow = {
+  id: string;
+  user_id: string;
+  title: string;
+  description: string;
+  price: number;
+  image_url: string | null;
+  category: string;
+  is_active: boolean;
+  created_at: string;
+};
+
+export async function dbListShopItems(filter: {
+  category?: string;
+  userId?: string;
+  activeOnly?: boolean;
+  limit?: number;
+}): Promise<DbShopItemRow[]> {
+  const p = getPool();
+  if (!p) return [];
+  const lim = Math.min(200, Math.max(1, filter.limit ?? 50));
+  const params: unknown[] = [];
+  let where = "WHERE 1=1";
+  if (filter.activeOnly !== false) where += " AND is_active = TRUE";
+  if (filter.category && filter.category !== "all") {
+    params.push(filter.category);
+    where += ` AND category = $${params.length}`;
+  }
+  if (filter.userId) {
+    params.push(filter.userId);
+    where += ` AND user_id = $${params.length}`;
+  }
+  params.push(lim);
+  try {
+    const res = await p.query(
+      `SELECT id, user_id, title, description, price, image_url, category, is_active, created_at
+       FROM shop_items
+       ${where}
+       ORDER BY created_at DESC
+       LIMIT $${params.length}`,
+      params,
+    );
+    return res.rows.map((row) => ({
+      id: String(row.id),
+      user_id: String(row.user_id),
+      title: String(row.title ?? ""),
+      description: String(row.description ?? ""),
+      price: Number(row.price ?? 0),
+      image_url: row.image_url == null ? null : String(row.image_url),
+      category: String(row.category ?? "other"),
+      is_active: Boolean(row.is_active),
+      created_at: new Date(row.created_at).toISOString(),
+    }));
+  } catch (err) {
+    logger.error({ err }, "dbListShopItems failed");
+    return [];
+  }
+}
+
+export async function dbCreateShopItem(input: {
+  user_id: string;
+  title: string;
+  description: string;
+  price: number;
+  image_url: string | null;
+  category: string;
+}): Promise<DbShopItemRow | null> {
+  const p = getPool();
+  if (!p) return null;
+  try {
+    const res = await p.query(
+      `INSERT INTO shop_items (user_id, title, description, price, image_url, category, is_active, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, TRUE, NOW())
+       RETURNING id, user_id, title, description, price, image_url, category, is_active, created_at`,
+      [
+        input.user_id,
+        input.title.trim().slice(0, 200),
+        input.description.trim().slice(0, 5000),
+        Math.max(0, Number(input.price) || 0),
+        input.image_url,
+        input.category || "other",
+      ],
+    );
+    const row = res.rows[0];
+    return {
+      id: String(row.id),
+      user_id: String(row.user_id),
+      title: String(row.title ?? ""),
+      description: String(row.description ?? ""),
+      price: Number(row.price ?? 0),
+      image_url: row.image_url == null ? null : String(row.image_url),
+      category: String(row.category ?? "other"),
+      is_active: Boolean(row.is_active),
+      created_at: new Date(row.created_at).toISOString(),
+    };
+  } catch (err) {
+    logger.error({ err }, "dbCreateShopItem failed");
+    return null;
+  }
+}
+
+export async function dbGetShopItemById(id: string): Promise<DbShopItemRow | null> {
+  const p = getPool();
+  if (!p) return null;
+  try {
+    const res = await p.query(
+      `SELECT id, user_id, title, description, price, image_url, category, is_active, created_at
+       FROM shop_items
+       WHERE id = $1
+       LIMIT 1`,
+      [id],
+    );
+    const row = res.rows[0];
+    if (!row) return null;
+    return {
+      id: String(row.id),
+      user_id: String(row.user_id),
+      title: String(row.title ?? ""),
+      description: String(row.description ?? ""),
+      price: Number(row.price ?? 0),
+      image_url: row.image_url == null ? null : String(row.image_url),
+      category: String(row.category ?? "other"),
+      is_active: Boolean(row.is_active),
+      created_at: new Date(row.created_at).toISOString(),
+    };
+  } catch (err) {
+    logger.error({ err }, "dbGetShopItemById failed");
+    return null;
+  }
+}
+
+export async function dbMarkShopItemSold(id: string): Promise<void> {
+  const p = getPool();
+  if (!p) return;
+  try {
+    await p.query(`UPDATE shop_items SET is_active = FALSE WHERE id = $1`, [id]);
+  } catch (err) {
+    logger.error({ err }, "dbMarkShopItemSold failed");
   }
 }

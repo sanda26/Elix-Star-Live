@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { TrendingUp, Play, UserPlus, FileText, Heart } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { apiUrl } from '../lib/api';
-import { isStripeAllowed, getPaymentMethod } from '../lib/platform';
+import { getPaymentMethod, platform } from '../lib/platform';
 import { purchasePromoteProduct, type PromoteProductId } from '../lib/iap';
 
 export type PromoteContentType = 'video' | 'profile' | 'live';
@@ -78,6 +78,7 @@ export default function PromotePanel({ isOpen, onClose, contentType, content }: 
             'Content-Type': 'application/json',
             ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
           },
+          credentials: 'include',
           body: JSON.stringify({
             transactionId: result.transactionId,
             receipt: result.receipt || '',
@@ -101,38 +102,7 @@ export default function PromotePanel({ isOpen, onClose, contentType, content }: 
       return;
     }
 
-    if (!isStripeAllowed()) {
-      setPanelMessage('Promote is available on web or in the app.');
-      return;
-    }
-
-    setIsPaying(true);
-    try {
-      const res = await fetch(apiUrl('/api/create-promote-checkout'), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
-        },
-        body: JSON.stringify({
-          userId: user.id,
-          contentType,
-          contentId: content?.id ?? '',
-          goal: selectedGoal,
-        }),
-      });
-      const data = await res.json();
-      if (res.ok && data.url) {
-        onClose();
-        window.location.href = data.url;
-        return;
-      }
-      setPanelMessage(data.error || 'Failed to start checkout. Please try again.');
-    } catch {
-      setPanelMessage('Failed to start checkout. Please try again.');
-    } finally {
-      setIsPaying(false);
-    }
+    setPanelMessage('Promote is a digital in-app feature and must be purchased via Apple IAP or Google Play.');
   };
 
   const fmt = (n: number) => new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n);
@@ -142,7 +112,9 @@ export default function PromotePanel({ isOpen, onClose, contentType, content }: 
     followers: fmt(30),
     profile: fmt(20),
   };
-  const priceDisplay = priceByGoal[selectedGoal] || '£5 - £10';
+  const priceDisplay = platform.isNative
+    ? (platform.isIOS ? 'via App Store' : 'via Google Play')
+    : (priceByGoal[selectedGoal] || '£5 - £10');
   const estimates: Record<string, string> = {
     likes: '10 - 10K',
     views: '5K - 500K',

@@ -10,7 +10,6 @@ import { config } from "./utils/config";
 import { authRoutes } from "./routes/auth";
 import { liveRoutes } from "./routes/live";
 import { mediaRoutes } from "./routes/media";
-import { paymentRoutes } from "./routes/payments";
 import { analyticsRoutes } from "./routes/analytics";
 import { giftRoutes } from "./routes/gifts";
 import { videoRoutes } from "./routes/videos";
@@ -94,7 +93,6 @@ await fastify.register(swagger, {
 fastify.register(authRoutes, { prefix: "/api/auth" });
 fastify.register(liveRoutes, { prefix: "/api/live" });
 fastify.register(mediaRoutes, { prefix: "/api/media" });
-fastify.register(paymentRoutes, { prefix: "/api/payments" });
 fastify.register(analyticsRoutes, { prefix: "/api/analytics" });
 fastify.register(giftRoutes, { prefix: "/api/gifts" });
 fastify.register(videoRoutes, { prefix: "/api/videos" });
@@ -199,10 +197,6 @@ fastify.get("/api/env-check", async (_, reply) => {
       hasUrl: !!config.livekitUrl,
       hasApiKey: !!config.livekitApiKey,
       hasApiSecret: !!config.livekitApiSecret,
-    },
-    stripe: {
-      hasSecretKey: !!config.stripeSecretKey,
-      hasWebhookSecret: !!config.stripeWebhookSecret,
     },
   };
 });

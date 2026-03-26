@@ -3,8 +3,6 @@ import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { CreditCard, Smartphone, Coins, Sparkles } from 'lucide-react';
-import { STRIPE_CONFIG } from '@/config/stripe';
-import { StripePaymentElement } from './StripePaymentElement';
 import { platform } from '@/lib/platform';
 import {
   loadProducts as loadIAPProducts,
@@ -22,9 +20,22 @@ interface BuyCoinsModalProps {
   onSuccess?: (coins: number) => void;
 }
 
+type CoinPackage = {
+  id: string;
+  coins: number;
+  price: number;
+  label: string;
+};
+
+const WEB_PACKAGES: CoinPackage[] = Object.entries(IAP_PRODUCTS).map(([id, meta]) => ({
+  id,
+  coins: meta.coins,
+  price: 0,
+  label: meta.label,
+}));
+
 export const BuyCoinsModal: React.FC<BuyCoinsModalProps> = ({ isOpen, onClose, onSuccess }) => {
-  const [selectedPackage, setSelectedPackage] = useState(STRIPE_CONFIG.coinPackages[0]);
-  const [showPaymentElement, setShowPaymentElement] = useState(false);
+  const [selectedPackage, setSelectedPackage] = useState<CoinPackage>(WEB_PACKAGES[0]);
   const [nativeProducts, setNativeProducts] = useState<IAPProduct[]>([]);
   const [nativeLoading, setNativeLoading] = useState<string | null>(null);
   const isNative = platform.isNative;
@@ -75,22 +86,9 @@ export const BuyCoinsModal: React.FC<BuyCoinsModalProps> = ({ isOpen, onClose, o
     }
   };
 
-  const handlePackageSelect = async (coinPackage: typeof STRIPE_CONFIG.coinPackages[0]) => {
+  const handlePackageSelect = async (coinPackage: CoinPackage) => {
     setSelectedPackage(coinPackage);
-    setShowPaymentElement(true);
-  };
-
-  const handlePaymentSuccess = () => {
-    if (onSuccess) onSuccess(selectedPackage.coins);
-    onClose();
-  };
-
-  const handlePaymentError = (_error: string) => {
-    showToast('Payment failed. Please try again.');
-  };
-
-  const handleBackToPackages = () => {
-    setShowPaymentElement(false);
+    showToast('Coins are digital items and must be purchased via Apple IAP or Google Play Billing.');
   };
 
   if (!isOpen) return null;
@@ -135,9 +133,9 @@ export const BuyCoinsModal: React.FC<BuyCoinsModalProps> = ({ isOpen, onClose, o
                   </button>
                 ))}
               </div>
-            ) : !showPaymentElement ? (
+            ) : (
               <div className="space-y-2">
-                {STRIPE_CONFIG.coinPackages.map((coinPackage) => (
+                {WEB_PACKAGES.map((coinPackage) => (
                   <button
                     key={coinPackage.id}
                     onClick={() => handlePackageSelect(coinPackage)}
@@ -182,17 +180,7 @@ export const BuyCoinsModal: React.FC<BuyCoinsModalProps> = ({ isOpen, onClose, o
                     Buy
                   </button>
                 </div>
-                <p className="text-white/30 text-[10px] text-center pt-2">Secure payment powered by Stripe</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <button onClick={handleBackToPackages} className="text-[#C9A96E] text-xs font-semibold active:scale-95">← Back</button>
-                <p className="text-white/50 text-[10px]">{selectedPackage.label} — £{selectedPackage.price.toFixed(2)}</p>
-                <StripePaymentElement
-                  coinPackage={selectedPackage}
-                  onSuccess={handlePaymentSuccess}
-                  onError={handlePaymentError}
-                />
+                <p className="text-white/30 text-[10px] text-center pt-2">Digital purchases use Apple IAP / Google Play Billing.</p>
               </div>
             )}
           </div>

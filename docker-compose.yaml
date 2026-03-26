@@ -1,31 +1,14 @@
-version: "3.8"
+version: "3.9"
 
 services:
   app:
-    build: .
-    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: elix-star-live:latest
     expose:
       - "8080"
     environment:
       NODE_ENV: production
-      PORT: 8080
-      DATABASE_URL: postgresql://neondb_owner:npg_Q9RHmBIjWSJ4@ep-broad-flower-alt3ukno-pooler.c-3.eu-central-1.aws.neon.tech/neondb?sslmode=require
-      JWT_SECRET: 9f5f8d848f
-      BUNNY_STORAGE_ZONE: elix-storage
-      BUNNY_STORAGE_API_KEY: 83c69e8d-b5e5-42d2-9942a06d9dee-96ff-456f
-      BUNNY_STORAGE_HOSTNAME: storage.bunnycdn.com
-      BUNNY_STORAGE_REGION: de
-      BUNNY_LIBRARY_ID: "609274"
-      BUNNY_LIBRARY_API_KEY: e894eb67-545f-415a-92ffb2988a1d-ba0e-40f9
-      VITE_BUNNY_CDN_HOSTNAME: elixstorage.b-cdn.net
-      BUNNY_CDN_HOSTNAME: elixstorage.b-cdn.net
-      VITE_BUNNY_STORAGE_ZONE: elix-storage
-      VITE_CDN_URL: https://elixstorage.b-cdn.net
-      LIVEKIT_URL: wss://elixstarlive-wrzrcnhe.livekit.cloud
-      LIVEKIT_API_KEY: APIrS89QXWebLhT
-      LIVEKIT_API_SECRET: gSI49rubnTaiPSsfZbkVQypDqyB4ikWZZICmhYGfRYn
-      VITE_LIVEKIT_URL: wss://elixstarlive-wrzrcnhe.livekit.cloud
-      CLIENT_URL: https://www.elixstarlive.co.uk
-      VITE_API_URL: https://www.elixstarlive.co.uk
-      VITE_WS_URL: wss://www.elixstarlive.co.uk
-      VITE_APP_NAME: Elix Star Live
+      PORT: "8080"
+    restart: unless-stopped

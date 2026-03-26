@@ -27,8 +27,4 @@ export const config = {
   bunnyStorageApiKey: process.env.BUNNY_STORAGE_API_KEY || '',
   bunnyStorageRegion: process.env.BUNNY_STORAGE_REGION || 'de',
   bunnyCdnHostname: process.env.VITE_BUNNY_CDN_HOSTNAME || '',
-  
-  // Stripe
-  stripeSecretKey: process.env.STRIPE_SECRET_KEY || '',
-  stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET || '',
 };

@@ -1,8 +1,10 @@
-import React, { useEffect, Suspense, lazy } from "react";
+import React, { useEffect, useRef, useCallback, Suspense, lazy } from "react";
 import {
   Routes,
   Route,
   useLocation,
+  useNavigate,
+  useParams,
   Navigate,
 } from "react-router-dom";
 import { BottomNav } from "./components/BottomNav";
@@ -17,7 +19,10 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import { OfflineBanner } from "./components/OfflineBanner";
 import { IncomingCallModal } from "./components/IncomingCallModal";
 import { subscribeToIncomingCalls } from "./lib/callService";
+import { showToast } from "./lib/toast";
 import { websocket } from "./lib/websocket";
+import { Capacitor } from "@capacitor/core";
+import { App as CapacitorApp } from "@capacitor/app";
 
 // Lazy-loaded page components for code splitting
 const VideoFeed = lazy(() => import("./pages/VideoFeed"));
@@ -107,9 +112,33 @@ function PageLoader() {
   );
 }
 
+function LiveWatchRedirect() {
+  const { streamId } = useParams();
+  return <Navigate to={`/watch/${streamId}`} replace />;
+}
+
+const EDGE_SWIPE_WIDTH = 24;
+const SWIPE_THRESHOLD = 60;
+
 function App() {
   const { checkUser, user, isAuthenticated, isLoading } = useAuthStore();
   const location = useLocation();
+  const navigate = useNavigate();
+  const swipeStart = useRef<{ x: number; y: number } | null>(null);
+
+  const handleEdgeTouchStart = useCallback((e: React.TouchEvent) => {
+    swipeStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  }, []);
+  const handleEdgeTouchEnd = useCallback(
+    (e: React.TouchEvent) => {
+      if (!swipeStart.current) return;
+      const endX = e.changedTouches[0].clientX;
+      const dx = endX - swipeStart.current.x;
+      swipeStart.current = null;
+      if (dx > SWIPE_THRESHOLD) navigate(-1); // swipe right to go back
+    },
+    [navigate],
+  );
 
   // Initialize deep links
   useDeepLinks();
@@ -129,15 +158,16 @@ function App() {
     } catch (_) {
       /* avoid crashing app */
     }
-    try {
-      notificationService.initialize();
-    } catch (_) {
-      /* avoid crashing app */
-    }
-    try {
-      initializeIAP();
-    } catch (_) {
-      /* avoid crashing app */
+    // Crash-safe startup on mobile: defer optional native services until app is stable.
+    if (Capacitor.getPlatform() === "web") {
+      void notificationService.initialize().catch(() => {
+        /* async push init — never block app */
+      });
+      try {
+        initializeIAP();
+      } catch (_) {
+        /* avoid crashing app */
+      }
     }
 
     return () => clearTimeout(timer);
@@ -158,13 +188,34 @@ function App() {
   useEffect(() => {
     const handleVisibility = () => {
       if (document.visibilityState === "visible") {
-        websocket.reconnectOnForeground();
+        try {
+          websocket.reconnectOnForeground();
+        } catch (_) {
+          /* avoid startup crashes from websocket reconnect */
+        }
       }
     };
     document.addEventListener("visibilitychange", handleVisibility);
     return () =>
       document.removeEventListener("visibilitychange", handleVisibility);
   }, []);
+
+  useEffect(() => {
+    if (Capacitor.getPlatform() === "web") return;
+    let handle: { remove: () => Promise<void> } | undefined;
+    let cancelled = false;
+    CapacitorApp.addListener("backButton", ({ canGoBack }) => {
+      if (cancelled) return;
+      if (canGoBack) {
+        navigate(-1);
+      } else {
+        void CapacitorApp.exitApp();
+      }
+    }).then((h) => {
+      if (cancelled) { void h.remove(); } else { handle = h; }
+    });
+    return () => { cancelled = true; void handle?.remove(); };
+  }, [navigate]);
 
   // Realtime DM/cohost via Node/WebSocket backend.
 
@@ -173,29 +224,18 @@ function App() {
     location.pathname === "/feed" ||
     location.pathname === "/stem" ||
     location.pathname === "/following" ||
-    location.pathname === "/friends" ||
     location.pathname.startsWith("/video/");
 
-  /* Hide bottom nav only while hosting / joining live (includes battle via ?battle=1 on /live/...) */
-  const isLiveOrBattleShell =
+  const isNavHidden =
     location.pathname === "/live" ||
-    location.pathname.startsWith("/live/");
-  /* Full-screen camera / record flows — no tab bar over the viewfinder */
-  const isCameraShell =
-    location.pathname === "/create" || location.pathname === "/upload";
-  /* Viewer-only watch screen should not show global bottom nav */
-  const isSpectatorShell = location.pathname.startsWith("/watch/");
-  const showBottomNav =
-    isAuthenticated && !isLiveOrBattleShell && !isCameraShell && !isSpectatorShell;
-
-  /* Inbox + DM: TopNav is hidden (only /feed shows it) — no pt-topbar or you get empty space under the status bar */
-  const isInboxRoute =
-    location.pathname === "/inbox" || /^\/inbox\/.+/.test(location.pathname);
-
-  const isFriendsFollowingStem =
-    location.pathname === "/friends" ||
-    location.pathname === "/following" ||
-    location.pathname === "/stem";
+    location.pathname.startsWith("/live/") ||
+    location.pathname.startsWith("/watch/") ||
+    location.pathname === "/create" ||
+    location.pathname.startsWith("/create/") ||
+    location.pathname === "/upload" ||
+    location.pathname === "/login" ||
+    location.pathname === "/register";
+  const showBottomNav = isAuthenticated && !isNavHidden;
 
   // Public routes that don't require authentication
   const isPublicRoute =
@@ -238,59 +278,25 @@ function App() {
     <div className="fixed inset-0 w-full h-[100dvh] flex flex-col bg-background text-text font-sans overflow-hidden">
       <OfflineBanner />
       <IncomingCallModal />
+      {/* Swipe from left edge to go back on any page */}
+      <div
+        className="fixed left-0 top-0 bottom-0 z-[9998]"
+        style={{ width: EDGE_SWIPE_WIDTH }}
+        onTouchStart={handleEdgeTouchStart}
+        onTouchEnd={handleEdgeTouchEnd}
+        onTouchCancel={() => {
+          swipeStart.current = null;
+        }}
+        aria-hidden
+      />
       <TopNav />
-      {/* Full-height column background (continues behind BottomNav art); main stays scrollable with pb-nav */}
-      <div className="flex-1 min-h-0 w-full flex flex-col relative">
-        <div
-          className={cn(
-            "pointer-events-none absolute inset-0 mx-auto w-full max-w-[480px] z-0",
-            location.pathname === "/feed"
-              ? "bg-[#0A0B0E]"
-              : isFriendsFollowingStem
-                ? "bg-[#13151A]"
-                : "bg-background",
-          )}
-          aria-hidden
-        />
-        <main
-          className={cn(
-            "relative z-[1] flex-1 w-full min-h-0 mx-auto max-w-[480px] overflow-auto bg-transparent",
-            location.pathname === "/feed" && "bg-[#0A0B0E] pt-0",
-            showBottomNav &&
-              location.pathname !== "/feed" &&
-              !isFullScreen &&
-              !isInboxRoute &&
-              "pt-topbar",
-            showBottomNav &&
-              location.pathname !== "/feed" &&
-              !isFullScreen &&
-              isInboxRoute &&
-              "pt-0",
-            showBottomNav &&
-              location.pathname !== "/feed" &&
-              isFullScreen &&
-              "pt-0",
-            !showBottomNav && location.pathname !== "/feed" && "pt-[3mm]",
-            showBottomNav &&
-              location.pathname === "/feed" &&
-              "pb-nav-feed",
-            showBottomNav &&
-              (location.pathname === "/friends" ||
-                location.pathname === "/following" ||
-                location.pathname === "/stem") &&
-              "pb-nav-friends",
-            showBottomNav &&
-              location.pathname !== "/feed" &&
-              location.pathname !== "/friends" &&
-              location.pathname !== "/following" &&
-              location.pathname !== "/stem" &&
-              "pb-nav",
-            /* Same tone as page so pb-nav band is not a visible “gap” above BottomNav */
-            showBottomNav &&
-              (isInboxRoute || isFriendsFollowingStem) &&
-              "bg-[#13151A]",
-          )}
-        >
+      <main
+        className={cn(
+          "flex-1 w-full min-h-0 mx-auto max-w-[480px] overflow-auto",
+          showBottomNav && !isFullScreen && "pt-topbar pb-nav",
+          (!showBottomNav || isFullScreen) && "pt-[3mm]",
+        )}
+      >
         <ErrorBoundary>
           <Suspense fallback={<PageLoader />}>
             <Routes>
@@ -336,10 +342,10 @@ function App() {
                   element={<Navigate to="/live" replace />}
                 />
                 <Route path="/live/broadcast" element={<LiveStreamKeyed />} />
-                {/* Legacy direct URL: route any /live/watch/:streamId deep links to the viewer-only watch route */}
+                {/* Legacy redirect — handled inline because Navigate can't substitute params */}
                 <Route
                   path="/live/watch/:streamId"
-                  element={<Navigate to="/watch/:streamId" replace />}
+                  element={<LiveWatchRedirect />}
                 />
                 <Route path="/watch/:streamId" element={<SpectatorPage />} />
                 <Route path="/profile" element={<Profile />} />
@@ -376,8 +382,7 @@ function App() {
             </Routes>
           </Suspense>
         </ErrorBoundary>
-        </main>
-      </div>
+      </main>
       {showBottomNav && <BottomNav />}
     </div>
   );

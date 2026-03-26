@@ -3,7 +3,7 @@ import { apiStub } from '../lib/apiStub';
 import { Check, Sparkles, RotateCcw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { trackEvent } from '../lib/analytics';
-import { getPaymentMethod, isStripeAllowed, platform } from '../lib/platform';
+import { platform } from '../lib/platform';
 import {
   purchaseProduct,
   loadProducts as loadIAPProducts,
@@ -13,8 +13,16 @@ import {
   type IAPProductId,
   type IAPProduct,
 } from '../lib/iap';
-import { stripePaymentService, type CoinPackage } from '../lib/stripePaymentService';
 import { showToast } from '../lib/toast';
+
+type CoinPackage = {
+  id: string;
+  name: string;
+  coins: number;
+  price: number;
+  bonus_coins: number;
+  is_popular: boolean;
+};
 
 export default function PurchaseCoins() {
   const navigate = useNavigate();
@@ -46,7 +54,14 @@ export default function PurchaseCoins() {
 
   const loadPackages = async () => {
     try {
-      const pkgs = await stripePaymentService.getCoinPackages();
+      const pkgs: CoinPackage[] = Object.entries(IAP_PRODUCTS).map(([id, meta], idx) => ({
+        id,
+        name: meta.label,
+        coins: meta.coins,
+        price: 0,
+        bonus_coins: 0,
+        is_popular: idx === 2,
+      }));
       setPackages(pkgs);
     } catch {
       showToast('Failed to load packages');
@@ -135,13 +150,7 @@ export default function PurchaseCoins() {
         coins: pkg.coins,
         price: pkg.price,
       });
-
-      if (!isStripeAllowed()) {
-        throw new Error('Purchases are not available on this platform.');
-      }
-
-      const result = await stripePaymentService.processPayment(pkg.id, currentUserId);
-      if (!result.success) throw new Error(result.message);
+      throw new Error('Coins are digital items and must be purchased via Apple IAP or Google Play Billing.');
     } catch (error) {
       showToast(error instanceof Error ? error.message : 'Purchase failed. Please try again.');
     } finally {

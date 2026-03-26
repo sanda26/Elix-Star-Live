@@ -1,176 +1,133 @@
 import { Request, Response } from "express";
 import { getTokenFromRequest, verifyAuthToken } from "./auth";
-import { getPool } from "../lib/postgres";
-import crypto from "crypto";
+import {
+  dbAppendChatMessage,
+  dbEnsureChatThread,
+  dbGetChatThread,
+  dbListChatMessages,
+  dbListChatThreadsForUser,
+  dbUnreadCountForThread,
+} from "../lib/postgres";
+import { getOrCreateProfile } from "./profiles";
 
-function getAuth(req: Request): string | null {
+function requireAuth(req: Request, res: Response): { userId: string } | null {
   const token = getTokenFromRequest(req);
-  if (!token) return null;
+  if (!token) {
+    res.status(401).json({ error: "Unauthorized" });
+    return null;
+  }
   const payload = verifyAuthToken(token);
-  return payload?.sub ?? null;
+  if (!payload) {
+    res.status(401).json({ error: "Invalid or expired session." });
+    return null;
+  }
+  return { userId: payload.sub };
 }
 
-export async function handleGetThreads(req: Request, res: Response): Promise<void> {
-  const userId = getAuth(req);
-  if (!userId) { res.status(401).json({ error: "Not authenticated" }); return; }
+/** POST /api/chat/threads/ensure { otherUserId } */
+export async function handleEnsureChatThread(req: Request, res: Response) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+  const auth = requireAuth(req, res);
+  if (!auth) return;
+  const otherUserId =
+    typeof (req.body as { otherUserId?: string }).otherUserId === "string"
+      ? (req.body as { otherUserId: string }).otherUserId.trim()
+      : "";
+  if (!otherUserId) {
+    return res.status(400).json({ error: "otherUserId is required" });
+  }
+  try {
+    const thread = await dbEnsureChatThread(auth.userId, otherUserId);
+    if (!thread) return res.status(400).json({ error: "Could not create thread" });
+    return res.status(200).json({ threadId: thread.id, thread });
+  } catch {
+    return res.status(400).json({ error: "Could not create thread" });
+  }
+}
 
-  const db = getPool();
-  if (!db) { res.json({ data: [] }); return; }
-
-  const result = await db.query(
-    `SELECT t.*,
-      CASE WHEN t.user1_id = $1 THEN t.user2_id ELSE t.user1_id END AS other_user_id,
-      COALESCE((
-        SELECT COUNT(*)::int FROM messages msg
-        WHERE msg.thread_id = t.id
-          AND msg.sender_id <> $1
-          AND COALESCE(msg.read, false) = false
-      ), 0) AS unread_count
-     FROM chat_threads t
-     WHERE t.user1_id = $1 OR t.user2_id = $1
-     ORDER BY t.last_at DESC`,
-    [userId],
-  );
-
-  const threads = await Promise.all(result.rows.map(async (t: any) => {
-    const otherUserId = t.other_user_id;
-    let otherUser = { username: "User", display_name: "User", avatar_url: "" };
-    try {
-      const p = await db.query(
-        `SELECT username, display_name, avatar_url FROM profiles WHERE user_id = $1 LIMIT 1`,
-        [otherUserId],
-      );
-      if (p.rows[0]) {
-        const row = p.rows[0] as { username?: string; display_name?: string; avatar_url?: string };
-        otherUser = {
-          username: row.username || "User",
-          display_name: (row.display_name || row.username || "User") as string,
-          avatar_url: row.avatar_url || "",
-        };
-      } else {
-        const u = await db.query(`SELECT username, display_name, avatar_url FROM auth_users WHERE id = $1`, [otherUserId]);
-        if (u.rows[0]) otherUser = u.rows[0];
-      }
-    } catch {}
+/** GET /api/chat/threads */
+export async function handleListChatThreads(req: Request, res: Response) {
+  if (req.method !== "GET") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+  const auth = requireAuth(req, res);
+  if (!auth) return;
+  const threads = await dbListChatThreadsForUser(auth.userId, 50);
+  const enriched = await Promise.all(threads.map(async (t) => {
+    const otherId =
+      t.user1_id === auth.userId ? t.user2_id : t.user1_id;
+    const p = getOrCreateProfile(otherId);
     return {
       id: t.id,
       user1_id: t.user1_id,
       user2_id: t.user2_id,
-      other_user_id: otherUserId,
-      other_username: otherUser.display_name || otherUser.username || "User",
-      other_avatar: otherUser.avatar_url || "",
-      last_message: t.last_message || "",
       last_at: t.last_at,
+      last_message: t.last_message,
       created_at: t.created_at,
+      otherUser: {
+        username: p.username,
+        display_name: p.displayName,
+        avatar_url: p.avatarUrl,
+      },
+      hasUnread: (await dbUnreadCountForThread(t.id, auth.userId)) > 0,
     };
   }));
-
-  res.json({ data: threads });
+  return res.status(200).json({ threads: enriched });
 }
 
-export async function handleCreateThread(req: Request, res: Response): Promise<void> {
-  const userId = getAuth(req);
-  if (!userId) { res.status(401).json({ error: "Not authenticated" }); return; }
-
-  const { user2_id } = req.body || {};
-  if (!user2_id) { res.status(400).json({ error: "user2_id required" }); return; }
-
-  const db = getPool();
-  if (!db) { res.status(503).json({ error: "Database not available" }); return; }
-
-  const existing = await db.query(
-    `SELECT id FROM chat_threads 
-     WHERE (user1_id = $1 AND user2_id = $2) OR (user1_id = $2 AND user2_id = $1)
-     LIMIT 1`,
-    [userId, user2_id]
-  );
-
-  if (existing.rows[0]) {
-    res.json({ data: { id: existing.rows[0].id }, existing: true });
-    return;
+/** GET /api/chat/threads/:threadId */
+export async function handleGetChatThread(req: Request, res: Response) {
+  if (req.method !== "GET") {
+    return res.status(405).json({ error: "Method not allowed" });
   }
-
-  const id = crypto.randomUUID();
-  await db.query(
-    `INSERT INTO chat_threads (id, user1_id, user2_id) VALUES ($1, $2, $3)`,
-    [id, userId, user2_id]
-  );
-
-  res.status(201).json({ data: { id }, existing: false });
+  const auth = requireAuth(req, res);
+  if (!auth) return;
+  const threadId = req.params.threadId;
+  const t = await dbGetChatThread(threadId, auth.userId);
+  if (!t) return res.status(404).json({ error: "Not found" });
+  const otherId =
+    t.user1_id === auth.userId ? t.user2_id : t.user1_id;
+  const p = getOrCreateProfile(otherId);
+  return res.status(200).json({
+    thread: t,
+    otherUser: {
+      user_id: otherId,
+      username: p.username,
+      display_name: p.displayName,
+      avatar_url: p.avatarUrl,
+      level: p.level,
+    },
+  });
 }
 
-export async function handleGetMessages(req: Request, res: Response): Promise<void> {
-  const userId = getAuth(req);
-  if (!userId) { res.status(401).json({ error: "Not authenticated" }); return; }
-
-  const { threadId } = req.params;
-  const db = getPool();
-  if (!db) { res.json({ data: [] }); return; }
-
-  const thread = await db.query(
-    `SELECT id FROM chat_threads WHERE id = $1 AND (user1_id = $2 OR user2_id = $2)`,
-    [threadId, userId]
-  );
-  if (!thread.rows[0]) { res.status(403).json({ error: "Not in this thread" }); return; }
-
-  const result = await db.query(
-    `SELECT * FROM messages WHERE thread_id = $1 ORDER BY created_at ASC`,
-    [threadId],
-  );
-
-  await db
-    .query(
-      `UPDATE messages SET read = true WHERE thread_id = $1 AND sender_id <> $2`,
-      [threadId, userId],
-    )
-    .catch(() => {});
-
-  res.json({ data: result.rows });
+/** GET /api/chat/threads/:threadId/messages */
+export async function handleListChatMessages(req: Request, res: Response) {
+  if (req.method !== "GET") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+  const auth = requireAuth(req, res);
+  if (!auth) return;
+  const threadId = req.params.threadId;
+  const messages = await dbListChatMessages(threadId, auth.userId, 300);
+  return res.status(200).json({ messages });
 }
 
-export async function handleSendMessage(req: Request, res: Response): Promise<void> {
-  const userId = getAuth(req);
-  if (!userId) { res.status(401).json({ error: "Not authenticated" }); return; }
-
-  const { threadId } = req.params;
-  const { text } = req.body || {};
-  if (!text?.trim()) { res.status(400).json({ error: "text required" }); return; }
-
-  const db = getPool();
-  if (!db) { res.status(503).json({ error: "Database not available" }); return; }
-
-  const thread = await db.query(
-    `SELECT id FROM chat_threads WHERE id = $1 AND (user1_id = $2 OR user2_id = $2)`,
-    [threadId, userId]
-  );
-  if (!thread.rows[0]) { res.status(403).json({ error: "Not in this thread" }); return; }
-
-  const id = crypto.randomUUID();
-  await db.query(
-    `INSERT INTO messages (id, thread_id, sender_id, text, read) VALUES ($1, $2, $3, $4, false)`,
-    [id, threadId, userId, text.trim()],
-  );
-
-  await db.query(
-    `UPDATE chat_threads SET last_message = $2, last_at = NOW() WHERE id = $1`,
-    [threadId, text.trim()]
-  );
-
-  res.status(201).json({ data: { id, thread_id: threadId, sender_id: userId, text: text.trim(), created_at: new Date().toISOString() } });
-}
-
-export async function handleDeleteThread(req: Request, res: Response): Promise<void> {
-  const userId = getAuth(req);
-  if (!userId) { res.status(401).json({ error: "Not authenticated" }); return; }
-
-  const { threadId } = req.params;
-  const db = getPool();
-  if (!db) { res.status(503).json({ error: "Database not available" }); return; }
-
-  await db.query(
-    `DELETE FROM chat_threads WHERE id = $1 AND (user1_id = $2 OR user2_id = $2)`,
-    [threadId, userId]
-  );
-
-  res.json({ success: true });
+/** POST /api/chat/threads/:threadId/messages { text } */
+export async function handlePostChatMessage(req: Request, res: Response) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+  const auth = requireAuth(req, res);
+  if (!auth) return;
+  const threadId = req.params.threadId;
+  const text = typeof (req.body as { text?: string }).text === "string"
+    ? (req.body as { text: string }).text
+    : "";
+  const msg = await dbAppendChatMessage(threadId, auth.userId, text);
+  if (!msg) {
+    return res.status(400).json({ error: "Could not send message" });
+  }
+  return res.status(201).json({ message: msg });
 }

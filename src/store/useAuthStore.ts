@@ -230,7 +230,36 @@ export const useAuthStore = create<AuthStore>()(persist((set, get) => ({
         sessionData?.accessToken ?? sessionData?.access_token;
 
       if (!backendUser || !accessToken) {
-        return { error: "Login failed unexpectedly. Please try again." };
+        // Some server modes rely on cookie auth and may omit token in login response.
+        // Recover by fetching /api/auth/me before failing.
+        const meRes = await fetch(apiUrl("/api/auth/me"), {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+        });
+        const meData = (await meRes.json().catch(() => ({}))) as Record<string, unknown>;
+        const meUser = (meData.user ?? null) as AuthUser | null;
+        const meSessionData = meData.session as
+          | { accessToken?: string; access_token?: string }
+          | null
+          | undefined;
+        const meAccessToken: string | undefined =
+          meSessionData?.accessToken ?? meSessionData?.access_token;
+
+        if (!meRes.ok || !meUser || !meAccessToken) {
+          return { error: "Login failed unexpectedly. Please try again." };
+        }
+
+        const mapped = mapUserToUser(meUser);
+        set({
+          backendUser: meUser,
+          session: { user: meUser, access_token: meAccessToken },
+          user: mapped,
+          isAuthenticated: true,
+          isLoading: false,
+          authMode: "client",
+        });
+        return { error: null };
       }
 
       const mapped = mapUserToUser(backendUser);

@@ -27,18 +27,10 @@ export const platform = {
  * Determines the correct payment method for the current platform.
  * - iOS: MUST use Apple In-App Purchase (App Store Guideline 3.1.1)
  * - Android: Should use Google Play Billing
- * - Web: Can use Stripe or other web payment processors
+ * - Web: Digital payments are not processed here (mobile stores only)
  */
-export function getPaymentMethod(): 'apple-iap' | 'google-play' | 'stripe' {
+export function getPaymentMethod(): 'apple-iap' | 'google-play' | 'web' {
   if (platform.isIOS) return 'apple-iap';
   if (platform.isAndroid) return 'google-play';
-  return 'stripe';
-}
-
-/**
- * Check if Stripe payments are allowed on the current platform.
- * Stripe is ONLY allowed on web — using it for digital goods on iOS = App Store rejection.
- */
-export function isStripeAllowed(): boolean {
-  return platform.isWeb;
+  return 'web';
 }

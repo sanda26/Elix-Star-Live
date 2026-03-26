@@ -17,8 +17,8 @@ export default function RequireAdmin() {
   // Check if user is admin by ID or email domain
   const isAdmin =
     ADMIN_USER_IDS.includes(user.id) ||
-    ADMIN_USER_IDS.includes(user.email) ||
-    user.email.endsWith('@elixstar.com');
+    ADMIN_USER_IDS.includes(user.email || '') ||
+    (user.email && user.email.endsWith('@elixstar.com'));
 
   if (!isAdmin) {
     return <Navigate to="/" replace />;

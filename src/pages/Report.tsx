@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { apiStub } from '../lib/apiStub';
 import { CheckCircle, Flag } from 'lucide-react';
 import { trackEvent } from '../lib/analytics';
 import { showToast } from '../lib/toast';
+import { useAuthStore } from '../store/useAuthStore';
+import { apiUrl } from '../lib/api';
 
 const REPORT_REASONS = {
   video: [
@@ -52,18 +53,29 @@ export default function Report() {
 
     setLoading(true);
     try {
-      const { data: userData } = await apiStub.auth.getUser();
-      if (!userData.user) throw new Error('Not authenticated');
+      const user = useAuthStore.getState().user;
+      const token = useAuthStore.getState().session?.access_token;
+      if (!user?.id) throw new Error('Not authenticated');
 
-      const { error } = await apiStub.from('reports').insert({
-        reporter_id: userData.user.id,
-        content_type: contentType,
-        content_id: contentId,
-        reason: selectedReason,
-        details: details.trim() || null,
+      const res = await fetch(apiUrl('/api/report'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          target_type: contentType,
+          target_id: contentId,
+          reason: selectedReason,
+          details: details.trim() || '',
+        }),
       });
 
-      if (error) throw error;
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || 'Failed to submit report');
+      }
 
       trackEvent('report_submit', {
         content_type: contentType,

@@ -4,6 +4,7 @@ import {
   Route,
   useLocation,
   useNavigate,
+  useParams,
   Navigate,
 } from "react-router-dom";
 import { BottomNav } from "./components/BottomNav";
@@ -20,6 +21,8 @@ import { IncomingCallModal } from "./components/IncomingCallModal";
 import { subscribeToIncomingCalls } from "./lib/callService";
 import { showToast } from "./lib/toast";
 import { websocket } from "./lib/websocket";
+import { Capacitor } from "@capacitor/core";
+import { App as CapacitorApp } from "@capacitor/app";
 
 // Lazy-loaded page components for code splitting
 const VideoFeed = lazy(() => import("./pages/VideoFeed"));
@@ -109,6 +112,11 @@ function PageLoader() {
   );
 }
 
+function LiveWatchRedirect() {
+  const { streamId } = useParams();
+  return <Navigate to={`/watch/${streamId}`} replace />;
+}
+
 const EDGE_SWIPE_WIDTH = 24;
 const SWIPE_THRESHOLD = 60;
 
@@ -184,6 +192,23 @@ function App() {
     return () =>
       document.removeEventListener("visibilitychange", handleVisibility);
   }, []);
+
+  useEffect(() => {
+    if (Capacitor.getPlatform() === "web") return;
+    let handle: { remove: () => Promise<void> } | undefined;
+    let cancelled = false;
+    CapacitorApp.addListener("backButton", ({ canGoBack }) => {
+      if (cancelled) return;
+      if (canGoBack) {
+        navigate(-1);
+      } else {
+        void CapacitorApp.exitApp();
+      }
+    }).then((h) => {
+      if (cancelled) { void h.remove(); } else { handle = h; }
+    });
+    return () => { cancelled = true; void handle?.remove(); };
+  }, [navigate]);
 
   // Realtime DM/cohost via Node/WebSocket backend.
 
@@ -310,10 +335,10 @@ function App() {
                   element={<Navigate to="/live" replace />}
                 />
                 <Route path="/live/broadcast" element={<LiveStreamKeyed />} />
-                {/* Legacy direct URL: route any /live/watch/:streamId deep links to the viewer-only watch route */}
+                {/* Legacy redirect — handled inline because Navigate can't substitute params */}
                 <Route
                   path="/live/watch/:streamId"
-                  element={<Navigate to="/watch/:streamId" replace />}
+                  element={<LiveWatchRedirect />}
                 />
                 <Route path="/watch/:streamId" element={<SpectatorPage />} />
                 <Route path="/profile" element={<Profile />} />

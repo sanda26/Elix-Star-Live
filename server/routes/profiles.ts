@@ -8,6 +8,8 @@
 import { Request, Response } from "express";
 import { getTokenFromRequest, verifyAuthToken } from "./auth";
 import { getWalletBalance } from "../lib/walletStore";
+import { getPool } from "../lib/postgres";
+import { neonGetCoinBalance } from "../lib/walletNeon";
 
 export interface Profile {
   userId: string;
@@ -56,14 +58,19 @@ export function getOrCreateProfile(userId: string, seed?: Partial<Profile>): Pro
 }
 
 /** GET /api/profiles/:userId */
-export function handleGetProfile(req: Request, res: Response): void {
+export async function handleGetProfile(req: Request, res: Response): Promise<void> {
   const userId = req.params.userId;
   if (!userId) {
     res.status(400).json({ error: "userId is required" });
     return;
   }
   const profile = getOrCreateProfile(userId);
-  res.json({ profile: { ...profile, coins: getWalletBalance(userId) } });
+  let coins = getWalletBalance(userId);
+  if (getPool()) {
+    const n = await neonGetCoinBalance(userId);
+    if (n !== null) coins = n;
+  }
+  res.json({ profile: { ...profile, coins } });
 }
 
 /** GET /api/profiles/:userId/followers */

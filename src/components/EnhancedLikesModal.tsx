@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useVideoStore } from '../store/useVideoStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { apiStub } from '../lib/apiStub';
+import { apiUrl } from '../lib/api';
 import { showToast } from '../lib/toast';
 import { AvatarRing } from './AvatarRing';
 
@@ -119,13 +120,14 @@ export default function EnhancedLikesModal({ isOpen, onClose, videoId, likes }: 
   };
 
   const handleBlockUser = async (user: LikeUser) => {
-    const me = (await apiStub.auth.getUser()).data.user;
-    if (!me) { showToast('Please sign in'); return; }
-    const token = (await apiStub.auth.getSession()).data.session?.access_token;
+    const { user: me, session } = useAuthStore.getState();
+    if (!me?.id) { showToast('Please sign in'); return; }
+    const token = session?.access_token;
     if (!token) return;
-    const res = await fetch('/api/block-user', {
+    const res = await fetch(apiUrl('/api/block-user'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      credentials: 'include',
       body: JSON.stringify({ blockedUserId: user.id }),
     });
     if (res.ok) { showToast('User blocked'); onClose(); }

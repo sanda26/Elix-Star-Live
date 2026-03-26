@@ -4,16 +4,21 @@
  */
 import { Request, Response } from 'express';
 import { getDb } from '../lib/backend';
+import { getTokenFromRequest, verifyAuthToken } from './auth';
+import { listShopPurchases, getShopItemById } from '../lib/shopStore';
 
-async function getUserFromAuth(_req: Request): Promise<string | null> {
-  return null;
+function getUserIdFromRequest(req: Request): string | null {
+  const token = getTokenFromRequest(req);
+  if (!token) return null;
+  const payload = verifyAuthToken(token);
+  return payload?.sub ?? null;
 }
 
 // GET /api/creator/balance — get creator's earning balances
 export async function handleGetCreatorBalance(req: Request, res: Response) {
   if (!getDb()) return res.status(501).json({ error: 'Creator payout not available.' });
   try {
-    const userId = await getUserFromAuth(req);
+    const userId = getUserIdFromRequest(req);
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
     const db = getDb()!;
@@ -54,7 +59,7 @@ export async function handleGetCreatorBalance(req: Request, res: Response) {
 export async function handleGetCreatorEarnings(req: Request, res: Response) {
   if (!getDb()) return res.status(501).json({ error: 'Creator payout not available.' });
   try {
-    const userId = await getUserFromAuth(req);
+    const userId = getUserIdFromRequest(req);
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
     const db = getDb();
@@ -80,7 +85,7 @@ export async function handleGetCreatorEarnings(req: Request, res: Response) {
 export async function handleCreatorWithdraw(req: Request, res: Response) {
   if (!getDb()) return res.status(501).json({ error: 'Creator payout not available.' });
   try {
-    const userId = await getUserFromAuth(req);
+    const userId = getUserIdFromRequest(req);
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
     const { coins_amount, payout_method_id } = req.body;
     if (!coins_amount || coins_amount <= 0) return res.status(400).json({ error: 'Invalid amount' });
@@ -100,7 +105,7 @@ export async function handleCreatorWithdraw(req: Request, res: Response) {
 export async function handleGetCreatorPayouts(req: Request, res: Response) {
   if (!getDb()) return res.status(501).json({ error: 'Creator payout not available.' });
   try {
-    const userId = await getUserFromAuth(req);
+    const userId = getUserIdFromRequest(req);
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
     const db = getDb();
@@ -124,7 +129,7 @@ export async function handleGetCreatorPayouts(req: Request, res: Response) {
 export async function handleSetPayoutMethod(req: Request, res: Response) {
   if (!getDb()) return res.status(501).json({ error: 'Creator payout not available.' });
   try {
-    const userId = await getUserFromAuth(req);
+    const userId = getUserIdFromRequest(req);
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
     const { type, details } = req.body;
@@ -155,7 +160,7 @@ export async function handleSetPayoutMethod(req: Request, res: Response) {
 export async function handleGetPayoutMethods(req: Request, res: Response) {
   if (!getDb()) return res.status(501).json({ error: 'Creator payout not available.' });
   try {
-    const userId = await getUserFromAuth(req);
+    const userId = getUserIdFromRequest(req);
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
     const db = getDb();
@@ -180,7 +185,7 @@ export async function handleGetPayoutMethods(req: Request, res: Response) {
 export async function handleAdminListPayouts(req: Request, res: Response) {
   if (!getDb()) return res.status(501).json({ error: 'Admin payout not available.' });
   try {
-    const userId = await getUserFromAuth(req);
+    const userId = getUserIdFromRequest(req);
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
     const db = getDb();
@@ -209,7 +214,7 @@ export async function handleAdminListPayouts(req: Request, res: Response) {
 export async function handleAdminApprovePayout(req: Request, res: Response) {
   if (!getDb()) return res.status(501).json({ error: 'Admin payout not available.' });
   try {
-    const userId = await getUserFromAuth(req);
+    const userId = getUserIdFromRequest(req);
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
     const db = getDb()!;
     const { data: profile } = await db.from('profiles').select('is_admin').eq('user_id', userId).single();
@@ -232,7 +237,7 @@ export async function handleAdminApprovePayout(req: Request, res: Response) {
 export async function handleAdminRejectPayout(req: Request, res: Response) {
   if (!getDb()) return res.status(501).json({ error: 'Admin payout not available.' });
   try {
-    const userId = await getUserFromAuth(req);
+    const userId = getUserIdFromRequest(req);
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
     const db = getDb()!;
     const { data: profile } = await db.from('profiles').select('is_admin').eq('user_id', userId).single();
@@ -255,7 +260,7 @@ export async function handleAdminRejectPayout(req: Request, res: Response) {
 export async function handleAdminChargeback(req: Request, res: Response) {
   if (!getDb()) return res.status(501).json({ error: 'Admin payout not available.' });
   try {
-    const userId = await getUserFromAuth(req);
+    const userId = getUserIdFromRequest(req);
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
     const db = getDb();
@@ -286,7 +291,7 @@ export async function handleAdminChargeback(req: Request, res: Response) {
 export async function handleShopBuy(req: Request, res: Response) {
   if (!getDb()) return res.status(501).json({ error: 'Shop not available.' });
   try {
-    const userId = await getUserFromAuth(req);
+    const userId = getUserIdFromRequest(req);
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
     const { item_id } = req.body;
     if (!item_id) return res.status(400).json({ error: 'item_id required' });
@@ -303,7 +308,7 @@ export async function handleShopBuy(req: Request, res: Response) {
 export async function handleShopRefund(req: Request, res: Response) {
   if (!getDb()) return res.status(501).json({ error: 'Shop not available.' });
   try {
-    const userId = await getUserFromAuth(req);
+    const userId = getUserIdFromRequest(req);
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
     const { purchase_id, reason } = req.body;
     if (!purchase_id) return res.status(400).json({ error: 'purchase_id required' });
@@ -321,21 +326,29 @@ export async function handleShopRefund(req: Request, res: Response) {
 
 // GET /api/shop/purchases — get user's shop purchase history
 export async function handleShopPurchases(req: Request, res: Response) {
-  if (!getDb()) return res.status(501).json({ error: 'Shop not available.' });
   try {
-    const userId = await getUserFromAuth(req);
+    const userId = getUserIdFromRequest(req);
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-    const db = getDb();
-    const { data, error } = await db
-      .from('shop_purchases')
-      .select('*, item:shop_items(title, image_url)')
-      .eq('buyer_id', userId)
-      .order('created_at', { ascending: false })
-      .limit(50);
+    if (getDb()) {
+      const db = getDb();
+      const { data, error } = await db
+        .from('shop_purchases')
+        .select('*, item:shop_items(title, image_url)')
+        .eq('buyer_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(50);
 
-    if (error) throw error;
-    return res.json({ purchases: data || [] });
+      if (error) throw error;
+      return res.json({ purchases: data || [] });
+    }
+
+    const rows = listShopPurchases(userId);
+    const enriched = rows.map((p) => {
+      const item = getShopItemById(p.item_id);
+      return { ...p, item: item ? { title: item.title, image_url: item.image_url } : null };
+    });
+    return res.json({ purchases: enriched });
   } catch (err: any) {
     console.error('Shop purchases error:', err);
     return res.status(500).json({ error: 'Failed to get purchases' });

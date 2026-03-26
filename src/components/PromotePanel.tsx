@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { TrendingUp, Play, UserPlus, FileText, Heart } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { apiUrl } from '../lib/api';
-import { isStripeAllowed, getPaymentMethod } from '../lib/platform';
+import { isStripeAllowed, getPaymentMethod, platform } from '../lib/platform';
 import { purchasePromoteProduct, type PromoteProductId } from '../lib/iap';
 
 export type PromoteContentType = 'video' | 'profile' | 'live';
@@ -78,6 +78,7 @@ export default function PromotePanel({ isOpen, onClose, contentType, content }: 
             'Content-Type': 'application/json',
             ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
           },
+          credentials: 'include',
           body: JSON.stringify({
             transactionId: result.transactionId,
             receipt: result.receipt || '',
@@ -114,6 +115,7 @@ export default function PromotePanel({ isOpen, onClose, contentType, content }: 
           'Content-Type': 'application/json',
           ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
         },
+        credentials: 'include',
         body: JSON.stringify({
           userId: user.id,
           contentType,
@@ -142,7 +144,9 @@ export default function PromotePanel({ isOpen, onClose, contentType, content }: 
     followers: fmt(30),
     profile: fmt(20),
   };
-  const priceDisplay = priceByGoal[selectedGoal] || '£5 - £10';
+  const priceDisplay = platform.isNative
+    ? (platform.isIOS ? 'via App Store' : 'via Google Play')
+    : (priceByGoal[selectedGoal] || '£5 - £10');
   const estimates: Record<string, string> = {
     likes: '10 - 10K',
     views: '5K - 500K',

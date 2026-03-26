@@ -202,8 +202,8 @@ export const useVideoStore = create<VideoStore>()(
           });
 
           set({ videos: mappedVideos, loading: false });
-        } catch (err) {
-          set({ videos: [], loading: false });
+        } catch {
+          set({ loading: false });
         }
       },
 

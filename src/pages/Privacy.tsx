@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { platform } from '../lib/platform';
 
 export default function Privacy() {
   const navigate = useNavigate();
@@ -56,7 +57,7 @@ export default function Privacy() {
 
             <p className="font-medium text-white/90 mb-1">Payment Information</p>
             <ul className="list-disc pl-5 space-y-1">
-              <li>Processed securely through Apple In-App Purchase, Google Play Billing, or Stripe</li>
+              <li>{platform.isIOS ? 'Processed securely through Apple In-App Purchase' : 'Processed securely through Apple In-App Purchase, Google Play Billing, or Stripe'}</li>
               <li>We do not store your payment card details directly</li>
               <li>We store transaction records (amount, date, coin package purchased)</li>
             </ul>
@@ -85,7 +86,7 @@ export default function Privacy() {
           <Section title="4. Data Sharing">
             <p>We do not sell your personal data. We may share data with:</p>
             <ul className="list-disc pl-5 space-y-1">
-              <li><strong>Service providers:</strong> hosting, analytics, payment processing (Apple, Google, Stripe)</li>
+              <li><strong>Service providers:</strong> hosting, analytics, payment processing ({platform.isIOS ? 'Apple' : 'Apple, Google, Stripe'})</li>
               <li><strong>Law enforcement:</strong> when required by law or to protect our legal rights</li>
               <li><strong>Other users:</strong> your public profile, live streams, and public chat messages are visible to others</li>
             </ul>

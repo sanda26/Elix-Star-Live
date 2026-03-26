@@ -160,8 +160,7 @@ export default function LiveStream() {
     if (!user?.id) return;
     try {
       const walletCoins = await fetchWalletBalance();
-      const persisted = getPersistedTestCoinsBalance(user.id);
-      setCoinBalance(prev => Math.max(prev, walletCoins, persisted));
+      setCoinBalance(walletCoins);
     } catch {
       // Keep the current balance if the wallet refresh fails.
     }
@@ -431,9 +430,12 @@ export default function LiveStream() {
       attachRemoteVideo(track, participant);
     });
 
+    let disposed = false;
+
     (async () => {
       try {
         await room.connect(liveKitCreds.url, liveKitCreds.token);
+        if (disposed) { room.disconnect(); return; }
         for (const [, participant] of room.remoteParticipants) {
           for (const [, pub] of participant.videoTrackPublications) {
             if (pub.track && pub.isSubscribed) attachRemoteVideo(pub.track, participant);
@@ -443,11 +445,12 @@ export default function LiveStream() {
           const localVideo = new LocalVideoTrack(videoTrack);
           await room.localParticipant.publishTrack(localVideo, { name: 'camera' });
         }
-        if (audioTrack) {
+        if (audioTrack && !disposed) {
           const localAudio = new LocalAudioTrack(audioTrack);
           await room.localParticipant.publishTrack(localAudio, { name: 'mic' });
         }
       } catch (e) {
+        if (disposed) return;
         console.error('[LiveKit] Host connect/publish failed:', e);
         const errMsg = String(e).includes('401') ? 'LiveKit auth failed — check API keys'
           : String(e).includes('timeout') ? 'LiveKit connection timed out — retrying...'
@@ -457,6 +460,7 @@ export default function LiveStream() {
     })();
 
     return () => {
+      disposed = true;
       liveKitRoomRef.current = null;
       room.disconnect();
     };
@@ -805,12 +809,7 @@ export default function LiveStream() {
     const host = coHosts.find(h => h.id === hostId);
     setCoHosts(prev => prev.filter(h => h.id !== hostId));
     if (host) {
-      setMessages(prev => [...prev, {
-        id: Date.now().toString(),
-        username: 'System',
-        text: `${host.name} left the co-host`,
-        isSystem: true,
-      }]);
+      setMessages(prev => { const n = [...prev, { id: Date.now().toString(), username: 'System', text: `${host.name} left the co-host`, isSystem: true }]; return n.length > 500 ? n.slice(-300) : n; });
     }
   };
 
@@ -1121,28 +1120,35 @@ export default function LiveStream() {
   const [isSubscribing, setIsSubscribing] = useState(false);
 
   const handleSubscribe = async () => {
+    if (!user?.id) {
+      navigate('/login');
+      return;
+    }
     setIsSubscribing(true);
     try {
-      const authToken = useAuthStore.getState().session?.access_token;
-      if (!user?.id || !authToken) {
-        navigate('/login');
+      const { purchaseMembership } = await import('../lib/iap');
+      const result = await purchaseMembership();
+      if (!result.success) {
+        if (result.error !== 'Purchase cancelled') {
+          showToast(result.error || 'Membership purchase failed');
+        }
         return;
       }
-      const res = await fetch(apiUrl('/api/create-subscription'), {
+      const authToken = useAuthStore.getState().session?.access_token;
+      await fetch(apiUrl('/api/membership/iap-complete'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
-        body: JSON.stringify({ creatorId: effectiveStreamId, userId: user.id }),
+        headers: { 'Content-Type': 'application/json', ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}) },
+        credentials: 'include',
+        body: JSON.stringify({
+          transactionId: result.transactionId,
+          receipt: result.receipt || '',
+          provider: platform.isIOS ? 'apple' : 'google',
+          creatorId: effectiveStreamId,
+        }),
       });
-      if (res.ok) {
-        const data = await res.json();
-        const url = data.url;
-        if (url) window.location.href = url;
-        else navigate('/shop');
-      } else {
-        navigate('/shop');
-      }
+      showToast('Membership activated!');
     } catch {
-      navigate('/shop');
+      showToast('Membership purchase failed');
     } finally {
       setIsSubscribing(false);
     }
@@ -1969,14 +1975,7 @@ export default function LiveStream() {
           lastVisitDaysAgo: 0,
         }];
       });
-      setMessages(prev => [...prev, {
-        id: `join-${Date.now()}`,
-        username: joinName,
-        text: 'joined the stream',
-        isSystem: true,
-        level: typeof data.level === 'number' && Number.isFinite(data.level) ? data.level : 1,
-        avatar: typeof data.avatar_url === 'string' ? data.avatar_url : '',
-      }]);
+      setMessages(prev => { const n = [...prev, { id: `join-${Date.now()}`, username: joinName, text: 'joined the stream', isSystem: true, level: typeof data.level === 'number' && Number.isFinite(data.level) ? data.level : 1, avatar: typeof data.avatar_url === 'string' ? data.avatar_url : '' }]; return n.length > 500 ? n.slice(-300) : n; });
       setViewerCount(prev => prev + 1);
       // So new spectators get current co-host layout
       if (isBroadcastRef.current && effectiveStreamId && user?.id) {
@@ -2007,7 +2006,10 @@ export default function LiveStream() {
         level: typeof data.level === 'number' && Number.isFinite(data.level) ? data.level : 1,
         avatar: typeof data.avatar === 'string' ? data.avatar : '',
       };
-      setMessages(prev => [...prev, msg]);
+      setMessages(prev => {
+        const next = [...prev, msg];
+        return next.length > 500 ? next.slice(-300) : next;
+      });
     };
 
     const handleGiftSent = (data: any) => {
@@ -2022,7 +2024,7 @@ export default function LiveStream() {
           avatar: typeof data.avatar === 'string' ? data.avatar : '',
           isGift: true,
         };
-        setMessages(prev => [...prev, msg]);
+        setMessages(prev => { const n = [...prev, msg]; return n.length > 500 ? n.slice(-300) : n; });
         addBattleGifterCoins(typeof data.username === 'string' ? data.username : 'User', giftDef.coins, data.battleTarget, typeof data.avatar === 'string' ? data.avatar : '');
 
         const rawVideo = data.video || giftDef.video;
@@ -2030,7 +2032,7 @@ export default function LiveStream() {
           const videoUrl = (rawVideo.startsWith('http://') || rawVideo.startsWith('https://'))
             ? rawVideo
             : resolveGiftAssetUrl(rawVideo.startsWith('/') ? rawVideo : `/${rawVideo}`);
-          setGiftQueue(prev => [...prev, { video: videoUrl }]);
+          setGiftQueue(prev => prev.length >= 20 ? prev : [...prev, { video: videoUrl }]);
         }
       }
     };
@@ -2429,14 +2431,17 @@ export default function LiveStream() {
   const handleSendGift = async (gift: typeof GIFTS[0]) => {
     if (!gift) return;
 
+    if (coinBalance < gift.coins) {
+      showToast('Not enough coins');
+      return;
+    }
+
     try {
-      // Local/dev: always allow sending gifts, even if coinBalance is low,
-      // so video gifts are never blocked from playing.
       if (gift.video && gift.video.trim()) {
         const videoUrl = (gift.video.startsWith('http://') || gift.video.startsWith('https://'))
           ? gift.video
           : resolveGiftAssetUrl(gift.video.startsWith('/') ? gift.video : `/${gift.video}`);
-        if (videoUrl) setGiftQueue(prev => [...prev, { video: videoUrl }]);
+        if (videoUrl) setGiftQueue(prev => prev.length >= 20 ? prev : [...prev, { video: videoUrl }]);
       }
       
       let newLevel = userLevel;
@@ -2536,7 +2541,7 @@ export default function LiveStream() {
           level: newLevel,
           avatar: isBroadcast ? myAvatar : viewerAvatar,
       };
-      setMessages(prev => [...prev, giftMsg]);
+      setMessages(prev => { const n = [...prev, giftMsg]; return n.length > 500 ? n.slice(-300) : n; });
 
       websocket.send('gift_sent', {
         giftId: gift.id,
@@ -2679,7 +2684,7 @@ export default function LiveStream() {
         const videoUrl = (lastSentGift.video.startsWith('http://') || lastSentGift.video.startsWith('https://'))
           ? lastSentGift.video
           : resolveGiftAssetUrl(lastSentGift.video.startsWith('/') ? lastSentGift.video : `/${lastSentGift.video}`);
-        if (videoUrl) setGiftQueue(prev => [...prev, { video: videoUrl }]);
+        if (videoUrl) setGiftQueue(prev => prev.length >= 20 ? prev : [...prev, { video: videoUrl }]);
       }
       
       // Add to chat
@@ -2691,7 +2696,7 @@ export default function LiveStream() {
           level: newLevel,
           avatar: viewerAvatar,
       };
-      setMessages(prev => [...prev, giftMsg]);
+      setMessages(prev => { const n = [...prev, giftMsg]; return n.length > 500 ? n.slice(-300) : n; });
 
 
       // Handle Combo Logic
@@ -2712,7 +2717,7 @@ export default function LiveStream() {
           avatar: isBroadcast ? myAvatar : viewerAvatar,
           isMod: isBroadcast || moderators.has(user?.id || ''),
       };
-      setMessages(prev => [...prev, newMsg]);
+      setMessages(prev => { const n = [...prev, newMsg]; return n.length > 500 ? n.slice(-300) : n; });
 
       websocket.send('chat_message', {
         text: inputValue,
@@ -3712,7 +3717,7 @@ export default function LiveStream() {
                                             isSystem: true,
                                             membershipIcon: '/icons/Membership.png'
                                           };
-                                          setMessages(prev => [...prev, newMessage]);
+                                          setMessages(prev => { const n = [...prev, newMessage]; return n.length > 500 ? n.slice(-300) : n; });
                                           spawnHeartFromClient(e.clientX, e.clientY);
 
                                         } else if (hasJoinedToday) {
@@ -4626,7 +4631,7 @@ export default function LiveStream() {
                             avatar: '/Icons/elix-logo.png', // Fallback for now to avoid TS issues with User type
                             isSystem: false
                           };
-                          setMessages(prev => [...prev, newMessage]);
+                          setMessages(prev => { const n = [...prev, newMessage]; return n.length > 500 ? n.slice(-300) : n; });
                           setShowFanClub(false); // Close panel after sending
                         }}
                       >
@@ -4660,7 +4665,7 @@ export default function LiveStream() {
                                 avatar: '/Icons/elix-logo.png',
                                 isSystem: false
                               };
-                              setMessages(prev => [...prev, newMessage]);
+                              setMessages(prev => { const n = [...prev, newMessage]; return n.length > 500 ? n.slice(-300) : n; });
                               setShowFanClub(false);
                             };
                             reader.readAsDataURL(file);

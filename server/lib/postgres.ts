@@ -1,11 +1,12 @@
 /**
- * Optional Postgres persistence for videos and live streams.
- * When DATABASE_URL is set, data is loaded on startup and persisted.
+ * Neon / Postgres persistence for videos and live streams (via DATABASE_URL from Neon Console).
+ * Uses the `pg` driver only — no Supabase client.
  */
 
 import pg from "pg";
 import type { Video } from "./videoStore";
 import { logger } from "./logger";
+import { initWalletPaymentTables } from "./walletNeon";
 
 const { Pool } = pg;
 
@@ -79,6 +80,7 @@ export async function initPostgres(): Promise<void> {
         viewer_count INTEGER DEFAULT 0
       )
     `);
+    await initWalletPaymentTables(pool);
   } catch (err) {
     logger.error({ err }, "Postgres init failed");
     pool = null;

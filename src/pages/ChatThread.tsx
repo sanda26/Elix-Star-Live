@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { Send, ArrowLeft, Video } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { apiStub } from '../lib/apiStub';
 import { useAuthStore } from '../store/useAuthStore';
+import { apiUrl } from '../lib/api';
 import { LevelBadge } from '../components/LevelBadge';
 import { initiateCall } from '../lib/callService';
 
@@ -24,7 +24,7 @@ interface Participant {
 export default function ChatThread() {
   const navigate = useNavigate();
   const { threadId } = useParams<{ threadId: string }>();
-  const { user } = useAuthStore();
+  const { user, session } = useAuthStore();
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState('');
   const [otherUser, setOtherUser] = useState<Participant | null>(null);
@@ -41,61 +41,64 @@ export default function ChatThread() {
 
     const loadConversation = async () => {
       try {
-        // 1. Get conversation to find other participant
-        const { data: conv, error } = await apiStub
-          .from('chat_threads')
-          .select('user1_id, user2_id')
-          .eq('id', threadId)
-          .single();
-        
-        if (error) throw error;
-
-        const otherId = conv.user1_id === user.id ? conv.user2_id : conv.user1_id;
-        
-        // 2. Get other user profile
-        const { data: profile } = await apiStub
-          .from('profiles')
-          .select('user_id, username, avatar_url, display_name, level')
-          .eq('user_id', otherId)
-          .single();
-          
-        if (profile) {
-            setOtherUser({
-                user_id: profile.user_id,
-                username: profile.display_name || profile.username || 'User',
-                avatar_url: profile.avatar_url,
-                level: profile.level || 1
-            });
+        const token = session?.access_token;
+        const res = await fetch(apiUrl(`/api/chat/threads/${threadId}`), {
+          credentials: 'include',
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (!res.ok) return;
+        const body = (await res.json().catch(() => ({}))) as {
+          otherUser?: {
+            user_id: string;
+            username: string;
+            display_name: string | null;
+            avatar_url: string | null;
+            level?: number;
+          };
+        };
+        const p = body.otherUser;
+        if (p) {
+          setOtherUser({
+            user_id: p.user_id,
+            username: p.display_name || p.username || 'User',
+            avatar_url: p.avatar_url,
+            level: p.level ?? 1,
+          });
         }
-      } catch (err) {
-
+      } catch {
+        /* ignore */
       }
     };
 
     loadConversation();
-  }, [threadId, user?.id, isSystemThread]);
+  }, [threadId, user?.id, isSystemThread, session?.access_token]);
 
   // Load Messages & Subscribe
   useEffect(() => {
     if (!threadId || isSystemThread) return;
 
     const fetchMessages = async () => {
-      const { data } = await apiStub
-        .from('messages')
-        .select('*')
-        .eq('thread_id', threadId)
-        .order('created_at', { ascending: true });
-      
-      if (data) setMessages(data);
-      setLoading(false);
-      scrollToBottom();
+      try {
+        const token = session?.access_token;
+        const res = await fetch(apiUrl(`/api/chat/threads/${threadId}/messages`), {
+          credentials: 'include',
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        const body = (await res.json().catch(() => ({}))) as { messages?: Message[] };
+        if (body.messages) setMessages(body.messages);
+      } catch {
+        // Network error — keep empty messages
+      } finally {
+        setLoading(false);
+        scrollToBottom();
+      }
     };
 
     fetchMessages();
 
     // Realtime message subscription removed; thread will update on page reload.
     return () => {};
-  }, [threadId, isSystemThread]);
+  }, [threadId, isSystemThread, session?.access_token]);
 
   const scrollToBottom = () => {
     setTimeout(() => {
@@ -113,23 +116,23 @@ export default function ChatThread() {
     setDraft('');
 
     try {
-        const { error } = await apiStub.from('messages').insert({
-            thread_id: threadId,
-            sender_id: user.id,
-            text: msgText,
+        const token = session?.access_token;
+        const res = await fetch(apiUrl(`/api/chat/threads/${threadId}/messages`), {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          credentials: 'include',
+          body: JSON.stringify({ text: msgText }),
         });
-
-        if (error) throw error;
-
-        await apiStub
-            .from('chat_threads')
-            .update({
-                last_message: msgText,
-                last_at: new Date().toISOString(),
-            })
-            .eq('id', threadId);
-
-    } catch (err) {
+        if (!res.ok) throw new Error('send failed');
+        const body = (await res.json().catch(() => ({}))) as { message?: Message };
+        if (body.message) {
+          setMessages((prev) => [...prev, body.message!]);
+          scrollToBottom();
+        }
+    } catch {
         setDraft(msgText);
     }
   };

@@ -7,7 +7,9 @@
 import { Request, Response } from "express";
 import { getTokenFromRequest, verifyAuthToken } from "./auth";
 import { getGiftCoinCost } from "../lib/giftCatalog";
-import { debitGiftCoins } from "../lib/walletStore";
+import { debitGiftCoins, setUserBalanceCache } from "../lib/walletStore";
+import { getPool } from "../lib/postgres";
+import { neonDebitGift, neonEnsureBalanceFromFile } from "../lib/walletNeon";
 import { logger } from "../lib/logger";
 
 function requireAuth(req: Request, res: Response): { userId: string } | null {
@@ -48,6 +50,34 @@ export async function handleSendGift(req: Request, res: Response) {
   const giftCoins = getGiftCoinCost(giftId);
   if (!giftCoins) {
     return res.status(400).json({ error: "Unknown gift." });
+  }
+
+  if (getPool()) {
+    await neonEnsureBalanceFromFile(auth.userId);
+    const neon = await neonDebitGift({
+      userId: auth.userId,
+      giftId,
+      roomId,
+      coins: giftCoins,
+      clientTransactionId,
+    });
+    if (!neon.ok) {
+      return res.status(400).json({
+        error: neon.error === "insufficient_funds" ? "insufficient_funds" : "gift_send_failed",
+        new_balance: neon.newBalance,
+      });
+    }
+    setUserBalanceCache(auth.userId, neon.newBalance);
+    return res.status(200).json({
+      ok: true,
+      room_id: roomId,
+      gift_id: giftId,
+      transaction_id: clientTransactionId,
+      new_balance: neon.newBalance,
+      message: neon.alreadyProcessed
+        ? "Gift already processed."
+        : "Gift accepted. Delivery in room is via WebSocket.",
+    });
   }
 
   const debit = debitGiftCoins({

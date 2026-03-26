@@ -198,7 +198,10 @@ export default function VideoFeed() {
       });
 
       if (!res.ok) {
-        setLiveStreams([]);
+        setLiveStreams((prev) => {
+          const removed = removedKeysRef.current;
+          return prev.filter((s) => !removed.has(s.streamKey));
+        });
         setLiveLoading(false);
         return;
       }
@@ -278,7 +281,10 @@ export default function VideoFeed() {
         return merged;
       });
     } catch {
-      setLiveStreams([]);
+      setLiveStreams((prev) => {
+        const removed = removedKeysRef.current;
+        return prev.filter((s) => !removed.has(s.streamKey));
+      });
     }
     setLiveLoading(false);
   }, []);
@@ -320,9 +326,20 @@ export default function VideoFeed() {
           if (pToken) headers['Authorization'] = `Bearer ${pToken}`;
           const res = await fetch(apiUrl(`/api/profiles/${stream.userId}`), { headers, credentials: 'include' });
           if (!res.ok || cancelled) continue;
-          const profile = await res.json();
-          const displayName = profile?.display_name || profile?.username || profile?.name;
-          const avatar = profile?.avatar_url || profile?.avatar;
+          const body = await res.json().catch(() => ({})) as {
+            profile?: {
+              displayName?: string;
+              username?: string;
+              avatarUrl?: string;
+            };
+          };
+          const p = body.profile;
+          const displayName =
+            (typeof p?.displayName === 'string' && p.displayName.trim()) ||
+            (typeof p?.username === 'string' && p.username.trim()) ||
+            '';
+          const avatar =
+            (typeof p?.avatarUrl === 'string' && p.avatarUrl.trim()) || '';
           if (cancelled) return;
           if (displayName || avatar) {
             setLiveStreams(prev => prev.map(s =>

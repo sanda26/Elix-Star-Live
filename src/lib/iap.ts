@@ -23,6 +23,9 @@ export const PROMOTE_PRODUCTS = {
   'com.elixstarlive.promote_followers': { goal: 'followers', label: 'More followers',        amountGbp: 30 },
 } as const;
 
+export const MEMBERSHIP_PRODUCT_ID = 'com.elixstarlive.membership' as const;
+export const MEMBERSHIP_PRODUCT = { label: 'Super Fan Membership', amountGbp: 3 } as const;
+
 export const PROMOTE_PRODUCT_IDS = Object.keys(PROMOTE_PRODUCTS) as PromoteProductId[];
 export type PromoteProductId = keyof typeof PROMOTE_PRODUCTS;
 
@@ -98,12 +101,15 @@ export async function loadProducts(): Promise<IAPProduct[]> {
 
     return products.map((p: any) => {
       const resolvedId = p.identifier || p.productIdentifier;
+      const micros = Math.max(0, Math.floor(Number(p.priceAmountMicros) || 0));
+      const priceFallback =
+        micros > 0 ? `£${(micros / 1_000_000).toFixed(2)}` : '';
       return {
       id: resolvedId,
       title: p.title || '',
       description: p.description || '',
-      price: p.priceString || `$${(p.priceAmountMicros / 1_000_000).toFixed(2)}`,
-      priceAmountMicros: p.priceAmountMicros || 0,
+      price: (typeof p.priceString === 'string' && p.priceString.trim()) || priceFallback,
+      priceAmountMicros: micros,
       coins: IAP_PRODUCTS[resolvedId as IAPProductId]?.coins ?? 0,
     };
     });
@@ -141,7 +147,6 @@ export async function purchaseProduct(productId: IAPProductId): Promise<IAPPurch
       return { success: false, error: 'Purchase could not be verified' };
     }
 
-    // Verify on server + credit coins
     const verifyResult = await verifyAndCreditPurchase(
       productId,
       transactionId,
@@ -150,6 +155,16 @@ export async function purchaseProduct(productId: IAPProductId): Promise<IAPPurch
 
     if (!verifyResult.success) {
       return { success: false, error: verifyResult.error || 'Verification failed' };
+    }
+
+    // Acknowledge/finish the transaction so stores don't auto-refund.
+    try {
+      await mod.NativePurchases.finishTransaction({
+        transactionIdentifier: transactionId,
+        productIdentifier: productId,
+      });
+    } catch {
+      // Non-fatal: transaction was verified and credited; finish is best-effort.
     }
 
     return {
@@ -194,6 +209,57 @@ export async function purchasePromoteProduct(productId: PromoteProductId): Promi
     const receipt = result.receipt || result.purchaseToken || '';
 
     if (!transactionId) return { success: false, error: 'Purchase could not be verified' };
+
+    try {
+      await mod.NativePurchases.finishTransaction({
+        transactionIdentifier: transactionId,
+        productIdentifier: productId,
+      });
+    } catch {
+      // Best-effort finish
+    }
+
+    return { success: true, transactionId, receipt };
+  } catch (err: any) {
+    const msg = err?.message || String(err);
+    if (msg.includes('cancel') || msg.includes('Cancel') || msg.includes('USER_CANCELED')) {
+      return { success: false, error: 'Purchase cancelled' };
+    }
+    return { success: false, error: msg || 'Purchase failed' };
+  }
+}
+
+/**
+ * Purchase a membership (Super Fan) via Apple/Google IAP.
+ * Returns transactionId + receipt for server-side completion.
+ */
+export async function purchaseMembership(): Promise<{ success: boolean; transactionId?: string; receipt?: string; error?: string }> {
+  const mod = await getPlugin();
+  if (!mod) return { success: false, error: 'Purchase service not available' };
+
+  const available = await isBillingAvailable();
+  if (!available) return { success: false, error: 'Purchases are not supported on this device' };
+
+  try {
+    const result = await mod.NativePurchases.purchaseProduct({
+      productIdentifier: MEMBERSHIP_PRODUCT_ID,
+      productType: mod.PURCHASE_TYPE.INAPP,
+      quantity: 1,
+    });
+
+    const transactionId = result.transactionId;
+    const receipt = result.receipt || result.purchaseToken || '';
+
+    if (!transactionId) return { success: false, error: 'Purchase could not be verified' };
+
+    try {
+      await mod.NativePurchases.finishTransaction({
+        transactionIdentifier: transactionId,
+        productIdentifier: MEMBERSHIP_PRODUCT_ID,
+      });
+    } catch {
+      // Best-effort finish
+    }
 
     return { success: true, transactionId, receipt };
   } catch (err: any) {
@@ -246,16 +312,34 @@ async function verifyAndCreditPurchase(
   }
 }
 
-// Apple/Google store compliance: re-delivers unfinished transactions only.
-// This does NOT refund coins or reverse purchases. All purchases are final.
-export async function restorePurchases(): Promise<void> {
-  if (!platform.isNative) return;
+// Re-delivers unfinished transactions and re-verifies with the server.
+export async function restorePurchases(): Promise<{ restored: number }> {
+  if (!platform.isNative) return { restored: 0 };
 
   try {
     const mod = await getPlugin();
-    if (!mod) return;
-    await mod.NativePurchases.restorePurchases();
+    if (!mod) return { restored: 0 };
+    const result = await mod.NativePurchases.restorePurchases();
+    const transactions: any[] = Array.isArray(result?.transactions) ? result.transactions : [];
+
+    let restored = 0;
+    for (const tx of transactions) {
+      const txId = tx.transactionId || tx.transactionIdentifier;
+      const productId = tx.productId || tx.productIdentifier;
+      const receipt = tx.receipt || tx.purchaseToken || '';
+      if (!txId || !productId) continue;
+      const meta = IAP_PRODUCTS[productId as IAPProductId];
+      if (!meta) continue;
+
+      try {
+        const verifyResult = await verifyAndCreditPurchase(productId, txId, receipt);
+        if (verifyResult.success) restored++;
+      } catch {
+        // Continue with other transactions
+      }
+    }
+    return { restored };
   } catch {
-    // Restore failed silently
+    return { restored: 0 };
   }
 }

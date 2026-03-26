@@ -1,7 +1,13 @@
 /**
- * Single backend DB access. No duplicate or broken connections.
- * When no DB is configured (e.g. no Postgres on Hetzner), both return null.
- * Routes should do: const db = getDb(); if (!db) return res.status(501).json(...); then use db.
+ * Backend database entrypoint.
+ *
+ * **Neon (Neon Console)** — this app talks to Neon as ordinary Postgres using `DATABASE_URL`
+ * and the `pg` pool in `postgres.ts`. Use `getNeonPool()` / `isNeonConfigured()` below for that.
+ * Credentials stay server-side only.
+ *
+ * **getDb() / getDbAdmin()** — legacy hooks that expected a PostgREST-style chain API (`.from()`).
+ * This codebase does not use Supabase. Those clients are not wired; these still return `null` so
+ * existing `if (!getDb())` branches keep their current JSON/file fallbacks without breaking.
  */
 
 export function getDb(): null {
@@ -11,3 +17,8 @@ export function getDb(): null {
 export function getDbAdmin(): null {
   return null;
 }
+
+export {
+  getPool as getNeonPool,
+  isPostgresConfigured as isNeonConfigured,
+} from "./postgres";

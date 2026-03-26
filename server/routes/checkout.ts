@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import Stripe from "stripe";
-import { getDb } from "../lib/backend";
 import { getTokenFromRequest, verifyAuthToken } from "./auth";
+import { getShopItemById } from "../lib/shopStore";
 
 // Simple rate limiter map
 const rateLimits = new Map<string, { count: number; timestamp: number }>();
@@ -56,230 +56,27 @@ function resolveOrigin(req: Request): string {
   return host ? `${proto}://${host}` : "http://127.0.0.1:3000";
 }
 
+/** Disabled: coins are only sold via Apple IAP / Google Play Billing (store compliance). */
 export async function createCheckoutSession(req: Request, res: Response) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
-
-  try {
-    if (!stripe) {
-      return res.status(500).json({ error: "Stripe is not configured" });
-    }
-
-    const { coinPackage, userId } = req.body ?? {};
-    const headerUserId = req.headers["x-user-id"] as string | undefined;
-    const requestedUserId =
-      (typeof userId === "string" && userId.trim()) || headerUserId;
-    const authUserId = getAuthenticatedUserId(req);
-    const effectiveUserId = authUserId;
-
-    if (!coinPackage) {
-      return res.status(400).json({ error: "Missing coin package" });
-    }
-    if (!authUserId || !effectiveUserId) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-    if (authUserId && requestedUserId && requestedUserId !== authUserId) {
-      return res.status(403).json({ error: "Forbidden" });
-    }
-
-    // Rate limit: prevent checkout spam
-    const rateCheck = checkRateLimit(effectiveUserId, "gift:send");
-    if (!rateCheck.allowed) {
-      return res
-        .status(429)
-        .json({ error: "Too many requests", retryAfter: rateCheck.retryAfter });
-    }
-
-    // Server-side price lookup in GBP — NEVER trust client-supplied prices
-    // Rate: £3,500 per 1,000,000 coins (£0.0035/coin)
-    const SERVER_COIN_PACKAGES: Record<
-      string,
-      { coins: number; price: number; label: string }
-    > = {
-      coins_10: { coins: 10, price: 0.05, label: "10 Coins" },
-      coins_50: { coins: 50, price: 0.18, label: "50 Coins" },
-      coins_100: { coins: 100, price: 0.35, label: "100 Coins" },
-      coins_500: { coins: 500, price: 1.75, label: "500 Coins" },
-      coins_1000: { coins: 1000, price: 3.5, label: "1,000 Coins" },
-      coins_2000: { coins: 2000, price: 7.0, label: "2,000 Coins" },
-      coins_5000: { coins: 5000, price: 17.5, label: "5,000 Coins" },
-      coins_10000: { coins: 10000, price: 35.0, label: "10K Coins" },
-      coins_20000: { coins: 20000, price: 70.0, label: "20K Coins" },
-      coins_50000: { coins: 50000, price: 175.0, label: "50K Coins" },
-      coins_100000: { coins: 100000, price: 350.0, label: "100K Coins" },
-      coins_500000: { coins: 500000, price: 1750.0, label: "500K Coins" },
-      coins_1000000: { coins: 1000000, price: 3500.0, label: "1M Coins" },
-    };
-
-    // Support custom amounts: coins_custom_XXXX
-    let verifiedPackage = SERVER_COIN_PACKAGES[coinPackage.id];
-    if (!verifiedPackage && coinPackage.id?.startsWith("coins_custom_")) {
-      const customCoins = parseInt(coinPackage.id.replace("coins_custom_", ""));
-      if (customCoins > 0 && customCoins <= 10000000) {
-        verifiedPackage = {
-          coins: customCoins,
-          price: Math.round(customCoins * 0.0035 * 100) / 100,
-          label: `${customCoins.toLocaleString()} Coins`,
-        };
-      }
-    }
-    if (!verifiedPackage) {
-      return res.status(400).json({ error: "Invalid coin package id" });
-    }
-
-    // Stripe checkout — WEB ONLY (iOS/Android use Apple IAP / Google Play)
-    const origin = resolveOrigin(req);
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ["card"],
-      line_items: [
-        {
-          price_data: {
-            currency: "gbp",
-            product_data: {
-              name: verifiedPackage.label,
-              description: `${verifiedPackage.coins} coins for Elix Star Live`,
-            },
-            unit_amount: Math.round(verifiedPackage.price * 100),
-          },
-          quantity: 1,
-        },
-      ],
-      mode: "payment",
-      success_url: `${origin}/purchase-coins?purchase=success&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/purchase-coins?purchase=cancelled`,
-      client_reference_id: effectiveUserId,
-      metadata: {
-        coinPackageId: coinPackage.id,
-        coins: verifiedPackage.coins.toString(),
-        userId: effectiveUserId,
-      },
-    });
-
-    res.status(200).json({ sessionId: session.id });
-  } catch (error) {
-    console.error("Stripe checkout error:", error);
-    res.status(500).json({ error: "Failed to create checkout session" });
-  }
+  return res.status(403).json({
+    error: "Coin purchases are not available via Stripe. Use in-app purchases in the mobile app.",
+  });
 }
 
+/** Disabled: membership is only sold via Apple IAP / Google Play Billing. */
 export async function createSubscriptionSession(req: Request, res: Response) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
-
-  try {
-    if (!stripe) {
-      return res.status(500).json({ error: "Stripe is not configured" });
-    }
-
-    const { creatorId, userId } = req.body ?? {};
-    const headerUserId = req.headers["x-user-id"] as string | undefined;
-    const requestedUserId =
-      (typeof userId === "string" && userId.trim()) || headerUserId;
-    const authUserId = getAuthenticatedUserId(req);
-    const effectiveUserId = authUserId || requestedUserId;
-
-    if (!effectiveUserId) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-    if (authUserId && requestedUserId && requestedUserId !== authUserId) {
-      return res.status(403).json({ error: "Forbidden" });
-    }
-
-    const rateCheck = checkRateLimit(effectiveUserId, "subscription");
-    if (!rateCheck.allowed) {
-      return res
-        .status(429)
-        .json({ error: "Too many requests", retryAfter: rateCheck.retryAfter });
-    }
-
-    const MEMBERSHIP_PRICE_GBP = 3.0;
-    const amountCents = Math.round(MEMBERSHIP_PRICE_GBP * 100);
-    const origin = resolveOrigin(req);
-
-    // Resolve creator Stripe Connect account (creatorId may be stream_key or user_id)
-    let creatorStripeAccountId: string | null = null;
-    if (creatorId) {
-      if (!getDb())
-        return res
-          .status(501)
-          .json({ error: "Membership checkout not available." });
-      const db = getDb()!;
-      let creatorUserId: string | null = creatorId;
-      const isUuid =
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-          creatorId,
-        );
-      if (!isUuid) {
-        const { data: stream } = await db
-          .from("live_streams")
-          .select("user_id")
-          .eq("stream_key", creatorId)
-          .maybeSingle();
-        creatorUserId = stream?.user_id || null;
-      }
-      if (creatorUserId) {
-        const { data: p } = await db
-          .from("profiles")
-          .select("stripe_connect_account_id")
-          .eq("user_id", creatorUserId)
-          .maybeSingle();
-        creatorStripeAccountId = p?.stripe_connect_account_id || null;
-      }
-    }
-
-    const sessionConfig: Stripe.Checkout.SessionCreateParams = {
-      payment_method_types: ["card"],
-      line_items: [
-        {
-          price_data: {
-            currency: "gbp",
-            product_data: {
-              name: "Super Fan Membership",
-              description: "Join the Fan Club – support your favourite creator",
-            },
-            unit_amount: amountCents,
-          },
-          quantity: 1,
-        },
-      ],
-      mode: "payment",
-      success_url: `${origin}/live/${creatorId || ""}?membership=success`,
-      cancel_url: `${origin}/live/${creatorId || ""}?membership=cancelled`,
-      client_reference_id: effectiveUserId,
-      metadata: {
-        type: "membership",
-        userId: effectiveUserId,
-        creatorId: (creatorId || "").toString(),
-      },
-    };
-
-    if (creatorStripeAccountId && creatorStripeAccountId.startsWith("acct_")) {
-      const platformFeeCents = Math.round(amountCents * 0.3);
-      sessionConfig.payment_intent_data = {
-        transfer_data: { destination: creatorStripeAccountId },
-        application_fee_amount: platformFeeCents,
-      };
-    }
-
-    const session = await stripe.checkout.sessions.create(sessionConfig);
-
-    res.status(200).json({ url: session.url, sessionId: session.id });
-  } catch (error) {
-    console.error("Stripe subscription checkout error:", error);
-    res.status(500).json({ error: "Failed to create subscription session" });
-  }
+  return res.status(403).json({
+    error: "Membership is not available via Stripe. Use in-app purchases in the mobile app.",
+  });
 }
 
-// Promote panel — server-side pricing (likes £10, views £5, followers £30, profile £20)
-const PROMOTE_PRICES_GBP: Record<string, number> = {
-  likes: 10,
-  views: 5,
-  followers: 30,
-  profile: 20,
-};
-
+/** Disabled: promote/boost is only sold via Apple IAP / Google Play Billing. */
 export async function createPromoteCheckoutSession(
   req: Request,
   res: Response,
@@ -287,181 +84,19 @@ export async function createPromoteCheckoutSession(
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
-
-  try {
-    if (!stripe) {
-      return res.status(500).json({ error: "Stripe is not configured" });
-    }
-
-    const { userId, contentType, contentId, goal } = req.body ?? {};
-    const headerUserId = req.headers["x-user-id"] as string | undefined;
-    const requestedUserId =
-      (typeof userId === "string" && userId.trim()) || headerUserId;
-    const authUserId = getAuthenticatedUserId(req);
-    const effectiveUserId = authUserId;
-
-    if (!authUserId || !effectiveUserId) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-    if (authUserId && requestedUserId && requestedUserId !== authUserId) {
-      return res.status(403).json({ error: "Forbidden" });
-    }
-    if (!goal || !PROMOTE_PRICES_GBP[goal]) {
-      return res.status(400).json({ error: "Invalid or missing goal" });
-    }
-
-    const rateCheck = checkRateLimit(effectiveUserId, "promote");
-    if (!rateCheck.allowed) {
-      return res
-        .status(429)
-        .json({ error: "Too many requests", retryAfter: rateCheck.retryAfter });
-    }
-
-    const priceGbp = PROMOTE_PRICES_GBP[goal];
-    const amountCents = Math.round(priceGbp * 100);
-    const origin = resolveOrigin(req);
-
-    const goalLabels: Record<string, string> = {
-      likes: "More likes & comments",
-      views: "More video views",
-      followers: "More followers",
-      profile: "More profile views",
-    };
-    const label = goalLabels[goal] || goal;
-
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ["card"],
-      line_items: [
-        {
-          price_data: {
-            currency: "gbp",
-            product_data: {
-              name: `Promote – ${label}`,
-              description: `Boost your ${contentType || "content"} on Elix`,
-            },
-            unit_amount: amountCents,
-          },
-          quantity: 1,
-        },
-      ],
-      mode: "payment",
-      success_url: `${origin}/feed?promote=success`,
-      cancel_url: `${origin}/feed?promote=cancelled`,
-      client_reference_id: effectiveUserId,
-      metadata: {
-        type: "promote",
-        userId: effectiveUserId,
-        goal,
-        contentType: String(contentType || "video"),
-        contentId: String(contentId || ""),
-      },
-    });
-
-    res.status(200).json({ url: session.url, sessionId: session.id });
-  } catch (error) {
-    console.error("Stripe promote checkout error:", error);
-    res
-      .status(500)
-      .json({ error: "Failed to create promote checkout session" });
-  }
+  return res.status(403).json({
+    error: "Promote is not available via Stripe. Use in-app purchases in the mobile app.",
+  });
 }
 
+/** Disabled: coins are only sold via Apple IAP / Google Play Billing. */
 export async function createPaymentIntent(req: Request, res: Response) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
-
-  try {
-    if (!stripe) {
-      return res.status(500).json({ error: "Stripe is not configured" });
-    }
-
-    const { coinPackage, userId } = req.body ?? {};
-    const authUserId = getAuthenticatedUserId(req);
-    const requestedUserId =
-      (typeof userId === "string" && userId.trim()) ||
-      (req.headers["x-user-id"] as string | undefined);
-    const effectiveUserId = authUserId;
-
-    if (!authUserId || !coinPackage?.id || !effectiveUserId) {
-      return res
-        .status(401)
-        .json({
-          error: "Unauthorized",
-        });
-    }
-    if (authUserId && requestedUserId && requestedUserId !== authUserId) {
-      return res.status(403).json({ error: "Forbidden" });
-    }
-
-    // Rate limit: prevent payment spam
-    const rateCheck = checkRateLimit(String(effectiveUserId), "gift:send");
-    if (!rateCheck.allowed) {
-      return res
-        .status(429)
-        .json({ error: "Too many requests", retryAfter: rateCheck.retryAfter });
-    }
-
-    // Server-side price lookup in GBP — NEVER trust client-supplied amounts
-    // Same packages as checkout session — WEB ONLY (iOS/Android use store billing)
-    const SERVER_COIN_PACKAGES: Record<
-      string,
-      { coins: number; price: number; label: string }
-    > = {
-      coins_10: { coins: 10, price: 0.05, label: "10 Coins" },
-      coins_50: { coins: 50, price: 0.18, label: "50 Coins" },
-      coins_100: { coins: 100, price: 0.35, label: "100 Coins" },
-      coins_500: { coins: 500, price: 1.75, label: "500 Coins" },
-      coins_1000: { coins: 1000, price: 3.5, label: "1,000 Coins" },
-      coins_2000: { coins: 2000, price: 7.0, label: "2,000 Coins" },
-      coins_5000: { coins: 5000, price: 17.5, label: "5,000 Coins" },
-      coins_10000: { coins: 10000, price: 35.0, label: "10K Coins" },
-      coins_20000: { coins: 20000, price: 70.0, label: "20K Coins" },
-      coins_50000: { coins: 50000, price: 175.0, label: "50K Coins" },
-      coins_100000: { coins: 100000, price: 350.0, label: "100K Coins" },
-      coins_500000: { coins: 500000, price: 1750.0, label: "500K Coins" },
-      coins_1000000: { coins: 1000000, price: 3500.0, label: "1M Coins" },
-    };
-
-    let verifiedPackage = SERVER_COIN_PACKAGES[coinPackage.id];
-    if (!verifiedPackage && coinPackage.id?.startsWith("coins_custom_")) {
-      const customCoins = parseInt(coinPackage.id.replace("coins_custom_", ""));
-      if (customCoins > 0 && customCoins <= 10000000) {
-        verifiedPackage = {
-          coins: customCoins,
-          price: Math.round(customCoins * 0.0035 * 100) / 100,
-          label: `${customCoins.toLocaleString()} Coins`,
-        };
-      }
-    }
-    if (!verifiedPackage) {
-      return res.status(400).json({ error: "Invalid coin package id" });
-    }
-
-    const verifiedAmountCents = Math.round(verifiedPackage.price * 100);
-
-    // Create Payment Intent — WEB ONLY, GBP
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: verifiedAmountCents,
-      currency: "gbp",
-      metadata: {
-        coinPackageId: coinPackage.id,
-        coins: verifiedPackage.coins.toString(),
-        label: verifiedPackage.label,
-        userId: effectiveUserId.toString(),
-      },
-      automatic_payment_methods: {
-        enabled: true,
-      },
-    });
-
-    res.status(200).json({
-      clientSecret: paymentIntent.client_secret,
-    });
-  } catch (error) {
-    console.error("Stripe error:", error);
-    res.status(500).json({ error: "Internal server error" });
-  }
+  return res.status(403).json({
+    error: "Coin purchases are not available via Stripe. Use in-app purchases in the mobile app.",
+  });
 }
 
 /** GET /api/coin-packages — return available coin packages for purchase */
@@ -549,4 +184,82 @@ export async function handleGetCoinPackages(_req: Request, res: Response) {
     },
   ];
   return res.status(200).json({ packages });
+}
+
+/** POST /api/shop/checkout — create Stripe Checkout for a shop item (physical goods) */
+export async function createShopItemCheckout(req: Request, res: Response) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  try {
+    if (!stripe) {
+      return res.status(500).json({ error: "Stripe is not configured" });
+    }
+
+    const authUserId = getAuthenticatedUserId(req);
+    if (!authUserId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const { itemId } = req.body ?? {};
+    if (!itemId || typeof itemId !== "string") {
+      return res.status(400).json({ error: "itemId required" });
+    }
+
+    const rateCheck = checkRateLimit(authUserId, "shop_buy");
+    if (!rateCheck.allowed) {
+      return res
+        .status(429)
+        .json({ error: "Too many requests", retryAfter: rateCheck.retryAfter });
+    }
+
+    const item = getShopItemById(itemId);
+    if (!item || !item.is_active) {
+      return res.status(404).json({ error: "Item not found or no longer available" });
+    }
+    if (item.user_id === authUserId) {
+      return res.status(400).json({ error: "Cannot buy your own item" });
+    }
+    if (!item.price || item.price <= 0) {
+      return res.status(400).json({ error: "Item has no valid price" });
+    }
+
+    const origin = resolveOrigin(req);
+    const amountCents = Math.round(item.price * 100);
+
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ["card"],
+      line_items: [
+        {
+          price_data: {
+            currency: "gbp",
+            product_data: {
+              name: item.title,
+              description: item.description || "Shop item on Elix Star Live",
+              ...(item.image_url ? { images: [item.image_url] } : {}),
+            },
+            unit_amount: amountCents,
+          },
+          quantity: 1,
+        },
+      ],
+      mode: "payment",
+      success_url: `${origin}/shop?purchase=success&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}/shop?purchase=cancelled`,
+      client_reference_id: authUserId,
+      metadata: {
+        type: "shop_item",
+        userId: authUserId,
+        itemId: item.id,
+        sellerId: item.user_id,
+        itemTitle: item.title.slice(0, 200),
+      },
+    });
+
+    return res.status(200).json({ url: session.url, sessionId: session.id });
+  } catch (error) {
+    console.error("Shop item checkout error:", error);
+    return res.status(500).json({ error: "Failed to create shop checkout" });
+  }
 }

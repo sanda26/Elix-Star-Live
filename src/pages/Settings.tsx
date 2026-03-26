@@ -1,5 +1,6 @@
 import React from 'react';
 import { apiStub } from '../lib/apiStub';
+import { apiUrl } from '../lib/api';
 import {
   ChevronRight,
   User,
@@ -14,6 +15,7 @@ import {
   Video,
   Ban,
   Trash2,
+  Coins,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { showToast } from '../lib/toast';
@@ -24,6 +26,7 @@ export default function Settings() {
   const [toast, setToast] = React.useState('');
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 2000); };
   const signOut = useAuthStore((s) => s.signOut);
+  const accessToken = useAuthStore((s) => s.session?.access_token);
 
   const handleLogout = async () => {
     await signOut();
@@ -42,10 +45,11 @@ export default function Settings() {
     if (!doubleConfirm) return;
 
     try {
-      const response = await fetch('/api/auth/delete', {
+      const response = await fetch(apiUrl('/api/auth/delete'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
         },
         credentials: 'include',
       });
@@ -90,6 +94,11 @@ export default function Settings() {
             icon={<Shield className="w-5 h-5" />}
             label="Security"
             onClick={() => navigate('/settings/safety')}
+          />
+          <SettingItem
+            icon={<Coins className="w-5 h-5" />}
+            label="Manage Coins"
+            onClick={() => navigate('/purchase-coins')}
           />
         </Section>
 

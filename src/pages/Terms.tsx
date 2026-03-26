@@ -78,7 +78,7 @@ export default function Terms() {
 
             <h4 className="font-semibold text-white/90 mt-3 mb-1">6.1 Coins</h4>
             <ul className="list-disc pl-5 space-y-1">
-              <li>{platform.isIOS ? 'Coins are virtual currency purchased through the App Store (in-app purchase).' : 'Coins are virtual currency purchased through Apple In-App Purchase (iOS), Google Play Billing (Android), or Stripe (web).'}</li>
+              <li>{platform.isIOS ? 'Coins are virtual currency purchased through the App Store (in-app purchase).' : 'Coins are virtual currency purchased through Apple In-App Purchase (iOS) or Google Play Billing (Android).'}</li>
               <li>Coins have no real-world monetary value and cannot be exchanged for cash.</li>
               <li><strong>All coin purchases are final and non-refundable.</strong> Once coins are purchased, they cannot be returned, reversed, or restored. No exceptions except as required by applicable law.</li>
               <li>Prices may vary by platform.</li>
@@ -95,7 +95,7 @@ export default function Terms() {
 
             <h4 className="font-semibold text-white/90 mt-3 mb-1">6.3 Subscriptions</h4>
             <ul className="list-disc pl-5 space-y-1">
-              <li><strong>{platform.isIOS ? 'Subscriptions are managed by the App Store and are non-refundable.' : 'Subscriptions are managed by the App Store (iOS), Google Play (Android), or Stripe (web) and are non-refundable.'}</strong></li>
+              <li><strong>{platform.isIOS ? 'Subscriptions are managed by the App Store and are non-refundable.' : 'Subscriptions are managed by the App Store (iOS) or Google Play (Android) and are non-refundable.'}</strong></li>
               <li>You may cancel future renewals at any time through your store settings or account page. Cancellation takes effect at the end of the current billing period.</li>
               <li>If a store provider issues a refund for a subscription, access to subscription benefits will be revoked immediately.</li>
             </ul>

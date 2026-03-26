@@ -6,7 +6,7 @@ import { fileURLToPath } from "url";
 export interface PromotePurchaseRecord {
   id: string;
   userId: string;
-  provider: "apple" | "google" | "stripe";
+  provider: "apple" | "google";
   providerTransactionId: string;
   productId: string;
   contentType: string;

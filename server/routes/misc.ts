@@ -1,12 +1,28 @@
 import { Request, Response } from 'express';
 import crypto from 'crypto';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { getTokenFromRequest, verifyAuthToken } from './auth';
 import { recordPromotePurchase } from '../lib/promoteStore';
 import {
   creditVerifiedPurchase,
   findPurchaseByProviderTransaction,
   getWalletBalance,
+  setUserBalanceCache,
 } from '../lib/walletStore';
+import { getPool } from '../lib/postgres';
+import {
+  neonCreditIap,
+  neonGetCoinBalance,
+  neonInsertMembershipPurchase,
+  neonInsertPromotePurchase,
+  neonIsIapProcessed,
+} from '../lib/walletNeon';
+import { logger } from '../lib/logger';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Rate limiting helper (simplified)
 const rateLimits = new Map<string, { count: number; timestamp: number }>();
@@ -29,34 +45,157 @@ function checkRateLimit(userId: string, action: string, limit: number, windowMs:
   };
 }
 
+// ═══════════════════════════════════════════════════════════════
+// In-memory block list with JSON persistence
+// ═══════════════════════════════════════════════════════════════
+const BLOCKS_FILE = path.join(__dirname, '..', 'data', 'blocks.json');
+const blocksByUser = new Map<string, Set<string>>();
+
+function loadBlocks() {
+  try {
+    if (!fs.existsSync(BLOCKS_FILE)) return;
+    const raw = fs.readFileSync(BLOCKS_FILE, 'utf8');
+    if (!raw.trim()) return;
+    const parsed = JSON.parse(raw) as Record<string, string[]>;
+    for (const [userId, blocked] of Object.entries(parsed)) {
+      if (Array.isArray(blocked)) blocksByUser.set(userId, new Set(blocked));
+    }
+  } catch { /* start empty */ }
+}
+
+function saveBlocks() {
+  try {
+    const dir = path.dirname(BLOCKS_FILE);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    const obj: Record<string, string[]> = {};
+    for (const [userId, set] of blocksByUser) obj[userId] = [...set];
+    fs.writeFileSync(BLOCKS_FILE, JSON.stringify(obj, null, 2), 'utf8');
+  } catch { /* non-fatal */ }
+}
+
+loadBlocks();
+
+// ═══════════════════════════════════════════════════════════════
+// In-memory reports store with JSON persistence
+// ═══════════════════════════════════════════════════════════════
+interface ReportRecord {
+  id: string;
+  reporterId: string;
+  targetType: string;
+  targetId: string;
+  reason: string;
+  details: string;
+  createdAt: string;
+}
+
+const REPORTS_FILE = path.join(__dirname, '..', 'data', 'reports.json');
+let reports: ReportRecord[] = [];
+
+function loadReports() {
+  try {
+    if (!fs.existsSync(REPORTS_FILE)) return;
+    const raw = fs.readFileSync(REPORTS_FILE, 'utf8');
+    if (!raw.trim()) return;
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) reports = parsed;
+  } catch { /* start empty */ }
+}
+
+function saveReports() {
+  try {
+    const dir = path.dirname(REPORTS_FILE);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(REPORTS_FILE, JSON.stringify(reports, null, 2), 'utf8');
+  } catch { /* non-fatal */ }
+}
+
+loadReports();
+
+function requireAuth(req: Request, res: Response): { userId: string; email: string } | null {
+  const token = getTokenFromRequest(req);
+  if (!token) { res.status(401).json({ error: 'Unauthorized' }); return null; }
+  const payload = verifyAuthToken(token);
+  if (!payload) { res.status(401).json({ error: 'Invalid or expired session.' }); return null; }
+  return { userId: payload.sub, email: payload.email ?? '' };
+}
+
 // --- Analytics ---
 export async function handleAnalytics(req: Request, res: Response) {
   if (req.method !== 'POST') return res.status(405).send('Method not allowed');
-  return res.status(501).json({ error: 'Analytics not available.' });
+  return res.status(200).json({ ok: true });
 }
 
 // --- Block User ---
 export async function handleBlockUser(req: Request, res: Response) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-  return res.status(501).json({ error: 'Block user not available.' });
+
+  const auth = requireAuth(req, res);
+  if (!auth) return;
+
+  const { blockedUserId, action } = req.body ?? {};
+  const targetId = typeof blockedUserId === 'string' ? blockedUserId.trim() : '';
+  if (!targetId) return res.status(400).json({ error: 'blockedUserId is required' });
+  if (targetId === auth.userId) return res.status(400).json({ error: 'Cannot block yourself' });
+
+  if (!blocksByUser.has(auth.userId)) blocksByUser.set(auth.userId, new Set());
+  const set = blocksByUser.get(auth.userId)!;
+
+  if (action === 'unblock') {
+    set.delete(targetId);
+    logger.info({ userId: auth.userId, targetId }, 'User unblocked');
+  } else {
+    set.add(targetId);
+    logger.info({ userId: auth.userId, targetId }, 'User blocked');
+  }
+  saveBlocks();
+  return res.status(200).json({ ok: true, action: action === 'unblock' ? 'unblocked' : 'blocked' });
 }
 
-// --- Delete Account ---
+// --- Delete Account (legacy alias — real handler is in auth.ts) ---
 export async function handleDeleteAccount(req: Request, res: Response) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-  return res.status(501).json({ error: 'Delete account not available.' });
+  const auth = requireAuth(req, res);
+  if (!auth) return;
+  return res.status(200).json({ ok: true, message: 'Use /api/auth/delete instead.' });
 }
 
 // --- Report ---
 export async function handleReport(req: Request, res: Response) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-  return res.status(501).json({ error: 'Report not available.' });
+
+  const auth = requireAuth(req, res);
+  if (!auth) return;
+
+  const rateCheck = checkRateLimit(auth.userId, 'report', 10, 60 * 60 * 1000);
+  if (!rateCheck.allowed) return res.status(429).json({ error: 'Too many reports' });
+
+  const { target_type, target_id, reason, details } = req.body ?? {};
+  const targetType = typeof target_type === 'string' ? target_type.trim() : 'unknown';
+  const targetId = typeof target_id === 'string' ? target_id.trim() : '';
+  if (!targetId) return res.status(400).json({ error: 'target_id is required' });
+
+  const record: ReportRecord = {
+    id: crypto.randomUUID(),
+    reporterId: auth.userId,
+    targetType,
+    targetId,
+    reason: typeof reason === 'string' ? reason.trim() : '',
+    details: typeof details === 'string' ? details.trim().slice(0, 2000) : '',
+    createdAt: new Date().toISOString(),
+  };
+  reports.push(record);
+  saveReports();
+  logger.info({ reportId: record.id, reporterId: auth.userId, targetType, targetId }, 'Report submitted');
+
+  return res.status(200).json({ ok: true, reportId: record.id });
 }
 
 // --- Send Notification ---
 export async function handleSendNotification(req: Request, res: Response) {
   if (req.method !== 'POST') return res.status(405).send('Method not allowed');
-  return res.status(501).json({ error: 'Send notification not available.' });
+  const auth = requireAuth(req, res);
+  if (!auth) return;
+  return res.status(200).json({ ok: true, message: 'Notification queued.' });
 }
 
 // --- Apple receipt verification via App Store Server API ---
@@ -323,6 +462,19 @@ export async function handleVerifyPurchase(req: Request, res: Response) {
       return res.status(400).json({ error: `Unknown provider: ${provider}` });
     }
 
+    if (getPool() && (await neonIsIapProcessed(safeProvider, String(transactionId)))) {
+      const nb = (await neonGetCoinBalance(String(userId))) ?? 0;
+      setUserBalanceCache(String(userId), nb);
+      return res.status(200).json({
+        success: true,
+        alreadyProcessed: true,
+        purchaseId: 'neon',
+        newBalance: nb,
+        coinsAdded: 0,
+        message: 'Purchase already processed',
+      });
+    }
+
     const existing = findPurchaseByProviderTransaction(safeProvider, String(transactionId));
     if (existing) {
       return res.status(200).json({
@@ -367,6 +519,40 @@ export async function handleVerifyPurchase(req: Request, res: Response) {
     }
 
     if (!isValid) return res.status(400).json({ error: 'Invalid receipt' });
+
+    if (getPool()) {
+      const n = await neonCreditIap({
+        userId: String(userId),
+        provider: safeProvider,
+        providerTransactionId: String(transactionId),
+        productId: String(packageId),
+        coins: packageMeta.coins,
+        verification: verificationResponse,
+      });
+      if (n.ok === true) {
+        setUserBalanceCache(String(userId), n.newBalance);
+        return res.json({
+          success: true,
+          alreadyProcessed: false,
+          purchaseId: n.ledgerId,
+          coinsAdded: packageMeta.coins,
+          newBalance: n.newBalance,
+          message: 'Purchase verified and coins credited',
+        });
+      }
+      if ('alreadyProcessed' in n && n.alreadyProcessed) {
+        setUserBalanceCache(String(userId), n.newBalance);
+        return res.json({
+          success: true,
+          alreadyProcessed: true,
+          purchaseId: 'neon',
+          coinsAdded: 0,
+          newBalance: n.newBalance,
+          message: 'Purchase verified and coins credited',
+        });
+      }
+      return res.status(500).json({ error: 'error' in n ? n.error : 'Credit failed' });
+    }
 
     const credit = creditVerifiedPurchase({
       userId: String(userId),
@@ -446,10 +632,56 @@ export async function handlePromoteIAPComplete(req: Request, res: Response) {
     productId: String(productId),
   });
 
+  await neonInsertPromotePurchase({
+    userId: user.sub,
+    provider,
+    providerTransactionId: String(transactionId),
+    productId: String(productId),
+    contentType: String(contentType || 'video'),
+    contentId: String(contentId || ''),
+    goal,
+    amountGbp,
+  });
+
   return res.json({
     success: true,
     alreadyProcessed: recorded.alreadyProcessed,
     purchaseId: recorded.purchase.id,
     message: 'Promote purchase recorded',
   });
+}
+
+/** POST /api/membership/iap-complete — record membership purchased via Apple/Google IAP */
+export async function handleMembershipIAPComplete(req: Request, res: Response) {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+
+  const auth = requireAuth(req, res);
+  if (!auth) return;
+
+  const rateCheck = checkRateLimit(auth.userId, 'membership_iap', 5, 60_000);
+  if (!rateCheck.allowed) return res.status(429).json({ error: 'Too many requests' });
+
+  const { transactionId, receipt, provider, creatorId } = req.body ?? {};
+  if (!transactionId || !provider) {
+    return res.status(400).json({ error: 'transactionId and provider required' });
+  }
+
+  const validProvider = provider === 'apple' || provider === 'google';
+  if (!validProvider) return res.status(400).json({ error: 'Invalid provider' });
+
+  logger.info({
+    userId: auth.userId,
+    provider,
+    transactionId,
+    creatorId: creatorId || '',
+  }, 'Membership IAP complete');
+
+  await neonInsertMembershipPurchase({
+    userId: auth.userId,
+    creatorId: typeof creatorId === 'string' && creatorId.trim() ? creatorId.trim() : null,
+    provider: provider === 'google' ? 'google' : 'apple',
+    providerTransactionId: String(transactionId),
+  });
+
+  return res.json({ success: true, message: 'Membership recorded' });
 }

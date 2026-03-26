@@ -1,11 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { CreditCard, Smartphone, Coins, Sparkles } from 'lucide-react';
-import { STRIPE_CONFIG } from '@/config/stripe';
-import { StripePaymentElement } from './StripePaymentElement';
-import { platform } from '@/lib/platform';
+import { Coins, Sparkles } from 'lucide-react';
 import {
   loadProducts as loadIAPProducts,
   purchaseProduct,
@@ -24,13 +18,8 @@ interface BuyCoinsModalProps {
 }
 
 export const BuyCoinsModal: React.FC<BuyCoinsModalProps> = ({ isOpen, onClose, onSuccess }) => {
-  const [selectedPackage, setSelectedPackage] = useState(STRIPE_CONFIG.coinPackages[0]);
-  const [showPaymentElement, setShowPaymentElement] = useState(false);
   const [nativeProducts, setNativeProducts] = useState<IAPProduct[]>([]);
   const [nativeLoading, setNativeLoading] = useState<string | null>(null);
-  const isNative = platform.isNative;
-  const loading = false;
-  const [customAmount, setCustomAmount] = useState('');
 
   const syncWalletBalance = async (attempts = 5, delayMs = 800): Promise<number | null> => {
     for (let i = 0; i < attempts; i += 1) {
@@ -48,10 +37,10 @@ export const BuyCoinsModal: React.FC<BuyCoinsModalProps> = ({ isOpen, onClose, o
   };
 
   useEffect(() => {
-    if (isOpen && isNative) {
+    if (isOpen) {
       loadNative();
     }
-  }, [isOpen, isNative]);
+  }, [isOpen]);
 
   const loadNative = async () => {
     await initializeIAP();
@@ -95,27 +84,6 @@ export const BuyCoinsModal: React.FC<BuyCoinsModalProps> = ({ isOpen, onClose, o
     }
   };
 
-  const handlePackageSelect = async (coinPackage: typeof STRIPE_CONFIG.coinPackages[0]) => {
-    setSelectedPackage(coinPackage);
-    setShowPaymentElement(true);
-  };
-
-  const handlePaymentSuccess = async () => {
-    const nextBalance = await syncWalletBalance();
-    if (onSuccess && typeof nextBalance === 'number') {
-      onSuccess(nextBalance);
-    }
-    onClose();
-  };
-
-  const handlePaymentError = (_error: string) => {
-    showToast('Payment failed. Please try again.');
-  };
-
-  const handleBackToPackages = () => {
-    setShowPaymentElement(false);
-  };
-
   if (!isOpen) return null;
 
   return (
@@ -133,88 +101,27 @@ export const BuyCoinsModal: React.FC<BuyCoinsModalProps> = ({ isOpen, onClose, o
           </div>
 
           <div className="flex-1 overflow-y-auto px-4 pb-4">
-            {isNative ? (
-              <div className="space-y-2">
-                {nativeProducts.map((product) => (
-                  <button
-                    key={product.id}
-                    onClick={() => handleNativePurchase(product)}
-                    disabled={nativeLoading === product.id}
-                    className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg bg-white/[0.03] border border-white/10 hover:bg-[#C9A96E]/10 transition-colors active:scale-[0.98] disabled:opacity-50"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-full bg-[#13151A] border border-[#C9A96E]/30 flex items-center justify-center">
-                        <Sparkles className="w-3.5 h-3.5 text-[#C9A96E]" strokeWidth={1.8} />
-                      </div>
-                      <div className="text-left">
-                        <p className="text-white text-xs font-semibold">{product.title}</p>
-                        {product.price && <p className="text-white/40 text-[10px]">{product.price}</p>}
-                      </div>
+            <div className="space-y-2">
+              {nativeProducts.map((product) => (
+                <button
+                  key={product.id}
+                  onClick={() => handleNativePurchase(product)}
+                  disabled={nativeLoading !== null}
+                  className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg bg-white/[0.03] border border-white/10 hover:bg-[#C9A96E]/10 transition-colors active:scale-[0.98] disabled:opacity-50"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-full bg-[#13151A] border border-[#C9A96E]/30 flex items-center justify-center">
+                      <Sparkles className="w-3.5 h-3.5 text-[#C9A96E]" strokeWidth={1.8} />
                     </div>
-                    <span className="text-[#C9A96E] text-[10px] font-bold">{nativeLoading === product.id ? 'Processing...' : `${product.coins} coins`}</span>
-                  </button>
-                ))}
-              </div>
-            ) : !showPaymentElement ? (
-              <div className="space-y-2">
-                {STRIPE_CONFIG.coinPackages.map((coinPackage) => (
-                  <button
-                    key={coinPackage.id}
-                    onClick={() => handlePackageSelect(coinPackage)}
-                    disabled={loading}
-                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg border transition-colors active:scale-[0.98] ${
-                      selectedPackage.id === coinPackage.id
-                        ? 'bg-[#C9A96E]/10 border-[#C9A96E]/50'
-                        : 'bg-white/[0.03] border-white/10 hover:bg-[#C9A96E]/10'
-                    }`}
-                  >
                     <div className="text-left">
-                      <p className="text-white text-xs font-semibold">{coinPackage.label}</p>
-                      <p className="text-white/40 text-[10px]">£{coinPackage.price.toFixed(2)}</p>
+                      <p className="text-white text-xs font-semibold">{product.title}</p>
+                      {product.price && <p className="text-white/40 text-[10px]">{product.price}</p>}
                     </div>
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${selectedPackage.id === coinPackage.id ? 'bg-[#C9A96E] text-black' : 'bg-white/10 text-white/70'}`}>
-                      {coinPackage.coins} coins
-                    </span>
-                  </button>
-                ))}
-                {/* Custom amount */}
-                <div className="flex items-center gap-2 mt-3 px-1">
-                  <div className="flex-1 flex items-center gap-2 bg-white/[0.03] border border-white/10 rounded-lg px-3 py-2">
-                    <Coins className="w-3.5 h-3.5 text-[#C9A96E] flex-shrink-0" strokeWidth={1.8} />
-                    <input
-                      type="number"
-                      min="1"
-                      placeholder="Custom amount..."
-                      value={customAmount}
-                      onChange={(e) => setCustomAmount(e.target.value)}
-                      className="bg-transparent text-white text-xs outline-none flex-1 placeholder:text-white/25 min-w-0"
-                    />
                   </div>
-                  <button
-                    onClick={() => {
-                      const amt = parseInt(customAmount);
-                      if (!amt || amt < 1) { showToast('Enter a valid amount'); return; }
-                      const price = Math.round(amt * 0.0035 * 100) / 100;
-                      handlePackageSelect({ id: `coins_custom_${amt}`, coins: amt, price, label: `${amt.toLocaleString()} Coins` });
-                    }}
-                    className="px-3 py-2 rounded-lg bg-[#C9A96E] text-black text-[10px] font-bold active:scale-95 transition-transform flex-shrink-0"
-                  >
-                    Buy
-                  </button>
-                </div>
-                <p className="text-white/30 text-[10px] text-center pt-2">Secure payment powered by Stripe</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <button onClick={handleBackToPackages} className="text-[#C9A96E] text-xs font-semibold active:scale-95">← Back</button>
-                <p className="text-white/50 text-[10px]">{selectedPackage.label} — £{selectedPackage.price.toFixed(2)}</p>
-                <StripePaymentElement
-                  coinPackage={selectedPackage}
-                  onSuccess={handlePaymentSuccess}
-                  onError={handlePaymentError}
-                />
-              </div>
-            )}
+                  <span className="text-[#C9A96E] text-[10px] font-bold">{nativeLoading === product.id ? 'Processing...' : `${product.coins} coins`}</span>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </div>

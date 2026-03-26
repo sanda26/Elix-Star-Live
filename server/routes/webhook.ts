@@ -1,8 +1,7 @@
 import { Request, Response } from "express";
 import Stripe from "stripe";
-import { getDb } from "../lib/backend";
-import { creditVerifiedPurchase } from "../lib/walletStore";
-import { recordPromotePurchase } from "../lib/promoteStore";
+import { markItemSold, recordShopPurchase } from "../lib/shopStore";
+import { neonInsertShopPurchase } from "../lib/walletNeon";
 
 // --- Configuration ---
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
@@ -90,247 +89,55 @@ export async function handleStripeWebhook(req: Request, res: Response) {
 
 // --- Helper Functions ---
 
-async function creditCoinsFallbackUsers(userId: string, coins: number) {
-  if (!getDb()) return 0;
-  const { data, error } = await getDb()!.rpc("increment_coin_balance", {
-    p_user_id: userId,
-    p_amount: coins,
-  });
-
-  if (error) {
-    console.warn("[Webhook] RPC failed, using fallback update:", error.message);
-
-    const { data: user } = await getDb()
-      .from("users")
-      .select("coin_balance")
-      .eq("id", userId)
-      .single();
-
-    const currentBalance = Number((user as any)?.coin_balance || 0);
-    const newBalance = currentBalance + coins;
-
-    await getDb().from("users").update({ coin_balance: newBalance }).eq("id", userId);
-
-    return newBalance;
-  }
-  return data;
-}
-
-async function insertPurchaseTransaction(_row: Record<string, unknown>) {
-  if (!getDb()) return;
-}
-
+/** Stripe checkout: only physical shop_item is fulfilled. No wallet / digital credits via Stripe. */
 async function handleSuccessfulPayment(session: Stripe.Checkout.Session) {
   const type = session.metadata?.type;
   const userId = session.metadata?.userId;
 
-  if (type === "promote") {
-    const goal = session.metadata?.goal || "";
-    const contentType = session.metadata?.contentType || "video";
-    const contentId = session.metadata?.contentId || "";
+  if (type === "shop_item") {
+    const itemId = session.metadata?.itemId || "";
+    const sellerId = session.metadata?.sellerId || "";
     const amountGbp = session.amount_total ? session.amount_total / 100 : 0;
     try {
-      if (getDb()) {
-        await getDb().from("promote_purchases").insert({
-          user_id: userId,
-          content_type: contentType,
-          content_id: contentId,
-          goal,
-          amount_gbp: amountGbp,
-          stripe_session_id: session.id,
-          status: "completed",
-        });
-      }
-      console.log("Promote purchase recorded: user=" + userId + " goal=" + goal);
+      markItemSold(itemId);
+      recordShopPurchase({
+        item_id: itemId,
+        buyer_id: userId || "",
+        seller_id: sellerId,
+        amount: amountGbp,
+        stripe_session_id: session.id,
+      });
+      await neonInsertShopPurchase({
+        stripeSessionId: session.id,
+        itemId,
+        buyerId: userId || "",
+        sellerId,
+        amountGbp,
+      });
+      console.log("Shop item purchased: item=" + itemId + " buyer=" + userId);
     } catch (err) {
-      console.error("Failed to insert promote purchase:", err);
+      console.error("Failed to record shop purchase:", err);
     }
-    recordPromotePurchase({
-      userId: userId || "",
-      provider: "stripe",
-      providerTransactionId: session.id,
-      productId: `promote_${goal || "unknown"}`,
-      contentType,
-      contentId,
-      goal,
-      amountGbp,
-    });
     return;
   }
 
-  if (type === "membership") {
-    const creatorId = session.metadata?.creatorId;
-    console.log("Membership purchased: user=" + userId + " creator=" + creatorId);
-    // TODO: insert into creator_subscribers / memberships table when schema exists
-    return;
-  }
-
-  const coinPackageId = session.metadata?.coinPackageId;
-  const coins = parseInt(session.metadata?.coins || "0", 10);
-
-  if (!userId || !coinPackageId || !coins) {
-    console.error("Missing metadata in session:", session.metadata);
-    return;
-  }
-
-  if (!getDb()) {
-    const credit = creditVerifiedPurchase({
-      userId,
-      provider: "stripe",
-      providerTransactionId: session.id,
-      productId: coinPackageId,
-      coins,
-      rawReceipt: session.payment_intent?.toString() || session.id,
-      verification: {
-        source: "stripe_checkout_session",
-        sessionId: session.id,
-        paymentIntentId: session.payment_intent,
-        amountTotal: session.amount_total ?? null,
-        currency: session.currency ?? "usd",
-      },
-    });
-    console.log(
-      credit.alreadyProcessed
-        ? "Stripe session already credited: " + session.id
-        : "Wallet credited from Stripe session: " + session.id,
+  if (
+    type === "promote" ||
+    type === "membership" ||
+    session.metadata?.coinPackageId
+  ) {
+    console.warn(
+      "[stripe-webhook] Ignoring legacy digital Stripe checkout session",
+      session.id,
+      type || "coins",
     );
-    return;
   }
-
-  try {
-    const amountMoney = session.amount_total ? session.amount_total / 100 : null;
-    const currency = session.currency ?? "usd";
-
-    const { error } = await getDb().rpc("credit_purchase_coins", {
-      p_user_id: userId,
-      p_coins: coins,
-      p_reason: "purchase",
-      p_stripe_session_id: session.id,
-      p_amount_money: amountMoney,
-      p_currency: currency,
-      p_status: "success",
-      p_coin_package_id: coinPackageId,
-    });
-
-    if (error) throw error;
-
-    creditVerifiedPurchase({
-      userId,
-      provider: "stripe",
-      providerTransactionId: session.id,
-      productId: coinPackageId,
-      coins,
-      rawReceipt: session.payment_intent?.toString() || session.id,
-      verification: {
-        source: "stripe_checkout_session",
-        sessionId: session.id,
-        paymentIntentId: session.payment_intent,
-        amountTotal: session.amount_total ?? null,
-        currency,
-      },
-    });
-
-    console.log("Successfully added " + coins + " coins to user " + userId);
-  } catch (err) {
-    console.warn("RPC failed, trying fallback:", err);
-
-    await creditCoinsFallbackUsers(userId, coins);
-
-    await insertPurchaseTransaction({
-      user_id: userId,
-      delta: coins,
-      reason: "purchase",
-      coin_package_id: coinPackageId,
-      amount_money: session.amount_total ? session.amount_total / 100 : null,
-      currency: session.currency ?? "usd",
-      status: "success",
-      stripe_session_id: session.id,
-    });
-  }
+  return;
 }
 
-async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent) {
-  const userId = paymentIntent.metadata?.userId;
-  const coins = parseInt(paymentIntent.metadata?.coins || "0", 10);
-  const coinPackageId = paymentIntent.metadata?.coinPackageId;
-
-  if (!userId || !coins) {
-    console.error("Missing metadata in payment intent:", paymentIntent.metadata);
-    return;
-  }
-
-  if (!getDb()) {
-    const credit = creditVerifiedPurchase({
-      userId,
-      provider: "stripe",
-      providerTransactionId: paymentIntent.id,
-      productId: coinPackageId || "stripe_payment_intent",
-      coins,
-      rawReceipt: paymentIntent.latest_charge?.toString() || paymentIntent.id,
-      verification: {
-        source: "stripe_payment_intent",
-        paymentIntentId: paymentIntent.id,
-        amount: paymentIntent.amount ?? null,
-        currency: paymentIntent.currency ?? "usd",
-      },
-    });
-    console.log(
-      credit.alreadyProcessed
-        ? "Stripe payment intent already credited: " + paymentIntent.id
-        : "Wallet credited from Stripe payment intent: " + paymentIntent.id,
-    );
-    return;
-  }
-
-  const amountMoney = paymentIntent.amount ? paymentIntent.amount / 100 : null;
-  const currency = paymentIntent.currency ?? "usd";
-
-  try {
-    const { error } = await getDb().rpc("credit_purchase_coins", {
-      p_user_id: userId,
-      p_coins: coins,
-      p_reason: "purchase",
-      p_stripe_payment_intent_id: paymentIntent.id,
-      p_amount_money: amountMoney,
-      p_currency: currency,
-      p_status: "success",
-      p_coin_package_id: coinPackageId ?? null,
-    });
-
-    if (error) throw error;
-
-    creditVerifiedPurchase({
-      userId,
-      provider: "stripe",
-      providerTransactionId: paymentIntent.id,
-      productId: coinPackageId ?? "stripe_payment_intent",
-      coins,
-      rawReceipt: paymentIntent.latest_charge?.toString() || paymentIntent.id,
-      verification: {
-        source: "stripe_payment_intent",
-        paymentIntentId: paymentIntent.id,
-        amount: paymentIntent.amount ?? null,
-        currency,
-      },
-    });
-
-    console.log("Successfully added " + coins + " coins to user " + userId);
-  } catch (err) {
-    console.warn("RPC failed, trying fallback:", err);
-
-    await creditCoinsFallbackUsers(userId, coins);
-
-    await insertPurchaseTransaction({
-      user_id: userId,
-      delta: coins,
-      reason: "purchase",
-      coin_package_id: coinPackageId ?? null,
-      amount_money: amountMoney,
-      currency: currency,
-      status: "success",
-      stripe_payment_intent_id: paymentIntent.id,
-    });
-  }
+/** Coin / digital payment intents are disabled; physical shop uses checkout.session.completed. */
+async function handlePaymentIntentSucceeded(_paymentIntent: Stripe.PaymentIntent) {
+  return;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -341,108 +148,20 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
 // ═══════════════════════════════════════════════════════════════
 
 async function handleChargeRefunded(charge: Stripe.Charge) {
-  if (!getDb()) return;
   const paymentIntentId = typeof charge.payment_intent === "string"
     ? charge.payment_intent
     : (charge.payment_intent as any)?.id;
-
-  console.warn(`[CHARGEBACK] Charge refunded: ${charge.id}, PI: ${paymentIntentId}`);
-
-  const db = getDb();
-
-  // Mark the purchase as refunded (do NOT restore coins)
-  if (paymentIntentId) {
-    await db
-      .from("coin_transactions")
-      .update({ status: "refunded" })
-      .eq("stripe_payment_intent_id", paymentIntentId);
-
-    await db
-      .from("purchases")
-      .update({ status: "refunded" })
-      .or(`provider_id.eq.${charge.id},provider_id.eq.${paymentIntentId}`);
-  }
-
-  // Find gift transactions from this user in the refund window and reverse pending earnings
-  const userId = charge.metadata?.userId;
-  if (userId) {
-    // Record chargeback + auto-freeze if threshold reached
-    const { data: abuseResult } = await db.rpc("record_chargeback", {
-      p_user_id: userId,
-      p_reason: "stripe_charge_refunded",
-    });
-    if (abuseResult?.frozen) {
-      console.warn(`[CHARGEBACK] Account ${userId} AUTO-FROZEN after ${abuseResult.chargeback_count} chargebacks`);
-    }
-
-    const { data: recentGifts } = await db
-      .from("gift_transactions")
-      .select("id")
-      .eq("sender_id", userId)
-      .gte("created_at", new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString())
-      .order("created_at", { ascending: false });
-
-    if (recentGifts) {
-      for (const gift of recentGifts) {
-        await db.rpc("reverse_pending_earning", { p_gift_tx_id: gift.id });
-      }
-      console.warn(`[CHARGEBACK] Reversed pending earnings for ${recentGifts.length} gift(s) from user ${userId}`);
-    }
-  }
+  console.warn(
+    `[CHARGEBACK] Charge refunded: ${charge.id}, PI: ${paymentIntentId}, userId: ${charge.metadata?.userId || ""}`,
+  );
 }
 
 async function handleChargeDispute(dispute: Stripe.Dispute) {
-  if (!getDb()) return;
   const chargeId = typeof dispute.charge === "string"
     ? dispute.charge
     : (dispute.charge as any)?.id;
-
-  console.warn(`[DISPUTE] Charge disputed: ${chargeId}, reason: ${dispute.reason}`);
-
-  const db = getDb()!;
-
-  // Mark purchase as disputed
-  if (chargeId) {
-    await db
-      .from("purchases")
-      .update({ status: "disputed" })
-      .eq("provider_id", chargeId);
-  }
-
-  // Same logic: reverse only pending creator earnings
   const paymentIntent = typeof dispute.payment_intent === "string"
     ? dispute.payment_intent
     : (dispute.payment_intent as any)?.id;
-
-  if (paymentIntent) {
-    const { data: tx } = await db
-      .from("coin_transactions")
-      .select("user_id")
-      .eq("stripe_payment_intent_id", paymentIntent)
-      .single();
-
-    if (tx?.user_id) {
-      // Record chargeback + auto-freeze if threshold reached
-      const { data: abuseResult } = await db.rpc("record_chargeback", {
-        p_user_id: tx.user_id,
-        p_reason: "stripe_dispute",
-      });
-      if (abuseResult?.frozen) {
-        console.warn(`[DISPUTE] Account ${tx.user_id} AUTO-FROZEN after ${abuseResult.chargeback_count} chargebacks`);
-      }
-
-      const { data: recentGifts } = await db
-        .from("gift_transactions")
-        .select("id")
-        .eq("sender_id", tx.user_id)
-        .gte("created_at", new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString());
-
-      if (recentGifts) {
-        for (const gift of recentGifts) {
-          await db.rpc("reverse_pending_earning", { p_gift_tx_id: gift.id });
-        }
-        console.warn(`[DISPUTE] Reversed pending earnings for ${recentGifts.length} gift(s)`);
-      }
-    }
-  }
+  console.warn(`[DISPUTE] Charge disputed: ${chargeId}, PI: ${paymentIntent}, reason: ${dispute.reason}`);
 }

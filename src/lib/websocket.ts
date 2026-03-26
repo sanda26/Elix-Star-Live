@@ -140,6 +140,7 @@ class WebSocketService {
     this.token = null;
     this.reconnectAttempts = 0;
     this.pendingMessages = [];
+    this.listeners.clear();
   }
 
   isConnected(): boolean {

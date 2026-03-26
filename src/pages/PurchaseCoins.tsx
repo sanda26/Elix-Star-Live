@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Check, Sparkles, RotateCcw } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { trackEvent } from '../lib/analytics';
-import { isStripeAllowed, platform } from '../lib/platform';
 import {
   purchaseProduct,
   loadProducts as loadIAPProducts,
@@ -12,7 +11,6 @@ import {
   type IAPProductId,
   type IAPProduct,
 } from '../lib/iap';
-import { stripePaymentService, type CoinPackage } from '../lib/stripePaymentService';
 import { showToast } from '../lib/toast';
 import { useAuthStore } from '../store/useAuthStore';
 import { fetchWalletBalance } from '../lib/wallet';
@@ -21,21 +19,14 @@ export default function PurchaseCoins() {
   const navigate = useNavigate();
   const location = useLocation();
   const currentUserId = useAuthStore((s) => s.user?.id ?? null);
-  const [packages, setPackages] = useState<CoinPackage[]>([]);
   const [nativeProducts, setNativeProducts] = useState<IAPProduct[]>([]);
-  const [selectedPackage, setSelectedPackage] = useState<CoinPackage | null>(null);
   const [selectedNativeId, setSelectedNativeId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [walletBalance, setWalletBalance] = useState(0);
-  const isNative = platform.isNative;
 
   useEffect(() => {
-    if (isNative) {
-      loadNativeProducts();
-    } else {
-      loadPackages();
-    }
-  }, [isNative]);
+    loadNativeProducts();
+  }, []);
 
   useEffect(() => {
     if (!currentUserId) {
@@ -69,15 +60,6 @@ export default function PurchaseCoins() {
     }
   };
 
-  const loadPackages = async () => {
-    try {
-      const pkgs = await stripePaymentService.getCoinPackages();
-      setPackages(pkgs);
-    } catch {
-      showToast('Failed to load packages');
-    }
-  };
-
   const loadNativeProducts = async () => {
     try {
       await initializeIAP();
@@ -85,7 +67,6 @@ export default function PurchaseCoins() {
       if (products.length > 0) {
         setNativeProducts(products);
       } else {
-        // Fallback — show products from our config so the page isn't empty
         const fallback: IAPProduct[] = Object.entries(IAP_PRODUCTS).map(
           ([id, meta]) => ({
             id,
@@ -150,42 +131,16 @@ export default function PurchaseCoins() {
     }
   };
 
-  const handleWebPurchase = async (pkg: CoinPackage) => {
-    if (!currentUserId) {
-      showToast('Please log in to purchase coins');
-      navigate('/login');
-      return;
-    }
-
-    setLoading(true);
-    setSelectedPackage(pkg);
-
-    try {
-      trackEvent('purchase_intent', {
-        package_id: pkg.id,
-        coins: pkg.coins,
-        price: pkg.price,
-      });
-
-      if (!isStripeAllowed()) {
-        throw new Error('Purchases are not available on this platform.');
-      }
-
-      const result = await stripePaymentService.processPayment(pkg.id, currentUserId);
-      if (!result.success) throw new Error(result.message);
-    } catch (error) {
-      showToast(error instanceof Error ? error.message : 'Purchase failed. Please try again.');
-    } finally {
-      setLoading(false);
-      setSelectedPackage(null);
-    }
-  };
-
   const handleRestore = async () => {
     try {
       setLoading(true);
-      await restorePurchases();
-      showToast('Purchases restored');
+      const result = await restorePurchases();
+      if (result.restored > 0) {
+        await refreshWalletBalance();
+        showToast(`${result.restored} purchase(s) restored`);
+      } else {
+        showToast('No purchases to restore');
+      }
     } catch {
       showToast('Could not restore purchases');
     } finally {
@@ -202,13 +157,9 @@ export default function PurchaseCoins() {
             <img src="/Icons/Gold power buton.png" alt="Back" className="w-5 h-5" />
           </button>
           <h1 className="text-lg font-bold">Get Coins</h1>
-          {isNative ? (
-            <button onClick={handleRestore} disabled={loading} className="p-2 hover:brightness-125 rounded-full transition" title="Restore purchases">
-              <RotateCcw className="w-5 h-5 text-[#C9A96E]" />
-            </button>
-          ) : (
-            <div className="w-10" />
-          )}
+          <button onClick={handleRestore} disabled={loading} className="p-2 hover:brightness-125 rounded-full transition" title="Restore purchases">
+            <RotateCcw className="w-5 h-5 text-[#C9A96E]" />
+          </button>
         </div>
 
         <div className="px-4 py-6 flex-1 overflow-y-auto">
@@ -229,87 +180,36 @@ export default function PurchaseCoins() {
             )}
           </div>
 
-          {/* Products — Native (iOS/Android) */}
-          {isNative && (
-            <div className="space-y-3 mb-8">
-              {nativeProducts.map((product) => (
-                <button
-                  key={product.id}
-                  onClick={() => handleNativePurchase(product)}
-                  disabled={loading && selectedNativeId === product.id}
-                  className="w-full p-6 rounded-2xl transition relative overflow-hidden bg-white/5 border-2 border-transparent hover:border-[#C9A96E]/40 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="text-left">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Sparkles className="w-6 h-6 text-[#C9A96E]" />
-                        <span className="text-2xl font-bold">{product.coins.toLocaleString()}</span>
-                      </div>
-                      <p className="text-sm text-white/60">{product.title}</p>
+          {/* Products — IAP (all platforms) */}
+          <div className="space-y-3 mb-8">
+            {nativeProducts.map((product) => (
+              <button
+                key={product.id}
+                onClick={() => handleNativePurchase(product)}
+                disabled={loading}
+                className="w-full p-6 rounded-2xl transition relative overflow-hidden bg-white/5 border-2 border-transparent hover:border-[#C9A96E]/40 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="text-left">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Sparkles className="w-6 h-6 text-[#C9A96E]" />
+                      <span className="text-2xl font-bold">{product.coins.toLocaleString()}</span>
                     </div>
-                    <div className="text-right">
-                      <div className="text-2xl font-bold text-[#C9A96E]">
-                        {product.price || 'Loading…'}
-                      </div>
+                    <p className="text-sm text-white/60">{product.title}</p>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-2xl font-bold text-[#C9A96E]">
+                      {product.price || 'Loading…'}
                     </div>
                   </div>
+                </div>
 
-                  {loading && selectedNativeId === product.id && (
-                    <div className="mt-4 text-center text-sm text-white/60">Processing…</div>
-                  )}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {/* Products — Web (Stripe) */}
-          {!isNative && (
-            <div className="space-y-3 mb-8">
-              {packages.map((pkg) => (
-                <button
-                  key={pkg.id}
-                  onClick={() => handleWebPurchase(pkg)}
-                  disabled={loading && selectedPackage?.id === pkg.id}
-                  className={`w-full p-6 rounded-2xl transition relative overflow-hidden ${
-                    pkg.is_popular
-                      ? 'bg-gradient-to-br from-[#C9A96E]/20 to-[#B8943F]/20 border-2 border-[#C9A96E]'
-                      : 'bg-white border-2 border-transparent hover:brightness-125'
-                  } disabled:opacity-50 disabled:cursor-not-allowed`}
-                >
-                  {pkg.is_popular && (
-                    <div className="absolute top-3 right-3 px-3 py-1 bg-[#C9A96E] text-black rounded-full text-xs font-bold">
-                      POPULAR
-                    </div>
-                  )}
-                  <div className="flex items-center justify-between">
-                    <div className="text-left">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Sparkles className="w-6 h-6 text-white" />
-                        <span className="text-2xl font-bold">{formatNumber(pkg.coins)}</span>
-                        {pkg.bonus_coins > 0 && (
-                          <span className="px-2 py-1 bg-[#C9A96E] text-black rounded-full text-xs font-bold">
-                            +{formatNumber(pkg.bonus_coins)} Bonus
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-sm text-white/60">{pkg.name}</p>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-2xl font-bold">${(pkg.price || 0).toFixed(2)}</div>
-                      {pkg.bonus_coins > 0 && (
-                        <div className="text-xs text-white font-semibold">
-                          {Math.round((pkg.bonus_coins / pkg.coins) * 100)}% Bonus
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  {loading && selectedPackage?.id === pkg.id && (
-                    <div className="mt-4 text-center text-sm text-white/60">Processing…</div>
-                  )}
-                </button>
-              ))}
-            </div>
-          )}
+                {loading && selectedNativeId === product.id && (
+                  <div className="mt-4 text-center text-sm text-white/60">Processing…</div>
+                )}
+              </button>
+            ))}
+          </div>
 
           {/* Features */}
           <div className="bg-white/5 rounded-2xl p-6 space-y-4">
@@ -346,11 +246,4 @@ function FeatureItem({ text }: { text: string }) {
       <p className="text-sm text-white/80">{text}</p>
     </div>
   );
-}
-
-function formatNumber(num: number): string {
-  if (num === undefined || num === null) return '0';
-  if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
-  if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
-  return String(num);
 }

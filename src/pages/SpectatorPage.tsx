@@ -39,6 +39,7 @@ import { AvatarRing } from '../components/AvatarRing';
 import { useAuthStore } from '../store/useAuthStore';
 import { apiUrl, getLiveKitUrl } from '../lib/api';
 import { apiStub } from '../lib/apiStub';
+import { platform } from '../lib/platform';
 import { fetchWalletBalance } from '../lib/wallet';
 import ReportModal from '../components/ReportModal';
 import PromotePanel from '../components/PromotePanel';
@@ -95,8 +96,7 @@ export default function SpectatorPage() {
     if (!user?.id) return;
     try {
       const walletCoins = await fetchWalletBalance();
-      const persisted = getPersistedTestCoinsBalance(user.id);
-      setCoinBalance(prev => Math.max(prev, walletCoins, persisted));
+      setCoinBalance(walletCoins);
     } catch {
       // Keep the current balance if the wallet refresh fails.
     }
@@ -275,12 +275,7 @@ export default function SpectatorPage() {
       }
 
       showToast('You are now co-hosting!');
-      setMessages(prev => [...prev, {
-        id: `cohost-${Date.now()}`,
-        username: 'System',
-        text: 'You joined as co-host',
-        isSystem: true,
-      }]);
+      setMessages(prev => { const n = [...prev, { id: `cohost-${Date.now()}`, username: 'System', text: 'You joined as co-host', isSystem: true }]; return n.length > 500 ? n.slice(-300) : n; });
     } catch {
       showToast('Camera access denied');
     }
@@ -637,28 +632,35 @@ export default function SpectatorPage() {
   }, [refreshCoinBalance, showGiftPanel, user?.id]);
 
   const handleSubscribe = async () => {
+    if (!user?.id) {
+      navigate('/login');
+      return;
+    }
     setIsSubscribing(true);
     try {
-      const { data: session } = await apiStub.auth.getSession();
-      if (!user?.id) {
-        navigate('/login');
+      const { purchaseMembership } = await import('../lib/iap');
+      const result = await purchaseMembership();
+      if (!result.success) {
+        if (result.error !== 'Purchase cancelled') {
+          showToast(result.error || 'Membership purchase failed');
+        }
         return;
       }
-      const res = await fetch(apiUrl('/api/create-subscription'), {
+      const authToken = useAuthStore.getState().session?.access_token;
+      await fetch(apiUrl('/api/membership/iap-complete'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.session?.access_token}` },
-        body: JSON.stringify({ creatorId: effectiveStreamId, userId: user.id }),
+        headers: { 'Content-Type': 'application/json', ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}) },
+        credentials: 'include',
+        body: JSON.stringify({
+          transactionId: result.transactionId,
+          receipt: result.receipt || '',
+          provider: platform.isIOS ? 'apple' : 'google',
+          creatorId: effectiveStreamId,
+        }),
       });
-      if (res.ok) {
-        const data = await res.json();
-        const url = data.url;
-        if (url) window.location.href = url;
-        else navigate('/shop');
-      } else {
-        navigate('/shop');
-      }
+      showToast('Membership activated!');
     } catch {
-      navigate('/shop');
+      showToast('Membership purchase failed');
     } finally {
       setIsSubscribing(false);
     }
@@ -744,14 +746,7 @@ export default function SpectatorPage() {
         });
       }
       const joinName = data.username || 'User';
-      setMessages(prev => [...prev, {
-        id: `join-${Date.now()}`,
-        username: joinName,
-        text: 'joined the stream',
-        isSystem: true,
-        level: typeof data.level === 'number' && Number.isFinite(data.level) ? data.level : 1,
-        avatar: typeof data.avatar_url === 'string' ? data.avatar_url : '',
-      }]);
+      setMessages(prev => { const n = [...prev, { id: `join-${Date.now()}`, username: joinName, text: 'joined the stream', isSystem: true, level: typeof data.level === 'number' && Number.isFinite(data.level) ? data.level : 1, avatar: typeof data.avatar_url === 'string' ? data.avatar_url : '' }]; return n.length > 500 ? n.slice(-300) : n; });
       setViewerCount(prev => prev + 1);
     };
 
@@ -771,7 +766,10 @@ export default function SpectatorPage() {
         level: typeof data.level === 'number' && Number.isFinite(data.level) ? data.level : 1,
         avatar: typeof data.avatar === 'string' ? data.avatar : '',
       };
-      setMessages(prev => [...prev, msg]);
+      setMessages(prev => {
+        const next = [...prev, msg];
+        return next.length > 500 ? next.slice(-300) : next;
+      });
     };
 
     const handleGiftSent = (data: any) => {
@@ -787,14 +785,14 @@ export default function SpectatorPage() {
           avatar: typeof data.avatar === 'string' ? data.avatar : '',
           isGift: true,
         };
-        setMessages(prev => [...prev, msg]);
+        setMessages(prev => { const n = [...prev, msg]; return n.length > 500 ? n.slice(-300) : n; });
         if (giftDef.video && giftDef.video.trim()) {
           const raw = giftDef.video;
           const videoUrl =
             raw.startsWith('http://') || raw.startsWith('https://')
               ? raw
               : resolveGiftAssetUrl(raw.startsWith('/') ? raw : `/${raw}`);
-          setGiftQueue(prev => [...prev, { video: videoUrl }]);
+          setGiftQueue(prev => prev.length >= 20 ? prev : [...prev, { video: videoUrl }]);
         }
       }
     };
@@ -1028,7 +1026,7 @@ export default function SpectatorPage() {
       avatar: viewerAvatar,
       isMod: isModerator,
     };
-    setMessages(prev => [...prev, newMsg]);
+    setMessages(prev => { const n = [...prev, newMsg]; return n.length > 500 ? n.slice(-300) : n; });
     websocket.send('chat_message', {
       text: inputValue,
       level: userLevel,
@@ -1053,7 +1051,7 @@ export default function SpectatorPage() {
           raw.startsWith('http://') || raw.startsWith('https://')
             ? raw
             : resolveGiftAssetUrl(raw.startsWith('/') ? raw : `/${raw}`);
-        setGiftQueue(prev => [...prev, { video: videoUrl }]);
+        setGiftQueue(prev => prev.length >= 20 ? prev : [...prev, { video: videoUrl }]);
       }
       return;
     }
@@ -1137,7 +1135,7 @@ export default function SpectatorPage() {
         raw.startsWith('http://') || raw.startsWith('https://')
           ? raw
           : resolveGiftAssetUrl(raw.startsWith('/') ? raw : `/${raw}`);
-      setGiftQueue(prev => [...prev, { video: videoUrl }]);
+      setGiftQueue(prev => prev.length >= 20 ? prev : [...prev, { video: videoUrl }]);
     }
 
     const giftMsg: LiveMessage = {
@@ -1148,7 +1146,7 @@ export default function SpectatorPage() {
       level: newLevel,
       avatar: viewerAvatar,
     };
-    setMessages(prev => [...prev, giftMsg]);
+    setMessages(prev => { const n = [...prev, giftMsg]; return n.length > 500 ? n.slice(-300) : n; });
     websocket.send('gift_sent', {
       giftId: gift.id,
       giftName: gift.name,
@@ -1904,7 +1902,7 @@ export default function SpectatorPage() {
                                 avatar: '/Icons/elix-logo.png',
                                 isSystem: false,
                               };
-                              setMessages(prev => [...prev, newMessage]);
+                              setMessages(prev => { const n = [...prev, newMessage]; return n.length > 500 ? n.slice(-300) : n; });
                               setShowFanClub(false);
                             }}
                           >
@@ -1937,7 +1935,7 @@ export default function SpectatorPage() {
                                     avatar: '/Icons/elix-logo.png',
                                     isSystem: false,
                                   };
-                                  setMessages(prev => [...prev, newMessage]);
+                                  setMessages(prev => { const n = [...prev, newMessage]; return n.length > 500 ? n.slice(-300) : n; });
                                   setShowFanClub(false);
                                 };
                                 reader.readAsDataURL(file);

@@ -12,17 +12,19 @@ import {
   createPromoteCheckoutSession,
   createSubscriptionSession,
   handleGetCoinPackages,
+  createShopItemCheckout,
 } from "./routes/checkout";
 import { handleStripeWebhook } from "./routes/webhook";
 import { handleLiveKitWebhook } from "./routes/livekit-webhook";
 import {
   handleAnalytics,
   handleBlockUser,
-  handleDeleteAccount,
+  handleDeleteAccount as handleDeleteAccountLegacy,
   handleReport,
   handleSendNotification,
   handleVerifyPurchase,
   handlePromoteIAPComplete,
+  handleMembershipIAPComplete,
 } from "./routes/misc";
 import {
   handleForYouFeed,
@@ -107,6 +109,17 @@ import {
   handleMintTestCoins,
   handleSpendTestCoinsForScore,
 } from "./routes/testCoins";
+import {
+  handleListShopItems,
+  handleCreateShopItem,
+} from "./routes/shopItems";
+import {
+  handleEnsureChatThread,
+  handleListChatThreads,
+  handleGetChatThread,
+  handleListChatMessages,
+  handlePostChatMessage,
+} from "./routes/chat";
 import { addFeedSubscriber, removeFeedSubscriber, broadcastToFeedSubscribers } from "./feedBroadcast";
 import { logger } from "./lib/logger";
 
@@ -279,15 +292,28 @@ app.post("/api/profiles/:userId/follow", handleFollow);
 app.post("/api/profiles/:userId/unfollow", handleUnfollow);
 app.post("/api/profiles", handleSeedProfile);
 
-app.post("/api/delete-account", handleDeleteAccount);
+app.post("/api/delete-account", handleDeleteAccountLegacy);
 app.post("/api/report", handleReport);
 app.post("/api/live/moderation/check", handleLiveModerationCheck);
 app.post("/api/send-notification", handleSendNotification);
 app.post("/api/verify-purchase", handleVerifyPurchase);
 app.post("/api/iap/verify", handleVerifyPurchase);
 app.post("/api/promote-iap-complete", handlePromoteIAPComplete);
+app.post("/api/membership/iap-complete", handleMembershipIAPComplete);
 app.get("/api/wallet", handleGetWallet);
 app.get("/api/wallet/transactions", handleGetWalletTransactions);
+
+// Shop listings (JSON store; images via Bunny through /api/media/upload-file)
+app.get("/api/shop/items", handleListShopItems);
+app.post("/api/shop/items", handleCreateShopItem);
+app.post("/api/shop/checkout", createShopItemCheckout);
+
+// Direct messages (JSON store)
+app.post("/api/chat/threads/ensure", handleEnsureChatThread);
+app.get("/api/chat/threads", handleListChatThreads);
+app.get("/api/chat/threads/:threadId/messages", handleListChatMessages);
+app.post("/api/chat/threads/:threadId/messages", handlePostChatMessage);
+app.get("/api/chat/threads/:threadId", handleGetChatThread);
 
 // Feed & Recommendation API
 app.get("/api/feed/foryou", handleForYouFeed);

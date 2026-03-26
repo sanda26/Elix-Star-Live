@@ -105,6 +105,14 @@ export function getWalletSummary(userId: string) {
   };
 }
 
+/** Sync local JSON cache to match Neon after server-side balance changes */
+export function setUserBalanceCache(userId: string, coins: number) {
+  if (!userId) return;
+  const state = loadState();
+  state.balances[userId] = Math.max(0, Math.floor(coins));
+  saveState();
+}
+
 export function listWalletTransactions(userId: string, limit = 50) {
   const state = loadState();
 

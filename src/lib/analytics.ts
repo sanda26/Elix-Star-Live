@@ -1,4 +1,5 @@
 // Analytics Event Tracking (PostHog/Firebase compatible)
+import { apiUrl } from './api';
 
 export type AnalyticsEvent =
   // Video events
@@ -167,9 +168,10 @@ class AnalyticsService {
     if (import.meta.env.DEV) return;
 
     // Send to backend for server-side storage
-    fetch('/api/analytics/track', {
+    fetch(apiUrl('/api/analytics/track'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({ event, properties }),
     }).catch(() => {
       // Fail silently - analytics shouldn't break app

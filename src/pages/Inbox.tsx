@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { apiStub } from '../lib/apiStub';
 import { useAuthStore } from '../store/useAuthStore';
+import { apiUrl } from '../lib/api';
 import { Heart, UserPlus, Search, ShoppingBag, Archive, MicOff, Plus, Sword, X, ChevronRight, Trash2 } from 'lucide-react';
 import { AvatarRing } from '../components/AvatarRing';
 import { showToast } from '../lib/toast';
@@ -53,7 +54,7 @@ interface SuggestedUser {
 
 export default function Inbox() {
   const navigate = useNavigate();
-  const { user } = useAuthStore();
+  const { user, session } = useAuthStore();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [followers, setFollowers] = useState<FollowerProfile[]>([]);
@@ -81,14 +82,9 @@ export default function Inbox() {
   };
   const isThreadDeleted = (id: string): boolean => deletedThreadIdsRef.current.has(id) || getDeletedThreadIds().has(id);
 
-  const loadCurrentUser = async () => {
-    const { data } = await apiStub.auth.getUser();
-    setCurrentUserId(data.user?.id || null);
-  };
-
   useEffect(() => {
-    loadCurrentUser();
-  }, []);
+    setCurrentUserId(user?.id || null);
+  }, [user?.id]);
 
   useEffect(() => {
     if (!currentUserId) return;
@@ -119,38 +115,35 @@ export default function Inbox() {
     };
     const fetchConversations = async () => {
       try {
-        const { data } = await apiStub
-          .from('chat_threads')
-          .select('*')
-          .or(`user1_id.eq.${currentUserId},user2_id.eq.${currentUserId}`)
-          .order('last_at', { ascending: false })
-          .limit(50);
+        const token = session?.access_token;
+        const res = await fetch(apiUrl('/api/chat/threads'), {
+          credentials: 'include',
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (!res.ok) return;
+        const body = (await res.json().catch(() => ({}))) as {
+          threads?: Array<{
+            id: string;
+            user1_id: string;
+            user2_id: string;
+            last_at: string;
+            last_message: string;
+            otherUser: { username: string; display_name: string | null; avatar_url: string | null };
+            hasUnread?: boolean;
+          }>;
+        };
+        const data = body.threads;
         if (data) {
-          const mapped = await Promise.all(data.map(async (t: any) => {
-            const otherId = t.user1_id === currentUserId ? t.user2_id : t.user1_id;
-            const { data: profile } = await apiStub
-              .from('profiles')
-              .select('username, display_name, avatar_url')
-              .eq('user_id', otherId)
-              .single();
-            const otherUser = profile ? { username: profile.username || 'User', display_name: profile.display_name || null, avatar_url: profile.avatar_url } : { username: 'User', display_name: null, avatar_url: null };
-            const { count } = await apiStub
-              .from('messages')
-              .select('*', { count: 'exact', head: true })
-              .eq('thread_id', t.id)
-              .neq('sender_id', currentUserId)
-              .eq('read', false);
-            return {
-              id: t.id,
-              user1_id: t.user1_id,
-              user2_id: t.user2_id,
-              last_at: t.last_at || t.created_at,
-              otherUser,
-              lastMessage: t.last_message || '',
-              hasUnread: (count ?? 0) > 0,
-            };
+          const mapped = data.map((t) => ({
+            id: t.id,
+            user1_id: t.user1_id,
+            user2_id: t.user2_id,
+            last_at: t.last_at,
+            otherUser: t.otherUser,
+            lastMessage: t.last_message || '',
+            hasUnread: t.hasUnread ?? false,
           }));
-          const filtered = mapped.filter((c: any) => {
+          const filtered = mapped.filter((c) => {
             const name = (c.otherUser?.display_name || c.otherUser?.username || '').trim().toLowerCase();
             if (name === 'user' || name === '') return false;
             if (getDeletedThreadIds().has(c.id)) return false;
@@ -217,7 +210,7 @@ export default function Inbox() {
     fetchConversations();
     fetchFollowers();
     fetchSuggestedUsers();
-  }, [currentUserId]);
+  }, [currentUserId, session?.access_token]);
 
   const isRealUser = (f: FollowerProfile) => {
     const name = (f.display_name || f.username || '').trim().toLowerCase();
@@ -414,13 +407,9 @@ export default function Inbox() {
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     if (!window.confirm('Delete this conversation? Messages will be removed.')) return;
-                                    apiStub.from('chat_threads').delete().eq('id', conv.id).then(({ error }) => {
-                                        if (error) showToast('Could not delete');
-                                        else {
-                                          addDeletedThreadId(conv.id);
-                                          setConversations((prev) => prev.filter((c) => c.id !== conv.id));
-                                        }
-                                    });
+                                    addDeletedThreadId(conv.id);
+                                    setConversations((prev) => prev.filter((c) => c.id !== conv.id));
+                                    showToast('Conversation removed');
                                 }}
                                 className="w-10 h-10 rounded-full bg-[#13151A] border border-[#C9A96E]/40 flex items-center justify-center flex-shrink-0 active:scale-95 transition-transform hover:border-red-500/50 hover:bg-red-500/10"
                                 title="Delete conversation"
@@ -456,13 +445,9 @@ export default function Inbox() {
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     if (!window.confirm('Delete this conversation? Messages will be removed.')) return;
-                                    apiStub.from('chat_threads').delete().eq('id', conv.id).then(({ error }) => {
-                                        if (error) showToast('Could not delete');
-                                        else {
-                                          addDeletedThreadId(conv.id);
-                                          setConversations((prev) => prev.filter((c) => c.id !== conv.id));
-                                        }
-                                    });
+                                    addDeletedThreadId(conv.id);
+                                    setConversations((prev) => prev.filter((c) => c.id !== conv.id));
+                                    showToast('Conversation removed');
                                 }}
                                 className="w-10 h-10 rounded-full bg-[#13151A] border border-[#C9A96E]/40 flex items-center justify-center flex-shrink-0 active:scale-95 transition-transform hover:border-red-500/50 hover:bg-red-500/10"
                                 title="Delete conversation"

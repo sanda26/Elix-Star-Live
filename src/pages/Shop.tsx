@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { apiStub } from '../lib/apiStub';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
-import { Plus, X, Camera, Tag, MessageCircle, Search } from 'lucide-react';
+import { apiUrl } from '../lib/api';
+import { bunnyUpload } from '../lib/bunnyStorage';
+import { Plus, X, Camera, Tag, MessageCircle, Search, ShoppingCart } from 'lucide-react';
 import { AvatarRing } from '../components/AvatarRing';
 import { showToast } from '../lib/toast';
 
@@ -24,11 +25,13 @@ interface ShopItem {
 
 export default function Shop() {
   const navigate = useNavigate();
-  const { user } = useAuthStore();
+  const location = useLocation();
+  const { user, session } = useAuthStore();
   const [items, setItems] = useState<ShopItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [activeFilter, setActiveFilter] = useState<'all' | 'clothing' | 'electronics' | 'accessories' | 'other'>('all');
+  const [buyingItemId, setBuyingItemId] = useState<string | null>(null);
 
   const [newTitle, setNewTitle] = useState('');
   const [newDescription, setNewDescription] = useState('');
@@ -40,35 +43,30 @@ export default function Shop() {
 
   useEffect(() => { fetchItems(); }, [activeFilter]);
 
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const purchaseState = params.get('purchase');
+    if (!purchaseState) return;
+    if (purchaseState === 'success') {
+      showToast('Purchase completed!');
+      fetchItems();
+    } else if (purchaseState === 'cancelled') {
+      showToast('Purchase cancelled');
+    }
+    navigate('/shop', { replace: true });
+  }, [location.search]);
+
   const fetchItems = async () => {
     setLoading(true);
     try {
-      let query = apiStub
-        .from('shop_items')
-        .select('*')
-        .eq('is_active', true)
-        .order('created_at', { ascending: false });
-
-      if (activeFilter !== 'all') {
-        query = query.eq('category', activeFilter);
-      }
-
-      const { data: rows, error } = await query.limit(50);
-      if (error) throw error;
-      const list = (rows as ShopItem[]) || [];
-      if (list.length > 0) {
-        const userIds = [...new Set(list.map((i: ShopItem) => i.user_id).filter(Boolean))];
-        const { data: profiles } = await apiStub
-          .from('profiles')
-          .select('user_id, username, display_name, avatar_url')
-          .in('user_id', userIds);
-        const byId: Record<string, { username: string; display_name: string | null; avatar_url: string | null }> = {};
-        (profiles || []).forEach((p: { user_id: string; username?: string; display_name?: string | null; avatar_url?: string | null }) => {
-          byId[p.user_id] = { username: p.username || 'user', display_name: p.display_name || null, avatar_url: p.avatar_url || null };
-        });
-        list.forEach((item: ShopItem) => { item.seller = byId[item.user_id]; });
-      }
-      setItems(list);
+      const params = new URLSearchParams({ limit: '50' });
+      if (activeFilter !== 'all') params.set('category', activeFilter);
+      const res = await fetch(apiUrl(`/api/shop/items?${params}`), {
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error('fetch failed');
+      const body = (await res.json().catch(() => ({}))) as { items?: ShopItem[] };
+      setItems(Array.isArray(body.items) ? body.items : []);
     } catch {
       setItems([]);
     }
@@ -93,24 +91,34 @@ export default function Shop() {
       if (newImage) {
         const ext = newImage.name.split('.').pop() || 'jpg';
         const path = `shop/${user.id}/${Date.now()}.${ext}`;
-        const { error: uploadErr } = await apiStub.storage.from('shop-images').upload(path, newImage);
-        if (!uploadErr) {
-          const { data: urlData } = apiStub.storage.from('shop-images').getPublicUrl(path);
-          imageUrl = urlData.publicUrl;
+        try {
+          const up = await bunnyUpload(newImage, path, newImage.type || 'image/jpeg');
+          imageUrl = up.cdnUrl;
+        } catch {
+          showToast('Image upload failed — listing without photo');
         }
       }
 
-      const { error: insertError } = await apiStub.from('shop_items').insert({
-        user_id: user.id,
-        title: newTitle.trim(),
-        description: newDescription.trim(),
-        price: Math.round(parseFloat(newPrice)),
-        image_url: imageUrl,
-        category: newCategory,
-        is_active: true,
+      const token = session?.access_token;
+      const res = await fetch(apiUrl('/api/shop/items'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          title: newTitle.trim(),
+          description: newDescription.trim(),
+          price: Math.round(parseFloat(newPrice)),
+          image_url: imageUrl,
+          category: newCategory,
+        }),
       });
-
-      if (insertError) throw insertError;
+      if (!res.ok) {
+        const err = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(err.error || 'Failed to create listing');
+      }
 
       showToast('Item listed!');
       setShowCreate(false);
@@ -128,23 +136,58 @@ export default function Shop() {
     setCreating(false);
   };
 
+  const handleBuyItem = async (itemId: string) => {
+    if (!user?.id) {
+      showToast('Please log in to purchase');
+      return;
+    }
+    setBuyingItemId(itemId);
+    try {
+      const token = session?.access_token;
+      const res = await fetch(apiUrl('/api/shop/checkout'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        credentials: 'include',
+        body: JSON.stringify({ itemId }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
+      if (!res.ok) {
+        showToast(data.error || 'Failed to start checkout');
+        return;
+      }
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        showToast('No checkout URL returned');
+      }
+    } catch {
+      showToast('Checkout failed');
+    } finally {
+      setBuyingItemId(null);
+    }
+  };
+
   const contactSeller = async (sellerId: string) => {
     if (!user?.id || sellerId === user.id) return;
-    const { data: existing } = await apiStub
-      .from('chat_threads')
-      .select('id')
-      .or(`and(user1_id.eq.${user.id},user2_id.eq.${sellerId}),and(user1_id.eq.${sellerId},user2_id.eq.${user.id})`)
-      .limit(1)
-      .single();
-    if (existing?.id) {
-      navigate(`/inbox/${existing.id}`);
-    } else {
-      const { data: newThread } = await apiStub
-        .from('chat_threads')
-        .insert({ user1_id: user.id, user2_id: sellerId })
-        .select('id')
-        .single();
-      if (newThread?.id) navigate(`/inbox/${newThread.id}`);
+    const token = session?.access_token;
+    try {
+      const res = await fetch(apiUrl('/api/chat/threads/ensure'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        credentials: 'include',
+        body: JSON.stringify({ otherUserId: sellerId }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { threadId?: string };
+      if (res.ok && data.threadId) navigate(`/inbox/${data.threadId}`);
+      else showToast('Could not open chat');
+    } catch {
+      showToast('Could not open chat');
     }
   };
 
@@ -218,7 +261,7 @@ export default function Shop() {
                 )}
                 <div className="p-3">
                   <h3 className="text-sm font-bold text-gold-metallic truncate">{item.title}</h3>
-                  <p className="text-lg font-extrabold text-white mt-0.5">${item.price.toFixed(2)}</p>
+                  <p className="text-lg font-extrabold text-white mt-0.5">£{item.price.toFixed(2)}</p>
                   {item.description && (
                     <p className="text-[11px] text-white/40 mt-1 line-clamp-2">{item.description}</p>
                   )}
@@ -230,9 +273,19 @@ export default function Shop() {
                       </span>
                     </button>
                     {item.user_id !== user?.id && (
-                      <button onClick={() => contactSeller(item.user_id)} className="p-1.5 rounded-full bg-[#C9A96E]/20" title="Message seller">
-                        <MessageCircle size={14} className="text-[#C9A96E]" />
-                      </button>
+                      <>
+                        <button
+                          onClick={() => handleBuyItem(item.id)}
+                          disabled={buyingItemId === item.id}
+                          className="p-1.5 rounded-full bg-[#C9A96E]/30 disabled:opacity-50"
+                          title="Buy"
+                        >
+                          <ShoppingCart size={14} className="text-[#C9A96E]" />
+                        </button>
+                        <button onClick={() => contactSeller(item.user_id)} className="p-1.5 rounded-full bg-[#C9A96E]/20" title="Message seller">
+                          <MessageCircle size={14} className="text-[#C9A96E]" />
+                        </button>
+                      </>
                     )}
                   </div>
                 </div>
@@ -290,7 +343,7 @@ export default function Shop() {
                 <input
                   value={newPrice}
                   onChange={e => setNewPrice(e.target.value)}
-                  placeholder="Price ($)"
+                  placeholder="Price (£)"
                   type="number"
                   min="0"
                   step="0.01"

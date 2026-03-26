@@ -3,6 +3,7 @@ import { Share2, Menu, Lock, Play, Heart, Camera, Sparkles, LogOut, UserPlus, X,
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
 import { apiStub } from '../lib/apiStub';
+import { apiUrl } from '../lib/api';
 import { showToast } from '../lib/toast';
 import { uploadAvatar } from '../lib/avatarUpload';
 import { AvatarRing } from '../components/AvatarRing';
@@ -36,7 +37,7 @@ export default function Profile() {
   const { userId: routeUserId } = useParams<{ userId?: string }>();
   const [searchParams] = useSearchParams();
   const tabParam = searchParams.get('tab');
-  const { user, updateUser, signOut } = useAuthStore();
+  const { user, updateUser, signOut, session } = useAuthStore();
   
   const [activeTab, setActiveTab] = useState<'videos' | 'shop' | 'private' | 'reposts' | 'saved' | 'liked'>(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -303,14 +304,31 @@ export default function Profile() {
         query = query.in('id', videoIds);
       } else if (activeTab === 'shop') {
         try {
-          const { data: shopData } = await apiStub
-            .from('shop_items')
-            .select('id, title, price, image_url')
-            .eq('user_id', effectiveUserId)
-            .eq('is_active', true)
-            .order('created_at', { ascending: false });
-          setShopItems(shopData || []);
-        } catch { setShopItems([]); }
+          const params = new URLSearchParams({
+            user_id: effectiveUserId,
+            limit: '50',
+          });
+          const res = await fetch(apiUrl(`/api/shop/items?${params}`), {
+            credentials: 'include',
+            headers: session?.access_token
+              ? { Authorization: `Bearer ${session.access_token}` }
+              : {},
+          });
+          const body = (await res.json().catch(() => ({}))) as {
+            items?: { id: string; title: string; price: number; image_url: string | null }[];
+          };
+          const rows = Array.isArray(body.items) ? body.items : [];
+          setShopItems(
+            rows.map((r) => ({
+              id: r.id,
+              title: r.title,
+              price: r.price,
+              image_url: r.image_url,
+            })),
+          );
+        } catch {
+          setShopItems([]);
+        }
         setVideos([]);
         setVideosLoading(false);
         return;
@@ -697,7 +715,20 @@ export default function Profile() {
               {isFollowing ? 'Following' : 'Follow'}
             </button>
             <button
-              onClick={() => navigate(`/inbox`)}
+              onClick={async () => {
+                try {
+                  const token = session?.access_token;
+                  const res = await fetch(apiUrl('/api/chat/threads/ensure'), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+                    credentials: 'include',
+                    body: JSON.stringify({ otherUserId: profileData?.id || userId }),
+                  });
+                  const data = (await res.json().catch(() => ({}))) as { threadId?: string };
+                  if (res.ok && data.threadId) navigate(`/inbox/${data.threadId}`);
+                  else navigate('/inbox');
+                } catch { navigate('/inbox'); }
+              }}
               className="flex-1 max-w-[160px] py-2.5 bg-white/10 border border-white/10 rounded-md text-sm font-bold text-white"
             >
               Message

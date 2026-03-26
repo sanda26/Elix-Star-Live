@@ -8,6 +8,7 @@ import { useSafetyStore } from '../store/useSafetyStore';
 import ReportModal from './ReportModal';
 import { showToast } from '../lib/toast';
 import { apiStub } from '../lib/apiStub';
+import { apiUrl } from '../lib/api';
 
 interface User {
   id: string;
@@ -103,12 +104,13 @@ export default function UserProfileModal({ isOpen, onClose, user, onFollow }: Us
   const handleBlockUser = async () => {
     const token = session?.access_token;
     if (token) {
-      await fetch('/api/block-user', {
+      await fetch(apiUrl('/api/block-user'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
+        credentials: 'include',
         body: JSON.stringify({ blockedUserId: user.id, action: 'block' }),
       }).catch(() => null);
     }
@@ -145,12 +147,13 @@ export default function UserProfileModal({ isOpen, onClose, user, onFollow }: Us
             onClick={async () => {
               const token = session?.access_token;
               if (token) {
-                await fetch('/api/block-user', {
+                await fetch(apiUrl('/api/block-user'), {
                   method: 'POST',
                   headers: {
                     'Content-Type': 'application/json',
                     Authorization: `Bearer ${token}`,
                   },
+                  credentials: 'include',
                   body: JSON.stringify({ blockedUserId: user.id, action: 'unblock' }),
                 }).catch(() => null);
               }

@@ -2,50 +2,46 @@
 
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Capacitor } from '@capacitor/core';
 import { App as CapacitorApp } from '@capacitor/app';
 
 export const useDeepLinks = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Handle app:// deep links
+    if (Capacitor.getPlatform() === 'web') return;
+
+    let cancelled = false;
+    let handle: { remove: () => Promise<void> } | undefined;
+
     CapacitorApp.addListener('appUrlOpen', (event: { url: string }) => {
+      if (cancelled) return;
       const url = event.url;
       
-      // Parse elixstar://video/123 or app://video/123
       const videoMatch = url.match(/(?:elixstar|app):\/\/video\/([^?]+)/);
-      if (videoMatch) {
-        navigate(`/video/${videoMatch[1]}`);
-        return;
-      }
+      if (videoMatch) { navigate(`/video/${videoMatch[1]}`); return; }
       
-      // Parse elixstar://user/username
       const userMatch = url.match(/(?:elixstar|app):\/\/user\/([^?]+)/);
-      if (userMatch) {
-        navigate(`/profile/${userMatch[1]}`);
-        return;
-      }
+      if (userMatch) { navigate(`/profile/${userMatch[1]}`); return; }
       
-      // Parse elixstar://live/roomId
       const liveMatch = url.match(/(?:elixstar|app):\/\/live\/([^?]+)/);
-      if (liveMatch) {
-        navigate(`/live/${liveMatch[1]}`);
-        return;
-      }
+      if (liveMatch) { navigate(`/live/${liveMatch[1]}`); return; }
       
-      // Parse elixstar://hashtag/tag
       const hashtagMatch = url.match(/(?:elixstar|app):\/\/hashtag\/([^?]+)/);
-      if (hashtagMatch) {
-        navigate(`/hashtag/${hashtagMatch[1]}`);
-        return;
-      }
+      if (hashtagMatch) { navigate(`/hashtag/${hashtagMatch[1]}`); return; }
       
-      // Default: go to feed
       navigate('/feed');
+    }).then((h) => {
+      if (cancelled) {
+        void h.remove();
+      } else {
+        handle = h;
+      }
     });
 
     return () => {
-      CapacitorApp.removeAllListeners();
+      cancelled = true;
+      void handle?.remove();
     };
   }, [navigate]);
 };
@@ -57,8 +53,9 @@ export const generateDeepLink = (type: 'video' | 'user' | 'live' | 'hashtag', id
 
 // Generate web fallback link
 export const generateWebLink = (type: 'video' | 'user' | 'live' | 'hashtag', id: string): string => {
-  const baseUrl = 'https://elixstar.app'; // Replace with your domain
-  return `${baseUrl}/${type}/${id}`;
+  const baseUrl = 'https://elixstar.app';
+  const pathSegment = type === 'user' ? 'profile' : type;
+  return `${baseUrl}/${pathSegment}/${id}`;
 };
 
 // Generate universal link (tries deep link, falls back to web)

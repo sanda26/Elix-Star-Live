@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { apiUrl } from "../lib/api";
+import { websocket } from "../lib/websocket";
 
 interface User {
   id: string;
@@ -494,6 +495,7 @@ export const useAuthStore = create<AuthStore>()(persist((set, get) => ({
     } catch {
       // Ignore network errors on sign-out
     }
+    websocket.disconnect();
     set({
       session: null,
       user: null,
